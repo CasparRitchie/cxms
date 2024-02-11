@@ -1,8 +1,8 @@
 {
   "name": "CXMS Website",
   "description": "A single page website for Customer Experience Management Systems (CXMS) business.",
-  "repository": "https://github.com/yourusername/cams",
-  # "logo": "https://yourdomain.com/logo.png",
+  "repository": "https://github.com/CasparRitchie/cxms",
+  # "logo": "https://cxms.fr/logo.png",
   "keywords": ["cxms", "consultancy", "optimization", "efficiency", "process mapping"],
   "env": {
     "NODE_ENV": {
