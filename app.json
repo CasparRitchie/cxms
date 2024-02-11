@@ -1,0 +1,31 @@
+{
+  "name": "CXMS Website",
+  "description": "A single page website for Customer Experience Management Systems (CXMS) business.",
+  "repository": "https://github.com/yourusername/cams",
+  # "logo": "https://yourdomain.com/logo.png",
+  "keywords": ["cxms", "consultancy", "optimization", "efficiency", "process mapping"],
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-static" // This is for static sites; adjust if using a different stack
+    }
+  ],
+  "scripts": {
+    "postdeploy": "echo 'The app has been deployed'"
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "stack": "heroku-20" // Specify your Heroku stack version if needed; check Heroku's documentation for the latest stacks
+}
