@@ -18,9 +18,10 @@ http {
     keepalive_timeout 5;
 
     location / {
-      root /cxms/app; # This should point to the root directory where your static files are located in your Heroku app
-        index index.html;
-        try_files $uri $uri/ /index.html;
-    }
+  root /app;
+  index index.html;
+  try_files $uri $uri/ /index.html;
+}
+
   }
 }
