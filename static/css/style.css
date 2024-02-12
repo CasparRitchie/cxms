@@ -39,23 +39,21 @@
 
 .text-container {
   position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  width: 100%;
   padding: 10px;
   background-color: rgba(255, 255, 255, 0.8);
-  border-radius: 10px;
+  border-radius: 0 0 10px 10px;
   color: white; /* Text color */
 }
 
-
 .image-container {
-  height: 50%; /* Adjust as needed */
+  height: 100%; /* Adjust as needed */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
-
 
 .carousel-button {
   position: absolute;
