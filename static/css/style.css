@@ -2,7 +2,7 @@
   height: 80vh; /* Adjust as needed */
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-end; /* Align content to the bottom */
   align-items: center;
   text-align: center;
   background-size: cover;
@@ -10,9 +10,15 @@
   background-repeat: no-repeat;
 }
 
+@media (max-width: 768px) {
+  .container {
+    background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
+  }
+}
+
 .carousel {
   position: relative;
-  height: 80%; /* Adjust as needed */
+  height: 80%;
   width: 80%;
   max-width: 600px; /* Adjust as needed */
   margin: 0 auto;
@@ -25,8 +31,23 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: 100%; /* Adjust as needed */
+  background-size: cover;
+  background-position: top; /* Align image to the top */
+  background-repeat: no-repeat;
 }
+
+.text-container {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 10px;
+  color: white; /* Text color */
+}
+
 
 .image-container {
   height: 50%; /* Adjust as needed */
@@ -35,12 +56,6 @@
   background-repeat: no-repeat;
 }
 
-.text-container {
-  height: 50%; /* Adjust as needed */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
 
 .carousel-button {
   position: absolute;
