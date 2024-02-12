@@ -2,19 +2,12 @@
   height: 80vh; /* Adjust as needed */
   display: flex;
   flex-direction: column;
-  justify-content: flex-end; /* Align content to the bottom */
+  justify-content: center;
   align-items: center;
   text-align: center;
   background-size: cover;
   background-image: url('/static/images/cxms-background-landscape-1.jpg'); /* Desktop background */
   background-repeat: no-repeat;
-}
-
-
-@media (max-width: 768px) {
-  .container {
-    background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
-  }
 }
 
 .carousel {
@@ -32,24 +25,21 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%; /* Adjust as needed */
+  height: 100%;
+}
+
+.image-container {
+  height: 50%; /* Adjust as needed */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
 
-
-
-.carousel-content {
-  position: absolute;
-  height: 80vh;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 10px;
-  background-color: rgba(255, 255, 255, 0.8);
-  border-radius: 10px;
-  color: #3f3d56; /* Text color */
+.text-container {
+  height: 50%; /* Adjust as needed */
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .carousel-button {
@@ -66,26 +56,9 @@
 }
 
 .carousel-button.left {
-  left: 10px;
+  left: 5px; /* Adjust as needed */
 }
 
 .carousel-button.right {
-  right: 10px;
-}
-
-.carousel-button::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 10px;
-  height: 10px;
-  border-top: 2px solid #4e4ce6; /* Purple border */
-  border-right: 2px solid #4e4ce6; /* Purple border */
-  transform: rotate(45deg);
-}
-
-.carousel-button.right::after {
-  transform: rotate(-135deg);
+  right: 5px; /* Adjust as needed */
 }
