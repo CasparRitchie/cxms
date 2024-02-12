@@ -1,5 +1,5 @@
 .container {
-  height: 60vh; /* Adjust as needed */
+  height: 80vh; /* Adjust as needed */
   display: flex;
   flex-direction: column;
   justify-content: flex-end; /* Align content to the bottom */
@@ -30,11 +30,12 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: 80%; /* Adjust as needed */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
+
 
 .carousel-content {
   position: absolute;
