@@ -18,7 +18,7 @@
 
 .carousel {
   position: relative;
-  height: 80vh;
+  height: 800px;
   width: 80%;
   max-width: 600px; /* Adjust as needed */
   margin: 0 auto;
