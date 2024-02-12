@@ -1,20 +1,21 @@
-body, html {
-  height: 100%;
-  margin: 0;
-  font-family: Arial, sans-serif;
-  color: white;
-  background-color: #3f3d56; /* Dark blue/purple background */
-}
-
 .container {
-  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
+  background-size: cover;
+  background-image: url('/static/images/cxms-background-landscape-1.jpg'); /* Desktop background */
+  background-repeat: no-repeat;
 }
+
+@media (max-width: 768px) {
+  .container {
+    background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
+  }
+}
+
 
 .carousel {
   position: relative;
@@ -84,17 +85,4 @@ body, html {
 
 .carousel-button.right::after {
   transform: rotate(-135deg);
-}
-
-
-@media (max-width: 768px) {
-  .container {
-    background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
-  }
-}
-
-
-/* Display the first item by default */
-.carousel-item:first-child {
-  display: block;
 }
