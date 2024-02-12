@@ -1,44 +1,53 @@
 body, html {
-    height: 100%;
-    margin: 0;
-    font-family: Arial, sans-serif;
-    color: white;
-    background-color: #3f3d56; /* Dark blue/purple background */
+  height: 100%;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  color: white;
+  background-color: #3f3d56; /* Dark blue/purple background */
 }
 
 .container {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background-image: url('/static/images/cxms-background-landscape-1.jpg'); /* Desktop background */
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+@media (max-width: 768px) {
+  .container {
+    background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
+  }
 }
 
 .carousel {
-    margin: 20px;
-    padding: 20px;
-    background-color: rgba(0, 0, 0, 0.5); /* Slightly transparent black */
-    border-radius: 10px;
+  margin: 20px;
+  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.5); /* Slightly transparent black */
+  border-radius: 10px;
 }
 
 .carousel-item {
-    display: none;
-    font-size: 20px;
+  display: none;
+  font-size: 20px;
 }
 
 .carousel-button {
-    margin: 10px;
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
-    border: none;
-    border-radius: 5px;
-    background-color: #4e4ce6; /* Lighter blue for buttons */
-    color: white;
+  margin: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  border-radius: 5px;
+  background-color: #4e4ce6; /* Lighter blue for buttons */
+  color: white;
 }
 
 /* Display the first item by default */
 .carousel-item:first-child {
-    display: block;
+  display: block;
 }
