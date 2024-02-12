@@ -10,6 +10,7 @@
   background-repeat: no-repeat;
 }
 
+
 @media (max-width: 768px) {
   .container {
     background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
@@ -18,7 +19,7 @@
 
 .carousel {
   position: relative;
-  height: 800px;
+  height: 80%; /* Adjust as needed */
   width: 80%;
   max-width: 600px; /* Adjust as needed */
   margin: 0 auto;
@@ -31,11 +32,12 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 80%; /* Adjust as needed */
+  height: 100%; /* Adjust as needed */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
+
 
 
 .carousel-content {
