@@ -40,6 +40,7 @@
 
 .carousel-content {
   position: absolute;
+  height: 80vh;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
