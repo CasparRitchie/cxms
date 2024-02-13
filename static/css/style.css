@@ -21,7 +21,7 @@
   height: 80%;
   width: 80%;
   max-width: 600px; /* Adjust as needed */
-  margin: 0 auto;
+  margin: auto;
   overflow: hidden;
   border-radius: 10px;
 }
@@ -43,7 +43,7 @@
   left: 0;
   width: 100%;
   padding: 10px;
-  /* background-color: rgba(0, 0, 0, 0.99); */
+  background-color: rgba(33, 14, 238, 0.612);
   border-radius: 0 0 10px 10px;
   color: white; /* Text color */
 }
