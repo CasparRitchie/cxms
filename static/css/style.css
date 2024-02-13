@@ -1,5 +1,5 @@
 .container {
-  height: 80vh; /* Adjust as needed */
+  height: 100vh; /* Adjust as needed */
   display: flex;
   flex-direction: column;
   justify-content: flex-end; /* Align content to the bottom */
