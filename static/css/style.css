@@ -44,6 +44,27 @@
   display: block; /* Show only active item */
 }
 
+.carousel-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border: 2px solid #4e4ce6; /* Purple border */
+  background-color: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.carousel-button.left {
+  left: 5px; /* Adjust as needed */
+}
+
+.carousel-button.right {
+  right: 5px; /* Adjust as needed */
+}
+
 .text-container {
   position: absolute;
   bottom: 0;
