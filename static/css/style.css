@@ -49,46 +49,6 @@
   bottom: 0;
   left: 0;
   width: 100%;
-  padding: 10px;
-  background-color: rgba(33, 14, 238, 0.612);
-  border-radius: 0 0 10px 10px;
-  color: white; /* Text color */
-}
-
-.image-container {
-  height: 100%; /* Adjust as needed */
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.carousel-button {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 40px;
-  height: 40px;
-  border: 2px solid #4e4ce6; /* Purple border */
-  background-color: transparent;
-  border-radius: 50%;
-  cursor: pointer;
-  z-index: 1;
-}
-
-.carousel-button.left {
-  left: 5px; /* Adjust as needed */
-}
-
-.carousel-button.right {
-  right: 5px; /* Adjust as needed */
-}
-
-
-.text-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
   padding: 20px;
   background-color: rgba(33, 14, 238, 0.612);
   border-radius: 0 0 10px 10px;
@@ -117,9 +77,9 @@
 }
 
 .color-square {
-    width: 50px;
-    height: 50px;
-    margin-right: 10px;
-    display: inline-block;
-    border: 1px solid #000;
+  width: 50px;
+  height: 50px;
+  margin-right: 10px;
+  display: inline-block;
+  border: 1px solid #000;
 }
