@@ -64,6 +64,12 @@
 .carousel-button.right {
   right: 5px; /* Adjust as needed */
 }
+.image-container {
+  height: 100%; /* Adjust as needed */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
 
 .text-container {
   position: absolute;
