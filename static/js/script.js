@@ -5,33 +5,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function showItem(idx) {
       items.forEach((item, i) => {
-          item.style.display = i === idx ? 'block' : 'none';
+          if (i === idx) {
+              item.classList.add('active');
+          } else {
+              item.classList.remove('active');
+          }
       });
   }
 
-  const prevButton = document.getElementById('prev');
-  if (prevButton) {
-      prevButton.addEventListener('click', () => {
-          if (currentIdx > 0) {
-              currentIdx -= 1;
-          } else {
-              currentIdx = total - 1;
-          }
-          showItem(currentIdx);
-      });
-  }
+  document.getElementById('prev').addEventListener('click', () => {
+      currentIdx = (currentIdx - 1 + total) % total;
+      showItem(currentIdx);
+  });
 
-  const nextButton = document.getElementById('next');
-  if (nextButton) {
-      nextButton.addEventListener('click', () => {
-          if (currentIdx < total - 1) {
-              currentIdx += 1;
-          } else {
-              currentIdx = 0;
-          }
-          showItem(currentIdx);
-      });
-  }
+  document.getElementById('next').addEventListener('click', () => {
+      currentIdx = (currentIdx + 1) % total;
+      showItem(currentIdx);
+  });
 
   showItem(currentIdx); // Initialize carousel to show the first item
 });

@@ -1,4 +1,4 @@
-/* .container {
+.container {
   height: 100vh; /* Adjust as needed */
   display: flex;
   flex-direction: column;
@@ -37,6 +37,11 @@
   background-size: cover;
   background-position: top; /* Align image to the top */
   background-repeat: no-repeat;
+  display: none; /* Hide all items by default */
+}
+
+.carousel-item.active {
+  display: block; /* Show only active item */
 }
 
 .text-container {
