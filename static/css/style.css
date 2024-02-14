@@ -82,3 +82,36 @@
 .carousel-button.right {
   right: 5px; /* Adjust as needed */
 }
+
+
+.text-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 20px;
+  background-color: rgba(33, 14, 238, 0.612);
+  border-radius: 0 0 10px 10px;
+  color: white; /* Text color */
+  font-family: 'Roboto', sans-serif; /* Apply Roboto font */
+  font-size: 16px; /* Adjust font size as needed */
+  line-height: 1.5; /* Adjust line height for better readability */
+}
+
+.text-container h3 {
+  font-size: 24px; /* Adjust heading size as needed */
+  margin-bottom: 10px; /* Add space below headings */
+}
+
+.text-container p {
+  margin-bottom: 10px; /* Add space between paragraphs */
+}
+
+.text-container ul {
+  list-style: none; /* Remove bullet points */
+  padding: 0; /* Remove default padding */
+}
+
+.text-container ul li {
+  margin-bottom: 5px; /* Add space between list items */
+}
