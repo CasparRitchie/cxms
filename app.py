@@ -12,6 +12,12 @@ def style_guide():
     # Serve the style-guide.html file
     return render_template('style-guide.html')
 
+@app.route('/games')
+def games():
+    # Serve the games.html file
+    return render_template('games.html')
+
+
 if __name__ == "__main__":
     # Run the application
     app.run(debug=True)

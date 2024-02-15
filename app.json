@@ -2,7 +2,7 @@
   "name": "CXMS Website",
   "description": "A single page website for Customer Experience Management Solutions (CXMS) business.",
   "repository": "https://github.com/CasparRitchie/cxms",
-  // "logo": "https://cxms.fr/logo.png",
+  "logo": "https://cxms.fr/static/images/cxms-favicon1",
   "keywords": ["cxms", "consultancy", "optimization", "efficiency", "process mapping"],
   "env": {
     "NODE_ENV": {
