@@ -1,6 +1,10 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
+import os
+import random
+
 
 app = Flask(__name__)
+
 
 @app.route('/')
 def index():
@@ -12,6 +16,7 @@ def style_guide():
     # Serve the style-guide.html file
     return render_template('style-guide.html')
 
+
 @app.route('/games')
 def games():
     # Serve the games.html file
@@ -21,6 +26,7 @@ def games():
 def country_data():
     directory = "static/images/games-images/country-outlines"
     files = os.listdir(directory)
+    print("files are ****************")
     # Ensure we have enough files to select from
     if len(files) < 5:
         return jsonify({"error": "Not enough countries available."}), 500
