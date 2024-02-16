@@ -65,8 +65,9 @@
   right: 5px; /* Adjust as needed */
 }
 .image-container {
-  height: 100%; /* Adjust as needed */
-  background-size: cover;
+  height: auto; /* Adjust as needed */
+  /* background-size: cover; */
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
 }
