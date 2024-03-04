@@ -21,14 +21,37 @@ body, html {
   padding-top: 50px; /* Add padding to the top */
 }
 
+#item-country-game{
+  object-fit: contain;
+}
+
+#country-outline {
+  max-width: 100%; /* Ensures image does not overflow its container */
+  height: auto; /* Maintains the aspect ratio */
+  object-fit: contain; /* Ensures the full image is visible, might adjust based on your specific needs */
+}
+
+#game-container{
+  width: 90%;
+  height: auto; /* Adjust height automatically */
+  justify-content: flex-start; /* Align to the top on smaller screens */
+  border-color: red;
+  padding: 2px;
+  margin: auto;
+}
+
 @media screen and (max-width: 768px) {
   .image-container {
-    width: 90vw; /* Takes up more of the screen on smaller devices */
-    height: auto; /* Adjust height automatically to maintain aspect ratio */
-    justify-content: flex-start; /* Align to the top on smaller screens */
-
+    width: 100%; /* Use full width on smaller screens */
+    padding-top: 56.25%; /* 16:9 aspect ratio, adjust as needed */
+    background-size: cover; /* Cover ensures the container is fully covered, adjust to 'contain' if you want to see the whole image */
+    background-position: center; /* Keeps the image centered */
+  }
+  .container {
+    background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
   }
 }
+
 
 @media screen and (orientation: portrait) {
   .image-container {
@@ -62,8 +85,9 @@ body, html {
 }
 
 .carousel-item.active {
-  display: block; /* Show only active item */
-}
+  display: flex; /* Changed to flex to center the image */
+  justify-content: center;
+  align-items: center;}
 
 .carousel-button {
   position: absolute;
@@ -103,11 +127,12 @@ body, html {
   }
 }
 
+
 .text-container {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 100%;
+  width: 90%;
   padding: 20px;
   background-color: rgba(33, 14, 238, 0.612);
   border-radius: 0 0 10px 10px;

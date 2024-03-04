@@ -12,6 +12,11 @@
   padding-top: 50px; /* Add padding to the top */
 }
 
+@media (max-width: 768px) {
+  .container {
+    background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
+  }
+}
 
 .carousel {
   position: relative;
@@ -76,11 +81,6 @@
 
 }
 
-@media (max-width: 768px) {
-  .container {
-    background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
-  }
-}
 @media (max-width: 768px) {
   .image-container {
     width: calc(100vw - 20px); /* Smaller margin for smaller devices */
