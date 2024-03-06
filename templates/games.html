@@ -33,11 +33,19 @@
         </div>
     </div>
         <div class="carousel-item">
-            <div class="image-container" style="background-image: url('../static/images/optimisation-background1.jpeg');">
-            </div>
+          <div class="carousel-item" id="item-population-game">
             <div class="text-container">
-                Guess the country
+              <h3>Population Game</h3>
+              <div id="population-game-container">
+                <p id="population-question">Which country has the highest population?</p>
+                <div id="country-options">
+                  <img id="country1-img" src="" alt="Country 1" style="cursor: pointer; width: 200px; height: 100px;">
+                  <img id="country2-img" src="" alt="Country 2" style="cursor: pointer; width: 200px; height: 100px;">
+                </div>
+                <p>Score: <span id="population-score-value">0</span></p>
+              </div>
             </div>
+          </div>
         </div>
         <div class="carousel-item">
             <div class="image-container" style="background-image: url('../static/images/efficiency-background1.jpeg');">
@@ -62,6 +70,7 @@
 
     <script src="../static/js/script.js"></script>
     <script src="../static/js/country-game.js"></script>
+    <script src="../static/js/population-game.js"></script>
 
 </body>
 </html>
