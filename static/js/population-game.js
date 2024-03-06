@@ -248,7 +248,7 @@ function loadNewChallenge() {
   const country2 = countriesData[indices[1]];
 
   const img1 = document.getElementById('country1-img');
-  console.log("country1")
+  console.log(country1); // Corrected line
   img1.src = country1.image_path;
   img1.onclick = () => submitAnswer(country1, country2);
 
@@ -258,14 +258,15 @@ function loadNewChallenge() {
 }
 
 function submitAnswer(selectedCountry, otherCountry) {
-  if (selectedCountry.population > otherCountry.population) {
+  // Use bracket notation to access properties with spaces in their names
+  if (parseInt(selectedCountry["2023 population"]) > parseInt(otherCountry["2023 population"])) {
     alert('Correct!');
     popscore++;
   } else {
     alert('Incorrect!');
   }
   // Update score and possibly load a new challenge
-  document.getElementById('score-value').textContent = popscore;
+  document.getElementById('population-score-value').textContent = popscore; // Make sure this ID matches your HTML
 
   loadNewChallenge();
 }
