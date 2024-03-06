@@ -17,10 +17,6 @@ function loadNewChallenge() {
   const country1 = countriesData[indices[0]];
   const country2 = countriesData[indices[1]];
 
-  // Update the UI with these countries
-  // You'll need to adapt this to fit how you're rendering countries and images in your HTML
-
-  // For example, updating images and setting click events on them
   const img1 = document.getElementById('country1-img');
   img1.src = country1.image_path;
   img1.onclick = () => submitAnswer(country1, country2);
@@ -28,8 +24,6 @@ function loadNewChallenge() {
   const img2 = document.getElementById('country2-img');
   img2.src = country2.image_path;
   img2.onclick = () => submitAnswer(country2, country1);
-
-  // Similarly, update the text or any other elements you have
 }
 
 function submitAnswer(selectedCountry, otherCountry) {

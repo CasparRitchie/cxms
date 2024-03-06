@@ -167,3 +167,55 @@ body, html {
   display: inline-block;
   border: 1px solid #000;
 }
+
+
+
+
+/* Population Game Specific Styles */
+
+#population-game-container {
+  width: 90%; /* Consistent with game-container */
+  margin: auto; /* Center within its parent */
+  padding: 20px; /* Space inside the container */
+  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background for readability */
+  border-radius: 10px; /* Rounded corners */
+  color: white; /* Text color for visibility */
+}
+
+#population-question {
+  font-size: 20px; /* Larger question text */
+  margin-bottom: 20px; /* More space below the question */
+}
+
+#country-options {
+  display: flex; /* Align images side by side */
+  justify-content: space-around; /* Space out the images */
+  margin-bottom: 20px; /* Space below the images before the score */
+}
+
+#country-options img {
+  cursor: pointer; /* Indicate that the images are clickable */
+  width: auto; /* Maintain original aspect ratio */
+  max-width: 45%; /* Max width to fit side by side in container */
+  height: auto; /* Auto height to maintain aspect ratio */
+  border: 2px solid #fff; /* White border for visibility */
+  border-radius: 5px; /* Rounded corners for images */
+}
+
+/* Score style updates for consistency */
+#population-score-value {
+  font-weight: bold; /* Make the score visually prominent */
+}
+
+/* Additional media query adjustments for responsiveness */
+@media screen and (max-width: 768px) {
+  #country-options {
+    flex-direction: column; /* Stack images vertically on smaller screens */
+  }
+
+  #country-options img {
+    max-width: 90%; /* Larger images on small screens */
+    margin: auto; /* Center images */
+    margin-bottom: 10px; /* Space between images */
+  }
+}
