@@ -214,8 +214,8 @@ body, html {
   }
 
   #country-options img {
-    max-width: 90%; /* Larger images on small screens */
-    margin: auto; /* Center images */
-    margin-bottom: 10px; /* Space between images */
+    width: 200px; /* Fixed width */
+    height: auto; /* Height adjusts to maintain aspect ratio */
+    object-fit: contain; /* Ensures the image is scaled correctly to fit */
   }
 }
