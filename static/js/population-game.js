@@ -243,6 +243,7 @@ function loadNewChallenge() {
     let r = Math.floor(Math.random() * countriesData.length);
     if(indices.indexOf(r) === -1) indices.push(r);
   }
+}
 
   const country1 = countriesData[indices[0]];
   const country2 = countriesData[indices[1]];
