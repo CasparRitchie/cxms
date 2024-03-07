@@ -248,7 +248,7 @@ function loadNewChallenge() {
   const country2 = countriesData[indices[1]];
 
   const img1 = document.getElementById('country1-img');
-  console.log(country1); // Corrected line
+  console.log(country1.image_path);
   img1.src = country1.image_path;
   img1.onclick = () => submitAnswer(country1, country2);
 
