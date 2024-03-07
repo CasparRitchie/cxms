@@ -212,10 +212,4 @@ body, html {
   #country-options {
     flex-direction: column; /* Stack images vertically on smaller screens */
   }
-
-  #country-options img {
-    width: 200px; /* Fixed width */
-    height: auto; /* Height adjusts to maintain aspect ratio */
-    object-fit: contain; /* Ensures the image is scaled correctly to fit */
-  }
 }
