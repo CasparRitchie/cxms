@@ -29,7 +29,7 @@ def country_data():
     print("files are ****************")
     # Ensure we have enough files to select from
     if len(files) < 5:
-        return jsonify({"error": "Not enough countries available."}), 500
+        return jsonify({"error" : "Not enough countries available."}), 500
 
     selected_files = random.sample(files, 5)  # Randomly pick 5 countries
     # Choose one country to be the correct answer
