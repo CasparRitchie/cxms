@@ -247,15 +247,20 @@ function loadNewChallenge() {
   const country1 = countriesData[indices[0]];
   const country2 = countriesData[indices[1]];
 
-  const img1 = document.getElementById('country1-img');
-  console.log(country1.image_path);
-  img1.src = country1.image_path;
-  img1.onclick = () => submitAnswer(country1, country2);
+    // Display country names along with images
+    const countryName1 = document.getElementById('country1-name');
+    const img1 = document.getElementById('country1-img');
+    countryName1.textContent = country1.country; // Set country name
+    img1.src = country1.image_path;
+    img1.alt = "Flag of " + country1.country; // Accessibility improvement
+    img1.onclick = () => submitAnswer(country1, country2);
 
-  const img2 = document.getElementById('country2-img');
-  img2.src = country2.image_path;
-  img2.onclick = () => submitAnswer(country2, country1);
-}
+    const countryName2 = document.getElementById('country2-name');
+    const img2 = document.getElementById('country2-img');
+    countryName2.textContent = country2.country; // Set country name
+    img2.src = country2.image_path;
+    img2.alt = "Flag of " + country2.country; // Accessibility improvement
+    img2.onclick = () => submitAnswer(country2, country1);
 
 function submitAnswer(selectedCountry, otherCountry) {
   // Use bracket notation to access properties with spaces in their names
