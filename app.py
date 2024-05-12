@@ -44,12 +44,11 @@ def country_data():
     return jsonify(game_data)
 
 
-from flask import request
+from flask import Flask, request, render_template, jsonify
 
 @app.route('/compound-interest', methods=['GET', 'POST'])
 def compound_interest():
     if request.method == 'POST':
-        # Extract data from posted form
         initial_investment = float(request.form.get('initialInvestment', 0))
         monthly_contribution = float(request.form.get('monthlyContribution', 0))
         years = int(request.form.get('years', 0))
@@ -57,20 +56,30 @@ def compound_interest():
         frequency = int(request.form.get('frequency', 1))
         variance_range = float(request.form.get('varianceRange', 0))
 
-        # Calculate compound interest
+        # Map frequency value to actual number of compounding periods per year
+        frequency_map = {
+            '1': 1,  # Annually
+            '2': 2,  # Semi-Annually
+            '4': 4,  # Quarterly
+            '12': 12,  # Monthly
+            '365': 365  # Daily
+        }
+        comp_periods = frequency_map.get(str(frequency), 1)
+
+        # Calculate compound interest for varied rates
         final_amounts = {}
         rates = [annual_rate + i for i in range(-int(variance_range), int(variance_range) + 1)]
         for rate in rates:
             final_amount = initial_investment
-            for _ in range(years * frequency):
-                final_amount += monthly_contribution
-                final_amount *= (1 + (rate / 100) / frequency)
+            for _ in range(years * comp_periods):
+                final_amount += monthly_contribution / comp_periods
+                final_amount *= (1 + (rate / 100) / comp_periods)
             final_amounts[f"Rate {rate}%"] = round(final_amount, 2)
 
         return jsonify(final_amounts)
 
-    # Serve the compound-interest.html file for GET request
     return render_template('compound-interest.html')
+
 
 
 
