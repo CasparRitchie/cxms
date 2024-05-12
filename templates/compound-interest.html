@@ -4,15 +4,37 @@
 <meta charset="UTF-8">
 <title>Compound Interest Calculator</title>
 <link rel="stylesheet" href="https://assets-global.website-files.com/65f3c63ea0ca2d5ac2085d14/css/think-outside-agency.webflow.bc2b59ffe.css">
+<style>
+    /* Additional custom CSS for responsiveness */
+    .calculator-container {
+        max-width: 600px;
+        margin: auto;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 767px) {
+        .calculator-container {
+            margin: 20px;
+            padding: 10px;
+        }
+        .form-field {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    }
+</style>
 </head>
 <body>
 <div class="section">
-    <div class="container">
+    <div class="container calculator-container">
         <h1>Compound Interest Calculator</h1>
         <form id="interestForm" class="form-block w-form">
-            <!-- Example input fields with Webflow styles -->
             <input type="number" name="initialInvestment" class="form-field w-input" placeholder="Initial Investment" required>
-            <!-- Add other fields similarly, and adjust based on Webflow's class names -->
+            <input type="number" name="monthlyContribution" class="form-field w-input" placeholder="Monthly Contribution" required>
+            <input type="number" name="years" class="form-field w-input" placeholder="Length of Time in Years" required>
+            <input type="number" name="annualRate" class="form-field w-input" placeholder="Estimated Interest Rate" required>
+            <input type="number" name="varianceRange" class="form-field w-input" placeholder="Interest Rate Variance Range" required>
             <select name="frequency" class="form-field w-select">
                 <option value="1">Annually</option>
                 <option value="2">Semi-Annually</option>
