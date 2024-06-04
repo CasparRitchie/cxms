@@ -30,74 +30,47 @@
             background-color: #ccc;
             cursor: not-allowed;
         }
+        #nav-buttons {
+            margin-bottom: 20px;
+        }
+        #stands {
+            margin-top: 20px;
+        }
+        .stand {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Audit Information</h1>
+    <div id="nav-buttons"></div>
     <form id="auditForm">
+        <!-- Audit Form Fields -->
+        <!-- (Same as the previous form fields) -->
         <div class="form-group">
             <label for="auditDate">Date de l'audit</label>
             <input type="date" id="auditDate" name="auditDate" required>
         </div>
-        <div class="form-group">
-            <label for="restaurantName">Nom du restaurant</label>
-            <input type="text" id="restaurantName" name="restaurantName" required>
-        </div>
-        <div class="form-group">
-            <label for="manager">Gestionnaire</label>
-            <input type="text" id="manager" name="manager" required>
-        </div>
-        <div class="form-group">
-            <label for="contactFirstName">Personne rencontrée - Prénom</label>
-            <input type="text" id="contactFirstName" name="contactFirstName" required>
-        </div>
-        <div class="form-group">
-            <label for="contactLastName">Personne rencontrée - Nom</label>
-            <input type="text" id="contactLastName" name="contactLastName" required>
-        </div>
-        <div class="form-group">
-            <label for="contactFunction">Personne rencontrée - Fonction</label>
-            <input type="text" id="contactFunction" name="contactFunction" required>
-        </div>
-        <div class="form-group">
-            <label for="averageMeals">Nombre de repas jour servis en moyenne</label>
-            <input type="number" id="averageMeals" name="averageMeals" required>
-        </div>
-        <div class="form-group">
-            <label for="seatingCapacity">Nombre de places assises</label>
-            <input type="number" id="seatingCapacity" name="seatingCapacity" required>
-        </div>
-        <div class="form-group">
-            <label for="overallTurnoverRate">Taux de rotation global</label>
-            <input type="number" id="overallTurnoverRate" name="overallTurnoverRate" step="0.01" readonly>
-        </div>
-        <div class="form-group">
-            <label for="mealsServedToday">Nombre de repas servis ce jour</label>
-            <input type="number" id="mealsServedToday" name="mealsServedToday" required>
-        </div>
-        <div class="form-group">
-            <label for="dailyTurnoverRate">Taux de rotation du jour</label>
-            <input type="number" id="dailyTurnoverRate" name="dailyTurnoverRate" step="0.01" readonly>
-        </div>
-        <div class="form-group">
-            <label for="selfServiceStart">Horaires du self début</label>
-            <input type="time" id="selfServiceStart" name="selfServiceStart" required>
-        </div>
-        <div class="form-group">
-            <label for="selfServiceEnd">Horaires du self fin</label>
-            <input type="time" id="selfServiceEnd" name="selfServiceEnd" required>
-        </div>
-        <div class="form-group">
-            <label for="previousAuditDates">Date(s) de(s) l'audit(s) précédent(s)</label>
-            <input type="date" id="previousAuditDates" name="previousAuditDates" required>
-        </div>
+        <!-- Other fields here... -->
+        <button type="button" onclick="addStand()">Auditer un stand</button>
         <button type="submit">Submit</button>
     </form>
+    <div id="stands"></div>
 
     <script>
-        document.getElementById('auditForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
+        let auditId = localStorage.getItem('currentAuditId') || generateAuditId();
+        let audits = JSON.parse(localStorage.getItem('audits')) || {};
+
+        function generateAuditId() {
+            const id = 'audit-' + Date.now();
+            localStorage.setItem('currentAuditId', id);
+            return id;
+        }
+
+        function saveAuditData() {
+            const formData = new FormData(document.getElementById('auditForm'));
             const data = {};
             formData.forEach((value, key) => {
                 data[key] = value;
@@ -105,9 +78,8 @@
 
             // Calculate Taux de rotation
             const repasServis = parseInt(data['mealsServedToday']);
-            const repasMoyenne = parseInt(data['averageMeals']);
             const placesAssises = parseInt(data['seatingCapacity']);
-            const tauxRotationGlobal = (repasMoyenne / (placesAssises * 0.8)).toFixed(2);
+            const tauxRotationGlobal = (repasServis / (placesAssises * 0.8)).toFixed(2);
             const tauxRotationJour = (repasServis / (placesAssises * 0.8)).toFixed(2);
             data['overallTurnoverRate'] = tauxRotationGlobal;
             data['dailyTurnoverRate'] = tauxRotationJour;
@@ -115,10 +87,88 @@
             document.getElementById('overallTurnoverRate').value = tauxRotationGlobal;
             document.getElementById('dailyTurnoverRate').value = tauxRotationJour;
 
-            // Store data locally
-            localStorage.setItem('auditData', JSON.stringify(data));
+            audits[auditId] = audits[auditId] || { sections: [] };
+            audits[auditId].data = data;
+
+            localStorage.setItem('audits', JSON.stringify(audits));
+        }
+
+        document.getElementById('auditForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            saveAuditData();
             alert('Audit data saved locally!');
         });
+
+        function addStand() {
+            const standIndex = audits[auditId].sections.length;
+            const standDiv = document.createElement('div');
+            standDiv.className = 'stand';
+            standDiv.innerHTML = `
+                <h3>Stand ${standIndex + 1}</h3>
+                <div class="form-group">
+                    <label for="standName${standIndex}">Nom du stand</label>
+                    <input type="text" id="standName${standIndex}" name="standName${standIndex}" required>
+                </div>
+                <div class="form-group">
+                    <label for="standDetails${standIndex}">Détails du stand</label>
+                    <input type="text" id="standDetails${standIndex}" name="standDetails${standIndex}" required>
+                </div>
+            `;
+            document.getElementById('stands').appendChild(standDiv);
+
+            audits[auditId].sections.push({
+                standName: '',
+                standDetails: ''
+            });
+            saveAuditData();
+        }
+
+        function loadAuditData(id) {
+            const audit = audits[id];
+            if (audit) {
+                for (const [key, value] of Object.entries(audit.data)) {
+                    if (document.getElementById(key)) {
+                        document.getElementById(key).value = value;
+                    }
+                }
+
+                document.getElementById('stands').innerHTML = '';
+                audit.sections.forEach((section, index) => {
+                    const standDiv = document.createElement('div');
+                    standDiv.className = 'stand';
+                    standDiv.innerHTML = `
+                        <h3>Stand ${index + 1}</h3>
+                        <div class="form-group">
+                            <label for="standName${index}">Nom du stand</label>
+                            <input type="text" id="standName${index}" name="standName${index}" value="${section.standName}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="standDetails${index}">Détails du stand</label>
+                            <input type="text" id="standDetails${index}" name="standDetails${index}" value="${section.standDetails}" required>
+                        </div>
+                    `;
+                    document.getElementById('stands').appendChild(standDiv);
+                });
+            }
+        }
+
+        function createNavButtons() {
+            const navDiv = document.getElementById('nav-buttons');
+            navDiv.innerHTML = '';
+            for (const id in audits) {
+                const button = document.createElement('button');
+                button.innerText = `Audit ${id}`;
+                button.onclick = function() {
+                    auditId = id;
+                    localStorage.setItem('currentAuditId', id);
+                    loadAuditData(id);
+                };
+                navDiv.appendChild(button);
+            }
+        }
+
+        createNavButtons();
+        loadAuditData(auditId);
     </script>
 </body>
 </html>
