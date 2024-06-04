@@ -47,13 +47,62 @@
     <h1>Audit Information</h1>
     <div id="nav-buttons"></div>
     <form id="auditForm">
-        <!-- Audit Form Fields -->
-        <!-- (Same as the previous form fields) -->
         <div class="form-group">
             <label for="auditDate">Date de l'audit</label>
             <input type="date" id="auditDate" name="auditDate" required>
         </div>
-        <!-- Other fields here... -->
+        <div class="form-group">
+            <label for="restaurantName">Nom du restaurant</label>
+            <input type="text" id="restaurantName" name="restaurantName" required>
+        </div>
+        <div class="form-group">
+            <label for="manager">Gestionnaire</label>
+            <input type="text" id="manager" name="manager" required>
+        </div>
+        <div class="form-group">
+            <label for="contactFirstName">Personne rencontrée - Prénom</label>
+            <input type="text" id="contactFirstName" name="contactFirstName" required>
+        </div>
+        <div class="form-group">
+            <label for="contactLastName">Personne rencontrée - Nom</label>
+            <input type="text" id="contactLastName" name="contactLastName" required>
+        </div>
+        <div class="form-group">
+            <label for="contactFunction">Personne rencontrée - Fonction</label>
+            <input type="text" id="contactFunction" name="contactFunction" required>
+        </div>
+        <div class="form-group">
+            <label for="averageMeals">Nombre de repas jour servis en moyenne</label>
+            <input type="number" id="averageMeals" name="averageMeals" required>
+        </div>
+        <div class="form-group">
+            <label for="seatingCapacity">Nombre de places assises</label>
+            <input type="number" id="seatingCapacity" name="seatingCapacity" required>
+        </div>
+        <div class="form-group">
+            <label for="overallTurnoverRate">Taux de rotation global</label>
+            <input type="number" id="overallTurnoverRate" name="overallTurnoverRate" step="0.01" readonly>
+        </div>
+        <div class="form-group">
+            <label for="mealsServedToday">Nombre de repas servis ce jour</label>
+            <input type="number" id="mealsServedToday" name="mealsServedToday" required>
+        </div>
+        <div class="form-group">
+            <label for="dailyTurnoverRate">Taux de rotation du jour</label>
+            <input type="number" id="dailyTurnoverRate" name="dailyTurnoverRate" step="0.01" readonly>
+        </div>
+        <div class="form-group">
+            <label for="selfServiceStart">Horaires du self début</label>
+            <input type="time" id="selfServiceStart" name="selfServiceStart" required>
+        </div>
+        <div class="form-group">
+            <label for="selfServiceEnd">Horaires du self fin</label>
+            <input type="time" id="selfServiceEnd" name="selfServiceEnd" required>
+        </div>
+        <div class="form-group">
+            <label for="previousAuditDates">Date(s) de(s) l'audit(s) précédent(s)</label>
+            <input type="date" id="previousAuditDates" name="previousAuditDates">
+        </div>
         <button type="button" onclick="addStand()">Auditer un stand</button>
         <button type="submit">Submit</button>
     </form>
@@ -78,8 +127,9 @@
 
             // Calculate Taux de rotation
             const repasServis = parseInt(data['mealsServedToday']);
+            const repasMoyenne = parseInt(data['averageMeals']);
             const placesAssises = parseInt(data['seatingCapacity']);
-            const tauxRotationGlobal = (repasServis / (placesAssises * 0.8)).toFixed(2);
+            const tauxRotationGlobal = (repasMoyenne / (placesAssises * 0.8)).toFixed(2);
             const tauxRotationJour = (repasServis / (placesAssises * 0.8)).toFixed(2);
             data['overallTurnoverRate'] = tauxRotationGlobal;
             data['dailyTurnoverRate'] = tauxRotationJour;
@@ -113,6 +163,7 @@
                     <label for="standDetails${standIndex}">Détails du stand</label>
                     <input type="text" id="standDetails${standIndex}" name="standDetails${standIndex}" required>
                 </div>
+                <button type="button" onclick="goToStandDetails(${standIndex})">Détails du stand</button>
             `;
             document.getElementById('stands').appendChild(standDiv);
 
@@ -121,6 +172,10 @@
                 standDetails: ''
             });
             saveAuditData();
+        }
+
+        function goToStandDetails(index) {
+            window.location.href = `stand-details.html?auditId=${auditId}&standIndex=${index}`;
         }
 
         function loadAuditData(id) {
@@ -146,6 +201,7 @@
                             <label for="standDetails${index}">Détails du stand</label>
                             <input type="text" id="standDetails${index}" name="standDetails${index}" value="${section.standDetails}" required>
                         </div>
+                        <button type="button" onclick="goToStandDetails(${index})">Détails du stand</button>
                     `;
                     document.getElementById('stands').appendChild(standDiv);
                 });
@@ -156,19 +212,19 @@
             const navDiv = document.getElementById('nav-buttons');
             navDiv.innerHTML = '';
             for (const id in audits) {
-                const button = document.createElement('button');
-                button.innerText = `Audit ${id}`;
-                button.onclick = function() {
-                    auditId = id;
-                    localStorage.setItem('currentAuditId', id);
-                    loadAuditData(id);
-                };
-                navDiv.appendChild(button);
-            }
-        }
+                        const button = document.createElement('button');
+                        button.innerText = `Audit ${id}`;
+                        button.onclick = function() {
+                            auditId = id;
+                            localStorage.setItem('currentAuditId', id);
+                            loadAuditData(id);
+                        };
+                        navDiv.appendChild(button);
+                    }
+                }
 
-        createNavButtons();
-        loadAuditData(auditId);
-    </script>
-</body>
-</html>
+                createNavButtons();
+                loadAuditData(auditId);
+            </script>
+        </body>
+    </html>
