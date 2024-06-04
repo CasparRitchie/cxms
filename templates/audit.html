@@ -105,8 +105,9 @@
 
             // Calculate Taux de rotation
             const repasServis = parseInt(data['mealsServedToday']);
+            const repasMoyenne = parseInt(data['averageMeals']);
             const placesAssises = parseInt(data['seatingCapacity']);
-            const tauxRotationGlobal = (repasServis / (placesAssises * 0.8)).toFixed(2);
+            const tauxRotationGlobal = (repasMoyenne / (placesAssises * 0.8)).toFixed(2);
             const tauxRotationJour = (repasServis / (placesAssises * 0.8)).toFixed(2);
             data['overallTurnoverRate'] = tauxRotationGlobal;
             data['dailyTurnoverRate'] = tauxRotationJour;
