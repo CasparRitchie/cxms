@@ -11,6 +11,11 @@ def index():
     # Serve the index.html file
     return render_template('index.html')
 
+@app.route('/audit')
+def audit():
+    # Serve the index.html file
+    return render_template('audit.html')
+
 @app.route('/style-guide')
 def style_guide():
     # Serve the style-guide.html file

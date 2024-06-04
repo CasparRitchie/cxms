@@ -1,0 +1,30 @@
+Field,Value,Details,Comments,Prénom,Nom,Fonction,Processed Value,Start Time,End Time
+,,Précisions utiles,,,,,,,
+Date de l'audit,jj/mm/aa,Par défaut date du jour (mais modifiable),,,,,,,
+Nom du restaurant,,,,,,,,,
+Gestionnaire,,"Si pas de Société de Restauration Collective => inquer :
+auto géré",,,,,,,
+Personne rencontrée 1,,"Menu déroulant avec les différentes fonctions possibles
+:
+- gérant,
+- gérant adjoint,
+- chef de cuisine,","Voyez-vous
+d'autres fonctions à
+ajouter ?",,,,,,
+,Prénom Nom Fonction,,,,,,Prénom Nom Fonction,,
+,Prénom Nom Fonction,,,,,,Prénom Nom Fonction,,
+,Prénom Nom Fonction,,,,,,Prénom Nom Fonction,,
+"Nombre de repas jour servis
+en moyenne",0 Repas,,,,,,,,
+Nombre de places assises,0 places,,,,,,,,
+Taux de rotation global,formuledecalcul,"Formule de calcul :
+nb repas servis / (nb places assises x 0,8)",,,,,,,
+"Nombre de repas servis ce
+jour",0 Repas,"Info reprise dans l'onglet ""salle à manger"" pour
+déterminer le confort pour les convives",,,,,0 Repas,,
+Taux de rotation du jour,formuledecalcul,"Formule de calcul :
+nb repas servis / (nb places assises x 0,8)",,,,,,,
+Horaires de service du self,de xxHxx à xxHxx,Par défaut indiquer 11H30 - 14H00,,,,,,,
+"Date(s) de(s) l'audit(s)
+précédent(s)",jj/mm/aa,"Ouverture d'un pop-up (de la plus récente à la plus
+ancienne)",,,,,jj/mm/aa,,

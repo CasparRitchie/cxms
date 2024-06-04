@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audit Information</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="datetime-local"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audit Information</h1>
+    <form id="auditForm">
+        <div class="form-group">
+            <label for="auditDate">Date de l'audit</label>
+            <input type="date" id="auditDate" name="auditDate" required>
+        </div>
+        <div class="form-group">
+            <label for="restaurantName">Nom du restaurant</label>
+            <input type="text" id="restaurantName" name="restaurantName" required>
+        </div>
+        <div class="form-group">
+            <label for="manager">Gestionnaire</label>
+            <input type="text" id="manager" name="manager" required>
+        </div>
+        <div class="form-group">
+            <label for="contactFirstName">Personne rencontrée - Prénom</label>
+            <input type="text" id="contactFirstName" name="contactFirstName" required>
+        </div>
+        <div class="form-group">
+            <label for="contactLastName">Personne rencontrée - Nom</label>
+            <input type="text" id="contactLastName" name="contactLastName" required>
+        </div>
+        <div class="form-group">
+            <label for="contactFunction">Personne rencontrée - Fonction</label>
+            <input type="text" id="contactFunction" name="contactFunction" required>
+        </div>
+        <div class="form-group">
+            <label for="averageMeals">Nombre de repas jour servis en moyenne</label>
+            <input type="number" id="averageMeals" name="averageMeals" required>
+        </div>
+        <div class="form-group">
+            <label for="seatingCapacity">Nombre de places assises</label>
+            <input type="number" id="seatingCapacity" name="seatingCapacity" required>
+        </div>
+        <div class="form-group">
+            <label for="overallTurnoverRate">Taux de rotation global</label>
+            <input type="number" id="overallTurnoverRate" name="overallTurnoverRate" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="mealsServedToday">Nombre de repas servis ce jour</label>
+            <input type="number" id="mealsServedToday" name="mealsServedToday" required>
+        </div>
+        <div class="form-group">
+            <label for="dailyTurnoverRate">Taux de rotation du jour</label>
+            <input type="number" id="dailyTurnoverRate" name="dailyTurnoverRate" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="selfServiceStart">Horaires du self début</label>
+            <input type="time" id="selfServiceStart" name="selfServiceStart" required>
+        </div>
+        <div class="form-group">
+            <label for="selfServiceEnd">Horaires du self fin</label>
+            <input type="time" id="selfServiceEnd" name="selfServiceEnd" required>
+        </div>
+        <div class="form-group">
+            <label for="previousAuditDates">Date(s) de(s) l'audit(s) précédent(s)</label>
+            <input type="date" id="previousAuditDates" name="previousAuditDates" value="2024-06-04" required>
+        </div>
+        <button type="submit">Submit</button>
+    </form>
+
+    <script>
+        document.getElementById('auditForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+            console.log('Form data:', data);
+
+            // Store data locally
+            localStorage.setItem('auditData', JSON.stringify(data));
+            alert('Audit data saved locally!');
+        });
+    </script>
+</body>
+</html>
