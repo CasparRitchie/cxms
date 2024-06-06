@@ -15,7 +15,7 @@
             display: block;
             margin-bottom: 5px;
         }
-        input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="datetime-local"] {
+        input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="datetime-local"], select {
             width: 100%;
             padding: 8px;
             box-sizing: border-box;
@@ -183,42 +183,32 @@
         }
 
         function addChapitre(standIndex) {
-            const chapitreDiv = document.createElement('div');
-            chapitreDiv.className = 'chapitre';
-            chapitreDiv.innerHTML = `
-                <h4>Chapitre: Le Personnel</h4>
-                ${createChapitreFields(standIndex)}
-            `;
-            document.getElementById(`chapitres${standIndex}`).appendChild(chapitreDiv);
+            const chapitreType = prompt("Entrez le type de Chapitre à ajouter (e.g., 'Le Personnel', 'Les Affichages'):");
+            if (chapitreType) {
+                const chapitreDiv = document.createElement('div');
+                chapitreDiv.className = 'chapitre';
+                chapitreDiv.innerHTML = `
+                    <h4>Chapitre: ${chapitreType}</h4>
+                    ${createChapitreFields(standIndex, chapitreType)}
+                `;
+                document.getElementById(`chapitres${standIndex}`).appendChild(chapitreDiv);
 
-            audits[auditId].sections[standIndex].chapitres.push({
-                type: 'Le Personnel',
-                data: {}
-            });
-            saveAuditData();
+                audits[auditId].sections[standIndex].chapitres.push({
+                    type: chapitreType,
+                    data: {}
+                });
+                saveAuditData();
+            }
         }
 
-        function createChapitreFields(standIndex) {
-            const questions = [
-                "Respect des procédures d’hygiène (absence d’utilisation de torchon, port de la coiffe règlementaire, port de bijoux, etc.)",
-                "Uniformité des tenues",
-                "Etat des tenues",
-                "Propreté des tenues",
-                "Le sourire",
-                "L'amabilité",
-                "La politesse",
-                "La gestuelle",
-                "La réactivité",
-                "La rapidité de service",
-                "L'information",
-                "Le conseil"
-            ];
+        function createChapitreFields(standIndex, chapitreType) {
+            const questions = getQuestionsForChapitre(chapitreType);
             let fieldsHtml = '';
             questions.forEach((question, index) => {
                 fieldsHtml += `
                     <div class="form-group">
-                        <label for="question${standIndex}_${index}">${question}</label>
-                        <select id="question${standIndex}_${index}" name="question${standIndex}_${index}">
+                        <label for="question${standIndex}_${chapitreType}_${index}">${question}</label>
+                        <select id="question${standIndex}_${chapitreType}_${index}" name="question${standIndex}_${chapitreType}_${index}">
                             <option value="Conforme">Conforme</option>
                             <option value="Partiellement Conforme">Partiellement Conforme</option>
                             <option value="Non-Conforme">Non-Conforme</option>
@@ -227,6 +217,32 @@
                 `;
             });
             return fieldsHtml;
+        }
+
+        function getQuestionsForChapitre(chapitreType) {
+            const questions = {
+                "Le Personnel": [
+                    "Respect des procédures d’hygiène (absence d’utilisation de torchon, port de la coiffe règlementaire, port de bijoux, etc.)",
+                    "Uniformité des tenues",
+                    "Etat des tenues",
+                    "Propreté des tenues",
+                    "Le sourire",
+                    "L'amabilité",
+                    "La politesse",
+                    "La gestuelle",
+                    "La réactivité",
+                    "La rapidité de service",
+                    "L'information",
+                    "Le conseil"
+                ],
+                "Les Affichages": [
+                    "Affichage des horaires d’ouverture du restaurant",
+                    "Informations sur les plats / menus",
+                    "Informations sur les créneaux horaires à éviter"
+                ]
+                // Add more Chapitres and their questions here as needed
+            };
+            return questions[chapitreType] || [];
         }
 
         function loadAuditData(id) {
@@ -265,38 +281,25 @@
             chapitres.forEach((chapitre, chapitreIndex) => {
                 chapitresHtml += `
                     <div class="chapitre">
-                        <h4>Chapitre: Le Personnel</h4>
-                        ${createChapitreFields(standIndex, chapitre.data)}
+                        <h4>Chapitre: ${chapitre.type}</h4>
+                        ${createChapitreFields(standIndex, chapitre.type, chapitre.data)}
                     </div>
                 `;
             });
             return chapitresHtml;
         }
 
-        function createChapitreFields(standIndex, data = {}) {
-            const questions = [
-                "Respect des procédures d’hygiène (absence d’utilisation de torchon, port de la coiffe règlementaire, port de bijoux, etc.)",
-                "Uniformité des tenues",
-                "Etat des tenues",
-                "Propreté des tenues",
-                "Le sourire",
-                "L'amabilité",
-                "La politesse",
-                "La gestuelle",
-                "La réactivité",
-                "La rapidité de service",
-                "L'information",
-                "Le conseil"
-            ];
+        function createChapitreFields(standIndex, chapitreType, data = {}) {
+            const questions = getQuestionsForChapitre(chapitreType);
             let fieldsHtml = '';
             questions.forEach((question, index) => {
                 fieldsHtml += `
                     <div class="form-group">
-                        <label for="question${standIndex}_${index}">${question}</label>
-                        <select id="question${standIndex}_${index}" name="question${standIndex}_${index}">
-                            <option value="Conforme" ${data[`question${standIndex}_${index}`] === 'Conforme' ? 'selected' : ''}>Conforme</option>
-                            <option value="Partiellement Conforme" ${data[`question${standIndex}_${index}`] === 'Partiellement Conforme' ? 'selected' : ''}>Partiellement Conforme</option>
-                            <option value="Non-Conforme" ${data[`question${standIndex}_${index}`] === 'Non-Conforme' ? 'selected' : ''}>Non-Conforme</option>
+                        <label for="question${standIndex}_${chapitreType}_${index}">${question}</label>
+                        <select id="question${standIndex}_${chapitreType}_${index}" name="question${standIndex}_${chapitreType}_${index}">
+                            <option value="Conforme" ${data[`question${standIndex}_${chapitreType}_${index}`] === 'Conforme' ? 'selected' : ''}>Conforme</option>
+                            <option value="Partiellement Conforme" ${data[`question${standIndex}_${chapitreType}_${index}`] === 'Partiellement Conforme' ? 'selected' : ''}>Partiellement Conforme</option>
+                            <option value="Non-Conforme" ${data[`question${standIndex}_${chapitreType}_${index}`] === 'Non-Conforme' ? 'selected' : ''}>Non-Conforme</option>
                         </select>
                     </div>
                 `;
