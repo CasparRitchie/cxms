@@ -1,65 +1,87 @@
-                <button type="button" onclick="goToStandDetails(${standIndex})">Détails du stand</button>
-            `;
-            document.getElementById('stands').appendChild(standDiv);
+<!-- <!DOCTYPE html>
+<html>
+<head>
+    <title>Stand Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="datetime-local"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stand Details</h1>
+    <form id="standDetailsForm">
+        <div class="form-group">
+            <label for="personnel">Personnel</label>
+            <input type="text" id="personnel" name="personnel" required>
+        </div>
+        <div class="form-group">
+            <label for="decoration">Décoration</label>
+            <input type="text" id="decoration" name="decoration" required>
+        </div>
+        <!-- Add more fields as needed -->
+        <button type="submit">Save</button>
+    </form>
 
-            audits[auditId].sections.push({
-                standName: '',
-                standDetails: ''
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const auditId = urlParams.get('auditId');
+        const standIndex = urlParams.get('standIndex');
+        let audits = JSON.parse(localStorage.getItem('audits')) || {};
+
+        function saveStandDetails() {
+            const formData = new FormData(document.getElementById('standDetailsForm'));
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
             });
-            saveAuditData();
+
+            audits[auditId].sections[standIndex] = data;
+            localStorage.setItem('audits', JSON.stringify(audits));
         }
 
-        function goToStandDetails(index) {
-            window.location.href = `stand-details.html?auditId=${auditId}&standIndex=${index}`;
-        }
+        document.getElementById('standDetailsForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            saveStandDetails();
+            alert('Stand details saved locally!');
+        });
 
-        function loadAuditData(id) {
-            const audit = audits[id];
-            if (audit) {
-                for (const [key, value] of Object.entries(audit.data)) {
+        function loadStandDetails() {
+            const standData = audits[auditId].sections[standIndex];
+            if (standData) {
+                for (const [key, value] of Object.entries(standData)) {
                     if (document.getElementById(key)) {
                         document.getElementById(key).value = value;
                     }
                 }
-
-                document.getElementById('stands').innerHTML = '';
-                audit.sections.forEach((section, index) => {
-                    const standDiv = document.createElement('div');
-                    standDiv.className = 'stand';
-                    standDiv.innerHTML = `
-                        <h3>Stand ${index + 1}</h3>
-                        <div class="form-group">
-                            <label for="standName${index}">Nom du stand</label>
-                            <input type="text" id="standName${index}" name="standName${index}" value="${section.standName}" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="standDetails${index}">Détails du stand</label>
-                            <input type="text" id="standDetails${index}" name="standDetails${index}" value="${section.standDetails}" required>
-                        </div>
-                        <button type="button" onclick="goToStandDetails(${index})">Détails du stand</button>
-                    `;
-                    document.getElementById('stands').appendChild(standDiv);
-                });
             }
         }
 
-        function createNavButtons() {
-            const navDiv = document.getElementById('nav-buttons');
-            navDiv.innerHTML = '';
-            for (const id in audits) {
-                const button = document.createElement('button');
-                button.innerText = `Audit ${id}`;
-                button.onclick = function() {
-                    auditId = id;
-                    localStorage.setItem('currentAuditId', id);
-                    loadAuditData(id);
-                };
-                navDiv.appendChild(button);
-            }
-        }
-
-        createNavButtons();
-        loadAuditData(auditId);
+        loadStandDetails();
     </script>
 </body>
-</html>
+</html> -->
