@@ -42,12 +42,17 @@
             padding: 10px;
             margin-bottom: 10px;
         }
+        .chapitre {
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
     <h1>Audit Information</h1>
     <div id="nav-buttons"></div>
     <form id="auditForm">
+        <!-- Existing form fields -->
+        <!-- Pre-populated fields for testing -->
         <div class="form-group">
             <label for="auditDate">Date de l'audit</label>
             <input type="date" id="auditDate" name="auditDate" required value="2024-06-05">
@@ -164,19 +169,64 @@
                     <label for="standDetails${standIndex}">Détails du stand</label>
                     <input type="text" id="standDetails${standIndex}" name="standDetails${standIndex}" required>
                 </div>
-                <button type="button" onclick="goToStandDetails(${standIndex})">Détails du stand</button>
+                <button type="button" onclick="addChapitre(${standIndex})">Ajouter un Chapitre</button>
+                <div id="chapitres${standIndex}" class="chapitre"></div>
             `;
             document.getElementById('stands').appendChild(standDiv);
 
             audits[auditId].sections.push({
                 standName: '',
-                standDetails: ''
+                standDetails: '',
+                chapitres: []
             });
             saveAuditData();
         }
 
-        function goToStandDetails(index) {
-            window.location.href = `stand-details.html?auditId=${auditId}&standIndex=${index}`;
+        function addChapitre(standIndex) {
+            const chapitreDiv = document.createElement('div');
+            chapitreDiv.className = 'chapitre';
+            chapitreDiv.innerHTML = `
+                <h4>Chapitre: Le Personnel</h4>
+                ${createChapitreFields(standIndex)}
+            `;
+            document.getElementById(`chapitres${standIndex}`).appendChild(chapitreDiv);
+
+            audits[auditId].sections[standIndex].chapitres.push({
+                type: 'Le Personnel',
+                data: {}
+            });
+            saveAuditData();
+        }
+
+        function createChapitreFields(standIndex) {
+            const questions = [
+                "Respect des procédures d’hygiène (absence d’utilisation de torchon, port de la coiffe règlementaire, port de bijoux, etc.)",
+                "Uniformité des tenues",
+                "Etat des tenues",
+                "Propreté des tenues",
+                "Le sourire",
+                "L'amabilité",
+                "La politesse",
+                "La gestuelle",
+                "La réactivité",
+                "La rapidité de service",
+                "L'information",
+                "Le conseil"
+            ];
+            let fieldsHtml = '';
+            questions.forEach((question, index) => {
+                fieldsHtml += `
+                    <div class="form-group">
+                        <label for="question${standIndex}_${index}">${question}</label>
+                        <select id="question${standIndex}_${index}" name="question${standIndex}_${index}">
+                            <option value="Conforme">Conforme</option>
+                            <option value="Partiellement Conforme">Partiellement Conforme</option>
+                            <option value="Non-Conforme">Non-Conforme</option>
+                        </select>
+                    </div>
+                `;
+            });
+            return fieldsHtml;
         }
 
         function loadAuditData(id) {
@@ -202,11 +252,56 @@
                             <label for="standDetails${index}">Détails du stand</label>
                             <input type="text" id="standDetails${index}" name="standDetails${index}" value="${section.standDetails}" required>
                         </div>
-                        <button type="button" onclick="goToStandDetails(${index})">Détails du stand</button>
+                        <button type="button" onclick="addChapitre(${index})">Ajouter un Chapitre</button>
+                        <div id="chapitres${index}" class="chapitre">${loadChapitres(section.chapitres, index)}</div>
                     `;
                     document.getElementById('stands').appendChild(standDiv);
                 });
             }
+        }
+
+        function loadChapitres(chapitres, standIndex) {
+            let chapitresHtml = '';
+            chapitres.forEach((chapitre, chapitreIndex) => {
+                chapitresHtml += `
+                    <div class="chapitre">
+                        <h4>Chapitre: Le Personnel</h4>
+                        ${createChapitreFields(standIndex, chapitre.data)}
+                    </div>
+                `;
+            });
+            return chapitresHtml;
+        }
+
+        function createChapitreFields(standIndex, data = {}) {
+            const questions = [
+                "Respect des procédures d’hygiène (absence d’utilisation de torchon, port de la coiffe règlementaire, port de bijoux, etc.)",
+                "Uniformité des tenues",
+                "Etat des tenues",
+                "Propreté des tenues",
+                "Le sourire",
+                "L'amabilité",
+                "La politesse",
+                "La gestuelle",
+                "La réactivité",
+                "La rapidité de service",
+                "L'information",
+                "Le conseil"
+            ];
+            let fieldsHtml = '';
+            questions.forEach((question, index) => {
+                fieldsHtml += `
+                    <div class="form-group">
+                        <label for="question${standIndex}_${index}">${question}</label>
+                        <select id="question${standIndex}_${index}" name="question${standIndex}_${index}">
+                            <option value="Conforme" ${data[`question${standIndex}_${index}`] === 'Conforme' ? 'selected' : ''}>Conforme</option>
+                            <option value="Partiellement Conforme" ${data[`question${standIndex}_${index}`] === 'Partiellement Conforme' ? 'selected' : ''}>Partiellement Conforme</option>
+                            <option value="Non-Conforme" ${data[`question${standIndex}_${index}`] === 'Non-Conforme' ? 'selected' : ''}>Non-Conforme</option>
+                        </select>
+                    </div>
+                `;
+            });
+            return fieldsHtml;
         }
 
         function createNavButtons() {
