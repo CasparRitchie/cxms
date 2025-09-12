@@ -14,14 +14,25 @@
         <!-- End Open Graph tags -->
 
     <link rel="stylesheet" href="../static/css/style.css?v=1">
+    <link rel="stylesheet" href="../static/css/games.css?v=1">
     <link rel="icon" type="image/jpeg" href="../static/images/cxms-favicon1.jpeg">
 
 </head>
 <body>
   <div class="container">
-    <div id="carousel" class="carousel">
-      <!-- Guess the Country Game Item -->
-      <div class="carousel-item" id="item-country-game">
+
+    <!-- Pseudo Navbar / Tabs -->
+    <nav id="games-nav" class="games-nav">
+      <button class="tab-btn" data-target="country" aria-selected="true">Guess the Country</button>
+      <button class="tab-btn" data-target="sudoku">Sudoku</button>
+      <div class="nav-spacer"></div>
+      <a href="/style-guide">Style Guide</a>
+      <a href="/">Home Page</a>
+    </nav>
+
+    <div id="games-tabs">
+      <!-- Country Game (existing) -->
+      <section class="game-tab" id="tab-country" data-game="country" style="display:block;">
         <div class="text-container">
           <h3>Guess the Country Game</h3>
           <div id="game-container">
@@ -32,52 +43,39 @@
             <p id="streak">Streak: <span id="streak-value">0</span></p>
           </div>
         </div>
-      </div>
-      <!-- Population Game Item -->
-      <!-- <div class="carousel-item" id="item-population-game">
+      </section>
+
+      <!-- Sudoku (React build via iframe) -->
+      <section class="game-tab" id="tab-sudoku" data-game="sudoku" style="display:none;">
         <div class="text-container">
-          <h3>Population Game</h3>
-          <div id="population-game-container">
-            <p id="population-question">Which country has the highest population?</p>
-            <div id="country-options">
-              <div class="country-option">
-                <img id="country1-img" src="" alt="Country 1" style="cursor: pointer; width: 99%;">
-                <p id="country1-name"></p>
-              </div>
-              <div class="country-option">
-                <img id="country2-img" src="" alt="Country 2" style="cursor: pointer; width: 99%;">
-                <p id="country2-name"></p>
-              </div>
-            </div>
-            <p>Score: <span id="population-score-value">0</span></p>
-            <p>Streak: <span id="population-streak-value">0</span></p>
+          <h3>Sudoku</h3>
+          <div class="frame-wrap">
+            <iframe
+              id="sudoku-frame"
+              src="/static/games/sudoku/index.html"
+              title="Sudoku"
+              loading="lazy"
+              referrerpolicy="no-referrer"
+            ></iframe>
           </div>
         </div>
-      </div> -->
-      <!-- Placeholder for Game 2 -->
-      <div class="carousel-item">
-        <div class="image-container" style="background-image: url('../static/images/efficiency-background1.jpeg');"></div>
-        <div class="text-container">
-          Game 2
-        </div>
-      </div>
-      <!-- Placeholder for Game 3 -->
-      <div class="carousel-item">
-        <div class="image-container" style="background-image: url('../static/images/process-mapping-background1.jpeg');"></div>
-        <div class="text-container">
-          Game 3
-        </div>
-      </div>
+      </section>
     </div>
-    <button id="prev" class="carousel-button left"></button>
-    <button id="next" class="carousel-button right"></button>
-    <a href="style-guide">Style Guide</a>
-    <a href="/">Home Page</a>
+
+    <!-- Optional: keep carousel arrows if you still use them for other items -->
+    <!-- <button id="prev" class="carousel-button left"></button>
+    <button id="next" class="carousel-button right"></button> -->
+
   </div>
+
+  <!-- Your existing scripts -->
   <script src="../static/js/script.js"></script>
   <script src="../static/js/country-game.js"></script>
-  <!-- <script src="../static/js/population-game.js"></script> -->
+
+  <!-- Tabs logic -->
+  <script src="../static/js/games-tabs.js"></script>
 </body>
+
 
 
 
