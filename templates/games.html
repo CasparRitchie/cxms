@@ -25,6 +25,7 @@
     <nav id="games-nav" class="games-nav">
       <button class="tab-btn" data-target="country" aria-selected="true">Guess the Country</button>
       <button class="tab-btn" data-target="sudoku">Sudoku</button>
+      <button class="tab-btn" data-target="sudoblocku">Sudoblocku</button>
       <div class="nav-spacer"></div>
       <a href="/style-guide">Style Guide</a>
       <a href="/">Home Page</a>
@@ -57,6 +58,17 @@
               loading="lazy"
               referrerpolicy="no-referrer"
             ></iframe>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sudoblocku (React build via iframe) -->
+
+      <section class="game-tab" id="tab-sudoblocku" data-game="sudoblocku" style="display:none;">
+        <div class="text-container">
+          <h3>Sudoblocku</h3>
+          <div class="frame-wrap">
+            <iframe src="/static/games/sudoblocku/index.html" title="Sudoblocku" loading="lazy"></iframe>
           </div>
         </div>
       </section>
