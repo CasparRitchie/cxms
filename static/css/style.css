@@ -229,3 +229,44 @@ body, html {
     margin-bottom: 20px; /* Adds space between options */
   }
 }
+/* --- Games page layout fixes (non-destructive overrides) --- */
+
+/* Let the games page container grow naturally and scroll if needed */
+#games-tabs, .games-nav, .game-tab { /* these exist only on /games */
+  /* acts as a scope for the next rules */
+}
+
+.container {
+  min-height: 100svh;      /* instead of fixed 100vh; handles mobile browser bars */
+  height: auto;            /* allow content height */
+  justify-content: flex-start;  /* don't pin content to bottom */
+  align-items: center;
+  overflow-y: auto;
+}
+
+/* The blue overlay style is great for carousel cards, but not for embedded games */
+.game-tab .text-container {
+  position: static;         /* remove absolute overlay */
+  bottom: auto;
+  left: auto;
+  width: 100%;
+  padding: 0;               /* let the game set its own padding */
+  background: transparent;  /* no blue panel over the iframe */
+  color: inherit;
+}
+
+/* Keep headings with some breathing room */
+.game-tab .text-container h3 {
+  margin: 8px 0 12px;
+}
+
+/* If you keep carousel elsewhere, ensure it doesn't enforce a tiny height here */
+#games-tabs .carousel,
+#games-tabs .carousel-item {
+  position: static;
+  height: auto;
+  width: 100%;
+  max-width: none;
+  overflow: visible;
+  display: block;
+}

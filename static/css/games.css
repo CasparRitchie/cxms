@@ -5,7 +5,9 @@
   margin: 16px 0 8px;
   border-bottom: 1px solid #e6e6e6;
   padding-bottom: 8px;
+  flex-wrap: wrap;                 /* tabs wrap on small screens */
 }
+
 .games-nav .tab-btn {
   background: transparent;
   border: none;
@@ -14,28 +16,36 @@
   font-weight: 500;
 }
 .games-nav .tab-btn[aria-selected="true"] {
-  border-bottom: 2px solid #6c5ce7; /* CXMS purple-ish */
+  border-bottom: 2px solid #6c5ce7;
 }
-.games-nav .nav-spacer {
-  margin-left: auto;
-}
+.games-nav .nav-spacer { margin-left: auto; }
 
+/* Responsive iframe wrapper:
+   - full width
+   - height grows up to nearly the viewport height
+   - cap on desktop so it doesn't get comically tall
+*/
 .frame-wrap {
   width: 100%;
-  max-width: 1000px;        /* optional container limit */
-  aspect-ratio: 10 / 7;     /* keeps a nice ratio */
+  max-width: 560px;                          /* matches Sudoku app's cap */
+  height: clamp(460px, 86svh, 900px);        /* tall enough for header + board + footer */
+  margin: 0 auto;
   border: 1px solid #ddd;
   border-radius: 8px;
   overflow: hidden;
   background: #fff;
 }
+
+/* Let the inner app control responsiveness */
 .frame-wrap iframe {
   width: 100%;
   height: 100%;
   border: 0;
 }
 
-/* Mobile height tweak */
+/* Mobile tweaks */
 @media (max-width: 600px) {
-  .frame-wrap { aspect-ratio: 3 / 4; }
+  .games-nav { gap: 8px; }
+  .games-nav .tab-btn { padding: 6px 8px; }
+  .frame-wrap { height: clamp(520px, 90svh, 900px); }  /* a bit more vertical space on phones */
 }
