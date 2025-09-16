@@ -80,3 +80,56 @@
   .games-nav .tab-btn { padding: 6px 8px; }
   .frame-wrap { height: clamp(540px, 90svh, 1000px); }
 }
+
+/* Let the games page breathe (overrides home hero layout) */
+.container {
+  min-height: 100svh;   /* better than 100vh on mobile */
+  height: auto;
+  justify-content: flex-start !important;  /* override home */
+  align-items: center !important;
+  overflow-y: auto;
+  padding-top: 16px;
+}
+
+/* Wider, taller iframe wrapper so it doesn’t look mobile on desktop */
+.frame-wrap {
+  width: 100%;
+  max-width: 960px;                     /* was 560px — this was making it narrow */
+  height: clamp(520px, 86svh, 1000px);
+  margin: 0 auto;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.frame-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* Text block shouldn’t overlay iframes */
+.game-tab .text-container {
+  position: static;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.game-tab .text-container h3 { margin: 8px 0 12px; }
+
+/* Make sure any legacy carousel rules don’t shrink this page */
+#games-tabs .carousel,
+#games-tabs .carousel-item {
+  position: static !important;
+  height: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  overflow: visible !important;
+  display: block !important;
+}
+
+/* Mobile tweaks */
+@media (max-width: 600px) {
+  .frame-wrap { height: clamp(540px, 90svh, 1000px); }
+}
