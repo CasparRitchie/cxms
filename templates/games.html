@@ -17,6 +17,53 @@
     <link rel="stylesheet" href="../static/css/games.css?v=3">
     <link rel="icon" type="image/jpeg" href="../static/images/cxms-favicon1.jpeg">
 
+    <style>
+      /* Force the games layout to be wide and non-hero */
+      .container {
+        min-height: 100svh;
+        height: auto;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        overflow-y: auto;
+        padding-top: 16px;
+      }
+      .game-tab .text-container {
+        position: static !important;
+        width: 100% !important;
+        max-width: 1100px !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: transparent !important;
+      }
+      .frame-wrap {
+        width: 100% !important;
+        max-width: 1100px !important;
+        height: clamp(540px, 86svh, 1000px) !important;
+        margin: 0 auto !important;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .frame-wrap iframe {
+        width: 100% !important;
+        height: 100% !important;
+        display: block !important;
+        border: 0;
+      }
+
+      /* Neutralise any old carousel styles on this page */
+      #games-tabs .carousel,
+      #games-tabs .carousel-item {
+        position: static !important;
+        height: auto !important;
+        width: 100% !important;
+        max-width: none !important;
+        overflow: visible !important;
+        display: block !important;
+      }
+    </style>
+
 </head>
 <body>
   <div class="container">
@@ -81,7 +128,7 @@
   </div>
 
   <!-- Your existing scripts -->
-  <script src="../static/js/script.js"></script>
+  <!-- <script src="../static/js/script.js"></script> -->
   <script src="../static/js/country-game.js"></script>
 
   <!-- Tabs logic -->
