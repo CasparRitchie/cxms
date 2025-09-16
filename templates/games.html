@@ -18,23 +18,25 @@
     <link rel="icon" type="image/jpeg" href="../static/images/cxms-favicon1.jpeg">
 
     <style>
-      /* Force the games layout to be wide and non-hero */
+      /* Make games page content stretch full width inside the flex .container */
       .container {
         min-height: 100svh;
         height: auto;
         justify-content: flex-start !important;
-        align-items: center !important;
+        align-items: stretch !important;     /* <<< was center */
         overflow-y: auto;
         padding-top: 16px;
       }
-      .game-tab .text-container {
-        position: static !important;
+
+      /* Ensure the chain of parents is allowed to be wide */
+      #games-tabs,
+      #games-tabs .game-tab,
+      #games-tabs .game-tab .text-container {
         width: 100% !important;
         max-width: 1100px !important;
-        margin: 0 auto !important;
-        padding: 0 !important;
-        background: transparent !important;
+        margin: 0 auto !important;           /* nice centering on desktop */
       }
+
       .frame-wrap {
         width: 100% !important;
         max-width: 1100px !important;
@@ -63,6 +65,7 @@
         display: block !important;
       }
     </style>
+
 
 </head>
 <body>
