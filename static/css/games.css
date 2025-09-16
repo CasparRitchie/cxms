@@ -1,3 +1,4 @@
+/* ===== Games page navbar ===== */
 .games-nav {
   display: flex;
   gap: 12px;
@@ -5,9 +6,8 @@
   margin: 16px 0 8px;
   border-bottom: 1px solid #e6e6e6;
   padding-bottom: 8px;
-  flex-wrap: wrap;                 /* tabs wrap on small screens */
+  flex-wrap: wrap;
 }
-
 .games-nav .tab-btn {
   background: transparent;
   border: none;
@@ -15,20 +15,31 @@
   cursor: pointer;
   font-weight: 500;
 }
-.games-nav .tab-btn[aria-selected="true"] {
-  border-bottom: 2px solid #6c5ce7;
-}
+.games-nav .tab-btn[aria-selected="true"] { border-bottom: 2px solid #6c5ce7; }
 .games-nav .nav-spacer { margin-left: auto; }
 
-/* Responsive iframe wrapper:
-   - full width
-   - height grows up to nearly the viewport height
-   - cap on desktop so it doesn't get comically tall
-*/
+/* ===== Scope fixes to the /games page only ===== */
+#games-tabs { /* just a scope hook */ }
+
+/* Reset the home-page hero layout so games can breathe */
+#games-tabs ~ .whatever {} /* no-op, keeps specificity low */
+
+.container {
+  /* These override the home page's full-screen hero for the games page as well.
+     Because games.css is loaded after style.css, these will win. */
+  min-height: 100svh;     /* better than 100vh on mobile browsers */
+  height: auto;
+  justify-content: flex-start;   /* don't pin content to bottom */
+  align-items: center;
+  overflow-y: auto;
+  padding-top: 16px;      /* less padding than the home hero */
+}
+
+/* ===== Responsive iframe wrapper ===== */
 .frame-wrap {
   width: 100%;
-  max-width: 560px;                          /* matches Sudoku app's cap */
-  height: clamp(460px, 86svh, 900px);        /* tall enough for header + board + footer */
+  max-width: 960px;                     /* << wider on desktop */
+  height: clamp(520px, 86svh, 1000px);  /* tall enough but not silly */
   margin: 0 auto;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -36,16 +47,36 @@
   background: #fff;
 }
 
-/* Let the inner app control responsiveness */
 .frame-wrap iframe {
   width: 100%;
   height: 100%;
   border: 0;
+  display: block;
+}
+
+/* ===== Country game text block shouldn’t overlay iframes ===== */
+.game-tab .text-container {
+  position: static;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.game-tab .text-container h3 { margin: 8px 0 12px; }
+
+/* Make sure any legacy carousel rules don’t shrink this page */
+#games-tabs .carousel,
+#games-tabs .carousel-item {
+  position: static !important;
+  height: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  overflow: visible !important;
+  display: block !important;
 }
 
 /* Mobile tweaks */
 @media (max-width: 600px) {
   .games-nav { gap: 8px; }
   .games-nav .tab-btn { padding: 6px 8px; }
-  .frame-wrap { height: clamp(520px, 90svh, 900px); }  /* a bit more vertical space on phones */
+  .frame-wrap { height: clamp(540px, 90svh, 1000px); }
 }
