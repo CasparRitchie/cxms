@@ -97,6 +97,17 @@ def compound_interest():
     return render_template('compound-interest.html')
 
 
+@app.route('/early-years/')
+def early_years_index():
+    base = os.path.join(app.root_path, "static", "early-years")
+    return send_from_directory(base, "index.html")
+
+
+# Optional: if you add assets (CSS/JS/images) later under static/early-years/
+@app.route('/early-years/<path:filename>')
+def early_years_assets(filename):
+    base = os.path.join(app.root_path, "static", "early-years")
+    return send_from_directory(base, filename)
 
 
 if __name__ == "__main__":
