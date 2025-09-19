@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, send_from_directory
 import os
 import random
+from flask import abort, redirect, url_for
 
 
 app = Flask(__name__)
@@ -97,17 +98,25 @@ def compound_interest():
     return render_template('compound-interest.html')
 
 
+EARLY_YEARS_ENABLED = os.getenv("EARLY_YEARS_ENABLED", "0").lower() in ("1", "true", "yes")
+
+@app.route('/early-years')
 @app.route('/early-years/')
 def early_years_index():
+    if not EARLY_YEARS_ENABLED:
+        # choose one behaviour:
+        # return abort(404)                  # hard 404 (invisible)
+        return redirect(url_for('index'))    # soft redirect to home
     base = os.path.join(app.root_path, "static", "early-years")
     return send_from_directory(base, "index.html")
 
-
-# Optional: if you add assets (CSS/JS/images) later under static/early-years/
 @app.route('/early-years/<path:filename>')
 def early_years_assets(filename):
+    if not EARLY_YEARS_ENABLED:
+        return abort(404)
     base = os.path.join(app.root_path, "static", "early-years")
     return send_from_directory(base, filename)
+
 
 
 if __name__ == "__main__":
