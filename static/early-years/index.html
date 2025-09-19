@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EarlySteps Collective — Support for Childminders | SEND‑first Book Club & Fit Club</title>
+  <meta name="description" content="Weekly online Book Club and Fit Club led by ex‑teachers and trainers to support childminders and children (with a focus on SEND). Practical ideas, routines, and guidance each week." />
+  <meta name="theme-color" content="#0b0f14" />
+  <style>
+    /* === BRAND (easy to tweak) === */
+    :root{
+      --brand:#7c3aed;      /* purple */
+      --accent:#22c55e;     /* bright green */
+      --ink:#e5e7eb;        /* light ink */
+      --bg:#0b0f14;         /* charcoal */
+      --muted:#9ca3af;      /* grey */
+      --card:#121826;       /* panels */
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+      --max: 1100px;
+    }
+
+    /* === RESET + BASE === */
+    *{box-sizing:border-box}
+    html,body{margin:0; padding:0; background:var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
+    a{color:inherit; text-decoration:none}
+    .container{max-width:var(--max); margin-inline:auto; padding: clamp(16px, 3vw, 28px)}
+    .grid{display:grid; gap:clamp(16px,2vw,22px)}
+    .btn{display:inline-block; padding:14px 18px; border-radius:calc(var(--radius) - 6px); font-weight:700; box-shadow:var(--shadow); transition:transform .12s ease, opacity .12s ease}
+    .btn:hover{transform:translateY(-1px); opacity:.95}
+    .btn-primary{background:linear-gradient(135deg, var(--brand), #6317ff)}
+    .btn-ghost{border:1px solid rgba(255,255,255,.12)}
+    .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background: rgba(124,58,237,.14); border:1px solid rgba(124,58,237,.25); color:#d6ccff}
+    .card{background:var(--card); border:1px solid rgba(255,255,255,.06); border-radius:var(--radius); box-shadow:var(--shadow)}
+    .subtle{color:var(--muted)}
+    h1,h2,h3{line-height:1.1; margin:0}
+    h1{font-size: clamp(32px, 5vw, 54px)}
+    h2{font-size: clamp(24px, 3.6vw, 36px)}
+    h3{font-size: clamp(18px, 2.4vw, 22px)}
+    p{margin: 10px 0 0 0}
+
+    header{position:sticky; top:0; z-index:50; backdrop-filter:saturate(140%) blur(6px); background:rgba(11,15,20,.6); border-bottom:1px solid rgba(255,255,255,.06)}
+    .nav{display:flex; align-items:center; justify-content:space-between}
+    .nav a.logo{font-weight:900; letter-spacing:.4px}
+    nav ul{display:flex; gap:18px; list-style:none; padding:0; margin:0}
+    nav a{display:inline-block; padding:12px; border-radius:10px}
+    nav a.active, nav a:hover{background:rgba(255,255,255,.06)}
+
+    .hero{padding: clamp(32px, 7vw, 72px) 0}
+    .hero-wrap{display:grid; grid-template-columns: 1.1fr .9fr; gap: clamp(20px, 4vw, 40px); align-items:center}
+    .hero .panel{padding: clamp(18px, 3vw, 26px)}
+    .badge-row{display:flex; gap:12px; flex-wrap:wrap}
+    .cta-row{display:flex; gap:12px; flex-wrap:wrap; margin-top:16px}
+
+    .pill{display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; border:1px dashed rgba(255,255,255,.18)}
+
+    .section{padding: clamp(28px, 6vw, 64px) 0}
+    .two-col{display:grid; grid-template-columns: 1fr 1fr; gap: clamp(16px, 3vw, 26px)}
+    .three{grid-template-columns: repeat(3, 1fr)}
+
+    .feature{padding:18px; border-radius:var(--radius); display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:start; border:1px solid rgba(255,255,255,.06)}
+    .icon{width:38px; height:38px; display:grid; place-items:center; border-radius:12px; background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.25)}
+
+    .program{padding:18px}
+    .program h3{margin-bottom:6px}
+
+    .accordion{border:1px solid rgba(255,255,255,.06); border-radius:var(--radius); overflow:hidden}
+    .acc-item + .acc-item{border-top:1px solid rgba(255,255,255,.06)}
+    .acc-header{display:flex; justify-content:space-between; align-items:center; padding:16px 18px; cursor:pointer}
+    .acc-body{padding:0 18px 16px 18px; display:none}
+    .acc-item[open] .acc-body{display:block}
+
+    .price{display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:18px}
+    .price .card{padding:22px}
+    .price .amount{font-size:34px; font-weight:900}
+
+    .schedule{display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:14px}
+    .slot{padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,.08)}
+
+    .team{display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:18px}
+    .person{padding:16px; border-radius:16px; border:1px solid rgba(255,255,255,.06)}
+    .avatar{width:56px; height:56px; border-radius:999px; background:linear-gradient(135deg, var(--brand), #2e1065)}
+
+    footer{padding:36px 0; border-top:1px solid rgba(255,255,255,.06)}
+
+    /* small screens */
+    @media (max-width: 860px){
+      .hero-wrap{grid-template-columns: 1fr}
+      .two-col, .three{grid-template-columns: 1fr}
+      nav ul{display:none}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a href="#home" class="logo">Early<span style="color:var(--accent)">Steps</span> Collective</a>
+      <nav>
+        <ul>
+          <li><a href="#programmes">Programmes</a></li>
+          <li><a href="#send">SEND‑first</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="#join" class="btn btn-primary">Join Waitlist</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section id="home" class="hero container">
+    <div class="hero-wrap">
+      <div class="card panel">
+        <div class="badge-row">
+          <span class="chip">Weekly online Book Club</span>
+          <span class="chip">Weekly online Fit Club</span>
+          <span class="chip">Designed for childminders</span>
+        </div>
+        <h1 style="margin-top:14px">Practical weekly sessions for childminders<br><span style="color:var(--accent)">with a SEND‑first mindset</span></h1>
+        <p class="subtle">Led by ex‑teachers and qualified trainers. Fresh book‑based activities and movement sessions every week to help you support children’s development — with specific adaptations for SEND, and fun for neurotypical children too.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#join">Join the waitlist</a>
+          <a class="btn btn-ghost" href="#programmes">Explore the programmes</a>
+        </div>
+        <div class="pill" style="margin-top:14px"><span aria-hidden>✅</span> DBS‑checked facilitators • Reasonable pricing • Session recordings</div>
+      </div>
+      <div class="card panel">
+        <h3>What you get weekly</h3>
+        <div class="grid three">
+          <div class="feature">
+            <div class="icon" aria-hidden>📚</div>
+            <div>
+              <strong>Early Years Book Club</strong>
+              <p class="subtle">Story pick + activities matched to EYFS areas. Visual supports and step‑by‑step guides.</p>
+            </div>
+          </div>
+          <div class="feature">
+            <div class="icon" aria-hidden>🤸</div>
+            <div>
+              <strong>Fit Club for Littles</strong>
+              <p class="subtle">20–25 min movement circuits for balance, core, coordination. Calm‑down finishers.</p>
+            </div>
+          </div>
+          <div class="feature">
+            <div class="icon" aria-hidden>🧩</div>
+            <div>
+              <strong>Clear SEND Adaptations</strong>
+              <p class="subtle">Choice‑boards, visuals, sensory breaks, and differentiated steps built in.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROGRAMMES -->
+  <section id="programmes" class="section container">
+    <div class="two-col">
+      <div class="card program">
+        <h2>Programme 1: Early Years Book Club</h2>
+        <p class="subtle">A 30–35 minute live session each week exploring a standout picture book. We model read‑aloud techniques, language prompts, and playful follow‑ups that map to EYFS/Development Matters.</p>
+        <ul>
+          <li>📖 Book of the week (summary and key vocab)</li>
+          <li>🎨 Two activity ideas at different challenge levels</li>
+          <li>🖼️ Printable visuals (now/next, choice cards, symbols)</li>
+          <li>🗣️ Communication supports (Makaton prompts where appropriate)</li>
+          <li>📥 Downloadable PDF plan and resources</li>
+        </ul>
+      </div>
+      <div class="card program">
+        <h2>Programme 2: Fit Club for Littles</h2>
+        <p class="subtle">A 20–25 minute movement session run by a children’s trainer: gross‑motor games, balance and coordination, with warm‑up and cool‑down routines.</p>
+        <ul>
+          <li>🤹 Progressive circuits and skills each week</li>
+          <li>🧘 Calm finishes (breathing/relax)</li>
+          <li>🧩 Sensory‑friendly options (reps, tempo, equipment swaps)</li>
+          <li>📥 Printable station cards and parent handouts</li>
+          <li>▶️ Recording available for 7 days</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEND-FIRST APPROACH -->
+  <section id="send" class="section container">
+    <div class="two-col">
+      <div class="card" style="padding:22px">
+        <h2>SEND‑first by design</h2>
+        <p class="subtle">Every plan starts from inclusion: we build visuals, sensory regulation, and flexible steps into the core design — not as an afterthought. That helps SEND children engage confidently, and neurotypical children benefit too.</p>
+        <div class="grid">
+          <div class="feature"><div class="icon">🗺️</div><div><strong>Visual structure</strong><p class="subtle">Now/Next boards, checklists, and picture cues reduce anxiety and support transitions.</p></div></div>
+          <div class="feature"><div class="icon">🎚️</div><div><strong>Adjustable challenge</strong><p class="subtle">Clear easier/harder pathways keep everyone in the zone of proximal development.</p></div></div>
+          <div class="feature"><div class="icon">🪁</div><div><strong>Regulation breaks</strong><p class="subtle">Planned sensory moments and calm corners to reset without stigma.</p></div></div>
+        </div>
+      </div>
+      <div class="card" style="padding:22px">
+        <h3>What childminders tell us</h3>
+        <div class="grid">
+          <div class="pill">“I finally have ready‑to‑use ideas each week.”</div>
+          <div class="pill">“The visuals make all the difference.”</div>
+          <div class="pill">“Short and doable — no Sunday night panic.”</div>
+        </div>
+        <div class="pill" style="margin-top:12px">All facilitators are DBS‑checked and experienced with Early Years & SEND.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCHEDULE -->
+  <section class="section container">
+    <h2>Weekly schedule (example)</h2>
+    <p class="subtle">Pick the time that suits you — join live or catch the recording.</p>
+    <div class="schedule" style="margin-top:12px">
+      <div class="slot card">📚 Mon 12:30 — Book Club</div>
+      <div class="slot card">🤸 Tue 09:30 — Fit Club</div>
+      <div class="slot card">📚 Wed 19:30 — Book Club (evening)</div>
+      <div class="slot card">🤸 Thu 13:00 — Fit Club</div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing" class="section container">
+    <h2>Simple pricing</h2>
+    <p class="subtle">Keep it flexible. Cancel anytime. Discounts for annual plans.</p>
+    <div class="price" style="margin-top:14px">
+      <div class="card">
+        <div class="chip">Starter</div>
+        <h3>One programme</h3>
+        <div class="amount">£19<span class="subtle" style="font-size:14px">/month</span></div>
+        <p class="subtle">Pick Book Club or Fit Club. Includes printables and recordings.</p>
+        <a class="btn btn-primary" href="#join">Join waitlist</a>
+      </div>
+      <div class="card" style="outline:2px solid rgba(34,197,94,.3)">
+        <div class="chip" style="background:rgba(34,197,94,.18); border-color:rgba(34,197,94,.35); color:#c7f9d4">Best value</div>
+        <h3>Both programmes</h3>
+        <div class="amount">£29<span class="subtle" style="font-size:14px">/month</span></div>
+        <p class="subtle">Book + Fit Club every week. Full resource bundle and recordings.</p>
+        <a class="btn btn-primary" href="#join">Join waitlist</a>
+      </div>
+      <div class="card">
+        <div class="chip">Team</div>
+        <h3>Small setting</h3>
+        <div class="amount">£59<span class="subtle" style="font-size:14px">/month</span></div>
+        <p class="subtle">Up to 5 practitioners in one setting. Shared access and resources.</p>
+        <a class="btn btn-ghost" href="#join">Talk to us</a>
+      </div>
+    </div>
+    <p class="subtle" style="margin-top:10px">Introductory pricing — subject to change at launch. VAT may apply.</p>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="section container">
+    <h2>FAQ</h2>
+    <div class="accordion card" id="faq-acc">
+      <details class="acc-item" open>
+        <summary class="acc-header"><strong>Are sessions recorded?</strong><span>⌄</span></summary>
+        <div class="acc-body subtle">Yes — recordings are available for 7 days for subscribers.</div>
+      </details>
+      <details class="acc-item">
+        <summary class="acc-header"><strong>What equipment do I need?</strong><span>⌄</span></summary>
+        <div class="acc-body subtle">Any device with Zoom/Meet. We provide low‑prep alternatives if you don’t have specific items.</div>
+      </details>
+      <details class="acc-item">
+        <summary class="acc-header"><strong>Is this suitable for all ages?</strong><span>⌄</span></summary>
+        <div class="acc-body subtle">Designed for Early Years (roughly 2–5). Activities include easier/harder pathways.</div>
+      </details>
+      <details class="acc-item">
+        <summary class="acc-header"><strong>How do you support SEND?</strong><span>⌄</span></summary>
+        <div class="acc-body subtle">We build in visuals, regulation breaks, alternative instructions, and communication supports from the start.</div>
+      </details>
+    </div>
+  </section>
+
+  <!-- TEAM -->
+  <section class="section container">
+    <h2>Who leads the sessions?</h2>
+    <div class="team" style="margin-top:12px">
+      <div class="person card">
+        <div class="grid" style="grid-template-columns:auto 1fr; gap:12px; align-items:center">
+          <div class="avatar" aria-hidden></div>
+          <div>
+            <strong>Alex — Ex‑EYFS Teacher</strong>
+            <p class="subtle">Book Club lead. Language‑rich storytelling and playful literacy.</p>
+          </div>
+        </div>
+      </div>
+      <div class="person card">
+        <div class="grid" style="grid-template-columns:auto 1fr; gap:12px; align-items:center">
+          <div class="avatar" aria-hidden></div>
+          <div>
+            <strong>Sam — Children’s Trainer</strong>
+            <p class="subtle">Fit Club lead. Gross‑motor fun, balance, core and coordination.</p>
+          </div>
+        </div>
+      </div>
+      <div class="person card">
+        <div class="grid" style="grid-template-columns:auto 1fr; gap:12px; align-items:center">
+          <div class="avatar" aria-hidden></div>
+          <div>
+            <strong>Jess — SEND Specialist</strong>
+            <p class="subtle">Adapts activities and resources; supports behaviour & regulation.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- JOIN -->
+  <section id="join" class="section container">
+    <div class="two-col">
+      <div class="card" style="padding:22px">
+        <h2>Join the waitlist</h2>
+        <p class="subtle">Launching soon. Pop your details below and we’ll email you first with dates, pricing, and a founder discount.</p>
+        <form class="grid" id="waitlistForm" onsubmit="submitForm(event)">
+          <input required name="name" placeholder="Your name" class="card" style="padding:12px; color:var(--ink); background:#0f1522; border:1px solid rgba(255,255,255,.08); border-radius:12px" />
+          <input required type="email" name="email" placeholder="Email" class="card" style="padding:12px; color:var(--ink); background:#0f1522; border:1px solid rgba(255,255,255,.08); border-radius:12px" />
+          <input name="role" placeholder="Role (e.g., Childminder in Kent)" class="card" style="padding:12px; color:var(--ink); background:#0f1522; border:1px solid rgba(255,255,255,.08); border-radius:12px" />
+          <textarea name="notes" rows="3" placeholder="Anything specific you’re looking for?" class="card" style="padding:12px; color:var(--ink); background:#0f1522; border:1px solid rgba(255,255,255,.08); border-radius:12px"></textarea>
+          <button class="btn btn-primary" type="submit">Request early access</button>
+          <p class="subtle" id="formMsg" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+      <div class="card" style="padding:22px">
+        <h3>Safeguarding & quality</h3>
+        <ul>
+          <li>DBS‑checked facilitators</li>
+          <li>Clear online safety practice</li>
+          <li>Evidence‑informed ideas mapped to EYFS areas</li>
+          <li>Accessible printables and visuals every week</li>
+        </ul>
+        <p class="subtle">We’ll share policies at launch. Your feedback shapes the sessions.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div class="grid two-col" style="align-items:center">
+        <div>
+          <strong>EarlySteps Collective</strong>
+          <p class="subtle">© <span id="year"></span> EarlySteps Collective. Part of CXMS.</p>
+        </div>
+        <div style="text-align:right">
+          <a href="#faq">FAQ</a> · <a href="#join">Join</a> · <a href="mailto:hello@cxms.fr?subject=EarlySteps%20Collective">Contact</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Basic smooth scrolling for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(a=>{
+      a.addEventListener('click', e=>{
+        const id = a.getAttribute('href').substring(1);
+        const el = document.getElementById(id);
+        if(el){ e.preventDefault(); el.scrollIntoView({behavior:'smooth', block:'start'}); }
+      });
+    });
+
+    // Simple waitlist handler (just builds a mailto - replace later with Formspree/Netlify)
+    function submitForm(e){
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const name = fd.get('name');
+      const email = fd.get('email');
+      const role = fd.get('role')||'';
+      const notes = (fd.get('notes')||'').replace(/\n/g, '%0A');
+      const subject = encodeURIComponent('Early access request — EarlySteps Collective');
+      const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\nRole: ${role}\nNotes: ${notes}`);
+      const mail = `mailto:hello@cxms.fr?subject=${subject}&body=${body}`;
+      document.getElementById('formMsg').textContent = 'Opening your email client…';
+      window.location.href = mail;
+      e.target.reset();
+    }
+
+    // details/summary chevron toggle label (visual only)
+    document.querySelectorAll('.acc-item').forEach(d=>{
+      d.addEventListener('toggle', ()=>{
+        const sum = d.querySelector('summary span');
+        if(sum) sum.textContent = d.open ? '⌄' : '›';
+      });
+    });
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

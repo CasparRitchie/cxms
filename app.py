@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, send_from_directory
 import os
 import random
 
@@ -47,6 +47,17 @@ def country_data():
         "options": [os.path.splitext(file)[0].replace('_', ' ').replace('-', ' ') for file in selected_files]
     }
     return jsonify(game_data)
+
+@app.route("/games/sudoku")
+def games_sudoku():
+    base = os.path.join(app.root_path, "static", "games", "sudoku")
+    return send_from_directory(base, "index.html")
+
+
+@app.route("/games/sudoblocku")
+def games_sudoblocku():
+    base = os.path.join(app.root_path, "static", "games", "sudoblocku")
+    return send_from_directory(base, "index.html")
 
 
 from flask import Flask, request, render_template, jsonify
