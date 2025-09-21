@@ -124,17 +124,17 @@ MYSCHOOL_ENABLED = os.getenv("MYSCHOOL_ENABLED", "1").lower() in ("1", "true", "
 @app.route('/myschool/')
 def myschool_index():
     if not MYSCHOOL_ENABLED:
-        return redirect(url_for('index'))   # or abort(404)
-    base = os.path.join(app.root_path, "static", "myschool")
-    return send_from_directory(base, "index.html")
+        return redirect(url_for('index'))
+    # Uses Flask's configured static folder (defaults to "<root>/static")
+    return app.send_static_file('myschool/index.html')
 
+# You actually don't need this asset route because the HTML references are relative,
+# and our handler above is under /myschool/. But if you want to keep it explicit:
 @app.route('/myschool/<path:filename>')
 def myschool_assets(filename):
     if not MYSCHOOL_ENABLED:
         return abort(404)
-    base = os.path.join(app.root_path, "static", "myschool")
-    return send_from_directory(base, filename)
-
+    return send_from_directory(os.path.join(app.root_path, 'static', 'myschool'), filename)
 
 
 if __name__ == "__main__":
