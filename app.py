@@ -118,6 +118,24 @@ def early_years_assets(filename):
     return send_from_directory(base, filename)
 
 
+MYSCHOOL_ENABLED = os.getenv("MYSCHOOL_ENABLED", "1").lower() in ("1", "true", "yes")
+
+@app.route('/myschool')
+@app.route('/myschool/')
+def myschool_index():
+    if not MYSCHOOL_ENABLED:
+        return redirect(url_for('index'))   # or abort(404)
+    base = os.path.join(app.root_path, "static", "myschool")
+    return send_from_directory(base, "index.html")
+
+@app.route('/myschool/<path:filename>')
+def myschool_assets(filename):
+    if not MYSCHOOL_ENABLED:
+        return abort(404)
+    base = os.path.join(app.root_path, "static", "myschool")
+    return send_from_directory(base, filename)
+
+
 
 if __name__ == "__main__":
     # Run the application
