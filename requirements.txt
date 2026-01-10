@@ -14,6 +14,7 @@ dropbox==12.0.2
 exceptiongroup==1.2.1
 executing==2.0.1
 Flask==3.1.2
+gunicorn==23.0.0
 idna==3.11
 ipykernel==6.29.4
 ipython==8.25.0
