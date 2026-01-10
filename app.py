@@ -1,7 +1,15 @@
-from flask import Flask, render_template, jsonify, send_from_directory
+from flask import Flask, request, render_template, jsonify, send_from_directory
 import os
 import random
 from flask import abort, redirect, url_for
+import dropbox
+
+
+def get_dbx():
+    token = os.getenv("DROPBOX_ACCESS_TOKEN")
+    if not token:
+        raise RuntimeError("Missing DROPBOX_ACCESS_TOKEN env var")
+    return dropbox.Dropbox(token, timeout=10)
 
 
 app = Flask(__name__)
@@ -27,6 +35,7 @@ def style_guide():
 def games():
     # Serve the games.html file
     return render_template('games.html')
+
 
 @app.route('/games/country-data')
 def country_data():
@@ -135,6 +144,64 @@ def myschool_assets(filename):
     if not MYSCHOOL_ENABLED:
         return abort(404)
     return send_from_directory(os.path.join(app.root_path, 'static', 'myschool'), filename)
+
+# --------------*********************************
+# --------------*********************************
+# --------------*********************************
+# SAMMYS FRIENDS APP
+# --------------*********************************
+# --------------*********************************
+# --------------*********************************
+
+@app.route("/sammysfriends")
+@app.route("/sammysfriends/")
+def sammysfriends_index():
+    base = os.path.join(app.root_path, "static", "sammysfriends")
+    return send_from_directory(base, "index.html")
+
+
+@app.route("/sammysfriends/<path:filename>")
+def sammysfriends_assets(filename):
+    base = os.path.join(app.root_path, "static", "sammysfriends")
+    return send_from_directory(base, filename)
+
+
+DROPBOX_ROOT = "/sammy-universe/originals_web"
+
+dbx = dropbox.Dropbox(os.environ.get("DROPBOX_ACCESS_TOKEN"))
+
+
+@app.route("/api/sammy/images", methods=["POST"])
+def api_sammy_images():
+    dbx = get_dbx()
+    root = os.getenv("DROPBOX_SAMMY_ROOT", "/sammy-universe/originals_web")
+
+    payload = request.get_json(silent=True) or {}
+    limit = int(payload.get("limit", 40))
+    cursor = payload.get("cursor")  # raw string, no URL encoding headaches
+
+    if cursor:
+        res = dbx.files_list_folder_continue(cursor)
+    else:
+        res = dbx.files_list_folder(root, limit=limit)
+
+    images = []
+    for entry in res.entries:
+        if isinstance(entry, dropbox.files.FileMetadata):
+            name = entry.name.lower()
+            if not name.endswith((".png", ".jpg", ".jpeg", ".webp")):
+                continue
+            link = dbx.files_get_temporary_link(entry.path_lower).link
+            images.append({"id": entry.name, "url": link})
+
+    images.sort(key=lambda x: x["id"].lower())
+
+    return jsonify({
+        "count": len(images),
+        "images": images,
+        "has_more": res.has_more,
+        "cursor": res.cursor if res.has_more else None
+    })
 
 
 if __name__ == "__main__":
