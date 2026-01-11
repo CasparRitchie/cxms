@@ -6,10 +6,32 @@ import dropbox
 
 
 def get_dbx():
+    """
+    Prefer refresh-token auth (recommended: never expires).
+    Fall back to access token for local quick testing.
+    """
+    refresh_token = os.getenv("DROPBOX_REFRESH_TOKEN")
+    app_key = os.getenv("DROPBOX_APP_KEY")
+    app_secret = os.getenv("DROPBOX_APP_SECRET")
+
+    if refresh_token and app_key and app_secret:
+        return dropbox.Dropbox(
+            oauth2_refresh_token=refresh_token,
+            app_key=app_key,
+            app_secret=app_secret,
+            timeout=30,
+        )
+
+    # Fallback
     token = os.getenv("DROPBOX_ACCESS_TOKEN")
-    if not token:
-        raise RuntimeError("Missing DROPBOX_ACCESS_TOKEN env var")
-    return dropbox.Dropbox(token, timeout=10)
+    if token:
+        return dropbox.Dropbox(token, timeout=30)
+
+    raise RuntimeError(
+        "Dropbox auth missing. Set either "
+        "(DROPBOX_REFRESH_TOKEN + DROPBOX_APP_KEY + DROPBOX_APP_SECRET) "
+        "or DROPBOX_ACCESS_TOKEN."
+    )
 
 
 app = Flask(__name__)
@@ -166,7 +188,8 @@ def sammysfriends_assets(filename):
     return send_from_directory(base, filename)
 
 
-DROPBOX_ROOT = "/sammy-universe/originals_web"
+# DROPBOX_ROOT = "/sammy-universe/originals_web"
+DROPBOX_ROOT = "/sammy-universe/originals"
 
 dbx = dropbox.Dropbox(os.environ.get("DROPBOX_ACCESS_TOKEN"))
 
