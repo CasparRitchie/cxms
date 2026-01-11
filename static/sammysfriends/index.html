@@ -10,6 +10,21 @@
   <div id="app">
     <h1>Sammy’s Friends</h1>
     <p>Loading everyone…</p>
+    <div id="controls">
+      <label>Scary ↔ Friendly
+        <input id="scarySlider" type="range" min="0" max="100" value="50" />
+      </label>
+
+      <label>Light ↔ Dark
+        <input id="darkSlider" type="range" min="0" max="100" value="50" />
+      </label>
+
+      <label>Glitch
+        <input id="glitchSlider" type="range" min="0" max="100" value="0" />
+      </label>
+    </div>
+
+    <canvas id="previewCanvas" width="512" height="512" style="display:none;"></canvas>
     <div id="gallery"></div>
     <button id="load-more" style="display:none;">Load more</button>
   </div>

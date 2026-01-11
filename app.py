@@ -3,6 +3,8 @@ import os
 import random
 from flask import abort, redirect, url_for
 import dropbox
+import csv
+import time
 
 
 def get_dbx():
@@ -33,6 +35,38 @@ def get_dbx():
         "or DROPBOX_ACCESS_TOKEN."
     )
 
+
+SCARY_META_CACHE = {"loaded_at": 0, "by_filename": {}}
+
+
+def load_scary_metadata(dbx, path="/sammy-universe/metadata/scary_friendly.csv", ttl_seconds=300):
+    now = time.time()
+    if SCARY_META_CACHE["by_filename"] and (now - SCARY_META_CACHE["loaded_at"] < ttl_seconds):
+        return SCARY_META_CACHE["by_filename"]
+
+    try:
+        md, res = dbx.files_download(path)
+        text = res.content.decode("utf-8", errors="replace").splitlines()
+        reader = csv.DictReader(text)
+        by_filename = {}
+        for row in reader:
+            fn = row.get("filename")
+            if not fn:
+                continue
+            try:
+                by_filename[fn] = float(row.get("scary_score", 0.5))
+            except Exception:
+                by_filename[fn] = 0.5
+
+        SCARY_META_CACHE["by_filename"] = by_filename
+        SCARY_META_CACHE["loaded_at"] = now
+        return by_filename
+
+    except Exception:
+        # If metadata isn't there yet, don't break the page
+        SCARY_META_CACHE["by_filename"] = {}
+        SCARY_META_CACHE["loaded_at"] = now
+        return {}
 
 app = Flask(__name__)
 
@@ -194,7 +228,14 @@ def api_sammy_images():
 
     payload = request.get_json(silent=True) or {}
     limit = int(payload.get("limit", 40))
-    cursor = payload.get("cursor")  # raw string, no URL encoding headaches
+    cursor = payload.get("cursor")
+
+    # filter params (0..1)
+    scary_min = payload.get("scary_min", 0.0)
+    scary_max = payload.get("scary_max", 1.0)
+
+    # load metadata cache
+    scary_by_filename = load_scary_metadata(dbx)
 
     if cursor:
         res = dbx.files_list_folder_continue(cursor)
@@ -203,12 +244,22 @@ def api_sammy_images():
 
     images = []
     for entry in res.entries:
-        if isinstance(entry, dropbox.files.FileMetadata):
-            name = entry.name.lower()
-            if not name.endswith((".png", ".jpg", ".jpeg", ".webp")):
-                continue
-            link = dbx.files_get_temporary_link(entry.path_lower).link
-            images.append({"id": entry.name, "url": link})
+        if not isinstance(entry, dropbox.files.FileMetadata):
+            continue
+
+        name = entry.name
+        low = name.lower()
+        if not low.endswith((".png", ".jpg", ".jpeg", ".webp")):
+            continue
+
+        scary = float(scary_by_filename.get(name, 0.5))
+
+        # apply filter slider
+        if scary < float(scary_min) or scary > float(scary_max):
+            continue
+
+        link = dbx.files_get_temporary_link(entry.path_lower).link
+        images.append({"id": name, "url": link, "scary_score": scary})
 
     images.sort(key=lambda x: x["id"].lower())
 
