@@ -80,6 +80,7 @@ def country_data():
     }
     return jsonify(game_data)
 
+
 @app.route("/games/sudoku")
 def games_sudoku():
     base = os.path.join(app.root_path, "static", "games", "sudoku")
@@ -91,8 +92,6 @@ def games_sudoblocku():
     base = os.path.join(app.root_path, "static", "games", "sudoblocku")
     return send_from_directory(base, "index.html")
 
-
-from flask import Flask, request, render_template, jsonify
 
 @app.route('/compound-interest', methods=['GET', 'POST'])
 def compound_interest():
@@ -188,12 +187,6 @@ def sammysfriends_assets(filename):
     return send_from_directory(base, filename)
 
 
-# DROPBOX_ROOT = "/sammy-universe/originals_web"
-DROPBOX_ROOT = "/sammy-universe/originals"
-
-dbx = dropbox.Dropbox(os.environ.get("DROPBOX_ACCESS_TOKEN"))
-
-
 @app.route("/api/sammy/images", methods=["POST"])
 def api_sammy_images():
     dbx = get_dbx()
@@ -228,5 +221,5 @@ def api_sammy_images():
 
 
 if __name__ == "__main__":
-    # Run the application
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
