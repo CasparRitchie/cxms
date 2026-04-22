@@ -60,14 +60,7 @@ def games_sudoblocku():
     base = os.path.join(app.root_path, "static", "games", "sudoblocku")
     return send_from_directory(base, "index.html")
 
-
-<<<<<<< HEAD
-from flask import Flask, request, render_template, jsonify
-
-@app.route('/compound-interest', methods=['GET', 'POST'])
-=======
 @app.route("/compound-interest", methods=["GET", "POST"])
->>>>>>> 3d62d8f (Remove audit route and simplify requirements)
 def compound_interest():
     if request.method == "POST":
         initial_investment = float(request.form.get("initialInvestment", 0))
@@ -139,16 +132,10 @@ def myschool_index():
 def myschool_assets(filename):
     if not MYSCHOOL_ENABLED:
         return abort(404)
-<<<<<<< HEAD
     return send_from_directory(os.path.join(app.root_path, 'static', 'myschool'), filename)
 
 
 if __name__ == "__main__":
     # Run the application
-=======
-    return send_from_directory(os.path.join(app.root_path, "static", "myschool"), filename)
 
-
-if __name__ == "__main__":
->>>>>>> 3d62d8f (Remove audit route and simplify requirements)
     app.run(debug=True)
