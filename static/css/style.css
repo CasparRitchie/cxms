@@ -1,173 +1,607 @@
-/* Base Styles */
-body, html {
+:root {
+  --cxms-bg: #0b0f19;
+  --cxms-bg-soft: #121826;
+  --cxms-panel: rgba(255, 255, 255, 0.04);
+  --cxms-panel-border: rgba(255, 255, 255, 0.08);
+  --cxms-text: #e5e7eb;
+  --cxms-muted: #9ca3af;
+  --cxms-green: #22c55e;
+  --cxms-purple: #7c3aed;
+  --cxms-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  --cxms-radius: 22px;
+  --cxms-radius-sm: 16px;
+  --cxms-max: 1180px;
+}
+
+/* ========================================
+   1. RESET / GLOBAL BASICS
+======================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
   margin: 0;
   padding: 0;
-  font-family: 'Roboto', sans-serif;
+  min-height: 100%;
 }
 
+body {
+  font-family: Arial, sans-serif;
+  color: var(--cxms-text);
+  background:
+    radial-gradient(circle at top left, rgba(124, 58, 237, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 24%),
+    linear-gradient(180deg, #0b0f19 0%, #0e1422 100%);
+}
 
+/* ========================================
+   2. SHARED SITE SHELL
+   Header, nav, page spacing, footer
+======================================== */
 
-.container {
-  height: 100vh; /* Adjust as needed */
+.site-shell {
+  width: min(100% - 32px, var(--cxms-max));
+  margin: 0 auto;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+  background: rgba(11, 15, 25, 0.85);
+  border-bottom: 1px solid var(--cxms-panel-border);
+}
+
+.site-header-inner,
+.site-header__inner {
+  min-height: 72px;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end; /* Align content to the bottom */
   align-items: center;
-  text-align: center;
-  background-size: cover;
-  background-image: url('/static/images/cxms-background-landscape-1.jpg'); /* Desktop background */
-  background-repeat: no-repeat;
-  overflow-y: auto; /* Enable vertical scrolling */
-  padding-top: 50px; /* Add padding to the top */
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-#item-country-game{
-  object-fit: contain;
+.site-brand {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
-#country-outline {
-  max-width: 100%; /* Ensures image does not overflow its container */
-  height: auto; /* Maintains the aspect ratio */
-  object-fit: contain; /* Ensures the full image is visible, might adjust based on your specific needs */
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-#game-container{
-  width: 90%;
-  height: auto; /* Adjust height automatically */
-  justify-content: flex-start; /* Align to the top on smaller screens */
-  border-color: red;
-  padding: 2px;
-  margin: auto;
+.site-nav a {
+  color: var(--cxms-text);
+  text-decoration: none;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: 0.2s ease;
+  font-size: 0.95rem;
 }
 
-@media screen and (max-width: 768px) {
-  .image-container {
-    width: 100%; /* Use full width on smaller screens */
-    padding-top: 56.25%; /* 16:9 aspect ratio, adjust as needed */
-    background-size: cover; /* Cover ensures the container is fully covered, adjust to 'contain' if you want to see the whole image */
-    background-position: center; /* Keeps the image centered */
-  }
-  .container {
-    background-image: url('/static/images/cxms-background-portrait-2-robot.jpeg'); /* Mobile background */
-  }
+.site-nav a:hover {
+  border-color: rgba(124, 58, 237, 0.45);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
 }
 
-
-@media screen and (orientation: portrait) {
-  .image-container {
-    width: 95vw; /* Larger percentage of viewport width in portrait mode */
-    height: auto; /* Adjust height automatically */
-    justify-content: flex-start; /* Align to the top on smaller screens */
-
-  }
+.site-main,
+.page-wrap {
+  padding: 32px 0 56px;
 }
 
-/* Carousel Specific Styles */
+.site-footer {
+  border-top: 1px solid var(--cxms-panel-border);
+  padding: 24px 0 40px;
+  color: var(--cxms-muted);
+}
+
+.site-footer p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Shared panel styling used in multiple places */
+.page-panel,
+.section-panel,
+.feature-card,
+.hero-copy,
+.hero-carousel,
+.game-panel {
+  background: var(--cxms-panel);
+  border: 1px solid var(--cxms-panel-border);
+  border-radius: var(--cxms-radius);
+  box-shadow: var(--cxms-shadow);
+}
+
+/* ========================================
+   3. HOMEPAGE LAYOUT
+======================================== */
+
+.home-page {
+  min-height: auto;
+  height: auto;
+  display: block;
+  background: transparent;
+  padding-top: 0;
+  overflow: visible;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 28px;
+  align-items: stretch;
+  margin-bottom: 28px;
+}
+
+.hero-copy {
+  padding: 32px;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.16);
+  color: #d8c7ff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.hero-copy h1 {
+  margin: 0 0 16px;
+  font-size: clamp(2.2rem, 4vw, 4rem);
+  line-height: 1.04;
+  color: #ffffff;
+}
+
+.hero-copy p {
+  margin: 0 0 16px;
+  font-size: 1.05rem;
+  color: var(--cxms-text);
+  line-height: 1.7;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 600;
+  transition: 0.2s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--cxms-green), #34d399);
+  color: #08110c;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.btn-secondary {
+  border: 1px solid rgba(124, 58, 237, 0.45);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.section-panel {
+  padding: 28px;
+  margin-bottom: 28px;
+}
+
+.section-panel h2 {
+  margin: 0 0 10px;
+  color: #ffffff;
+  font-size: 1.8rem;
+}
+
+.section-panel p {
+  margin: 0;
+  color: var(--cxms-muted);
+  line-height: 1.7;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.feature-card {
+  padding: 22px;
+}
+
+.feature-card h3 {
+  margin: 0 0 10px;
+  color: #ffffff;
+  font-size: 1.1rem;
+}
+
+.feature-card p {
+  margin: 0 0 16px;
+  color: var(--cxms-muted);
+  font-size: 0.97rem;
+  line-height: 1.7;
+}
+
+.feature-card a {
+  color: var(--cxms-green);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.feature-card a:hover {
+  color: #86efac;
+}
+
+/* ========================================
+   4. HOMEPAGE CAROUSEL
+======================================== */
+
+.hero-carousel {
+  position: relative;
+  overflow: hidden;
+  min-height: 520px;
+  padding: 18px;
+}
 
 .carousel {
   position: relative;
-  height: 80%;
-  width: 80%;
-  max-width: 600px; /* Adjust as needed */
-  margin: auto;
+  width: 100%;
+  height: 100%;
+  min-height: 460px;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: var(--cxms-radius-sm);
 }
 
 .carousel-item {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%; /* Adjust as needed */
-  background-size: cover;
-  background-position: top; /* Align image to the top */
-  background-repeat: no-repeat;
-  display: none; /* Hide all items by default */
+  inset: 0;
+  display: none;
+  border-radius: var(--cxms-radius-sm);
+  overflow: hidden;
+  background: #0f172a;
 }
 
 .carousel-item.active {
-  display: flex; /* Changed to flex to center the image */
-  justify-content: center;
-  align-items: center;}
+  display: block;
+}
+
+.image-container {
+  width: 100%;
+  height: 100%;
+  min-height: 460px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.text-container {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  width: auto;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, rgba(11, 15, 25, 0.88), rgba(124, 58, 237, 0.4));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.text-container h3 {
+  font-size: 24px;
+  margin: 0 0 10px;
+}
+
+.text-container p {
+  margin: 0 0 10px;
+}
+
+.text-container ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.text-container ul li {
+  margin-bottom: 5px;
+}
 
 .carousel-button {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 40px;
-  height: 40px;
-  border: 2px solid #4e4ce6; /* Purple border */
-  background-color: transparent;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(11, 15, 25, 0.7);
+  color: #ffffff;
   cursor: pointer;
-  z-index: 1;
+  z-index: 10;
+}
+
+.carousel-button:hover {
+  background: rgba(124, 58, 237, 0.4);
 }
 
 .carousel-button.left {
-  left: 5px; /* Adjust as needed */
+  left: 22px;
 }
 
 .carousel-button.right {
-  right: 5px; /* Adjust as needed */
+  right: 22px;
 }
 
-/* Image Container Specific Styles */
-
-
-.image-container {
-  width: 80%; /* Start with 80% of the container's width */
-  height: 0; /* Initially set height to 0 */
-  padding-top: 50%; /* Use padding to control aspect ratio; adjust as needed */
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  box-sizing: border-box;
+.carousel-button::before {
+  display: inline-block;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
-@media (max-width: 768px) {
-  .image-container {
-    width: 90%; /* Allow more width on smaller screens */
-    padding-top: 70%; /* Adjust padding to maintain aspect ratio on narrow screens */
-  }
+.carousel-button.left::before {
+  content: "‹";
 }
 
-/* Text container Specific Styles */
+.carousel-button.right::before {
+  content: "›";
+}
 
-.text-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
+/* ========================================
+   5. GAMES PAGE LAYOUT
+======================================== */
+
+.games-page {
+  min-height: auto;
+  height: auto;
+  display: block;
+  background: transparent;
+  overflow: visible;
+  padding-top: 16px;
+}
+
+.games-nav {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--cxms-panel-border);
+  flex-wrap: wrap;
+}
+
+.games-nav .tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--cxms-text);
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 500;
+  border-radius: 999px;
+  transition: 0.2s ease;
+}
+
+.games-nav .tab-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+}
+
+.games-nav .tab-btn[aria-selected="true"] {
+  border-color: rgba(124, 58, 237, 0.45);
+  background: rgba(124, 58, 237, 0.12);
+  color: #ffffff;
+}
+
+.games-nav .nav-spacer {
+  margin-left: auto;
+}
+
+.games-nav a {
+  color: var(--cxms-text);
+  text-decoration: none;
+  padding: 10px 14px;
+  border-radius: 999px;
+}
+
+.games-nav a:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+}
+
+#games-tabs,
+.game-tab {
+  width: 100%;
+}
+
+.game-tab {
+  margin: 0;
+}
+
+.game-panel {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 22px;
+}
+
+.game-panel__header {
+  margin-bottom: 18px;
+}
+
+.game-panel__header h3 {
+  margin: 0 0 8px;
+  color: #ffffff;
+  font-size: 1.4rem;
+}
+
+.game-panel__header p {
+  margin: 0;
+  color: var(--cxms-muted);
+  line-height: 1.6;
+}
+
+/* ========================================
+   6. EMBEDDED GAME FRAMES
+   Used for Sudoku and Sudoblocku
+======================================== */
+
+.frame-wrap,
+.frame-wrap--game {
+  width: 100%;
+  max-width: 100%;
+  height: clamp(700px, 84vh, 1100px);
+  margin: 0 auto;
+  border: 1px solid var(--cxms-panel-border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000000;
+}
+
+.frame-wrap iframe,
+.frame-wrap--game iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+  background: #000000;
+}
+
+/* ========================================
+   7. COUNTRY GAME
+======================================== */
+
+#game-container {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+#question {
+  font-size: 1.1rem;
+  margin: 0 0 18px;
+  color: #ffffff;
+}
+
+#country-outline {
+  display: block;
+  max-width: min(100%, 420px);
+  max-height: 280px;
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto 20px;
+}
+
+#options-container {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 auto 22px;
+  max-width: 680px;
+}
+
+#options-container button {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+#options-container button:hover {
+  background: rgba(124, 58, 237, 0.22);
+}
+
+#score,
+#streak {
+  color: var(--cxms-muted);
+  margin: 8px 0 0;
+}
+
+/* Optional support for any older country/population markup
+   still used elsewhere */
+#country-options {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+#country-options .country-option {
+  flex-basis: 45%;
+  text-align: center;
+}
+
+#country-options img {
+  cursor: pointer;
+  max-width: 100%;
+  height: auto;
+  border: 2px solid #fff;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+#country1-name,
+#country2-name {
+  color: #ffffff;
+  margin-top: 0;
+}
+
+#population-game-container {
   width: 90%;
+  margin: auto;
   padding: 20px;
-  background-color: rgba(33, 14, 238, 0.612);
-  border-radius: 0 0 10px 10px;
-  color: white; /* Text color */
-  font-family: 'Roboto', sans-serif; /* Apply Roboto font */
-  font-size: 16px; /* Adjust font size as needed */
-  line-height: 1.5; /* Adjust line height for better readability */
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+  color: #ffffff;
 }
 
-.text-container h3 {
-  font-size: 24px; /* Adjust heading size as needed */
-  margin-bottom: 10px; /* Add space below headings */
+#population-question {
+  font-size: 20px;
+  margin-bottom: 20px;
 }
 
-.text-container p {
-  margin-bottom: 10px; /* Add space between paragraphs */
-}
-
-.text-container ul {
-  list-style: none; /* Remove bullet points */
-  padding: 0; /* Remove default padding */
-}
-
-.text-container ul li {
-  margin-bottom: 5px; /* Add space between list items */
-}
-
-/* CXMS style guide Specific Styles */
-
+/* ========================================
+   8. STYLE GUIDE PAGE
+======================================== */
 
 .color-square {
   width: 50px;
@@ -177,96 +611,187 @@ body, html {
   border: 1px solid #000;
 }
 
+/* ========================================
+   9. RESPONSIVE
+======================================== */
 
-/* Population Game Specific Styles */
+@media (max-width: 980px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
 
-#population-game-container {
-  width: 90%; /* Consistent with game-container */
-  margin: auto; /* Center within its parent */
-  padding: 20px; /* Space inside the container */
-  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background for readability */
-  border-radius: 10px; /* Rounded corners */
-  color: white; /* Text color for visibility */
+  .features-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-carousel {
+    min-height: 460px;
+  }
 }
 
-#population-question {
-  font-size: 20px; /* Larger question text */
-  margin-bottom: 20px; /* More space below the question */
-}
-#country-options {
-  display: flex;
-  justify-content: space-around;
-  margin-bottom: 20px;
-  flex-wrap: wrap; /* Allows wrapping for smaller screens */
+@media (max-width: 768px) {
+  .image-container {
+    min-height: 360px;
+  }
 }
 
-#country-options .country-option {
-  flex-basis: 45%; /* Occupies less than half of the container width */
-  text-align: center; /* Centers the text below images */
-}
+@media (max-width: 640px) {
+  .page-wrap,
+  .site-main {
+    padding-top: 22px;
+  }
 
-#country-options img {
-  cursor: pointer;
-  max-width: 100%; /* Ensures the image is responsive within its container */
-  height: auto; /* Maintains aspect ratio */
-  border: 2px solid #fff;
-  border-radius: 5px;
-  margin-bottom: 10px; /* Space between the image and the country name */
-}
+  .hero-copy,
+  .section-panel,
+  .feature-card,
+  .hero-carousel,
+  .game-panel {
+    padding: 20px;
+  }
 
-#country1-name, #country2-name {
-  color: white; /* Ensures the text is visible against the background */
-  margin-top: 0; /* Removes default margin */
-}
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
 
-@media screen and (max-width: 768px) {
+  .hero-carousel {
+    padding: 14px;
+    min-height: 400px;
+  }
+
+  .carousel,
+  .image-container {
+    min-height: 360px;
+  }
+
+  .text-container {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    padding: 14px 16px;
+    font-size: 0.95rem;
+  }
+
+  .carousel-button.left {
+    left: 16px;
+  }
+
+  .carousel-button.right {
+    right: 16px;
+  }
+
+  .games-nav {
+    gap: 8px;
+  }
+
+  .games-nav .tab-btn {
+    padding: 6px 8px;
+  }
+
+  .frame-wrap,
+  .frame-wrap--game {
+    height: clamp(620px, 82vh, 900px);
+  }
+
+  #options-container {
+    grid-template-columns: 1fr;
+  }
+
   #country-options {
-    flex-direction: column; /* Stack images vertically on smaller screens */
+    flex-direction: column;
   }
 
   #country-options .country-option {
-    flex-basis: 80%; /* Allows each option to take more space */
-    margin-bottom: 20px; /* Adds space between options */
+    flex-basis: 80%;
+    margin-bottom: 20px;
   }
 }
-/* --- Games page layout fixes (non-destructive overrides) --- */
 
-/* Let the games page container grow naturally and scroll if needed */
-#games-tabs, .games-nav, .game-tab { /* these exist only on /games */
-  /* acts as a scope for the next rules */
-}
 
-.container {
-  min-height: 100svh;      /* instead of fixed 100vh; handles mobile browser bars */
-  height: auto;            /* allow content height */
-  justify-content: flex-start;  /* don't pin content to bottom */
+/* ========================================
+   7B. POPULATION + CAPITAL GAME UI
+======================================== */
+
+.country-option-btn {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  overflow-y: auto;
-}
-
-/* The blue overlay style is great for carousel cards, but not for embedded games */
-.game-tab .text-container {
-  position: static;         /* remove absolute overlay */
-  bottom: auto;
-  left: auto;
+  gap: 10px;
   width: 100%;
-  padding: 0;               /* let the game set its own padding */
-  background: transparent;  /* no blue panel over the iframe */
-  color: inherit;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  cursor: pointer;
+  transition: 0.2s ease;
 }
 
-/* Keep headings with some breathing room */
-.game-tab .text-container h3 {
-  margin: 8px 0 12px;
+.country-option-btn:hover {
+  background: rgba(124, 58, 237, 0.16);
+  border-color: rgba(124, 58, 237, 0.28);
 }
 
-/* If you keep carousel elsewhere, ensure it doesn't enforce a tiny height here */
-#games-tabs .carousel,
-#games-tabs .carousel-item {
-  position: static;
-  height: auto;
-  width: 100%;
-  max-width: none;
-  overflow: visible;
+.country-option-btn img {
   display: block;
+  max-width: min(100%, 260px);
+  max-height: 180px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.country-option-btn p {
+  margin: 0;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+#capital-game-container {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+#capital-question {
+  font-size: 1.1rem;
+  margin: 0 0 12px;
+  color: #ffffff;
+}
+
+#capital-country-name {
+  margin: 0 0 18px;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+#capital-options-container {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 auto 22px;
+  max-width: 680px;
+}
+
+#capital-options-container button {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+#capital-options-container button:hover {
+  background: rgba(124, 58, 237, 0.22);
+}
+
+#population-score,
+#population-streak,
+#capital-score,
+#capital-streak {
+  color: var(--cxms-muted);
+  margin: 8px 0 0;
 }

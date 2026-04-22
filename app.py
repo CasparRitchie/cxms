@@ -50,15 +50,30 @@ def country_data():
     return jsonify(game_data)
 
 @app.route("/games/sudoku")
+@app.route("/games/sudoku/")
 def games_sudoku():
     base = os.path.join(app.root_path, "static", "games", "sudoku")
     return send_from_directory(base, "index.html")
 
 
+@app.route("/games/sudoku/<path:filename>")
+def games_sudoku_assets(filename):
+    base = os.path.join(app.root_path, "static", "games", "sudoku")
+    return send_from_directory(base, filename)
+
+
 @app.route("/games/sudoblocku")
+@app.route("/games/sudoblocku/")
 def games_sudoblocku():
     base = os.path.join(app.root_path, "static", "games", "sudoblocku")
     return send_from_directory(base, "index.html")
+
+
+@app.route("/games/sudoblocku/<path:filename>")
+def games_sudoblocku_assets(filename):
+    base = os.path.join(app.root_path, "static", "games", "sudoblocku")
+    return send_from_directory(base, filename)
+
 
 @app.route("/compound-interest", methods=["GET", "POST"])
 def compound_interest():
@@ -120,19 +135,26 @@ def early_years_assets(filename):
 MYSCHOOL_ENABLED = os.getenv("MYSCHOOL_ENABLED", "1").lower() in ("1", "true", "yes")
 
 
-@app.route("/myschool")
-@app.route("/myschool/")
-def myschool_index():
+@app.route("/myschool-app/")
+def myschool_app():
     if not MYSCHOOL_ENABLED:
         return redirect(url_for("index"))
     return app.send_static_file("myschool/index.html")
 
 
-@app.route("/myschool/<path:filename>")
-def myschool_assets(filename):
+@app.route("/myschool-app/<path:filename>")
+def myschool_app_assets(filename):
     if not MYSCHOOL_ENABLED:
         return abort(404)
-    return send_from_directory(os.path.join(app.root_path, 'static', 'myschool'), filename)
+    return send_from_directory(os.path.join(app.root_path, "static", "myschool"), filename)
+
+
+@app.route("/myschool")
+@app.route("/myschool/")
+def myschool_page():
+    if not MYSCHOOL_ENABLED:
+        return redirect(url_for("index"))
+    return render_template("myschool.html")
 
 
 if __name__ == "__main__":

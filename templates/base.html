@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}CXMS{% endblock %}</title>
+
+  <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='images/cxms-favicon1.jpeg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shell.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="cxms-body">
+  {% include "partials/site_header.html" %}
+
+  <main class="site-main">
+    <div class="site-shell">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  {% include "partials/site_footer.html" %}
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

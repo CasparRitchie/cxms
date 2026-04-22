@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXMS - MySchool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=5">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='images/cxms-favicon1.jpeg') }}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-shell site-header-inner">
+            <a href="/" class="site-brand">CXMS</a>
+            <nav class="site-nav" aria-label="Main navigation">
+                <a href="/">Home</a>
+                <a href="/games">Games</a>
+                <a href="/myschool">MySchool</a>
+                <a href="/compound-interest">Compound Interest</a>
+                <a href="/style-guide">Style Guide</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-wrap">
+        <div class="site-shell">
+            <div class="game-panel">
+                <div class="game-panel__header">
+                    <h3>MySchool</h3>
+                    <p>Income simulator embedded inside the CXMS shell.</p>
+                </div>
+
+                <div class="frame-wrap frame-wrap--game">
+                    <iframe
+                        src="/myschool-app/"
+                        title="MySchool"
+                        loading="lazy"
+                    ></iframe>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-shell">
+            <p>CXMS — practical tools, games, experiments, and digital ideas.</p>
+        </div>
+    </footer>
+</body>
+</html>

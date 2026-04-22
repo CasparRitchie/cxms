@@ -5,56 +5,144 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CXMS - Customer Experience Management Solutions</title>
 
-        <!-- Open Graph tags -->
-        <meta property="og:title" content="CXMS - Customer Experience Management Solutions" />
-        <meta property="og:description" content="Optimization, Efficiency, Process Mapping, and IT Solutions to enhance your business processes and customer experience." />
-        <meta property="og:image" content="https://cxms-fb8404aba0d4.herokuapp.com/static/images/process-mapping-background1.jpeg" />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="www.cxms.fr" />
-        <!-- End Open Graph tags -->
+    <!-- Open Graph tags -->
+    <meta property="og:title" content="CXMS - Customer Experience Management Solutions" />
+    <meta property="og:description" content="Optimization, Efficiency, Process Mapping, tools, games, and practical digital solutions." />
+    <meta property="og:image" content="https://cxms-fb8404aba0d4.herokuapp.com/static/images/process-mapping-background1.jpeg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.cxms.fr" />
 
-    <link rel="stylesheet" href="../static/css/style.css?v=1">
-    <link rel="icon" type="image/jpeg" href="../static/images/cxms-favicon1.jpeg">
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='images/cxms-favicon1.jpeg') }}">
 </head>
 <body>
-  <div class="container">
-    <div id="carousel" class="carousel">
-        <div class="carousel-item">
-            <div class="image-container" style="background-image: url('../static/images/optimisation-background1.jpeg');">
-            </div>
-            <div class="text-container">
-                Optimization: Enhance your business processes for peak performance.
-            </div>
-        </div>
-        <div class="carousel-item">
-            <div class="image-container" style="background-image: url('../static/images/efficiency-background1.jpeg');">
-            </div>
-            <div class="text-container">
-                Efficiency: Streamline operations to save time and reduce costs.
-            </div>
-        </div>
-        <div class="carousel-item">
-            <div class="image-container" style="background-image: url('../static/images/process-mapping-background1.jpeg');">
-            </div>
-            <div class="text-container">
-                Process Mapping: Visualize and understand your customer journeys for better customer experience and to improve your NPS.
-            </div>
-        </div>
-        <div class="carousel-item">
-            <div class="image-container" style="background-image: url('../static/images/image4.jpg');">
-            </div>
-            <div class="text-container">
-                IT Solutions: Create bespoke software solutions for your everyday business problems.
-            </div>
-        </div>
-    </div>
-    <button id="prev" class="carousel-button left"></button>
-    <button id="next" class="carousel-button right"></button>
-    <a href="style-guide">Style Guide</a>
-    <a href="games">Games</a>
-</div>
+    <header class="site-header">
+        <div class="site-shell site-header-inner">
+            <a href="/" class="site-brand">CXMS</a>
 
-    <script src="../static/js/script.js"></script>
+            <nav class="site-nav" aria-label="Main navigation">
+                <a href="/">Home</a>
+                <a href="/games">Games</a>
+                <a href="/myschool">MySchool</a>
+                <a href="/compound-interest">Compound Interest</a>
+                <a href="/style-guide">Style Guide</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-wrap">
+        <div class="site-shell">
+            <section class="hero">
+                <div class="hero-copy">
+                    <span class="eyebrow">Practical digital ideas</span>
+                    <h1>CXMS</h1>
+                    <p>
+                        Customer Experience Management Solutions — a home for practical tools,
+                        educational ideas, lightweight games, and digital experiments designed
+                        to make useful things feel clear, approachable, and enjoyable.
+                    </p>
+                    <p>
+                        This first pass brings CXMS closer to the visual feel of NPS Me, with a
+                        darker, cleaner layout and a structure we can now reuse across the site.
+                    </p>
+
+                    <div class="hero-actions">
+                        <a href="/games" class="btn-primary">Explore Games</a>
+                        <a href="/myschool" class="btn-secondary">Open MySchool</a>
+                    </div>
+                </div>
+
+                <div class="hero-carousel">
+                    <div id="carousel" class="carousel">
+                        <div class="carousel-item">
+                            <div class="image-container" style="background-image: url('{{ url_for('static', filename='images/optimisation-background1.jpeg') }}');"></div>
+                            <div class="text-container">
+                                Optimization: enhance business processes for stronger performance and clearer outcomes.
+                            </div>
+                        </div>
+
+                        <div class="carousel-item">
+                            <div class="image-container" style="background-image: url('{{ url_for('static', filename='images/efficiency-background1.jpeg') }}');"></div>
+                            <div class="text-container">
+                                Efficiency: simplify the way things work to save time, reduce friction, and improve consistency.
+                            </div>
+                        </div>
+
+                        <div class="carousel-item">
+                            <div class="image-container" style="background-image: url('{{ url_for('static', filename='images/process-mapping-background1.jpeg') }}');"></div>
+                            <div class="text-container">
+                                Process Mapping: visualise journeys, understand pain points, and improve experience in a more structured way.
+                            </div>
+                        </div>
+
+                        <div class="carousel-item">
+                            <div class="image-container" style="background-image: url('{{ url_for('static', filename='images/cxms-background-landscape-12.jpg') }}');"></div>
+                            <div class="text-container">
+                                Digital Tools: create useful small-scale products, experiments, and resources that people actually want to use.
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="prev" class="carousel-button left" aria-label="Previous slide"></button>
+                    <button id="next" class="carousel-button right" aria-label="Next slide"></button>
+                </div>
+            </section>
+
+            <section class="section-panel">
+                <h2>What you can explore here</h2>
+                <p>
+                    CXMS is evolving into a more structured site with shared formatting, clearer
+                    navigation, and a stronger identity. These are the main areas we can now use
+                    as homepage building blocks.
+                </p>
+
+                <div class="features-grid">
+                    <article class="feature-card">
+                        <h3>Games</h3>
+                        <p>
+                            Quick, lightweight games and interactive experiences, including geography
+                            and logic-based play.
+                        </p>
+                        <a href="/games">Go to Games</a>
+                    </article>
+
+                    <article class="feature-card">
+                        <h3>MySchool</h3>
+                        <p>
+                            A separate practical app experience within CXMS, already available as
+                            its own section of the site.
+                        </p>
+                        <a href="/myschool">Open MySchool</a>
+                    </article>
+
+                    <article class="feature-card">
+                        <h3>Tools</h3>
+                        <p>
+                            Useful calculators and practical utilities, starting with compound interest
+                            and expanding over time.
+                        </p>
+                        <a href="/compound-interest">Open Tool</a>
+                    </article>
+
+                    <article class="feature-card">
+                        <h3>Style & Direction</h3>
+                        <p>
+                            The visual direction of the site is being cleaned up so every page feels
+                            like part of one joined-up product.
+                        </p>
+                        <a href="/style-guide">View Style Guide</a>
+                    </article>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-shell">
+            <p>CXMS — practical tools, games, experiments, and digital ideas.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

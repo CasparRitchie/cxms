@@ -1,0 +1,976 @@
+## GIT STATUS
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   static/myschool/manifest.webmanifest
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	cxms_project_context.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+## RECENT COMMITS
+dc55c95 update myschool
+168ecfc Ignore local virtual environment
+154c1d7 Remove audit template and ignore DS_Store
+3b142c8 Remove audit route and simplify requirements
+80ec7e2 Force Heroku rebuild
+42ef8de Force Heroku rebuild
+b1dd3db Update MySchool React build in /static/myschool
+75eb051 Update MySchool React build in /static/myschool
+38d52ff app.py
+7a08c8d .DS_Store
+5a04523 Update MySchool React build in /static/myschool
+acdab4b Update Sudoblocku build in /static/games/sudoblocku
+
+## FILE TREE
+./__pycache__
+./.git
+./.gitignore
+./app.json
+./app.py
+./Audit_First_Page_Table.csv
+./Audit_Structured_Text.csv
+./Cleaned_Audit_First_Page_Table.csv
+./config/nginx.conf.erb
+./cxms_project_context.txt
+./cxmsenv
+./Expérience convive V3.pdf
+./Filtered_Audit_Structured_Text.csv
+./idrv7.ipynb
+./Makefile
+./Procfile
+./public/population_data.json
+./README.md
+./requirements.txt
+./static.json
+./static/.DS_Store
+./static/css/games.css
+./static/css/oldstyle copy.css
+./static/css/style.css
+./static/early-years/index.html
+./static/games/.DS_Store
+./static/games/sudoblocku/asset-manifest.json
+./static/games/sudoblocku/favicon.ico
+./static/games/sudoblocku/index.html
+./static/games/sudoblocku/logo192.png
+./static/games/sudoblocku/logo512.png
+./static/games/sudoblocku/manifest.json
+./static/games/sudoblocku/robots.txt
+./static/games/sudoblocku/static/css/main.0b6d2efd.css
+./static/games/sudoblocku/static/css/main.0b6d2efd.css.map
+./static/games/sudoblocku/static/css/main.b4264b61.css
+./static/games/sudoblocku/static/css/main.b4264b61.css.map
+./static/games/sudoblocku/static/js/453.cfa521df.chunk.js
+./static/games/sudoblocku/static/js/453.cfa521df.chunk.js.map
+./static/games/sudoblocku/static/js/main.328dcbf4.js
+./static/games/sudoblocku/static/js/main.328dcbf4.js.LICENSE.txt
+./static/games/sudoblocku/static/js/main.328dcbf4.js.map
+./static/games/sudoblocku/static/js/main.608c1edd.js
+./static/games/sudoblocku/static/js/main.608c1edd.js.LICENSE.txt
+./static/games/sudoblocku/static/js/main.608c1edd.js.map
+./static/games/sudoblocku/static/js/main.7ec0cb81.js
+./static/games/sudoblocku/static/js/main.7ec0cb81.js.LICENSE.txt
+./static/games/sudoblocku/static/js/main.7ec0cb81.js.map
+./static/games/sudoblocku/static/js/main.a65c0347.js
+./static/games/sudoblocku/static/js/main.a65c0347.js.LICENSE.txt
+./static/games/sudoblocku/static/js/main.a65c0347.js.map
+./static/games/sudoblocku/static/js/main.ac28aeee.js
+./static/games/sudoblocku/static/js/main.ac28aeee.js.LICENSE.txt
+./static/games/sudoblocku/static/js/main.ac28aeee.js.map
+./static/games/sudoblocku/static/js/main.ad0955da.js
+./static/games/sudoblocku/static/js/main.ad0955da.js.LICENSE.txt
+./static/games/sudoblocku/static/js/main.ad0955da.js.map
+./static/games/sudoblocku/static/js/main.ce71736d.js
+./static/games/sudoblocku/static/js/main.ce71736d.js.LICENSE.txt
+./static/games/sudoblocku/static/js/main.ce71736d.js.map
+./static/games/sudoblocku/static/js/main.dd69368c.js
+./static/games/sudoblocku/static/js/main.dd69368c.js.LICENSE.txt
+./static/games/sudoblocku/static/js/main.dd69368c.js.map
+./static/games/sudoku/.DS_Store
+./static/games/sudoku/assets/index-C_l8iQ8M.js
+./static/games/sudoku/assets/index-C7ntKZRS.css
+./static/games/sudoku/assets/index-CxnfMucn.js
+./static/games/sudoku/assets/index-D2FAIvGa.css
+./static/games/sudoku/assets/index-DE0mApU2.css
+./static/games/sudoku/assets/index-DsAIHFd_.js
+./static/games/sudoku/assets/index-rjN8olGC.js
+./static/games/sudoku/index.html
+./static/images/.DS_Store
+./static/images/cxms-background-landscape-1.jpg
+./static/images/cxms-background-landscape-1.webp
+./static/images/cxms-background-landscape-12.jpg
+./static/images/cxms-background-portrait-2-robot.jpeg
+./static/images/cxms-background-portrait-2-robot.webp
+./static/images/cxms-favicon1.jpeg
+./static/images/efficiency-background1.jpeg
+./static/images/favicon1.jpeg
+./static/images/games-images/.DS_Store
+./static/images/games-images/country-outlines/Afghanistan.png
+./static/images/games-images/country-outlines/Albania.png
+./static/images/games-images/country-outlines/Algeria.png
+./static/images/games-images/country-outlines/Angola.png
+./static/images/games-images/country-outlines/Antarctica.png
+./static/images/games-images/country-outlines/Argentina.png
+./static/images/games-images/country-outlines/Armenia.png
+./static/images/games-images/country-outlines/Australia.png
+./static/images/games-images/country-outlines/Austria.png
+./static/images/games-images/country-outlines/Azerbaijan.png
+./static/images/games-images/country-outlines/Bahamas.png
+./static/images/games-images/country-outlines/Bangladesh.png
+./static/images/games-images/country-outlines/Belarus.png
+./static/images/games-images/country-outlines/Belgium.png
+./static/images/games-images/country-outlines/Belize.png
+./static/images/games-images/country-outlines/Benin.png
+./static/images/games-images/country-outlines/Bhutan.png
+./static/images/games-images/country-outlines/Bolivia.png
+./static/images/games-images/country-outlines/Bosnia_and_Herz..png
+./static/images/games-images/country-outlines/Botswana.png
+./static/images/games-images/country-outlines/Brazil.png
+./static/images/games-images/country-outlines/Brunei.png
+./static/images/games-images/country-outlines/Bulgaria.png
+./static/images/games-images/country-outlines/Burkina_Faso.png
+./static/images/games-images/country-outlines/Burundi.png
+./static/images/games-images/country-outlines/Cambodia.png
+./static/images/games-images/country-outlines/Cameroon.png
+./static/images/games-images/country-outlines/Canada.png
+./static/images/games-images/country-outlines/Central_African_Rep..png
+./static/images/games-images/country-outlines/Chad.png
+./static/images/games-images/country-outlines/Chile.png
+./static/images/games-images/country-outlines/China.png
+./static/images/games-images/country-outlines/Colombia.png
+./static/images/games-images/country-outlines/Congo.png
+./static/images/games-images/country-outlines/Costa_Rica.png
+./static/images/games-images/country-outlines/Côte_d'Ivoire.png
+./static/images/games-images/country-outlines/Croatia.png
+./static/images/games-images/country-outlines/Cuba.png
+./static/images/games-images/country-outlines/Cyprus.png
+./static/images/games-images/country-outlines/Czechia.png
+./static/images/games-images/country-outlines/Dem._Rep._Congo.png
+./static/images/games-images/country-outlines/Denmark.png
+./static/images/games-images/country-outlines/Djibouti.png
+./static/images/games-images/country-outlines/Dominican_Rep..png
+./static/images/games-images/country-outlines/Ecuador.png
+./static/images/games-images/country-outlines/Egypt.png
+./static/images/games-images/country-outlines/El_Salvador.png
+./static/images/games-images/country-outlines/Eq._Guinea.png
+./static/images/games-images/country-outlines/Eritrea.png
+./static/images/games-images/country-outlines/Estonia.png
+./static/images/games-images/country-outlines/eSwatini.png
+./static/images/games-images/country-outlines/Ethiopia.png
+./static/images/games-images/country-outlines/Falkland_Is..png
+./static/images/games-images/country-outlines/Fiji.png
+./static/images/games-images/country-outlines/Finland.png
+./static/images/games-images/country-outlines/Fr._S._Antarctic_Lands.png
+./static/images/games-images/country-outlines/France.png
+./static/images/games-images/country-outlines/Gabon.png
+./static/images/games-images/country-outlines/Gambia.png
+./static/images/games-images/country-outlines/Georgia.png
+./static/images/games-images/country-outlines/Germany.png
+./static/images/games-images/country-outlines/Ghana.png
+./static/images/games-images/country-outlines/Greece.png
+./static/images/games-images/country-outlines/Greenland.png
+./static/images/games-images/country-outlines/Guatemala.png
+./static/images/games-images/country-outlines/Guinea-Bissau.png
+./static/images/games-images/country-outlines/Guinea.png
+./static/images/games-images/country-outlines/Guyana.png
+./static/images/games-images/country-outlines/Haiti.png
+./static/images/games-images/country-outlines/Honduras.png
+./static/images/games-images/country-outlines/Hungary.png
+./static/images/games-images/country-outlines/Iceland.png
+./static/images/games-images/country-outlines/India.png
+./static/images/games-images/country-outlines/Indonesia.png
+./static/images/games-images/country-outlines/Iran.png
+./static/images/games-images/country-outlines/Iraq.png
+./static/images/games-images/country-outlines/Ireland.png
+./static/images/games-images/country-outlines/Israel.png
+./static/images/games-images/country-outlines/Italy.png
+./static/images/games-images/country-outlines/Jamaica.png
+./static/images/games-images/country-outlines/Japan.png
+./static/images/games-images/country-outlines/Jordan.png
+./static/images/games-images/country-outlines/Kazakhstan.png
+./static/images/games-images/country-outlines/Kenya.png
+./static/images/games-images/country-outlines/Kosovo.png
+./static/images/games-images/country-outlines/Kuwait.png
+./static/images/games-images/country-outlines/Kyrgyzstan.png
+./static/images/games-images/country-outlines/Laos.png
+./static/images/games-images/country-outlines/Latvia.png
+./static/images/games-images/country-outlines/Lebanon.png
+./static/images/games-images/country-outlines/Lesotho.png
+./static/images/games-images/country-outlines/Liberia.png
+./static/images/games-images/country-outlines/Libya.png
+./static/images/games-images/country-outlines/Lithuania.png
+./static/images/games-images/country-outlines/Luxembourg.png
+./static/images/games-images/country-outlines/Madagascar.png
+./static/images/games-images/country-outlines/Malawi.png
+./static/images/games-images/country-outlines/Malaysia.png
+./static/images/games-images/country-outlines/Mali.png
+./static/images/games-images/country-outlines/Mauritania.png
+./static/images/games-images/country-outlines/Mexico.png
+./static/images/games-images/country-outlines/Moldova.png
+./static/images/games-images/country-outlines/Mongolia.png
+./static/images/games-images/country-outlines/Montenegro.png
+./static/images/games-images/country-outlines/Morocco.png
+./static/images/games-images/country-outlines/Mozambique.png
+./static/images/games-images/country-outlines/Myanmar.png
+./static/images/games-images/country-outlines/N._Cyprus.png
+./static/images/games-images/country-outlines/Namibia.png
+./static/images/games-images/country-outlines/Nepal.png
+./static/images/games-images/country-outlines/Netherlands.png
+./static/images/games-images/country-outlines/New_Caledonia.png
+./static/images/games-images/country-outlines/New_Zealand.png
+./static/images/games-images/country-outlines/Nicaragua.png
+./static/images/games-images/country-outlines/Niger.png
+./static/images/games-images/country-outlines/Nigeria.png
+./static/images/games-images/country-outlines/North_Korea.png
+./static/images/games-images/country-outlines/North_Macedonia.png
+./static/images/games-images/country-outlines/Norway.png
+./static/images/games-images/country-outlines/Oman.png
+./static/images/games-images/country-outlines/Pakistan.png
+./static/images/games-images/country-outlines/Palestine.png
+./static/images/games-images/country-outlines/Panama.png
+./static/images/games-images/country-outlines/Papua_New_Guinea.png
+./static/images/games-images/country-outlines/Paraguay.png
+./static/images/games-images/country-outlines/Peru.png
+./static/images/games-images/country-outlines/Philippines.png
+./static/images/games-images/country-outlines/Poland.png
+./static/images/games-images/country-outlines/Portugal.png
+./static/images/games-images/country-outlines/Puerto_Rico.png
+./static/images/games-images/country-outlines/Qatar.png
+./static/images/games-images/country-outlines/Romania.png
+./static/images/games-images/country-outlines/Russia.png
+./static/images/games-images/country-outlines/Rwanda.png
+./static/images/games-images/country-outlines/S._Sudan.png
+./static/images/games-images/country-outlines/Saudi_Arabia.png
+./static/images/games-images/country-outlines/Senegal.png
+./static/images/games-images/country-outlines/Serbia.png
+./static/images/games-images/country-outlines/Sierra_Leone.png
+./static/images/games-images/country-outlines/Slovakia.png
+./static/images/games-images/country-outlines/Slovenia.png
+./static/images/games-images/country-outlines/Solomon_Is..png
+./static/images/games-images/country-outlines/Somalia.png
+./static/images/games-images/country-outlines/Somaliland.png
+./static/images/games-images/country-outlines/South_Africa.png
+./static/images/games-images/country-outlines/South_Korea.png
+./static/images/games-images/country-outlines/Spain.png
+./static/images/games-images/country-outlines/Sri_Lanka.png
+./static/images/games-images/country-outlines/Sudan.png
+./static/images/games-images/country-outlines/Suriname.png
+./static/images/games-images/country-outlines/Sweden.png
+./static/images/games-images/country-outlines/Switzerland.png
+./static/images/games-images/country-outlines/Syria.png
+./static/images/games-images/country-outlines/Taiwan.png
+./static/images/games-images/country-outlines/Tajikistan.png
+./static/images/games-images/country-outlines/Tanzania.png
+./static/images/games-images/country-outlines/Thailand.png
+./static/images/games-images/country-outlines/Timor-Leste.png
+./static/images/games-images/country-outlines/Togo.png
+./static/images/games-images/country-outlines/Trinidad_and_Tobago.png
+./static/images/games-images/country-outlines/Tunisia.png
+./static/images/games-images/country-outlines/Turkey.png
+./static/images/games-images/country-outlines/Turkmenistan.png
+./static/images/games-images/country-outlines/Uganda.png
+./static/images/games-images/country-outlines/Ukraine.png
+./static/images/games-images/country-outlines/United_Arab_Emirates.png
+./static/images/games-images/country-outlines/United_Kingdom.png
+./static/images/games-images/country-outlines/United_States_of_America.png
+./static/images/games-images/country-outlines/Uruguay.png
+./static/images/games-images/country-outlines/Uzbekistan.png
+./static/images/games-images/country-outlines/Vanuatu.png
+./static/images/games-images/country-outlines/Venezuela.png
+./static/images/games-images/country-outlines/Vietnam.png
+./static/images/games-images/country-outlines/W._Sahara.png
+./static/images/games-images/country-outlines/Yemen.png
+./static/images/games-images/country-outlines/Zambia.png
+./static/images/games-images/country-outlines/Zimbabwe.png
+./static/images/optimisation-background1.jpeg
+./static/images/process-mapping-background1.jpeg
+./static/js/capital-game.js
+./static/js/country-data.json
+./static/js/country-game.js
+./static/js/games-tabs.js
+./static/js/population-game.js
+./static/js/script.js
+./static/myschool/assets/index-CBwWXGvf.css
+./static/myschool/assets/index-DyFI97Np.js
+./static/myschool/favicon.svg
+./static/myschool/index.html
+./static/myschool/manifest.webmanifest
+./static/myschool/sw.js
+./templates/compound-interest.html
+./templates/games.html
+./templates/index.html
+./templates/stand-details.html
+./templates/style-guide.html
+./Updated_Audit_First_Page_Table.csv
+
+## APP.PY
+from flask import Flask, render_template, jsonify, send_from_directory, request
+import os
+import random
+from flask import abort, redirect, url_for
+
+app = Flask(__name__)
+
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/style-guide")
+def style_guide():
+    return render_template("style-guide.html")
+
+
+@app.route("/games")
+def games():
+    return render_template("games.html")
+
+
+@app.route("/games/country-data")
+def country_data():
+    directory = "static/images/games-images/country-outlines"
+    files = os.listdir(directory)
+
+    if len(files) < 5:
+        return jsonify({"error": "Not enough countries available."}), 500
+
+    selected_files = random.sample(files, 5)
+    correct_country_file = random.choice(selected_files)
+    correct_country_name = (
+        os.path.splitext(correct_country_file)[0]
+        .replace("_", " ")
+        .replace("-", " ")
+    )
+
+    game_data = {
+        "correct_country": {
+            "name": correct_country_name,
+            "outline": os.path.join("/", directory, correct_country_file),
+        },
+        "options": [
+            os.path.splitext(file)[0].replace("_", " ").replace("-", " ")
+            for file in selected_files
+        ],
+    }
+    return jsonify(game_data)
+
+@app.route("/games/sudoku")
+def games_sudoku():
+    base = os.path.join(app.root_path, "static", "games", "sudoku")
+    return send_from_directory(base, "index.html")
+
+
+@app.route("/games/sudoblocku")
+def games_sudoblocku():
+    base = os.path.join(app.root_path, "static", "games", "sudoblocku")
+    return send_from_directory(base, "index.html")
+
+@app.route("/compound-interest", methods=["GET", "POST"])
+def compound_interest():
+    if request.method == "POST":
+        initial_investment = float(request.form.get("initialInvestment", 0))
+        monthly_contribution = float(request.form.get("monthlyContribution", 0))
+        years = int(request.form.get("years", 0))
+        annual_rate = float(request.form.get("annualRate", 0))
+        frequency = int(request.form.get("frequency", 1))
+        variance_range = float(request.form.get("varianceRange", 0))
+
+        frequency_map = {
+            "1": 1,
+            "2": 2,
+            "4": 4,
+            "12": 12,
+            "365": 365,
+        }
+        comp_periods = frequency_map.get(str(frequency), 1)
+
+        final_amounts = {}
+        rates = [
+            annual_rate + i
+            for i in range(-int(variance_range), int(variance_range) + 1)
+        ]
+
+        for rate in rates:
+            final_amount = initial_investment
+            for _ in range(years * comp_periods):
+                final_amount += monthly_contribution / comp_periods
+                final_amount *= (1 + (rate / 100) / comp_periods)
+            final_amounts[f"Rate {rate}%"] = round(final_amount, 2)
+
+        return jsonify(final_amounts)
+
+    return render_template("compound-interest.html")
+
+
+EARLY_YEARS_ENABLED = os.getenv("EARLY_YEARS_ENABLED", "0").lower() in ("1", "true", "yes")
+
+
+@app.route("/early-years")
+@app.route("/early-years/")
+def early_years_index():
+    if not EARLY_YEARS_ENABLED:
+        return redirect(url_for("index"))
+    base = os.path.join(app.root_path, "static", "early-years")
+    return send_from_directory(base, "index.html")
+
+
+@app.route("/early-years/<path:filename>")
+def early_years_assets(filename):
+    if not EARLY_YEARS_ENABLED:
+        return abort(404)
+    base = os.path.join(app.root_path, "static", "early-years")
+    return send_from_directory(base, filename)
+
+
+MYSCHOOL_ENABLED = os.getenv("MYSCHOOL_ENABLED", "1").lower() in ("1", "true", "yes")
+
+
+@app.route("/myschool")
+@app.route("/myschool/")
+def myschool_index():
+    if not MYSCHOOL_ENABLED:
+        return redirect(url_for("index"))
+    return app.send_static_file("myschool/index.html")
+
+
+@app.route("/myschool/<path:filename>")
+def myschool_assets(filename):
+    if not MYSCHOOL_ENABLED:
+        return abort(404)
+    return send_from_directory(os.path.join(app.root_path, 'static', 'myschool'), filename)
+
+
+if __name__ == "__main__":
+    # Run the application
+
+    app.run(debug=True)
+
+## REQUIREMENTS
+
+Flask==1.1.2
+gunicorn==21.2.0
+
+## PROCFILE
+web: gunicorn app:app
+
+## TEMPLATES
+
+### FILE: templates/compound-interest.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Compound Interest Calculator</title>
+<link rel="icon" type="image/jpeg" href="../static/images/cxms-favicon1.jpeg">
+<link rel="stylesheet" href="https://assets-global.website-files.com/65f3c63ea0ca2d5ac2085d14/css/think-outside-agency.webflow.bc2b59ffe.css">
+<style>
+    /* Additional custom CSS for responsiveness */
+    .calculator-container {
+        max-width: 600px;
+        margin: auto;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+        font-size: 7rem;
+    }
+    @media (max-width: 767px) {
+        .calculator-container {
+            margin: 20px;
+            padding: 10px;
+        }
+        .form-field {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    }
+</style>
+</head>
+<body>
+  <header class="section hero-padded hero-background"><div class="container w-container"><div class="content-align-center"><div class="home-heading-wrap"><div class="heading-style-h1 smaller text-white">THINK<br>OUTSIDE</div></div><div class="header-subtitle-wrap wide"><h1 class="label-detail text-align-center text-white">FIND CONSISTENT, RELIABLE PROFIT<br>‍<span class="label"><strong>AND</strong></span> SHOW 'EM WHAT YOU'RE MADE OF</h1></div></div></div></header>
+<div class="section">
+    <div class="container calculator-container">
+        <h2>Compound Interest Calculator</h2>
+        <form id="interestForm" class="form-block w-form">
+            <input type="number" name="initialInvestment" class="form-field w-input" placeholder="Initial Investment" required>
+            <input type="number" name="monthlyContribution" class="form-field w-input" placeholder="Monthly Contribution" required>
+            <input type="number" name="years" class="form-field w-input" placeholder="Length of Time in Years" required>
+            <input type="number" name="annualRate" class="form-field w-input" placeholder="Estimated Interest Rate" required>
+            <input type="number" name="varianceRange" class="form-field w-input" placeholder="Interest Rate Variance Range" required>
+            <select name="frequency" class="form-field w-select">
+                <option value="1">Annually</option>
+                <option value="2">Semi-Annually</option>
+                <option value="4">Quarterly</option>
+                <option value="12">Monthly</option>
+                <option value="365">Daily</option>
+            </select>
+            <button type="submit" class="submit-button-custom w-button">Calculate</button>
+        </form>
+        <div id="results"></div>
+    </div>
+</div>
+
+<script>
+document.getElementById('interestForm').onsubmit = function(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    fetch('/compound-interest', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultsElement = document.getElementById('results');
+        resultsElement.innerHTML = '';
+        for (const [rate, amount] of Object.entries(data)) {
+            const resultItem = document.createElement('p');
+            resultItem.textContent = `${rate}: $${amount}`;
+            resultsElement.appendChild(resultItem);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+};
+</script>
+</body>
+</html>
+
+### FILE: templates/games.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXMS - Games</title>
+
+        <!-- Open Graph tags -->
+        <meta property="og:title" content="CXMS - Games" />
+        <meta property="og:description" content="Just a little game to play if you're bored." />
+        <meta property="og:image" content="https://cxms-fb8404aba0d4.herokuapp.com/static/images/process-mapping-background1.jpeg" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="www.cxms.fr/games" />
+        <!-- End Open Graph tags -->
+
+    <link rel="stylesheet" href="../static/css/style.css?v=1">
+    <link rel="stylesheet" href="../static/css/games.css?v=4">
+    <link rel="icon" type="image/jpeg" href="../static/images/cxms-favicon1.jpeg">
+
+    <style>
+      /* Make games page content stretch full width inside the flex .container */
+      .container {
+        min-height: 100svh;
+        height: auto;
+        justify-content: flex-start !important;
+        align-items: stretch !important;     /* <<< was center */
+        overflow-y: auto;
+        padding-top: 16px;
+      }
+
+      /* Ensure the chain of parents is allowed to be wide */
+      #games-tabs,
+      #games-tabs .game-tab,
+      #games-tabs .game-tab .text-container {
+        width: 100% !important;
+        max-width: 1100px !important;
+        margin: 0 auto !important;           /* nice centering on desktop */
+      }
+
+      .frame-wrap {
+        width: 100% !important;
+        max-width: 1100px !important;
+        height: clamp(540px, 86svh, 1000px) !important;
+        margin: 0 auto !important;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .frame-wrap iframe {
+        width: 100% !important;
+        height: 100% !important;
+        display: block !important;
+        border: 0;
+      }
+
+      /* Neutralise any old carousel styles on this page */
+      #games-tabs .carousel,
+      #games-tabs .carousel-item {
+        position: static !important;
+        height: auto !important;
+        width: 100% !important;
+        max-width: none !important;
+        overflow: visible !important;
+        display: block !important;
+      }
+    </style>
+
+
+</head>
+<body>
+  <div class="container">
+
+    <!-- Pseudo Navbar / Tabs -->
+    <nav id="games-nav" class="games-nav">
+      <button class="tab-btn" data-target="country" aria-selected="true">Guess the Country</button>
+      <button class="tab-btn" data-target="sudoku">Sudoku</button>
+      <button class="tab-btn" data-target="sudoblocku">Sudoblocku</button>
+      <div class="nav-spacer"></div>
+      <a href="/style-guide">Style Guide</a>
+      <a href="/">Home Page</a>
+    </nav>
+
+    <div id="games-tabs">
+      <!-- Country Game (existing) -->
+      <section class="game-tab" id="tab-country" data-game="country" style="display:block;">
+        <div class="text-container">
+          <h3>Guess the Country Game</h3>
+          <div id="game-container">
+            <p id="question">Which country is this?</p>
+            <img id="country-outline" src="" alt="Country Outline">
+            <div id="options-container"></div>
+            <p id="score">Score: <span id="score-value">0</span></p>
+            <p id="streak">Streak: <span id="streak-value">0</span></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sudoku (React build via iframe) -->
+      <section class="game-tab" id="tab-sudoku" data-game="sudoku" style="display:none;">
+        <div class="text-container">
+          <h3>Sudoku</h3>
+          <div class="frame-wrap">
+            <iframe
+              id="sudoku-frame"
+              src="/static/games/sudoku/index.html"
+              title="Sudoku"
+              loading="lazy"
+              referrerpolicy="no-referrer"
+            ></iframe>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sudoblocku (React build via iframe) -->
+
+      <section class="game-tab" id="tab-sudoblocku" data-game="sudoblocku" style="display:none;">
+        <div class="text-container">
+          <h3>Sudoblocku</h3>
+          <div class="frame-wrap">
+            <iframe src="/static/games/sudoblocku/index.html" title="Sudoblocku" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Optional: keep carousel arrows if you still use them for other items -->
+    <!-- <button id="prev" class="carousel-button left"></button>
+    <button id="next" class="carousel-button right"></button> -->
+
+  </div>
+
+  <!-- Your existing scripts -->
+  <!-- <script src="../static/js/script.js"></script> -->
+  <script src="../static/js/country-game.js"></script>
+
+  <!-- Tabs logic -->
+  <script src="../static/js/games-tabs.js"></script>
+</body>
+
+
+
+
+
+</html>
+
+### FILE: templates/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXMS - Customer Experience Management Solutions</title>
+
+        <!-- Open Graph tags -->
+        <meta property="og:title" content="CXMS - Customer Experience Management Solutions" />
+        <meta property="og:description" content="Optimization, Efficiency, Process Mapping, and IT Solutions to enhance your business processes and customer experience." />
+        <meta property="og:image" content="https://cxms-fb8404aba0d4.herokuapp.com/static/images/process-mapping-background1.jpeg" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="www.cxms.fr" />
+        <!-- End Open Graph tags -->
+
+    <link rel="stylesheet" href="../static/css/style.css?v=1">
+    <link rel="icon" type="image/jpeg" href="../static/images/cxms-favicon1.jpeg">
+
+</head>
+<body>
+  <div class="container">
+    <div id="carousel" class="carousel">
+        <div class="carousel-item">
+            <div class="image-container" style="background-image: url('../static/images/optimisation-background1.jpeg');">
+            </div>
+            <div class="text-container">
+                Optimization: Enhance your business processes for peak performance.
+            </div>
+        </div>
+        <div class="carousel-item">
+            <div class="image-container" style="background-image: url('../static/images/efficiency-background1.jpeg');">
+            </div>
+            <div class="text-container">
+                Efficiency: Streamline operations to save time and reduce costs.
+            </div>
+        </div>
+        <div class="carousel-item">
+            <div class="image-container" style="background-image: url('../static/images/process-mapping-background1.jpeg');">
+            </div>
+            <div class="text-container">
+                Process Mapping: Visualize and understand your customer journeys for better customer experience and to improve your NPS.
+            </div>
+        </div>
+        <div class="carousel-item">
+            <div class="image-container" style="background-image: url('../static/images/image4.jpg');">
+            </div>
+            <div class="text-container">
+                IT Solutions: Create bespoke software solutions for your everyday business problems.
+            </div>
+        </div>
+    </div>
+    <button id="prev" class="carousel-button left"></button>
+    <button id="next" class="carousel-button right"></button>
+    <a href="style-guide">Style Guide</a>
+    <a href="games">Games</a>
+</div>
+
+    <script src="../static/js/script.js"></script>
+</body>
+</html>
+
+### FILE: templates/stand-details.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stand Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="datetime-local"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stand Details</h1>
+    <form id="standDetailsForm">
+        <div class="form-group">
+            <label for="personnel">Personnel</label>
+            <input type="text" id="personnel" name="personnel" required>
+        </div>
+        <div class="form-group">
+            <label for="decoration">Décoration</label>
+            <input type="text" id="decoration" name="decoration" required>
+        </div>
+        <!-- Add more fields as needed -->
+        <button type="submit">Save</button>
+    </form>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const auditId = urlParams.get('auditId');
+        const standIndex = urlParams.get('standIndex');
+        let audits = JSON.parse(localStorage.getItem('audits')) || {};
+
+        function saveStandDetails() {
+            const formData = new FormData(document.getElementById('standDetailsForm'));
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+
+            audits[auditId].sections[standIndex] = data;
+            localStorage.setItem('audits', JSON.stringify(audits));
+        }
+
+        document.getElementById('standDetailsForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            saveStandDetails();
+            alert('Stand details saved locally!');
+        });
+
+        function loadStandDetails() {
+            const standData = audits[auditId].sections[standIndex];
+            if (standData) {
+                for (const [key, value] of Object.entries(standData)) {
+                    if (document.getElementById(key)) {
+                        document.getElementById(key).value = value;
+                    }
+                }
+            }
+        }
+
+        loadStandDetails();
+    </script>
+</body>
+</html>
+
+### FILE: templates/style-guide.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXMS Style Guide</title>
+    <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="icon" type="image/jpeg" href="../static/images/cxms-favicon1.jpeg">
+
+
+</head>
+<body>
+    <div class="container">
+        <div class="carousel">
+            <div class="carousel-item" id="item-introduction">
+              <div class="image-container" style="background-image: url('../static/images/optimisation-background1.jpeg');">
+              </div>
+                <div class="text-container">
+                    <h2>CXMS Color Scheme and Style Guide</h2>
+                    <p>Introduction</p>
+                    <p>This document provides a detailed guide to the color scheme, fonts, and design styles used in the visual assets created for CXMS. It aligns with the company’s values and mission to optimize business processes, enhance efficiency, and improve customer experience through innovative IT solutions.</p>
+                </div>
+            </div>
+            <div class="carousel-item" id="item-color-palette">
+                <div class="text-container">
+                    <h3>Color Palette</h3>
+                    <p>Primary Colors:</p>
+                    <div class="color-square" style="background-color: #0000FF;"></div> <!-- Electric Blue -->
+                    <div class="color-square" style="background-color: #800080;"></div> <!-- Vibrant Purple -->
+                    <div class="color-square" style="background-color: #00FF00;"></div> <!-- Fluorescent Green -->
+                    <p>Secondary Colors:</p>
+                    <div class="color-square" style="background-color: #FFFF00;"></div> <!-- Bright Yellow -->
+                    <div class="color-square" style="background-color: #4A646C;"></div> <!-- Deep Space Sparkle -->
+                </div>
+            </div>
+            <div class="carousel-item" id="item-typography">
+              <div class="text-container">
+                  <h3>Typography</h3>
+                  <p>Primary Font: Roboto - Modern, clean, and highly legible. Used for headings and high-impact text to convey clarity and precision.</p>
+                  <p>Secondary Font: Open Sans - Friendly and readable. Used for body text to ensure excellent readability and comfort in long-form reading.</p>
+              </div>
+          </div>
+          <div class="carousel-item" id="item-color-usage-examples">
+              <div class="text-container">
+                  <h3>Color Usage Examples</h3>
+                  <p>Backgrounds: Use deep blues and purples to create a sense of depth and space, while accentuating with greens and yellows to highlight key content.</p>
+                  <p>Buttons and Call to Actions: Employ fluorescent green to draw attention and encourage user interaction.</p>
+                  <p>Graphs and Analytics: Utilize the full spectrum of the color palette to differentiate data points and drive visual engagement.</p>
+              </div>
+          </div>
+          <div class="carousel-item" id="item-psychological-impact">
+              <div class="text-container">
+                  <h3>Psychological Impact and Alignment with Company Values</h3>
+                  <p>Trust and Security: The use of blue instills a sense of security, aligning with CXMS's value of trustworthiness.</p>
+                  <p>Innovation and Expertise: Purple is often associated with wisdom, aligning with CXMS’s innovative and expert approach.</p>
+                  <p>Growth and Success: Green is the color of growth, mirroring the company’s goal to assist client growth and success.</p>
+              </div>
+          </div>
+          <div class="carousel-item" id="item-technical-specifications">
+              <div class="text-container">
+                  <h3>Technical Specifications for Web Development</h3>
+                  <p>Hex Codes:</p>
+                  <ul>
+                      <li>Electric Blue: #0000FF</li>
+                      <li>Vibrant Purple: #800080</li>
+                      <li>Fluorescent Green: #00FF00</li>
+                      <li>Bright Yellow: #FFFF00</li>
+                      <li>Deep Space Sparkle: #4A646C</li>
+                  </ul>
+                  <p>CSS Snippets:</p>
+                  <ul>
+                      <li>For backgrounds: background-color: #800080;</li>
+                      <li>For highlights: color: #00FF00;</li>
+                      <li>For neutral elements: color: #4A646C;</li>
+                  </ul>
+              </div>
+          </div>
+          <div class="carousel-item" id="item-conclusion">
+              <div class="text-container">
+                  <h3>Conclusion</h3>
+                  <p>The color scheme and design styles presented in this document are crafted to embody the essence of CXMS and to be used as a guide for all digital and print media. Consistent use of these elements will reinforce the brand identity and aid in the company’s growth and success.</p>
+              </div>
+          </div>
+      </div>
+      <a href="games">Games</a>
+      <a href="/">Home Page</a>
+    </div>
+    <button id="prev" class="carousel-button left"></button>
+    <button id="next" class="carousel-button right"></button>
+    <script src="../static/js/script.js"></script>
+</body>
+</html>
+
+## STATIC HTML ENTRY POINTS
+
+### FILE: static/myschool/index.html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MySchool — Income Simulator (CXMS)</title>
+<meta name="theme-color" content="#0b0f14" />
+<link rel="manifest" href="/myschool/manifest.webmanifest">
+<script type="module" crossorigin src="./assets/index-DyFI97Np.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CBwWXGvf.css">
+</head>
+<body>
+<div id="root"></div>
+</body>
+</html>
+
+### FILE: static/games/sudoku/index.html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sudoku — No Ads</title>
+    <script type="module" crossorigin src="./assets/index-rjN8olGC.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DE0mApU2.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+
+### FILE: static/games/sudoblocku/index.html
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><link rel="icon" href="./favicon.ico"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#000000"/><meta name="description" content="Web site created using create-react-app"/><link rel="apple-touch-icon" href="./logo192.png"/><link rel="manifest" href="./manifest.json"/><title>React App</title><script defer="defer" src="./static/js/main.a65c0347.js"></script><link href="./static/css/main.b4264b61.css" rel="stylesheet"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div></body></html>
+<!-- sudoblocku v 2025-09-21T16:59:51Z -->
+
+## GITIGNORE
+.DS_Store
+cxmsenv/
