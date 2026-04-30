@@ -3,6 +3,12 @@ import os
 import random
 from flask import abort, redirect, url_for
 
+from services.data_explorer.eda_engine import (
+    build_eda_report,
+    get_sample_dataset_csv,
+    parse_csv_dataset,
+)
+
 app = Flask(__name__)
 
 
@@ -156,6 +162,48 @@ def myschool_page():
         return redirect(url_for("index"))
     return render_template("myschool.html")
 
+@app.route("/data-explorer")
+def data_explorer():
+    return render_template("data-explorer.html")
+
+
+@app.route("/api/data-explorer/analyse", methods=["POST"])
+def analyse_dataset():
+    payload = request.get_json(silent=True) or {}
+    raw_data = payload.get("dataset", "")
+
+    if not raw_data.strip():
+        return jsonify({"ok": False, "error": "No dataset provided."}), 400
+
+    try:
+        df = parse_csv_dataset(raw_data)
+        analysis = build_eda_report(df)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({
+            "ok": False,
+            "error": f"Unexpected analysis error: {str(exc)}"
+        }), 500
+
+    return jsonify({
+        "ok": True,
+        "analysis": analysis
+    })
+
+
+@app.route("/api/data-explorer/sample/<dataset_name>")
+def sample_dataset(dataset_name):
+    try:
+        csv_data = get_sample_dataset_csv(dataset_name)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 404
+
+    return jsonify({
+        "ok": True,
+        "dataset_name": dataset_name,
+        "csv": csv_data,
+    })
 
 if __name__ == "__main__":
     # Run the application

@@ -1,2 +1,6 @@
 .DS_Store
 cxmsenv/
+
+__pycache__/
+*.pyc
+.env

@@ -235,7 +235,7 @@ body {
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 18px;
   margin-top: 22px;
 }
@@ -794,4 +794,336 @@ body {
 #capital-streak {
   color: var(--cxms-muted);
   margin: 8px 0 0;
+}
+
+
+/* ========================================
+   10. DATA EXPLORER / EDA TOOL
+======================================== */
+
+.data-explorer-hero {
+  padding-top: 3rem;
+  padding-bottom: 2rem;
+}
+
+.data-explorer-panel,
+.analysis-card,
+.chart-card,
+.column-card,
+.metric-card,
+.insight-card {
+  background: var(--cxms-panel);
+  border: 1px solid var(--cxms-panel-border);
+  border-radius: 24px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
+}
+
+.data-explorer-panel {
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.dataset-input {
+  width: 100%;
+  min-height: 280px;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--cxms-panel-border);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--cxms-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.dataset-input:focus {
+  outline: 2px solid rgba(34, 197, 94, 0.55);
+  border-color: rgba(34, 197, 94, 0.8);
+}
+
+.tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.primary-button,
+.secondary-button,
+.eda-tab {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.8rem 1.2rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.primary-button {
+  color: #07110b;
+  background: linear-gradient(135deg, var(--cxms-green), #a7f3d0);
+  font-weight: 700;
+}
+
+.secondary-button,
+.eda-tab {
+  color: var(--cxms-text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--cxms-panel-border);
+}
+
+.primary-button:hover,
+.secondary-button:hover,
+.eda-tab:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.primary-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.analysis-status {
+  margin-top: 1rem;
+  color: var(--cxms-muted);
+}
+
+.analysis-status.error {
+  color: #fecaca;
+}
+
+.analysis-status.success {
+  color: #bbf7d0;
+}
+
+.hidden {
+  display: none;
+}
+
+.eda-tabs {
+  position: sticky;
+  top: 73px; /* sits just below the sticky navbar */
+  z-index: 900;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 0;
+
+  background: rgba(11, 15, 25, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--cxms-panel-border);
+}
+
+.eda-tab.active {
+  background: linear-gradient(135deg, var(--cxms-purple), var(--cxms-green));
+  color: white;
+}
+
+.eda-tab-panel {
+  display: none;
+}
+
+.eda-tab-panel.active {
+  display: block;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.metric-card {
+  padding: 1rem;
+}
+
+.metric-card span {
+  display: block;
+  color: var(--cxms-muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+}
+
+.metric-card strong {
+  display: block;
+  font-size: 1.8rem;
+}
+
+.analysis-card {
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.schema-group {
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--cxms-panel-border);
+}
+
+.schema-group h4 {
+  margin: 0 0 0.35rem;
+}
+
+.schema-group p {
+  margin: 0;
+  color: var(--cxms-muted);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-wrap th,
+.table-wrap td {
+  text-align: left;
+  padding: 0.8rem;
+  border-bottom: 1px solid var(--cxms-panel-border);
+}
+
+.column-grid,
+.chart-grid,
+.insight-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.column-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.column-card,
+.insight-card,
+.chart-card {
+  padding: 1.25rem;
+}
+
+.column-card h4,
+.insight-card h4,
+.chart-card h3 {
+  margin-top: 0;
+}
+
+.top-values {
+  margin-top: 1rem;
+}
+
+.top-value-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--cxms-muted);
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.chart-card-header p {
+  color: var(--cxms-muted);
+  margin-bottom: 0;
+}
+
+.chart-card-header span {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.25);
+  color: #ddd6fe;
+  font-size: 0.8rem;
+}
+
+.plotly-chart {
+  min-height: 360px;
+}
+
+.thesis-card h3 {
+  margin-top: 0;
+}
+
+.muted {
+  color: var(--cxms-muted);
+}
+
+@media (max-width: 720px) {
+  .data-explorer-panel,
+  .analysis-card,
+  .chart-card {
+    padding: 1rem;
+    border-radius: 18px;
+  }
+
+  .plotly-chart {
+    min-height: 300px;
+  }
+
+  .chart-card-header {
+    flex-direction: column;
+  }
+
+  .eda-tabs {
+    top: 72px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0.75rem 0.25rem;
+    scrollbar-width: thin;
+  }
+
+  .eda-tab {
+    flex: 0 0 auto;
+  }
+}
+
+.data-credit {
+  margin-top: 1rem;
+  color: var(--cxms-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.data-credit a {
+  color: var(--cxms-green);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.data-credit a:hover {
+  color: #86efac;
+  text-decoration: underline;
+}
+
+.chart-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.chart-guide-card {
+  background: var(--cxms-panel);
+  border: 1px solid var(--cxms-panel-border);
+  border-radius: 20px;
+  padding: 1.25rem;
+  box-shadow: var(--cxms-shadow);
+}
+
+.chart-guide-card h3 {
+  margin-top: 0;
+  color: #ffffff;
+}
+
+.chart-guide-card p {
+  color: var(--cxms-muted);
+  line-height: 1.6;
 }

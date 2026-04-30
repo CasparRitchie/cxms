@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Data Explorer | CXMS{% endblock %}
+
+{% block head_extra %}
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<section class="hero-section data-explorer-hero">
+  <div class="hero-copy">
+    <p class="eyebrow">CXMS Tools</p>
+    <h1>Data Explorer</h1>
+    <p class="hero-lead">
+      Paste a dataset and let CXMS run a structured exploratory data analysis:
+      schema detection, data quality checks, charts, relationships, nearest neighbours,
+      hypotheses and practical improvement ideas.
+    </p>
+    <p class="data-credit">
+      Chart selection is inspired by
+      <a href="https://www.data-to-viz.com/" target="_blank" rel="noopener noreferrer">
+        From Data to Viz
+      </a>,
+      the excellent visualisation decision-tree project by Yan Holtz and Conor Healy.
+      CXMS uses this as a learning reference while running its own Python-based exploratory data analysis.
+    </p>
+  </div>
+</section>
+
+<section class="tool-panel data-explorer-panel">
+  <div class="section-heading">
+    <p class="eyebrow">Paste CSV</p>
+    <h2>Analyse your dataset</h2>
+    <p>
+      Start with CSV data. The first row should contain column names.
+      For now, keep it below 5,000 rows and 50 columns.
+    </p>
+  </div>
+
+  <textarea
+    id="datasetInput"
+    class="dataset-input"
+    placeholder="Paste CSV here, for example:&#10;date,region,nps,revenue&#10;2026-01-01,South,9,1200&#10;2026-01-02,North,6,800"
+  ></textarea>
+
+  <div class="tool-actions">
+    <button id="analyseDatasetBtn" class="primary-button">
+      Analyse dataset
+    </button>
+    <button id="loadExampleBtn" class="secondary-button">
+      Load CX sample
+    </button>
+    <button id="loadIrisBtn" class="secondary-button">
+      Load Iris dataset
+    </button>
+    <button id="loadTitanicBtn" class="secondary-button">
+      Load Titanic dataset
+    </button>
+  </div>
+
+  <div id="analysisStatus" class="analysis-status"></div>
+</section>
+
+<section id="resultsSection" class="data-results hidden">
+  <div class="eda-tabs" role="tablist" aria-label="EDA results sections">
+    <button class="eda-tab active" data-tab="summary">Summary</button>
+    <button class="eda-tab" data-tab="quality">Quality</button>
+    <button class="eda-tab" data-tab="columns">Columns</button>
+    <button class="eda-tab" data-tab="charts">Charts</button>
+    <button class="eda-tab" data-tab="chartguide">Chart guide</button>
+    <button class="eda-tab" data-tab="relationships">Patterns</button>
+    <button class="eda-tab" data-tab="advanced">Advanced</button>
+    <button class="eda-tab" data-tab="ml">ML / Prediction</button>
+    <button class="eda-tab" data-tab="theses">Theses</button>
+  </div>
+
+  <div id="summaryTab" class="eda-tab-panel active"></div>
+  <div id="qualityTab" class="eda-tab-panel"></div>
+  <div id="columnsTab" class="eda-tab-panel"></div>
+  <div id="chartsTab" class="eda-tab-panel"></div>
+  <div id="chartguideTab" class="eda-tab-panel"></div>
+  <div id="relationshipsTab" class="eda-tab-panel"></div>
+  <div id="advancedTab" class="eda-tab-panel"></div>
+  <div id="mlTab" class="eda-tab-panel"></div>
+  <div id="thesesTab" class="eda-tab-panel"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/data-explorer.js') }}"></script>
+{% endblock %}
