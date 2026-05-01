@@ -628,25 +628,41 @@ function renderConfusionMatrix(ml) {
     return "";
   }
 
+  const summary = confusionMatrixPlainEnglish(ml);
+
   return `
-    <h4>Confusion matrix</h4>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Actual \\ Predicted</th>
-            ${ml.class_labels.map((label) => `<th>${escapeHtml(label)}</th>`).join("")}
-          </tr>
-        </thead>
-        <tbody>
-          ${ml.confusion_matrix.map((row, index) => `
+    <div class="analysis-card">
+      <h3>Prediction breakdown</h3>
+
+      <p>
+        This table compares what actually happened with what the model predicted.
+      </p>
+
+      <p class="muted">
+        Rows show the real value. Columns show the predicted value.
+        Correct predictions are on the diagonal from top-left to bottom-right.
+      </p>
+
+      ${summary ? `<p>${summary}</p>` : ""}
+
+      <div class="table-wrap">
+        <table>
+          <thead>
             <tr>
-              <th>${escapeHtml(ml.class_labels[index])}</th>
-              ${row.map((value) => `<td>${value}</td>`).join("")}
+              <th>Actual \\ Predicted</th>
+              ${ml.class_labels.map((label) => `<th>${escapeHtml(friendlyTargetValue(label, ml.target))}</th>`).join("")}
             </tr>
-          `).join("")}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${ml.confusion_matrix.map((row, index) => `
+              <tr>
+                <th>${escapeHtml(friendlyTargetValue(ml.class_labels[index], ml.target))}</th>
+                ${row.map((value) => `<td>${value}</td>`).join("")}
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 }
@@ -866,40 +882,68 @@ function renderML(analysis) {
     mlTab.innerHTML = `
       <div class="analysis-card">
         <h3>ML / Prediction</h3>
-        <p class="muted">${escapeHtml(ml?.message || "No ML analysis available for this dataset.")}</p>
+        <p class="muted">${escapeHtml(ml?.message || "No prediction analysis is available for this dataset.")}</p>
       </div>
     `;
     return;
   }
 
+  const bestModel = ml.best_model || {};
+  const bestScoreName = friendlyMetricName(bestModel.score_name || "Score");
+
   mlTab.innerHTML = `
     <div class="section-heading">
-      <p class="eyebrow">Machine learning</p>
-      <h2>First-pass predictive models</h2>
-      <p>${escapeHtml(ml.message)}</p>
+      <p class="eyebrow">Prediction</p>
+      <h2>Can the data predict an outcome?</h2>
+
+      <p>
+        CXMS found a likely outcome column:
+        <strong>${escapeHtml(ml.target)}</strong>.
+        It then tested whether the other usable columns could help predict that outcome.
+      </p>
+
       <p class="muted">
-        These are exploratory models intended for learning and hypothesis generation.
-        They are not production-grade prediction models.
+        This is an early signal check, not a final production model.
+        A good result here means the dataset may contain useful patterns worth investigating further.
       </p>
     </div>
 
     <div class="analysis-card">
-      <h3>Model comparison</h3>
+      <h3>Best result</h3>
 
       <div class="results-grid">
-        ${metricCard("Target", ml.target)}
-        ${metricCard("Task", ml.task_type)}
-        ${metricCard("Best model", ml.best_model?.name || "—")}
-        ${metricCard(ml.best_model?.score_name || "Score", ml.best_model?.score ?? "—")}
-        ${metricCard("Train rows", ml.train_rows)}
+        ${metricCard("Outcome predicted", ml.target)}
+        ${metricCard("Prediction type", friendlyTaskType(ml.task_type))}
+        ${metricCard("Best method", bestModel.name || "—")}
+        ${metricCard(bestScoreName, bestModel.score ?? "—")}
+        ${metricCard("Training rows", ml.train_rows)}
         ${metricCard("Test rows", ml.test_rows)}
       </div>
 
-      ${renderModelComparison(ml)}
-      ${ml.task_type === "classification" ? renderConfusionMatrix(ml) : ""}
-      ${renderBestFeatureImportance(ml)}
-      ${renderFeatureGroups(ml)}
+      <p class="muted">
+        ${escapeHtml(metricPlainEnglish(bestModel.score_name, ml.task_type))}
+      </p>
     </div>
+
+    <div class="analysis-card">
+      <h3>Which method worked best?</h3>
+      <p>
+        CXMS tested more than one prediction method and compared the scores on rows
+        that were held back for testing.
+      </p>
+      <p class="muted">
+        The model is trained on the training rows, then checked against the test rows.
+        This gives a more realistic first view of whether the model has learned useful patterns.
+      </p>
+
+      ${renderModelComparison(ml)}
+    </div>
+
+    ${ml.task_type === "classification" ? renderConfusionMatrix(ml) : renderRegressionModelDetails(ml)}
+
+    ${renderBestFeatureImportance(ml)}
+
+    ${renderFeatureGroups(ml)}
   `;
 }
 
@@ -909,33 +953,77 @@ function renderModelComparison(ml) {
   }
 
   return `
-    <h4>Models tested</h4>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Model</th>
-            <th>Metric</th>
+            <th>Method</th>
+            <th>What it does</th>
             <th>Score</th>
-            <th>Extra metrics</th>
+            <th>Extra detail</th>
           </tr>
         </thead>
         <tbody>
           ${ml.models.map((model) => `
             <tr>
               <td>${escapeHtml(model.name)}</td>
-              <td>${escapeHtml(model.score_name)}</td>
-              <td>${model.score}</td>
+              <td>${escapeHtml(modelPlainEnglish(model))}</td>
               <td>
-                ${model.mae !== undefined ? `MAE: ${model.mae}<br>` : ""}
-                ${model.rmse !== undefined ? `RMSE: ${model.rmse}<br>` : ""}
-                ${model.neighbours !== undefined ? `Neighbours: ${model.neighbours}` : ""}
+                <strong>${escapeHtml(friendlyMetricName(model.score_name))}:</strong>
+                ${model.score}
+              </td>
+              <td>
+                ${model.mae !== undefined ? `Average error: ${model.mae}<br>` : ""}
+                ${model.rmse !== undefined ? `Typical larger error: ${model.rmse}<br>` : ""}
+                ${model.neighbours !== undefined ? `Similar rows used: ${model.neighbours}` : ""}
               </td>
             </tr>
           `).join("")}
         </tbody>
       </table>
     </div>
+
+    ${renderKnnScoresForML(ml)}
+  `;
+}
+
+function renderKnnScoresForML(ml) {
+  const knnModel = (ml.models || []).find((model) => model.k_scores && model.k_scores.length);
+
+  if (!knnModel) {
+    return "";
+  }
+
+  return `
+    <h4>How the number of similar rows was chosen</h4>
+    <p>
+      K Nearest Neighbours works by looking at similar rows. CXMS tested several options
+      and chose the number that gave the best score on the test data.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Similar rows tested</th>
+            <th>${escapeHtml(friendlyMetricName(knnModel.score_name))}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${knnModel.k_scores.map((row) => `
+            <tr>
+              <td>${row.k}</td>
+              <td>${row.score}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="muted">
+      Selected value: <strong>${knnModel.neighbours}</strong>.
+      If several options are tied, CXMS keeps the smaller value because it is simpler and more local.
+    </p>
   `;
 }
 
@@ -947,29 +1035,36 @@ function renderBestFeatureImportance(ml) {
   }
 
   return `
-    <h4>Feature importance</h4>
-    <p class="muted">
-      Feature importance comes from the Random Forest model and shows which fields were most useful for prediction.
-      It does not prove causation.
-    </p>
+    <div class="analysis-card">
+      <h3>Which fields seemed most useful?</h3>
 
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Feature</th>
-            <th>Importance</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${modelWithImportance.feature_importance.map((row) => `
+      <p>
+        This table shows which columns the Random Forest model relied on most when making predictions.
+      </p>
+
+      <p class="muted">
+        A higher number means the field was more useful to the model.
+        It does not mean the field caused the outcome.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
             <tr>
-              <td>${escapeHtml(row.feature)}</td>
-              <td>${row.importance}</td>
+              <th>Field</th>
+              <th>Usefulness score</th>
             </tr>
-          `).join("")}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${modelWithImportance.feature_importance.map((row) => `
+              <tr>
+                <td>${escapeHtml(friendlyFeatureName(row.feature))}</td>
+                <td>${row.importance}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 }
@@ -978,20 +1073,63 @@ function renderFeatureGroups(ml) {
   const groups = ml.feature_groups || {};
 
   return `
-    <h4>Features used</h4>
-    <div class="insight-list">
-      <article class="insight-card">
-        <h4>Numeric</h4>
-        <p class="muted">${(groups.numeric || []).map(escapeHtml).join(", ") || "None"}</p>
-      </article>
-      <article class="insight-card">
-        <h4>Boolean</h4>
-        <p class="muted">${(groups.boolean || []).map(escapeHtml).join(", ") || "None"}</p>
-      </article>
-      <article class="insight-card">
-        <h4>Categorical encoded</h4>
-        <p class="muted">${(groups.categorical || []).map(escapeHtml).join(", ") || "None"}</p>
-      </article>
+    <div class="analysis-card">
+      <h3>Fields used by the models</h3>
+
+      <p>
+        CXMS excluded likely IDs and long text fields, then used the fields that could be safely converted
+        into model-friendly numbers.
+      </p>
+
+      <div class="insight-list">
+        <article class="insight-card">
+          <h4>Numbers</h4>
+          <p class="muted">
+            ${(groups.numeric || []).map(friendlyFeatureName).map(escapeHtml).join(", ") || "None"}
+          </p>
+        </article>
+
+        <article class="insight-card">
+          <h4>Yes / no fields</h4>
+          <p class="muted">
+            ${(groups.boolean || []).map(friendlyFeatureName).map(escapeHtml).join(", ") || "None"}
+          </p>
+        </article>
+
+        <article class="insight-card">
+          <h4>Categories converted for the model</h4>
+          <p class="muted">
+            ${(groups.categorical || []).map(friendlyFeatureName).map(escapeHtml).join(", ") || "None"}
+          </p>
+          <p class="muted">
+            Machine learning models need categories such as Sex or Embarked to be converted into
+            yes/no columns before they can use them.
+          </p>
+        </article>
+      </div>
+    </div>
+  `;
+}
+
+function renderRegressionModelDetails(ml) {
+  const bestModel = ml.best_model || {};
+
+  return `
+    <div class="analysis-card">
+      <h3>Prediction error</h3>
+      <p>
+        This section shows how far away the number predictions were from the real values.
+      </p>
+
+      <div class="results-grid">
+        ${metricCard("Average error", bestModel.mae ?? "—")}
+        ${metricCard("Typical larger error", bestModel.rmse ?? "—")}
+        ${metricCard("R² score", bestModel.score ?? "—")}
+      </div>
+
+      <p class="muted">
+        Lower error values are better. R² is different: higher is better, and 1.0 would be a very strong fit.
+      </p>
     </div>
   `;
 }
@@ -1121,4 +1259,112 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+
+function friendlyMetricName(metricName) {
+  if (metricName === "accuracy") {
+    return "Accuracy";
+  }
+
+  if (metricName === "R²") {
+    return "R² score";
+  }
+
+  return metricName || "Score";
+}
+
+
+function friendlyFeatureName(name) {
+  const knownNames = {
+    Pclass: "Passenger class",
+    SibSp: "Siblings/spouses aboard",
+    Parch: "Parents/children aboard",
+    Fare: "Fare paid",
+    Age: "Age",
+    has_cabin: "Cabin information present",
+    Sex_male: "Sex = male",
+    Sex_female: "Sex = female",
+    Embarked_C: "Embarked = C",
+    Embarked_Q: "Embarked = Q",
+    Embarked_S: "Embarked = S",
+    Embarked_Missing: "Embarked = missing",
+  };
+
+  return knownNames[name] || name.replaceAll("_", " ");
+}
+
+function friendlyTargetValue(value, targetName) {
+  const target = String(targetName || "").toLowerCase();
+
+  if (target === "survived") {
+    if (String(value) === "0") return "Did not survive";
+    if (String(value) === "1") return "Survived";
+  }
+
+  return String(value);
+}
+
+
+function confusionMatrixPlainEnglish(ml) {
+  const matrix = ml.confusion_matrix;
+  const labels = ml.class_labels || [];
+
+  if (!matrix || matrix.length !== 2 || matrix[0].length !== 2 || labels.length !== 2) {
+    return "";
+  }
+
+  const actual0 = friendlyTargetValue(labels[0], ml.target);
+  const actual1 = friendlyTargetValue(labels[1], ml.target);
+
+  const correct0 = matrix[0][0];
+  const wrong0 = matrix[0][1];
+  const wrong1 = matrix[1][0];
+  const correct1 = matrix[1][1];
+
+  return `
+    The model correctly identified <strong>${correct0}</strong> rows as
+    <strong>${escapeHtml(actual0)}</strong> and <strong>${correct1}</strong> rows as
+    <strong>${escapeHtml(actual1)}</strong>.
+    It got <strong>${wrong0 + wrong1}</strong> test rows wrong.
+  `;
+}
+
+
+function modelPlainEnglish(model) {
+  if (model.model_key === "knn_classifier" || model.model_key === "knn_regressor") {
+    return "This model looks for rows that are most similar to the row it is trying to predict, then uses those similar rows to make a prediction.";
+  }
+
+  if (model.model_key === "random_forest_classifier" || model.model_key === "random_forest_regressor") {
+    return "This model builds many small decision trees and combines their answers. It is useful because it can also estimate which fields were most helpful.";
+  }
+
+  return model.notes || "";
+}
+
+
+function friendlyTaskType(taskType) {
+  if (taskType === "classification") {
+    return "Category prediction";
+  }
+
+  if (taskType === "regression") {
+    return "Number prediction";
+  }
+
+  return taskType || "Unknown";
+}
+
+
+function metricPlainEnglish(scoreName, taskType) {
+  if (scoreName === "accuracy") {
+    return "Accuracy means the percentage of test rows the model predicted correctly. For example, 0.80 means about 80% were correct.";
+  }
+
+  if (scoreName === "R²") {
+    return "R² shows how well the model explains variation in a number. Higher is better, with 1.0 being a very strong fit.";
+  }
+
+  return "";
 }
