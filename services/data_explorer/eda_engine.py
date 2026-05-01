@@ -605,14 +605,18 @@ def build_treemap_charts(df, categorical_cols, numeric_cols):
     # Plotly treemap wants labels, parents and values.
     labels = []
     parents = []
+    ids = []
     chart_values = []
 
     if len(hierarchy_cols) == 1:
         category_col = hierarchy_cols[0]
 
         for _, row in grouped.iterrows():
-            labels.append(str(row[category_col]))
+            label = str(row[category_col])
+
+            labels.append(label)
             parents.append("")
+            ids.append(label)
             chart_values.append(float(row[size_col]) if size_col else int(row["count"]))
 
     else:
@@ -627,13 +631,17 @@ def build_treemap_charts(df, categorical_cols, numeric_cols):
 
             parent_totals[parent_name] = parent_totals.get(parent_name, 0) + value
 
-            labels.append(f"{child_name}")
+            child_id = f"{parent_name}/{child_name}"
+
+            labels.append(child_name)
             parents.append(parent_name)
+            ids.append(child_id)
             chart_values.append(value)
 
         for parent_name, total in parent_totals.items():
             labels.append(parent_name)
             parents.append("")
+            ids.append(parent_name)
             chart_values.append(total)
 
     charts.append(
@@ -644,6 +652,7 @@ def build_treemap_charts(df, categorical_cols, numeric_cols):
             "data_role": "part_of_whole",
             "phase": "composition",
             "columns": selected_cols,
+            "ids": ids,
             "labels": labels,
             "parents": parents,
             "values": chart_values,

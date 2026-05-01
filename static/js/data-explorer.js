@@ -620,6 +620,7 @@ function drawChart(chartId, chart) {
   if (chart.chart_type === "treemap") {
     Plotly.newPlot(chartId, [{
       type: "treemap",
+      ids: chart.ids,
       labels: chart.labels,
       parents: chart.parents,
       values: chart.values,
