@@ -412,6 +412,8 @@ def recommend_charts(df, schema, segmentation=None):
     charts.extend(build_3d_scatter_charts(df, numeric_cols, categorical_cols))
     charts.extend(build_bubble_charts(df, numeric_cols))
     charts.extend(build_radar_charts(df, categorical_cols, numeric_cols))
+    charts.extend(build_parallel_coordinates_charts(df, schema, numeric_cols, categorical_cols))
+    charts.extend(build_treemap_charts(df, categorical_cols, numeric_cols))
     charts.extend(build_category_distribution_charts(df, categorical_cols, numeric_cols))
     charts.extend(build_stacked_bar_charts(df, categorical_cols))
     charts.extend(build_area_charts(df, datetime_cols, numeric_cols))
@@ -525,6 +527,205 @@ def build_radar_charts(df, categorical_cols, numeric_cols):
 
         # Start with one radar chart. Later we can return more.
         return charts
+
+    return charts
+
+
+def build_treemap_charts(df, categorical_cols, numeric_cols):
+    """
+    Build treemap charts for part-of-whole / composition analysis.
+
+    Treemaps work well when we have one or two manageable categorical columns.
+    If a numeric column is available, we use its sum as the size. Otherwise,
+    we count rows.
+    """
+    charts = []
+
+    if not categorical_cols:
+        return charts
+
+    usable_categories = []
+
+    for column in categorical_cols:
+        unique_count = df[column].dropna().nunique()
+
+        if 2 <= unique_count <= 20:
+            usable_categories.append(column)
+
+    if not usable_categories:
+        return charts
+
+    # Use up to two categorical levels for readability.
+    hierarchy_cols = usable_categories[:2]
+
+    # Prefer a positive numeric measure for size if available.
+    size_col = None
+
+    for column in numeric_cols:
+        numeric = pd.to_numeric(df[column], errors="coerce")
+
+        if numeric.notna().sum() > 0 and numeric.min(skipna=True) >= 0:
+            size_col = column
+            break
+
+    selected_cols = hierarchy_cols.copy()
+
+    if size_col:
+        selected_cols.append(size_col)
+
+    temp = df[selected_cols].copy()
+    temp = temp.dropna(subset=hierarchy_cols)
+
+    if temp.empty:
+        return charts
+
+    if size_col:
+        temp[size_col] = pd.to_numeric(temp[size_col], errors="coerce").fillna(0)
+
+        grouped = (
+            temp
+            .groupby(hierarchy_cols, dropna=False)[size_col]
+            .sum()
+            .reset_index()
+        )
+
+        value_label = f"Sum of {size_col}"
+        values = grouped[size_col].tolist()
+    else:
+        grouped = (
+            temp
+            .groupby(hierarchy_cols, dropna=False)
+            .size()
+            .reset_index(name="count")
+        )
+
+        value_label = "Row count"
+        values = grouped["count"].tolist()
+
+    # Plotly treemap wants labels, parents and values.
+    labels = []
+    parents = []
+    chart_values = []
+
+    if len(hierarchy_cols) == 1:
+        category_col = hierarchy_cols[0]
+
+        for _, row in grouped.iterrows():
+            labels.append(str(row[category_col]))
+            parents.append("")
+            chart_values.append(float(row[size_col]) if size_col else int(row["count"]))
+
+    else:
+        parent_col, child_col = hierarchy_cols
+
+        parent_totals = {}
+
+        for _, row in grouped.iterrows():
+            parent_name = str(row[parent_col])
+            child_name = str(row[child_col])
+            value = float(row[size_col]) if size_col else int(row["count"])
+
+            parent_totals[parent_name] = parent_totals.get(parent_name, 0) + value
+
+            labels.append(f"{child_name}")
+            parents.append(parent_name)
+            chart_values.append(value)
+
+        for parent_name, total in parent_totals.items():
+            labels.append(parent_name)
+            parents.append("")
+            chart_values.append(total)
+
+    charts.append(
+        {
+            "id": safe_chart_id(f"treemap_{'_'.join(hierarchy_cols)}"),
+            "title": f"Treemap by {' → '.join(hierarchy_cols)}",
+            "chart_type": "treemap",
+            "data_role": "part_of_whole",
+            "phase": "composition",
+            "columns": selected_cols,
+            "labels": labels,
+            "parents": parents,
+            "values": chart_values,
+            "value_label": value_label,
+            "why": (
+                "Shows how the dataset is split across categories. "
+                "Larger rectangles represent a larger share of the rows or selected numeric value."
+            ),
+        }
+    )
+
+    return charts
+
+
+def build_parallel_coordinates_charts(df, schema, numeric_cols, categorical_cols):
+    """
+    Build a parallel coordinates chart for multivariate numeric exploration.
+
+    This shows several numeric variables at once. If a target column exists and
+    can be encoded simply, we use it as the colour dimension.
+    """
+    charts = []
+
+    if len(numeric_cols) < 3:
+        return charts
+
+    selected_numeric_cols = numeric_cols[:6]
+
+    temp = df[selected_numeric_cols].copy()
+
+    for column in selected_numeric_cols:
+        temp[column] = pd.to_numeric(temp[column], errors="coerce")
+
+    temp = temp.dropna().head(MAX_CHART_ROWS)
+
+    if len(temp) < 10:
+        return charts
+
+    target_column = detect_target_column(df, schema)
+
+    colour_values = None
+    colour_label = None
+    colour_tick_text = None
+    colour_tick_vals = None
+
+    if target_column and target_column in df.columns:
+        aligned_target = df.loc[temp.index, target_column]
+
+        if aligned_target.dropna().nunique() <= 12:
+            label_encoder = LabelEncoder()
+            encoded = label_encoder.fit_transform(aligned_target.astype(str))
+
+            colour_values = encoded.tolist()
+            colour_label = target_column
+            colour_tick_vals = list(range(len(label_encoder.classes_)))
+            colour_tick_text = [str(value) for value in label_encoder.classes_]
+
+    charts.append(
+        {
+            "id": safe_chart_id(f"parallel_coordinates_{'_'.join(selected_numeric_cols)}"),
+            "title": "Parallel coordinates view",
+            "chart_type": "parallel_coordinates",
+            "data_role": "multivariate_numeric",
+            "phase": "multivariate",
+            "columns": selected_numeric_cols,
+            "dimensions": [
+                {
+                    "label": column,
+                    "values": temp[column].tolist(),
+                }
+                for column in selected_numeric_cols
+            ],
+            "colour": colour_values,
+            "colour_label": colour_label,
+            "colour_tick_vals": colour_tick_vals,
+            "colour_tick_text": colour_tick_text,
+            "why": (
+                "Shows many numeric columns at once. Each line is one row. "
+                "This can reveal patterns, clusters and unusual records across several measures."
+            ),
+        }
+    )
 
     return charts
 
@@ -800,6 +1001,7 @@ def normalise_grouped_values(grouped):
 # =============================================================================
 # RELATIONSHIPS / NEAREST NEIGHBOURS / THESES
 # =============================================================================
+
 
 def analyse_relationships(df, schema):
     numeric_cols = schema["numeric"]

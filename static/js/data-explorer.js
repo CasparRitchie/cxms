@@ -617,6 +617,46 @@ function drawChart(chartId, chart) {
     return;
   }
 
+  if (chart.chart_type === "treemap") {
+    Plotly.newPlot(chartId, [{
+      type: "treemap",
+      labels: chart.labels,
+      parents: chart.parents,
+      values: chart.values,
+      textinfo: "label+value+percent parent",
+      hovertemplate: `<b>%{label}</b><br>${escapeHtml(chart.value_label || "Value")}: %{value}<extra></extra>`,
+    }], {
+      ...layout,
+      margin: { t: 20, r: 20, b: 20, l: 20 },
+    }, config);
+    return;
+  }
+
+  if (chart.chart_type === "parallel_coordinates") {
+    const trace = {
+      type: "parcoords",
+      dimensions: chart.dimensions.map((dimension) => ({
+        label: friendlyFeatureName(dimension.label),
+        values: dimension.values,
+      })),
+      line: {
+        color: chart.colour || chart.dimensions[0].values,
+        showscale: true,
+        colorbar: {
+          title: chart.colour_label ? friendlyFeatureName(chart.colour_label) : "Value",
+          tickvals: chart.colour_tick_vals || undefined,
+          ticktext: chart.colour_tick_text || undefined,
+        },
+      },
+    };
+
+    Plotly.newPlot(chartId, [trace], {
+      ...layout,
+      margin: { t: 30, r: 80, b: 30, l: 60 },
+    }, config);
+    return;
+  }
+
   document.getElementById(chartId).innerHTML = `
     <p class="muted">Chart type not yet supported: ${escapeHtml(chart.chart_type)}</p>
   `;
