@@ -409,7 +409,9 @@ def recommend_charts(df, schema, segmentation=None):
     charts.extend(build_categorical_numeric_charts(df, categorical_cols, numeric_cols))
     charts.extend(build_time_series_charts(df, datetime_cols, numeric_cols))
     charts.extend(build_scatter_charts(df, numeric_cols))
+    charts.extend(build_3d_scatter_charts(df, numeric_cols, categorical_cols))
     charts.extend(build_bubble_charts(df, numeric_cols))
+    charts.extend(build_radar_charts(df, categorical_cols, numeric_cols))
     charts.extend(build_category_distribution_charts(df, categorical_cols, numeric_cols))
     charts.extend(build_stacked_bar_charts(df, categorical_cols))
     charts.extend(build_area_charts(df, datetime_cols, numeric_cols))
@@ -433,6 +435,97 @@ def build_categorical_charts(df, categorical_cols):
     for column in categorical_cols[:10]:
         counts = df[column].value_counts(dropna=True).head(15)
         charts.append({"id": safe_chart_id(f"bar_{column}"), "title": f"Category counts for {column}", "chart_type": "bar", "data_role": "categorical", "phase": "univariate", "columns": [column], "labels": [str(index) for index in counts.index], "values": [int(value) for value in counts.values], "why": "Shows the most common groups or categories."})
+    return charts
+
+
+def build_radar_charts(df, categorical_cols, numeric_cols):
+    """
+    Build radar charts comparing average numeric profiles across categories.
+
+    Values are normalised 0-1 so variables with different scales can be compared
+    on the same radar chart.
+    """
+    charts = []
+
+    if not categorical_cols or len(numeric_cols) < 3:
+        return charts
+
+    for category_col in categorical_cols[:5]:
+        unique_count = df[category_col].dropna().nunique()
+
+        # Radar charts become unreadable with too many groups.
+        if unique_count < 2 or unique_count > 6:
+            continue
+
+        selected_numeric_cols = numeric_cols[:6]
+        selected_columns = [category_col] + selected_numeric_cols
+
+        temp = df[selected_columns].copy()
+
+        for column in selected_numeric_cols:
+            temp[column] = pd.to_numeric(temp[column], errors="coerce")
+
+        temp = temp.dropna(subset=[category_col])
+
+        if temp.empty:
+            continue
+
+        grouped = (
+            temp
+            .groupby(category_col)[selected_numeric_cols]
+            .mean()
+            .dropna(how="all")
+        )
+
+        if grouped.empty or len(grouped) < 2:
+            continue
+
+        # Keep the largest category groups to avoid a messy radar chart.
+        largest_groups = (
+            temp[category_col]
+            .value_counts(dropna=True)
+            .head(6)
+            .index
+        )
+
+        grouped = grouped.loc[grouped.index.intersection(largest_groups)]
+
+        if grouped.empty or len(grouped) < 2:
+            continue
+
+        normalised = normalise_grouped_values(grouped)
+
+        charts.append(
+            {
+                "id": safe_chart_id(f"radar_profile_by_{category_col}"),
+                "title": f"Numeric profile by {category_col}",
+                "chart_type": "radar",
+                "data_role": "categoric_numeric_profile",
+                "phase": "multivariate",
+                "columns": selected_columns,
+                "category": category_col,
+                "variables": selected_numeric_cols,
+                "series": [
+                    {
+                        "name": str(index),
+                        "values": [safe_round(value) for value in normalised.loc[index].tolist()],
+                        "raw_values": [
+                            safe_round(value)
+                            for value in grouped.loc[index].tolist()
+                        ],
+                    }
+                    for index in normalised.index
+                ],
+                "why": (
+                    "Compares the average numeric profile of each category. "
+                    "Values are normalised so fields with different scales can be shown together."
+                ),
+            }
+        )
+
+        # Start with one radar chart. Later we can return more.
+        return charts
+
     return charts
 
 
@@ -488,6 +581,80 @@ def build_scatter_charts(df, numeric_cols):
                 continue
             charts.append({"id": safe_chart_id(f"scatter_{x_col}_vs_{y_col}"), "title": f"{y_col} vs {x_col}", "chart_type": "scatter", "data_role": "numeric_numeric", "phase": "bivariate", "columns": [x_col, y_col], "x": temp[x_col].tolist(), "y": temp[y_col].tolist(), "x_label": x_col, "y_label": y_col, "why": "Shows the relationship, clustering and possible outliers between two numeric fields."})
             pair_count += 1
+    return charts
+
+
+def build_3d_scatter_charts(df, numeric_cols, categorical_cols):
+    """
+    Build 3D scatter plots when at least three numeric columns exist.
+
+    If a categorical column is available with a manageable number of groups,
+    use it as the colour dimension.
+    """
+    charts = []
+
+    if len(numeric_cols) < 3:
+        return charts
+
+    x_col = numeric_cols[0]
+    y_col = numeric_cols[1]
+    z_col = numeric_cols[2]
+
+    selected_columns = [x_col, y_col, z_col]
+
+    colour_col = None
+
+    for column in categorical_cols:
+        unique_count = df[column].dropna().nunique()
+
+        if 2 <= unique_count <= 12:
+            colour_col = column
+            selected_columns.append(column)
+            break
+
+    temp = df[selected_columns].copy()
+
+    temp[x_col] = pd.to_numeric(temp[x_col], errors="coerce")
+    temp[y_col] = pd.to_numeric(temp[y_col], errors="coerce")
+    temp[z_col] = pd.to_numeric(temp[z_col], errors="coerce")
+
+    temp = temp.dropna(subset=[x_col, y_col, z_col]).head(1000)
+
+    if temp.empty:
+        return charts
+
+    chart = {
+        "id": safe_chart_id(f"scatter_3d_{x_col}_{y_col}_{z_col}"),
+        "title": f"3D view: {x_col}, {y_col} and {z_col}",
+        "chart_type": "scatter_3d",
+        "data_role": "numeric_numeric_numeric",
+        "phase": "multivariate",
+        "columns": [x_col, y_col, z_col],
+        "x": temp[x_col].tolist(),
+        "y": temp[y_col].tolist(),
+        "z": temp[z_col].tolist(),
+        "x_label": x_col,
+        "y_label": y_col,
+        "z_label": z_col,
+        "why": "Shows how rows are positioned across three numeric fields at the same time. You can rotate and zoom the chart to explore clusters and outliers.",
+    }
+
+    if colour_col:
+        chart["colour_label"] = colour_col
+        chart["colour"] = temp[colour_col].astype(str).tolist()
+        chart["hover"] = [
+            f"{colour_col}: {value}"
+            for value in temp[colour_col].astype(str).tolist()
+        ]
+    else:
+        chart["colour"] = None
+        chart["hover"] = [
+            f"Row {index}"
+            for index in temp.index.tolist()
+        ]
+
+    charts.append(chart)
+
     return charts
 
 
@@ -607,6 +774,28 @@ def build_segmentation_charts(df, schema, segmentation=None):
         charts.append({"id": "pca_scatter_by_target", "title": "PCA projection coloured by detected target", "chart_type": "pca_scatter", "data_role": "segmentation", "phase": "advanced", "columns": segmentation["numeric_columns"], "x": [point["pc1"] for point in points], "y": [point["pc2"] for point in points], "colour": [str(point["target"]) for point in points], "hover": [f"Row {point['row_index']} | Target {point['target']}" for point in points], "x_label": f"PC1 ({segmentation['pca']['explained_variance_pc1']}%)", "y_label": f"PC2 ({segmentation['pca']['explained_variance_pc2']}%)", "why": "Uses PCA to show whether the detected target separates naturally in the numeric feature space."})
     return charts
 
+
+def normalise_grouped_values(grouped):
+    """
+    Normalise each numeric column to 0-1 across category groups.
+
+    This makes radar charts readable when variables have different units
+    or very different scales.
+    """
+    normalised = grouped.copy()
+
+    for column in normalised.columns:
+        col_min = normalised[column].min()
+        col_max = normalised[column].max()
+
+        if pd.isna(col_min) or pd.isna(col_max) or col_max == col_min:
+            normalised[column] = 0.5
+        else:
+            normalised[column] = (
+                (normalised[column] - col_min) / (col_max - col_min)
+            )
+
+    return normalised
 
 # =============================================================================
 # RELATIONSHIPS / NEAREST NEIGHBOURS / THESES

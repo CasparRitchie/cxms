@@ -454,6 +454,33 @@ function drawChart(chartId, chart) {
     return;
   }
 
+    if (chart.chart_type === "scatter_3d") {
+    const trace = {
+      x: chart.x,
+      y: chart.y,
+      z: chart.z,
+      mode: "markers",
+      type: "scatter3d",
+      text: chart.hover,
+      marker: {
+        size: 4,
+        opacity: 0.78,
+        color: chart.colour || chart.z,
+      },
+    };
+
+    Plotly.newPlot(chartId, [trace], {
+      ...layout,
+      scene: {
+        xaxis: { title: chart.x_label },
+        yaxis: { title: chart.y_label },
+        zaxis: { title: chart.z_label },
+      },
+      margin: { t: 20, r: 20, b: 20, l: 20 },
+    }, config);
+    return;
+  }
+
   if (chart.chart_type === "bubble") {
     Plotly.newPlot(chartId, [{
       x: chart.x,
@@ -558,6 +585,34 @@ function drawChart(chartId, chart) {
       legend: {
         orientation: "h",
       },
+    }, config);
+    return;
+  }
+
+  if (chart.chart_type === "radar") {
+    const variables = [...chart.variables, chart.variables[0]];
+
+    const traces = chart.series.map((series) => {
+      const values = [...series.values, series.values[0]];
+
+      return {
+        type: "scatterpolar",
+        r: values,
+        theta: variables,
+        fill: "toself",
+        name: series.name,
+      };
+    });
+
+    Plotly.newPlot(chartId, traces, {
+      ...layout,
+      polar: {
+        radialaxis: {
+          visible: true,
+          range: [0, 1],
+        },
+      },
+      showlegend: true,
     }, config);
     return;
   }
@@ -1261,7 +1316,6 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-
 function friendlyMetricName(metricName) {
   if (metricName === "accuracy") {
     return "Accuracy";
@@ -1273,7 +1327,6 @@ function friendlyMetricName(metricName) {
 
   return metricName || "Score";
 }
-
 
 function friendlyFeatureName(name) {
   const knownNames = {
@@ -1305,7 +1358,6 @@ function friendlyTargetValue(value, targetName) {
   return String(value);
 }
 
-
 function confusionMatrixPlainEnglish(ml) {
   const matrix = ml.confusion_matrix;
   const labels = ml.class_labels || [];
@@ -1330,7 +1382,6 @@ function confusionMatrixPlainEnglish(ml) {
   `;
 }
 
-
 function modelPlainEnglish(model) {
   if (model.model_key === "knn_classifier" || model.model_key === "knn_regressor") {
     return "This model looks for rows that are most similar to the row it is trying to predict, then uses those similar rows to make a prediction.";
@@ -1343,7 +1394,6 @@ function modelPlainEnglish(model) {
   return model.notes || "";
 }
 
-
 function friendlyTaskType(taskType) {
   if (taskType === "classification") {
     return "Category prediction";
@@ -1355,7 +1405,6 @@ function friendlyTaskType(taskType) {
 
   return taskType || "Unknown";
 }
-
 
 function metricPlainEnglish(scoreName, taskType) {
   if (scoreName === "accuracy") {
