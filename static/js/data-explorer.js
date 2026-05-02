@@ -643,7 +643,7 @@ function buildManualChartConfig({ chartType, rows, xCol, yCol, zCol, colourCol, 
       return null;
     }
 
-    const points = pairedNumericValues(rows, xCol, yCol);
+    const points = pairedNumericValues(rows, xCol, yCol, colourCol, sizeCol);
 
     if (!points.x.length) {
       return null;
@@ -656,9 +656,16 @@ function buildManualChartConfig({ chartType, rows, xCol, yCol, zCol, colourCol, 
       columns: [xCol, yCol],
       x: points.x,
       y: points.y,
+      colour: points.colour,
+      colour_label: colourCol || null,
+      colour_tick_vals: points.colour_tick_vals,
+      colour_tick_text: points.colour_tick_text,
+      size: points.size,
+      size_label: sizeCol || null,
+      hover: points.hover,
       x_label: xCol,
       y_label: yCol,
-      why: "Shows the relationship between two numeric fields.",
+      why: "Shows the relationship between two numeric fields. Colour and point size can add extra context.",
     };
   }
 
@@ -667,7 +674,7 @@ function buildManualChartConfig({ chartType, rows, xCol, yCol, zCol, colourCol, 
       return null;
     }
 
-    const points = tripleNumericValues(rows, xCol, yCol, zCol, colourCol);
+    const points = tripleNumericValues(rows, xCol, yCol, zCol, colourCol, sizeCol);
 
     if (!points.x.length) {
       return null;
@@ -682,6 +689,11 @@ function buildManualChartConfig({ chartType, rows, xCol, yCol, zCol, colourCol, 
       y: points.y,
       z: points.z,
       colour: points.colour,
+      colour_label: colourCol || null,
+      colour_tick_vals: points.colour_tick_vals,
+      colour_tick_text: points.colour_tick_text,
+      size: points.size,
+      size_label: sizeCol || null,
       hover: points.hover,
       x_label: xCol,
       y_label: yCol,
@@ -738,58 +750,128 @@ function numericValues(rows, column, limit = 1000) {
     .slice(0, limit);
 }
 
-function pairedNumericValues(rows, xCol, yCol, limit = 1000) {
-  const x = [];
-  const y = [];
+function pairedNumericValues(rows, xCol, yCol, colourCol = "", sizeCol = "", limit = 1000) {
+  const cleanRows = [];
 
   rows.forEach((row) => {
-    if (x.length >= limit) return;
+    if (cleanRows.length >= limit) return;
 
     const xValue = Number(row[xCol]);
     const yValue = Number(row[yCol]);
 
     if (Number.isFinite(xValue) && Number.isFinite(yValue)) {
-      x.push(xValue);
-      y.push(yValue);
+      cleanRows.push(row);
     }
   });
 
-  return { x, y };
+  const x = cleanRows.map((row) => Number(row[xCol]));
+  const y = cleanRows.map((row) => Number(row[yCol]));
+
+  const hover = cleanRows.map((row, index) => {
+    const parts = [
+      `${xCol}: ${row[xCol]}`,
+      `${yCol}: ${row[yCol]}`,
+    ];
+
+    if (colourCol) {
+      parts.push(`${colourCol}: ${row[colourCol] ?? "Missing"}`);
+    }
+
+    if (sizeCol) {
+      parts.push(`${sizeCol}: ${row[sizeCol] ?? "Missing"}`);
+    }
+
+    return parts.join("<br>");
+  });
+
+  let colour = null;
+  let colour_tick_vals = null;
+  let colour_tick_text = null;
+
+  if (colourCol) {
+    const encoded = encodeCategories(cleanRows.map((row) => row[colourCol]));
+    colour = encoded.values;
+    colour_tick_vals = encoded.tickVals;
+    colour_tick_text = encoded.tickText;
+  }
+
+  let size = null;
+
+  if (sizeCol) {
+    size = scaledMarkerSizes(cleanRows.map((row) => row[sizeCol]));
+  }
+
+  return {
+    x,
+    y,
+    colour,
+    colour_tick_vals,
+    colour_tick_text,
+    size,
+    hover,
+  };
 }
 
-function tripleNumericValues(rows, xCol, yCol, zCol, colourCol, limit = 1000) {
-  const x = [];
-  const y = [];
-  const z = [];
-  const colour = [];
-  const hover = [];
+function tripleNumericValues(rows, xCol, yCol, zCol, colourCol = "", sizeCol = "", limit = 1000) {
+  const cleanRows = [];
 
-  rows.forEach((row, index) => {
-    if (x.length >= limit) return;
+  rows.forEach((row) => {
+    if (cleanRows.length >= limit) return;
 
     const xValue = Number(row[xCol]);
     const yValue = Number(row[yCol]);
     const zValue = Number(row[zCol]);
 
     if (Number.isFinite(xValue) && Number.isFinite(yValue) && Number.isFinite(zValue)) {
-      x.push(xValue);
-      y.push(yValue);
-      z.push(zValue);
-
-      if (colourCol) {
-        colour.push(String(row[colourCol] ?? "Missing"));
-        hover.push(`${colourCol}: ${row[colourCol] ?? "Missing"}`);
-      } else {
-        hover.push(`Row ${index}`);
-      }
+      cleanRows.push(row);
     }
   });
+
+  const x = cleanRows.map((row) => Number(row[xCol]));
+  const y = cleanRows.map((row) => Number(row[yCol]));
+  const z = cleanRows.map((row) => Number(row[zCol]));
+
+  const hover = cleanRows.map((row) => {
+    const parts = [
+      `${xCol}: ${row[xCol]}`,
+      `${yCol}: ${row[yCol]}`,
+      `${zCol}: ${row[zCol]}`,
+    ];
+
+    if (colourCol) {
+      parts.push(`${colourCol}: ${row[colourCol] ?? "Missing"}`);
+    }
+
+    if (sizeCol) {
+      parts.push(`${sizeCol}: ${row[sizeCol] ?? "Missing"}`);
+    }
+
+    return parts.join("<br>");
+  });
+
+  let colour = z;
+  let colour_tick_vals = null;
+  let colour_tick_text = null;
+
+  if (colourCol) {
+    const encoded = encodeCategories(cleanRows.map((row) => row[colourCol]));
+    colour = encoded.values;
+    colour_tick_vals = encoded.tickVals;
+    colour_tick_text = encoded.tickText;
+  }
+
+  const size = sizeCol
+    ? scaledMarkerSizes(cleanRows.map((row) => row[sizeCol]))
+    : null;
 
   return {
     x,
     y,
     z,
-    colour: colour.length ? colour : z,
+    colour,
+    colour_tick_vals,
+    colour_tick_text,
+    size,
     hover,
   };
 }
@@ -832,6 +914,51 @@ function countByCategory(rows, column, limit = 20) {
     labels: sorted.map(([label]) => label),
     values: sorted.map(([, value]) => value),
   };
+}
+
+function encodeCategories(values) {
+  const labels = values.map((value) => {
+    if (value === null || value === undefined || value === "") {
+      return "Missing";
+    }
+
+    return String(value);
+  });
+
+  const uniqueLabels = Array.from(new Set(labels));
+  const labelToNumber = new Map(
+    uniqueLabels.map((label, index) => [label, index])
+  );
+
+  return {
+    values: labels.map((label) => labelToNumber.get(label)),
+    tickVals: uniqueLabels.map((_, index) => index),
+    tickText: uniqueLabels,
+  };
+}
+
+function scaledMarkerSizes(values, minSize = 7, maxSize = 24) {
+  const numericValues = values.map((value) => Number(value));
+  const finiteValues = numericValues.filter((value) => Number.isFinite(value));
+
+  if (!finiteValues.length) {
+    return null;
+  }
+
+  const min = Math.min(...finiteValues);
+  const max = Math.max(...finiteValues);
+
+  if (min === max) {
+    return numericValues.map((value) => Number.isFinite(value) ? 12 : 7);
+  }
+
+  return numericValues.map((value) => {
+    if (!Number.isFinite(value)) {
+      return minSize;
+    }
+
+    return minSize + ((value - min) / (max - min)) * (maxSize - minSize);
+  });
 }
 
 function buildManualTreemapChart(rows, parentCol, childCol, valueCol) {
@@ -1044,17 +1171,36 @@ function drawChart(chartId, chart) {
   }
 
   if (chart.chart_type === "scatter") {
+    const marker = {
+      size: chart.size || 9,
+      opacity: 0.78,
+    };
+
+    if (chart.colour) {
+      marker.color = chart.colour;
+      marker.colorscale = "Viridis";
+      marker.showscale = true;
+      marker.colorbar = {
+        title: chart.colour_label ? friendlyFeatureName(chart.colour_label) : "Colour",
+        tickvals: chart.colour_tick_vals || undefined,
+        ticktext: chart.colour_tick_text || undefined,
+      };
+    }
+
     Plotly.newPlot(chartId, [{
       x: chart.x,
       y: chart.y,
       type: "scatter",
       mode: "markers",
-      text: chart.columns.join(" vs "),
+      text: chart.hover || chart.columns.join(" vs "),
+      hovertemplate: "%{text}<extra></extra>",
+      marker,
     }], {
       ...layout,
       xaxis: { title: chart.x_label },
       yaxis: { title: chart.y_label },
     }, config);
+
     return;
   }
 
@@ -1066,10 +1212,18 @@ function drawChart(chartId, chart) {
       mode: "markers",
       type: "scatter3d",
       text: chart.hover,
+      hovertemplate: "%{text}<extra></extra>",
       marker: {
-        size: 4,
+        size: chart.size || 4,
         opacity: 0.78,
         color: chart.colour || chart.z,
+        colorscale: "Viridis",
+        showscale: Boolean(chart.colour_label),
+        colorbar: {
+          title: chart.colour_label ? friendlyFeatureName(chart.colour_label) : "Value",
+          tickvals: chart.colour_tick_vals || undefined,
+          ticktext: chart.colour_tick_text || undefined,
+        },
       },
     };
 
@@ -2005,14 +2159,14 @@ function friendlyTargetValue(value, targetName) {
 
 function manualChartHelpText(chartType) {
   const help = {
-    histogram: "Use a histogram to see the spread of one numeric field.",
-    bar: "Use a bar chart to count rows in each category.",
-    scatter: "Use a scatter chart to compare two numeric fields.",
-    scatter_3d: "Use a 3D scatter chart to compare three numeric fields. You can rotate and zoom it.",
-    boxplot_by_category: "Use a boxplot to compare the spread of a numeric field across categories.",
-    violin_by_category: "Use a violin chart to compare distribution shape across categories.",
-    treemap: "Use a treemap to show part-of-whole composition across categories.",
-    parallel_coordinates: "Use parallel coordinates to compare several numeric fields at once.",
+    histogram: "Use a histogram to see the spread of one numeric field. Use Y / value to choose the field.",
+    bar: "Use a bar chart to count rows in each category. Use X / category to choose the category.",
+    scatter: "Use a scatter chart to compare two numeric fields. Colour and size can add extra context. Z axis is only used by 3D scatter.",
+    scatter_3d: "Use a 3D scatter chart to compare three numeric fields. X, Y and Z are all used. Colour and size can add extra context.",
+    boxplot_by_category: "Use a boxplot to compare the spread of a numeric field across categories. X is the category and Y is the number.",
+    violin_by_category: "Use a violin chart to compare distribution shape across categories. X is the category and Y is the number.",
+    treemap: "Use a treemap to show part-of-whole composition. X is the main category and Colour / split by becomes the second category.",
+    parallel_coordinates: "Use parallel coordinates to compare several numeric fields at once. X, Y, Z and Size by become numeric dimensions.",
   };
 
   return help[chartType] || "";
