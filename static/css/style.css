@@ -1201,3 +1201,49 @@ body {
 .manual-chart-notes {
   margin-top: 1rem;
 }
+
+
+/* ========================================
+   DATA EXPLORER - STICKY CHART MODE TABS
+======================================== */
+
+.chart-mode-tabs {
+  position: sticky;
+  top: 138px; /* adjust if your main sticky tab row height changes */
+  z-index: 850;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+
+  padding: 0.75rem 0;
+  margin: 0 0 1.25rem;
+
+  background: rgba(11, 15, 25, 0.94);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--cxms-panel-border);
+}
+
+.chart-mode-tab {
+  border: 1px solid var(--cxms-panel-border);
+  border-radius: 999px;
+  padding: 0.75rem 1.1rem;
+  cursor: pointer;
+  color: var(--cxms-text);
+  background: rgba(255, 255, 255, 0.06);
+  font: inherit;
+}
+
+.chart-mode-tab.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--cxms-purple), var(--cxms-green));
+  border-color: transparent;
+}
+
+.chart-mode-panel {
+  display: none;
+}
+
+.chart-mode-panel.active {
+  display: block;
+}

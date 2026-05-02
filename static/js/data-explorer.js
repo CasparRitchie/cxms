@@ -327,8 +327,12 @@ function renderManualChartExplorerShell(analysis) {
           ["bar", "Bar chart"],
           ["scatter", "Scatter"],
           ["scatter_3d", "3D scatter"],
+          ["bubble", "Bubble chart"],
+          ["line", "Line chart"],
+          ["area", "Area chart"],
           ["boxplot_by_category", "Boxplot by category"],
           ["violin_by_category", "Violin by category"],
+          ["radar", "Radar chart"],
           ["treemap", "Treemap"],
           ["parallel_coordinates", "Parallel coordinates"],
         ])}
@@ -702,6 +706,69 @@ function buildManualChartConfig({ chartType, rows, xCol, yCol, zCol, colourCol, 
     };
   }
 
+  if (chartType === "bubble") {
+    if (!xCol || !yCol || !sizeCol) {
+      return null;
+    }
+
+    const points = pairedNumericValues(rows, xCol, yCol, colourCol, sizeCol);
+
+    if (!points.x.length) {
+      return null;
+    }
+
+    return {
+      title: `${yCol} vs ${xCol}, sized by ${sizeCol}`,
+      chart_type: "bubble",
+      phase: "manual",
+      columns: [xCol, yCol, sizeCol],
+      x: points.x,
+      y: points.y,
+      size: points.size,
+      colour: points.colour,
+      colour_label: colourCol || null,
+      colour_tick_vals: points.colour_tick_vals,
+      colour_tick_text: points.colour_tick_text,
+      hover: points.hover,
+      x_label: xCol,
+      y_label: yCol,
+      size_label: sizeCol,
+      why: "Shows two numeric fields, with point size adding a third numeric measure.",
+    };
+  }
+
+  if (chartType === "line" || chartType === "area") {
+    if (!xCol || !yCol) {
+      return null;
+    }
+
+    const points = pairedAnyXNumericYValues(rows, xCol, yCol);
+
+    if (!points.x.length) {
+      return null;
+    }
+
+    return {
+      title: `${yCol} by ${xCol}`,
+      chart_type: chartType,
+      phase: "manual",
+      columns: [xCol, yCol],
+      labels: points.x,
+      values: points.y,
+      why: chartType === "line"
+        ? "Shows how a numeric value changes across an ordered field."
+        : "Shows the size and movement of a numeric value across an ordered field.",
+    };
+  }
+
+  if (chartType === "radar") {
+    if (!xCol) {
+      return null;
+    }
+
+    return buildManualRadarChart(rows, xCol, [yCol, zCol, sizeCol].filter(Boolean));
+  }
+
   if (chartType === "boxplot_by_category" || chartType === "violin_by_category") {
     if (!xCol || !yCol) {
       return null;
@@ -914,6 +981,119 @@ function countByCategory(rows, column, limit = 20) {
     labels: sorted.map(([label]) => label),
     values: sorted.map(([, value]) => value),
   };
+}
+
+function pairedAnyXNumericYValues(rows, xCol, yCol, limit = 1000) {
+  const pairs = [];
+
+  rows.forEach((row) => {
+    if (pairs.length >= limit) return;
+
+    const yValue = Number(row[yCol]);
+
+    if (row[xCol] !== null && row[xCol] !== undefined && Number.isFinite(yValue)) {
+      pairs.push({
+        x: String(row[xCol]),
+        y: yValue,
+      });
+    }
+  });
+
+  return {
+    x: pairs.map((row) => row.x),
+    y: pairs.map((row) => row.y),
+  };
+}
+
+function buildManualRadarChart(rows, categoryCol, numericColumns) {
+  const usableNumericColumns = numericColumns.filter(Boolean).slice(0, 6);
+
+  if (!categoryCol || usableNumericColumns.length < 3) {
+    return null;
+  }
+
+  const groups = new Map();
+
+  rows.forEach((row) => {
+    const category = row[categoryCol] === null || row[categoryCol] === undefined || row[categoryCol] === ""
+      ? "Missing"
+      : String(row[categoryCol]);
+
+    if (!groups.has(category)) {
+      groups.set(category, []);
+    }
+
+    groups.get(category).push(row);
+  });
+
+  const largestGroups = Array.from(groups.entries())
+    .sort((a, b) => b[1].length - a[1].length)
+    .slice(0, 6);
+
+  if (largestGroups.length < 2) {
+    return null;
+  }
+
+  const rawSeries = largestGroups.map(([groupName, groupRows]) => {
+    const values = usableNumericColumns.map((column) => {
+      const nums = groupRows
+        .map((row) => Number(row[column]))
+        .filter((value) => Number.isFinite(value));
+
+      if (!nums.length) return null;
+
+      return nums.reduce((sum, value) => sum + value, 0) / nums.length;
+    });
+
+    return {
+      name: groupName,
+      values,
+    };
+  });
+
+  const normalisedSeries = normaliseRadarSeries(rawSeries);
+
+  return {
+    title: `Radar profile by ${categoryCol}`,
+    chart_type: "radar",
+    phase: "manual",
+    columns: [categoryCol, ...usableNumericColumns],
+    variables: usableNumericColumns,
+    series: normalisedSeries,
+    why: "Compares average numeric profiles across category groups. Values are scaled from 0 to 1 so different units can be shown together.",
+  };
+}
+
+function normaliseRadarSeries(series) {
+  if (!series.length) return [];
+
+  const variableCount = series[0].values.length;
+  const mins = [];
+  const maxes = [];
+
+  for (let index = 0; index < variableCount; index += 1) {
+    const values = series
+      .map((row) => row.values[index])
+      .filter((value) => Number.isFinite(value));
+
+    mins[index] = values.length ? Math.min(...values) : 0;
+    maxes[index] = values.length ? Math.max(...values) : 0;
+  }
+
+  return series.map((row) => ({
+    name: row.name,
+    values: row.values.map((value, index) => {
+      if (!Number.isFinite(value)) return 0;
+
+      const min = mins[index];
+      const max = maxes[index];
+
+      if (min === max) return 0.5;
+
+      return (value - min) / (max - min);
+    }),
+    raw_values: row.values,
+  }));
 }
 
 function encodeCategories(values) {
@@ -1204,7 +1384,7 @@ function drawChart(chartId, chart) {
     return;
   }
 
-    if (chart.chart_type === "scatter_3d") {
+  if (chart.chart_type === "scatter_3d") {
     const trace = {
       x: chart.x,
       y: chart.y,
@@ -1240,22 +1420,37 @@ function drawChart(chartId, chart) {
   }
 
   if (chart.chart_type === "bubble") {
+    const marker = {
+      size: chart.size,
+      sizemode: "diameter",
+      opacity: 0.72,
+    };
+
+    if (chart.colour) {
+      marker.color = chart.colour;
+      marker.colorscale = "Viridis";
+      marker.showscale = true;
+      marker.colorbar = {
+        title: chart.colour_label ? friendlyFeatureName(chart.colour_label) : "Colour",
+        tickvals: chart.colour_tick_vals || undefined,
+        ticktext: chart.colour_tick_text || undefined,
+      };
+    }
+
     Plotly.newPlot(chartId, [{
       x: chart.x,
       y: chart.y,
       mode: "markers",
       type: "scatter",
-      marker: {
-        size: chart.size,
-        sizemode: "diameter",
-        opacity: 0.72,
-      },
-      text: chart.size_label,
+      marker,
+      text: chart.hover || chart.size_label,
+      hovertemplate: "%{text}<extra></extra>",
     }], {
       ...layout,
       xaxis: { title: chart.x_label },
       yaxis: { title: chart.y_label },
     }, config);
+
     return;
   }
 
@@ -2163,6 +2358,10 @@ function manualChartHelpText(chartType) {
     bar: "Use a bar chart to count rows in each category. Use X / category to choose the category.",
     scatter: "Use a scatter chart to compare two numeric fields. Colour and size can add extra context. Z axis is only used by 3D scatter.",
     scatter_3d: "Use a 3D scatter chart to compare three numeric fields. X, Y and Z are all used. Colour and size can add extra context.",
+    bubble: "Use a bubble chart when you want X and Y to show two numeric fields, while point size shows a third numeric field.",
+    line: "Use a line chart when the X field has a useful order, such as date, month, year, rank or sequence.",
+    area: "Use an area chart like a line chart, but with the space underneath filled to emphasise size and movement.",
+    radar: "Use a radar chart to compare the average profile of groups across several numeric fields.",
     boxplot_by_category: "Use a boxplot to compare the spread of a numeric field across categories. X is the category and Y is the number.",
     violin_by_category: "Use a violin chart to compare distribution shape across categories. X is the category and Y is the number.",
     treemap: "Use a treemap to show part-of-whole composition. X is the main category and Colour / split by becomes the second category.",
