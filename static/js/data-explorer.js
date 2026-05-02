@@ -251,14 +251,139 @@ function renderCharts(analysis) {
   chartsTab.innerHTML = `
     <div class="section-heading">
       <p class="eyebrow">Visual EDA</p>
-      <h2>Recommended charts</h2>
+      <h2>Charts</h2>
       <p>
-        These are selected automatically from the detected data types, inspired by the Data-to-Viz decision framework.
+        Use automatic charts for a fast overview, or switch to the manual explorer
+        to choose your own chart type and fields.
       </p>
     </div>
-    <div id="chartGrid" class="chart-grid"></div>
+
+    <div class="chart-mode-tabs" role="tablist" aria-label="Chart mode">
+      <button class="chart-mode-tab active" data-chart-mode="auto">Auto charts</button>
+      <button class="chart-mode-tab" data-chart-mode="manual">Manual explorer</button>
+    </div>
+
+    <div id="autoChartsPanel" class="chart-mode-panel active">
+      <div class="section-heading compact-heading">
+        <h3>Automatically recommended charts</h3>
+        <p>
+          These charts are selected automatically from the detected data types,
+          inspired by the Data-to-Viz decision framework.
+        </p>
+      </div>
+      <div id="chartGrid" class="chart-grid"></div>
+    </div>
+
+    <div id="manualChartsPanel" class="chart-mode-panel">
+      ${renderManualChartExplorerShell(analysis)}
+    </div>
   `;
 
+  setupChartModeTabs();
+  renderAutoCharts(analysis);
+  setupManualChartExplorer(analysis);
+}
+
+function setupChartModeTabs() {
+  document.querySelectorAll(".chart-mode-tab").forEach((button) => {
+    button.addEventListener("click", () => {
+      const mode = button.dataset.chartMode;
+
+      document.querySelectorAll(".chart-mode-tab").forEach((tab) => {
+        tab.classList.remove("active");
+      });
+
+      document.querySelectorAll(".chart-mode-panel").forEach((panel) => {
+        panel.classList.remove("active");
+      });
+
+      button.classList.add("active");
+      document.getElementById(`${mode}ChartsPanel`).classList.add("active");
+    });
+  });
+}
+
+function renderManualChartExplorerShell(analysis) {
+  const schema = analysis.schema || {};
+  const numericCols = schema.numeric || [];
+  const categoricalCols = [
+    ...(schema.categorical || []),
+    ...(schema.boolean || []),
+  ];
+  const datetimeCols = schema.datetime || [];
+  const allColumns = getAllManualColumns(analysis);
+
+  return `
+    <div class="manual-chart-explorer analysis-card">
+      <h3>Manual chart explorer</h3>
+      <p>
+        Choose a chart type and the fields you want to explore. This uses a preview
+        sample of the analysed data, so it updates quickly in the browser.
+      </p>
+
+      <div class="manual-chart-controls">
+        ${selectControl("manualChartType", "Chart type", [
+          ["histogram", "Histogram"],
+          ["bar", "Bar chart"],
+          ["scatter", "Scatter"],
+          ["scatter_3d", "3D scatter"],
+          ["boxplot_by_category", "Boxplot by category"],
+          ["violin_by_category", "Violin by category"],
+          ["treemap", "Treemap"],
+          ["parallel_coordinates", "Parallel coordinates"],
+        ])}
+
+        ${selectControl("manualXColumn", "X / category", allColumns.map((col) => [col, friendlyFeatureName(col)]))}
+        ${selectControl("manualYColumn", "Y / value", numericCols.map((col) => [col, friendlyFeatureName(col)]))}
+        ${selectControl("manualZColumn", "Z axis", numericCols.map((col) => [col, friendlyFeatureName(col)]), true)}
+        ${selectControl("manualColourColumn", "Colour / split by", categoricalCols.map((col) => [col, friendlyFeatureName(col)]), true)}
+        ${selectControl("manualSizeColumn", "Size by", numericCols.map((col) => [col, friendlyFeatureName(col)]), true)}
+      </div>
+
+      <div id="manualChartHelp" class="manual-chart-help muted"></div>
+
+      <div class="chart-card manual-chart-card">
+        <div id="manualChartPreview" class="plotly-chart"></div>
+      </div>
+
+      <div class="manual-chart-notes">
+        <p class="muted">
+          Numeric fields detected: ${numericCols.length ? numericCols.map(escapeHtml).join(", ") : "none"}.
+        </p>
+        <p class="muted">
+          Category fields detected: ${categoricalCols.length ? categoricalCols.map(escapeHtml).join(", ") : "none"}.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function selectControl(id, label, options, includeNone = false) {
+  return `
+    <label class="manual-chart-control" for="${id}">
+      <span>${escapeHtml(label)}</span>
+      <select id="${id}">
+        ${includeNone ? `<option value="">None</option>` : ""}
+        ${options.map(([value, text]) => `
+          <option value="${escapeHtml(value)}">${escapeHtml(text)}</option>
+        `).join("")}
+      </select>
+    </label>
+  `;
+}
+
+function getAllManualColumns(analysis) {
+  const schema = analysis.schema || {};
+
+  return [
+    ...(schema.numeric || []),
+    ...(schema.categorical || []),
+    ...(schema.boolean || []),
+    ...(schema.datetime || []),
+  ];
+}
+
+function renderAutoCharts(analysis) {
   const chartGrid = document.getElementById("chartGrid");
 
   analysis.charts.forEach((chart, index) => {
@@ -369,6 +494,485 @@ function renderChartGuide(analysis) {
       `).join("")}
     </div>
   `;
+}
+
+function setupManualChartExplorer(analysis) {
+  const rows = analysis.preview_rows || [];
+
+  if (!rows.length) {
+    document.getElementById("manualChartPreview").innerHTML = `
+      <p class="muted">No preview rows are available for manual charting.</p>
+    `;
+    return;
+  }
+
+  const controls = [
+    "manualChartType",
+    "manualXColumn",
+    "manualYColumn",
+    "manualZColumn",
+    "manualColourColumn",
+    "manualSizeColumn",
+  ];
+
+  controls.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.addEventListener("change", () => drawManualChart(analysis));
+    }
+  });
+
+  setInitialManualChartSelections(analysis);
+  drawManualChart(analysis);
+}
+
+function setInitialManualChartSelections(analysis) {
+  const schema = analysis.schema || {};
+  const numericCols = schema.numeric || [];
+  const categoricalCols = [
+    ...(schema.categorical || []),
+    ...(schema.boolean || []),
+  ];
+
+  setSelectValue("manualChartType", numericCols.length >= 2 ? "scatter" : "bar");
+
+  if (numericCols[0]) setSelectValue("manualXColumn", numericCols[0]);
+  if (numericCols[1]) setSelectValue("manualYColumn", numericCols[1]);
+  if (numericCols[2]) setSelectValue("manualZColumn", numericCols[2]);
+  if (categoricalCols[0]) setSelectValue("manualColourColumn", categoricalCols[0]);
+
+  if (!numericCols.length && categoricalCols[0]) {
+    setSelectValue("manualXColumn", categoricalCols[0]);
+  }
+}
+
+function setSelectValue(id, value) {
+  const element = document.getElementById(id);
+
+  if (!element) {
+    return;
+  }
+
+  const optionExists = Array.from(element.options).some((option) => option.value === value);
+
+  if (optionExists) {
+    element.value = value;
+  }
+}
+
+function drawManualChart(analysis) {
+  const rows = analysis.preview_rows || [];
+
+  const chartType = getSelectValue("manualChartType");
+  const xCol = getSelectValue("manualXColumn");
+  const yCol = getSelectValue("manualYColumn");
+  const zCol = getSelectValue("manualZColumn");
+  const colourCol = getSelectValue("manualColourColumn");
+  const sizeCol = getSelectValue("manualSizeColumn");
+
+  const helpEl = document.getElementById("manualChartHelp");
+
+  if (helpEl) {
+    helpEl.textContent = manualChartHelpText(chartType);
+  }
+
+  const chart = buildManualChartConfig({
+    chartType,
+    rows,
+    xCol,
+    yCol,
+    zCol,
+    colourCol,
+    sizeCol,
+  });
+
+  if (!chart) {
+    document.getElementById("manualChartPreview").innerHTML = `
+      <p class="muted">Choose suitable fields for this chart type.</p>
+    `;
+    return;
+  }
+
+  drawChart("manualChartPreview", chart);
+}
+
+function buildManualChartConfig({ chartType, rows, xCol, yCol, zCol, colourCol, sizeCol }) {
+  if (!rows.length) {
+    return null;
+  }
+
+  if (chartType === "histogram") {
+    const column = yCol || xCol;
+    const values = numericValues(rows, column);
+
+    if (!column || !values.length) {
+      return null;
+    }
+
+    return {
+      title: `Distribution of ${column}`,
+      chart_type: "histogram",
+      phase: "manual",
+      columns: [column],
+      values,
+      why: `Shows the spread of values in ${column}.`,
+    };
+  }
+
+  if (chartType === "bar") {
+    const column = xCol;
+    const counts = countByCategory(rows, column);
+
+    if (!column || !counts.labels.length) {
+      return null;
+    }
+
+    return {
+      title: `Category counts for ${column}`,
+      chart_type: "bar",
+      phase: "manual",
+      columns: [column],
+      labels: counts.labels,
+      values: counts.values,
+      why: `Shows how many rows appear in each ${column} category.`,
+    };
+  }
+
+  if (chartType === "scatter") {
+    if (!xCol || !yCol) {
+      return null;
+    }
+
+    const points = pairedNumericValues(rows, xCol, yCol);
+
+    if (!points.x.length) {
+      return null;
+    }
+
+    return {
+      title: `${yCol} vs ${xCol}`,
+      chart_type: "scatter",
+      phase: "manual",
+      columns: [xCol, yCol],
+      x: points.x,
+      y: points.y,
+      x_label: xCol,
+      y_label: yCol,
+      why: "Shows the relationship between two numeric fields.",
+    };
+  }
+
+  if (chartType === "scatter_3d") {
+    if (!xCol || !yCol || !zCol) {
+      return null;
+    }
+
+    const points = tripleNumericValues(rows, xCol, yCol, zCol, colourCol);
+
+    if (!points.x.length) {
+      return null;
+    }
+
+    return {
+      title: `3D view: ${xCol}, ${yCol} and ${zCol}`,
+      chart_type: "scatter_3d",
+      phase: "manual",
+      columns: [xCol, yCol, zCol],
+      x: points.x,
+      y: points.y,
+      z: points.z,
+      colour: points.colour,
+      hover: points.hover,
+      x_label: xCol,
+      y_label: yCol,
+      z_label: zCol,
+      why: "Shows three numeric fields at the same time. You can rotate and zoom the chart.",
+    };
+  }
+
+  if (chartType === "boxplot_by_category" || chartType === "violin_by_category") {
+    if (!xCol || !yCol) {
+      return null;
+    }
+
+    const points = categoryNumericValues(rows, xCol, yCol);
+
+    if (!points.x.length) {
+      return null;
+    }
+
+    return {
+      title: `${yCol} by ${xCol}`,
+      chart_type: chartType,
+      phase: "manual",
+      columns: [xCol, yCol],
+      x: points.x,
+      y: points.y,
+      x_label: xCol,
+      y_label: yCol,
+      why: "Compares the distribution of a numeric field across categories.",
+    };
+  }
+
+  if (chartType === "treemap") {
+    if (!xCol) {
+      return null;
+    }
+
+    return buildManualTreemapChart(rows, xCol, colourCol, yCol);
+  }
+
+  if (chartType === "parallel_coordinates") {
+    return buildManualParallelCoordinatesChart(rows, [xCol, yCol, zCol, sizeCol].filter(Boolean), colourCol);
+  }
+
+  return null;
+}
+
+function numericValues(rows, column, limit = 1000) {
+  if (!column) return [];
+
+  return rows
+    .map((row) => Number(row[column]))
+    .filter((value) => Number.isFinite(value))
+    .slice(0, limit);
+}
+
+function pairedNumericValues(rows, xCol, yCol, limit = 1000) {
+  const x = [];
+  const y = [];
+
+  rows.forEach((row) => {
+    if (x.length >= limit) return;
+
+    const xValue = Number(row[xCol]);
+    const yValue = Number(row[yCol]);
+
+    if (Number.isFinite(xValue) && Number.isFinite(yValue)) {
+      x.push(xValue);
+      y.push(yValue);
+    }
+  });
+
+  return { x, y };
+}
+
+function tripleNumericValues(rows, xCol, yCol, zCol, colourCol, limit = 1000) {
+  const x = [];
+  const y = [];
+  const z = [];
+  const colour = [];
+  const hover = [];
+
+  rows.forEach((row, index) => {
+    if (x.length >= limit) return;
+
+    const xValue = Number(row[xCol]);
+    const yValue = Number(row[yCol]);
+    const zValue = Number(row[zCol]);
+
+    if (Number.isFinite(xValue) && Number.isFinite(yValue) && Number.isFinite(zValue)) {
+      x.push(xValue);
+      y.push(yValue);
+      z.push(zValue);
+
+      if (colourCol) {
+        colour.push(String(row[colourCol] ?? "Missing"));
+        hover.push(`${colourCol}: ${row[colourCol] ?? "Missing"}`);
+      } else {
+        hover.push(`Row ${index}`);
+      }
+    }
+  });
+
+  return {
+    x,
+    y,
+    z,
+    colour: colour.length ? colour : z,
+    hover,
+  };
+}
+
+function categoryNumericValues(rows, categoryCol, numericCol, limit = 1000) {
+  const x = [];
+  const y = [];
+
+  rows.forEach((row) => {
+    if (x.length >= limit) return;
+
+    const categoryValue = row[categoryCol];
+    const numericValue = Number(row[numericCol]);
+
+    if (categoryValue !== null && categoryValue !== undefined && Number.isFinite(numericValue)) {
+      x.push(String(categoryValue));
+      y.push(numericValue);
+    }
+  });
+
+  return { x, y };
+}
+
+function countByCategory(rows, column, limit = 20) {
+  const counts = new Map();
+
+  rows.forEach((row) => {
+    const value = row[column] === null || row[column] === undefined || row[column] === ""
+      ? "Missing"
+      : String(row[column]);
+
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+
+  const sorted = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+
+  return {
+    labels: sorted.map(([label]) => label),
+    values: sorted.map(([, value]) => value),
+  };
+}
+
+function buildManualTreemapChart(rows, parentCol, childCol, valueCol) {
+  const labels = [];
+  const parents = [];
+  const ids = [];
+  const values = [];
+
+  const hasChild = Boolean(childCol);
+  const hasValue = Boolean(valueCol);
+
+  if (!hasChild) {
+    const counts = countByCategory(rows, parentCol, 30);
+
+    counts.labels.forEach((label, index) => {
+      labels.push(label);
+      parents.push("");
+      ids.push(label);
+      values.push(counts.values[index]);
+    });
+
+    return {
+      title: `Treemap by ${parentCol}`,
+      chart_type: "treemap",
+      phase: "manual",
+      columns: [parentCol],
+      ids,
+      labels,
+      parents,
+      values,
+      value_label: "Row count",
+      why: "Shows how rows are split across categories.",
+    };
+  }
+
+  const grouped = new Map();
+  const parentTotals = new Map();
+
+  rows.forEach((row) => {
+    const parentValue = row[parentCol] === null || row[parentCol] === undefined || row[parentCol] === ""
+      ? "Missing"
+      : String(row[parentCol]);
+
+    const childValue = row[childCol] === null || row[childCol] === undefined || row[childCol] === ""
+      ? "Missing"
+      : String(row[childCol]);
+
+    const numericValue = hasValue ? Number(row[valueCol]) : 1;
+    const value = Number.isFinite(numericValue) ? numericValue : 0;
+
+    const key = `${parentValue}/${childValue}`;
+
+    grouped.set(key, {
+      parent: parentValue,
+      child: childValue,
+      value: (grouped.get(key)?.value || 0) + value,
+    });
+
+    parentTotals.set(parentValue, (parentTotals.get(parentValue) || 0) + value);
+  });
+
+  Array.from(grouped.values()).forEach((item) => {
+    labels.push(item.child);
+    parents.push(item.parent);
+    ids.push(`${item.parent}/${item.child}`);
+    values.push(item.value);
+  });
+
+  Array.from(parentTotals.entries()).forEach(([parent, total]) => {
+    labels.push(parent);
+    parents.push("");
+    ids.push(parent);
+    values.push(total);
+  });
+
+  return {
+    title: `Treemap by ${parentCol} → ${childCol}`,
+    chart_type: "treemap",
+    phase: "manual",
+    columns: [parentCol, childCol, valueCol].filter(Boolean),
+    ids,
+    labels,
+    parents,
+    values,
+    value_label: hasValue ? `Sum of ${valueCol}` : "Row count",
+    why: "Shows composition across one or two category levels.",
+  };
+}
+
+function buildManualParallelCoordinatesChart(rows, selectedColumns, colourCol) {
+  const numericColumns = selectedColumns.filter(Boolean).slice(0, 6);
+
+  if (numericColumns.length < 3) {
+    return null;
+  }
+
+  const cleanRows = rows.filter((row) => {
+    return numericColumns.every((column) => Number.isFinite(Number(row[column])));
+  }).slice(0, 1000);
+
+  if (cleanRows.length < 10) {
+    return null;
+  }
+
+  const dimensions = numericColumns.map((column) => ({
+    label: column,
+    values: cleanRows.map((row) => Number(row[column])),
+  }));
+
+  let colour = null;
+  let colourLabel = null;
+  let colourTickVals = null;
+  let colourTickText = null;
+
+  if (colourCol) {
+    const categories = Array.from(new Set(cleanRows.map((row) => String(row[colourCol] ?? "Missing"))));
+    const categoryToNumber = new Map(categories.map((category, index) => [category, index]));
+
+    colour = cleanRows.map((row) => categoryToNumber.get(String(row[colourCol] ?? "Missing")));
+    colourLabel = colourCol;
+    colourTickVals = categories.map((_, index) => index);
+    colourTickText = categories;
+  }
+
+  return {
+    title: "Parallel coordinates view",
+    chart_type: "parallel_coordinates",
+    phase: "manual",
+    columns: numericColumns,
+    dimensions,
+    colour,
+    colour_label: colourLabel,
+    colour_tick_vals: colourTickVals,
+    colour_tick_text: colourTickText,
+    why: "Shows several numeric fields at once. Each line is one row.",
+  };
+}
+
+function getSelectValue(id) {
+  const element = document.getElementById(id);
+  return element ? element.value : "";
 }
 
 function drawChart(chartId, chart) {
@@ -1397,6 +2001,21 @@ function friendlyTargetValue(value, targetName) {
   }
 
   return String(value);
+}
+
+function manualChartHelpText(chartType) {
+  const help = {
+    histogram: "Use a histogram to see the spread of one numeric field.",
+    bar: "Use a bar chart to count rows in each category.",
+    scatter: "Use a scatter chart to compare two numeric fields.",
+    scatter_3d: "Use a 3D scatter chart to compare three numeric fields. You can rotate and zoom it.",
+    boxplot_by_category: "Use a boxplot to compare the spread of a numeric field across categories.",
+    violin_by_category: "Use a violin chart to compare distribution shape across categories.",
+    treemap: "Use a treemap to show part-of-whole composition across categories.",
+    parallel_coordinates: "Use parallel coordinates to compare several numeric fields at once.",
+  };
+
+  return help[chartType] || "";
 }
 
 function confusionMatrixPlainEnglish(ml) {

@@ -118,6 +118,8 @@ def build_eda_report(df):
     # the user's original data.
     analysis_df, derived_features = add_derived_features(original_df, quality)
 
+    preview_rows = build_preview_rows(analysis_df)
+
     # Re-infer schema after derived columns are added.
     schema = infer_schema(analysis_df)
 
@@ -139,6 +141,7 @@ def build_eda_report(df):
         "quality": quality,
         "columns": columns,
         "charts": charts,
+        "preview_rows": preview_rows,
         "relationships": relationships,
         "nearest_neighbours": neighbours,
         "advanced": advanced,
@@ -282,6 +285,19 @@ def build_quality_report(df):
         "missing_percent_total": round((total_missing_cells / max(total_cells, 1)) * 100, 2),
         "missing_by_column": missing_by_column,
     }
+
+
+def build_preview_rows(df, max_rows=1000):
+    """
+    Return a safe row sample for frontend manual chart exploration.
+
+    The manual chart explorer uses this sample in the browser so the user can
+    change chart type and axes without sending another request to the server.
+    """
+    preview_df = df.head(max_rows).copy()
+    preview_df = preview_df.replace({np.nan: None})
+
+    return preview_df.to_dict(orient="records")
 
 
 def add_derived_features(df, quality, missing_threshold=30):
