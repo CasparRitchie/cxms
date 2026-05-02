@@ -77,8 +77,39 @@
   <div id="summaryTab" class="eda-tab-panel active"></div>
   <div id="qualityTab" class="eda-tab-panel"></div>
   <div id="columnsTab" class="eda-tab-panel"></div>
-  <div id="chartsTab" class="eda-tab-panel"></div>
-  <div id="chartguideTab" class="eda-tab-panel"></div>
+  <div id="chartsTab" class="eda-tab-panel">
+    <div class="section-heading">
+      <p class="eyebrow">Visual EDA</p>
+      <h2>Charts</h2>
+      <p>
+        Use automatic charts for a fast overview, or switch to the manual explorer
+        to choose your own chart type and fields.
+      </p>
+    </div>
+
+    <div class="chart-mode-tabs" role="tablist" aria-label="Chart mode">
+      <button
+        id="autoChartsViewBtn"
+        class="chart-mode-tab active"
+        type="button"
+        data-chart-mode="auto"
+      >
+        Auto charts
+      </button>
+
+      <button
+        id="manualChartsViewBtn"
+        class="chart-mode-tab"
+        type="button"
+        data-chart-mode="manual"
+      >
+        Manual explorer
+      </button>
+    </div>
+
+    <div id="autoChartsPanel" class="chart-mode-panel active"></div>
+    <div id="manualChartsPanel" class="chart-mode-panel"></div>
+  </div>  <div id="chartguideTab" class="eda-tab-panel"></div>
   <div id="relationshipsTab" class="eda-tab-panel"></div>
   <div id="advancedTab" class="eda-tab-panel"></div>
   <div id="mlTab" class="eda-tab-panel"></div>

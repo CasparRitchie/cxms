@@ -141,13 +141,13 @@ def build_eda_report(df):
         "quality": quality,
         "columns": columns,
         "charts": charts,
-        "preview_rows": preview_rows,
         "relationships": relationships,
         "nearest_neighbours": neighbours,
         "advanced": advanced,
         "segmentation": segmentation,
         "ml": ml,
         "derived_features": derived_features,
+        "preview_rows": build_preview_rows(analysis_df),
         "theses": theses,
     }
 

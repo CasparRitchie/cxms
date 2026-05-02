@@ -248,36 +248,27 @@ function renderColumnCard(column) {
 }
 
 function renderCharts(analysis) {
-  chartsTab.innerHTML = `
-    <div class="section-heading">
-      <p class="eyebrow">Visual EDA</p>
-      <h2>Charts</h2>
+  const autoChartsPanel = document.getElementById("autoChartsPanel");
+  const manualChartsPanel = document.getElementById("manualChartsPanel");
+
+  if (!autoChartsPanel || !manualChartsPanel) {
+    console.error("Chart panels not found. Check data-explorer.html.");
+    return;
+  }
+
+  autoChartsPanel.innerHTML = `
+    <div class="section-heading compact-heading">
+      <h3>Automatically recommended charts</h3>
       <p>
-        Use automatic charts for a fast overview, or switch to the manual explorer
-        to choose your own chart type and fields.
+        These charts are selected automatically from the detected data types,
+        inspired by the Data-to-Viz decision framework.
       </p>
     </div>
 
-    <div class="chart-mode-tabs" role="tablist" aria-label="Chart mode">
-      <button class="chart-mode-tab active" data-chart-mode="auto">Auto charts</button>
-      <button class="chart-mode-tab" data-chart-mode="manual">Manual explorer</button>
-    </div>
-
-    <div id="autoChartsPanel" class="chart-mode-panel active">
-      <div class="section-heading compact-heading">
-        <h3>Automatically recommended charts</h3>
-        <p>
-          These charts are selected automatically from the detected data types,
-          inspired by the Data-to-Viz decision framework.
-        </p>
-      </div>
-      <div id="chartGrid" class="chart-grid"></div>
-    </div>
-
-    <div id="manualChartsPanel" class="chart-mode-panel">
-      ${renderManualChartExplorerShell(analysis)}
-    </div>
+    <div id="chartGrid" class="chart-grid"></div>
   `;
+
+  manualChartsPanel.innerHTML = renderManualChartExplorerShell(analysis);
 
   setupChartModeTabs();
   renderAutoCharts(analysis);
@@ -298,7 +289,21 @@ function setupChartModeTabs() {
       });
 
       button.classList.add("active");
-      document.getElementById(`${mode}ChartsPanel`).classList.add("active");
+
+      const targetPanel = document.getElementById(`${mode}ChartsPanel`);
+
+      if (targetPanel) {
+        targetPanel.classList.add("active");
+      }
+
+      if (mode === "manual") {
+        setTimeout(() => {
+          const manualChart = document.getElementById("manualChartPreview");
+          if (manualChart) {
+            Plotly.Plots.resize(manualChart);
+          }
+        }, 50);
+      }
     });
   });
 }
@@ -390,6 +395,22 @@ function getAllManualColumns(analysis) {
 function renderAutoCharts(analysis) {
   const chartGrid = document.getElementById("chartGrid");
 
+  if (!chartGrid) {
+    console.error("chartGrid not found.");
+    return;
+  }
+
+  chartGrid.innerHTML = "";
+
+  if (!analysis.charts || !analysis.charts.length) {
+    chartGrid.innerHTML = `
+      <div class="analysis-card">
+        <p class="muted">No automatic charts were generated for this dataset.</p>
+      </div>
+    `;
+    return;
+  }
+
   analysis.charts.forEach((chart, index) => {
     const chartWrapper = document.createElement("article");
     chartWrapper.className = "chart-card";
@@ -402,7 +423,7 @@ function renderAutoCharts(analysis) {
           <h3>${escapeHtml(chart.title)}</h3>
           <p>${escapeHtml(chart.why || "")}</p>
         </div>
-        <span>${escapeHtml(chart.phase)}</span>
+        <span>${escapeHtml(chart.phase || "")}</span>
       </div>
       <div id="${chartId}" class="plotly-chart"></div>
     `;
@@ -504,9 +525,17 @@ function setupManualChartExplorer(analysis) {
   const rows = analysis.preview_rows || [];
 
   if (!rows.length) {
-    document.getElementById("manualChartPreview").innerHTML = `
-      <p class="muted">No preview rows are available for manual charting.</p>
-    `;
+    const preview = document.getElementById("manualChartPreview");
+
+    if (preview) {
+      preview.innerHTML = `
+        <p class="muted">
+          No preview rows are available for manual charting. The backend needs to return
+          <code>preview_rows</code> in the analysis response.
+        </p>
+      `;
+    }
+
     return;
   }
 
@@ -521,8 +550,11 @@ function setupManualChartExplorer(analysis) {
 
   controls.forEach((id) => {
     const element = document.getElementById(id);
+
     if (element) {
-      element.addEventListener("change", () => drawManualChart(analysis));
+      element.addEventListener("change", () => {
+        drawManualChart(analysis);
+      });
     }
   });
 
@@ -575,9 +607,14 @@ function drawManualChart(analysis) {
   const sizeCol = getSelectValue("manualSizeColumn");
 
   const helpEl = document.getElementById("manualChartHelp");
+  const previewEl = document.getElementById("manualChartPreview");
 
   if (helpEl) {
     helpEl.textContent = manualChartHelpText(chartType);
+  }
+
+  if (!previewEl) {
+    return;
   }
 
   const chart = buildManualChartConfig({
@@ -591,12 +628,18 @@ function drawManualChart(analysis) {
   });
 
   if (!chart) {
-    document.getElementById("manualChartPreview").innerHTML = `
-      <p class="muted">Choose suitable fields for this chart type.</p>
+    Plotly.purge("manualChartPreview");
+
+    previewEl.innerHTML = `
+      <p class="muted">
+        Choose suitable fields for this chart type.
+      </p>
     `;
+
     return;
   }
 
+  previewEl.innerHTML = "";
   drawChart("manualChartPreview", chart);
 }
 
