@@ -395,25 +395,15 @@ function getAllManualColumns(analysis) {
 function renderAutoCharts(analysis) {
   const chartGrid = document.getElementById("chartGrid");
 
-  if (!chartGrid) {
-    console.error("chartGrid not found.");
-    return;
-  }
+  if (!chartGrid) return;
 
   chartGrid.innerHTML = "";
 
-  if (!analysis.charts || !analysis.charts.length) {
-    chartGrid.innerHTML = `
-      <div class="analysis-card">
-        <p class="muted">No automatic charts were generated for this dataset.</p>
-      </div>
-    `;
-    return;
-  }
+  const charts = analysis.charts || [];
 
-  analysis.charts.forEach((chart, index) => {
+  charts.forEach((chart, index) => {
     const chartWrapper = document.createElement("article");
-    chartWrapper.className = "chart-card";
+    chartWrapper.className = "chart-card lazy-chart-card";
 
     const chartId = `plotlyChart${index}`;
 
@@ -425,12 +415,64 @@ function renderAutoCharts(analysis) {
         </div>
         <span>${escapeHtml(chart.phase || "")}</span>
       </div>
-      <div id="${chartId}" class="plotly-chart"></div>
+      <div id="${chartId}" class="plotly-chart" data-chart-index="${index}">
+        <p class="muted">Chart will render when visible...</p>
+      </div>
     `;
 
     chartGrid.appendChild(chartWrapper);
-    drawChart(chartId, chart);
   });
+
+  lazyRenderPlotlyCharts(charts);
+}
+
+function lazyRenderPlotlyCharts(charts) {
+  const rendered = new Set();
+
+  const chartEls = document.querySelectorAll("#chartGrid .plotly-chart");
+
+  if (!("IntersectionObserver" in window)) {
+    chartEls.forEach((el) => {
+      const index = Number(el.dataset.chartIndex);
+      if (charts[index]) {
+        drawChart(el.id, charts[index]);
+      }
+    });
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+
+        const el = entry.target;
+        const index = Number(el.dataset.chartIndex);
+
+        if (rendered.has(el.id)) {
+          observer.unobserve(el);
+          return;
+        }
+
+        const chart = charts[index];
+
+        if (chart) {
+          rendered.add(el.id);
+          el.innerHTML = "";
+          drawChart(el.id, chart);
+        }
+
+        observer.unobserve(el);
+      });
+    },
+    {
+      root: null,
+      rootMargin: "350px 0px",
+      threshold: 0.05,
+    }
+  );
+
+  chartEls.forEach((el) => observer.observe(el));
 }
 
 function renderChartGuide(analysis) {
@@ -1338,6 +1380,7 @@ function drawChart(chartId, chart) {
   const config = {
     responsive: true,
     displayModeBar: false,
+    staticPlot: false,
   };
 
   if (chart.chart_type === "histogram") {

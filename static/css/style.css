@@ -799,7 +799,7 @@ body {
   padding: 0.75rem 0;
 
   background: rgba(11, 15, 25, 0.92);
-  backdrop-filter: blur(12px);
+  backdrop-filter: none;
   border-bottom: 1px solid var(--cxms-panel-border);
 }
 
@@ -1000,7 +1000,7 @@ body {
   margin: 0 0 1.25rem;
 
   background: rgba(11, 15, 25, 0.94);
-  backdrop-filter: blur(12px);
+  backdrop-filter: none;
   border-bottom: 1px solid var(--cxms-panel-border);
 }
 
