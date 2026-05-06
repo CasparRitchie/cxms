@@ -891,22 +891,45 @@ def build_parallel_coordinates_charts(df, schema, numeric_cols, categorical_cols
 
     target_column = detect_target_column(df, schema)
 
+    colour_column = None
+
+    if target_column and target_column in df.columns:
+        target_unique_count = df[target_column].dropna().nunique()
+
+        if 2 <= target_unique_count <= 12:
+            colour_column = target_column
+
+    if not colour_column:
+        for column in categorical_cols:
+            if column not in df.columns:
+                continue
+
+            unique_count = df[column].dropna().nunique()
+
+            if 2 <= unique_count <= 12:
+                colour_column = column
+                break
+
     colour_values = None
     colour_label = None
     colour_tick_text = None
     colour_tick_vals = None
 
-    if target_column and target_column in df.columns:
-        aligned_target = df.loc[temp.index, target_column]
+    if colour_column:
+        aligned_colour = df.loc[temp.index, colour_column]
 
-        if aligned_target.dropna().nunique() <= 12:
-            label_encoder = LabelEncoder()
-            encoded = label_encoder.fit_transform(aligned_target.astype(str))
+        label_encoder = LabelEncoder()
+        encoded = label_encoder.fit_transform(
+            aligned_colour
+            .astype("object")
+            .where(aligned_colour.notna(), "Missing")
+            .astype(str)
+        )
 
-            colour_values = encoded.tolist()
-            colour_label = target_column
-            colour_tick_vals = list(range(len(label_encoder.classes_)))
-            colour_tick_text = [str(value) for value in label_encoder.classes_]
+        colour_values = encoded.tolist()
+        colour_label = colour_column
+        colour_tick_vals = list(range(len(label_encoder.classes_)))
+        colour_tick_text = [str(value) for value in label_encoder.classes_]
 
     charts.append(
         {
@@ -915,7 +938,7 @@ def build_parallel_coordinates_charts(df, schema, numeric_cols, categorical_cols
             "chart_type": "parallel_coordinates",
             "data_role": "multivariate_numeric",
             "phase": "multivariate",
-            "columns": selected_numeric_cols,
+            "columns": selected_numeric_cols + ([colour_column] if colour_column else []),
             "dimensions": [
                 {
                     "label": column,
