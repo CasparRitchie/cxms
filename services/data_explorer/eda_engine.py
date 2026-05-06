@@ -580,38 +580,45 @@ def recommend_charts(df, schema, segmentation=None):
     charts.extend(build_segmentation_charts(df, schema, segmentation=segmentation))
 
     def chart_priority(chart):
-    phase_priority = {
-        "advanced": 1,
-        "time_series": 2,
-        "bivariate": 3,
-        "multivariate": 4,
-        "composition": 5,
-        "univariate": 6,
-    }
+        phase_priority = {
+            "advanced": 1,
+            "time_series": 2,
+            "bivariate": 3,
+            "multivariate": 4,
+            "composition": 5,
+            "univariate": 6,
+        }
 
-    type_priority = {
-        "target_distribution": 1,
-        "correlation_heatmap": 2,
-        "pca_scatter": 3,
-        "line": 4,
-        "stacked_bar": 5,
-        "grouped_bar": 6,
-        "scatter": 7,
-        "bar": 8,
-        "boxplot_by_category": 9,
-        "violin_by_category": 10,
-        "histogram": 11,
-        "boxplot": 12,
-    }
+        type_priority = {
+            "target_distribution": 1,
+            "correlation_heatmap": 2,
+            "pca_scatter": 3,
+            "line": 4,
+            "area": 5,
+            "stacked_bar": 6,
+            "grouped_bar": 7,
+            "scatter": 8,
+            "scatter_3d": 9,
+            "bubble": 10,
+            "bar": 11,
+            "boxplot_by_category": 12,
+            "violin_by_category": 13,
+            "parallel_coordinates": 14,
+            "radar": 15,
+            "treemap": 16,
+            "histogram": 17,
+            "boxplot": 18,
+        }
 
-    return (
-        phase_priority.get(chart.get("phase"), 99),
-        type_priority.get(chart.get("chart_type"), 99),
-        chart.get("title", ""),
-    )
+        return (
+            phase_priority.get(chart.get("phase"), 99),
+            type_priority.get(chart.get("chart_type"), 99),
+            str(chart.get("title", "")),
+        )
 
-charts = sorted(charts, key=chart_priority)
-return charts[:MAX_CHARTS]
+    charts = sorted(charts, key=chart_priority)
+
+    return charts[:MAX_CHARTS]
 
 
 def build_numeric_charts(df, numeric_cols):
