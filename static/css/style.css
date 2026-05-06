@@ -688,6 +688,15 @@ body {
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
 }
 
+.chart-card,
+.analysis-card,
+.column-card,
+.insight-card,
+.chart-guide-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 420px;
+}
+
 .data-explorer-panel,
 .analysis-card,
 .chart-card,
