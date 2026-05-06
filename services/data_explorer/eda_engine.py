@@ -27,7 +27,7 @@ from sklearn.datasets import load_iris
 
 MAX_ROWS = 5000
 MAX_COLUMNS = 100
-MAX_CHARTS = 60
+MAX_CHARTS = 100
 MAX_CHART_ROWS = 1000
 MAX_SEGMENTATION_ROWS = 1000
 RANDOM_STATE = 42
@@ -87,10 +87,13 @@ def get_sample_dataset_csv(dataset_name):
         return df.to_csv(index=False)
 
     if dataset_name == "titanic":
-        path = os.path.join("static", "data", "titanic.csv")
+        base_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..")
+        )
+        path = os.path.join(base_dir, "static", "data", "titanic.csv")
 
         if not os.path.exists(path):
-            raise ValueError("Titanic dataset file not found at static/data/titanic.csv.")
+            raise ValueError(f"Titanic dataset file not found at {path}")
 
         df = pd.read_csv(path)
         return df.to_csv(index=False)
@@ -107,7 +110,7 @@ def build_eda_report(df):
     Build the full exploratory data analysis report returned to the frontend.
 
     The original dataframe is used for quality reporting. Then we create an
-    analysis dataframe with safe derived features such as has_cabin.
+    analysis dataframe with safe derived features such as has_cabin and nps_bucket.
     """
     original_df = df.copy()
 
@@ -117,7 +120,11 @@ def build_eda_report(df):
     # Analysis dataframe may include safe derived features, without overwriting
     # the user's original data.
     analysis_df, derived_features = add_derived_features(original_df, quality)
+    analysis_df, nps_bucket_features = add_nps_bucket_features(analysis_df)
 
+    derived_features.extend(nps_bucket_features)
+
+    # Frontend manual explorer uses this row sample.
     preview_rows = build_preview_rows(analysis_df)
 
     # Re-infer schema after derived columns are added.
@@ -147,14 +154,10 @@ def build_eda_report(df):
         "segmentation": segmentation,
         "ml": ml,
         "derived_features": derived_features,
-        "preview_rows": build_preview_rows(analysis_df),
+        "preview_rows": preview_rows,
         "theses": theses,
     }
 
-
-# =============================================================================
-# SCHEMA INFERENCE / DATA QUALITY / DERIVED FEATURES
-# =============================================================================
 
 def infer_schema(df):
     """
@@ -163,8 +166,12 @@ def infer_schema(df):
     Important principles:
     - Missing values should not stop a column being numeric/date if the
       non-missing values fit.
-    - Date columns should be detected before generic ID detection.
-    - Obvious ID columns should be excluded before numeric modelling.
+    - Numeric detection runs before datetime detection so fields like
+      response_time_minutes, year, score, age and duration are not accidentally
+      treated as dates.
+    - Datetime parsing is only attempted for date-like column names to avoid
+      pandas warnings on ordinary text/category columns.
+    - Obvious ID columns should be excluded before modelling.
     - Low-cardinality numeric columns can still be used later as categorical-like
       fields.
     """
@@ -191,40 +198,63 @@ def infer_schema(df):
             schema["text"].append(column)
             continue
 
-        id_name_hints = ["id", "uuid", "guid", "reference", "ref", "key"]
+        id_name_hints = [
+            "id",
+            "uuid",
+            "guid",
+            "reference",
+            "ref",
+            "key",
+        ]
         looks_like_id_name = any(hint in column_lower for hint in id_name_hints)
 
         date_name_hints = [
-            "date", "time", "created", "updated", "submitted", "month", "year", "timestamp",
+            "date",
+            "datetime",
+            "timestamp",
+            "created",
+            "updated",
+            "submitted",
+            "received",
+            "completed",
+            "started",
         ]
         looks_like_date_name = any(hint in column_lower for hint in date_name_hints)
 
+        # Boolean columns.
         if pd.api.types.is_bool_dtype(series):
             schema["boolean"].append(column)
             continue
 
-        normalised_values = {str(value).strip().lower() for value in non_null.unique()}
-        boolean_like_values = {"true", "false", "yes", "no", "y", "n", "0", "1"}
+        # Boolean-like object columns, e.g. yes/no, true/false, 0/1.
+        normalised_values = {
+            str(value).strip().lower()
+            for value in non_null.unique()
+        }
+
+        boolean_like_values = {
+            "true",
+            "false",
+            "yes",
+            "no",
+            "y",
+            "n",
+            "0",
+            "1",
+        }
 
         if 2 <= len(normalised_values) <= 3 and normalised_values.issubset(boolean_like_values):
             schema["boolean"].append(column)
             continue
 
-        datetime_series = pd.to_datetime(non_null, errors="coerce")
-        datetime_ratio_non_null = datetime_series.notna().mean()
-
-        if looks_like_date_name and datetime_ratio_non_null > 0.75:
-            schema["datetime"].append(column)
-            continue
-
-        if datetime_ratio_non_null > 0.9 and not pd.api.types.is_numeric_dtype(series):
-            schema["datetime"].append(column)
-            continue
-
+        # Obvious ID/reference fields before numeric detection.
         if looks_like_id_name and unique_ratio > 0.8:
             schema["likely_id"].append(column)
             continue
 
+        # Numeric detection based only on non-missing values.
+        # This runs before datetime detection so columns like response_time_minutes
+        # remain numeric, even though they contain the word "time".
         numeric_series = pd.to_numeric(non_null, errors="coerce")
         numeric_ratio_non_null = numeric_series.notna().mean()
 
@@ -232,6 +262,19 @@ def infer_schema(df):
             schema["numeric"].append(column)
             continue
 
+        # Datetime detection.
+        # Only try parsing dates when the column name clearly looks date-like.
+        # This avoids pandas warnings on ordinary text/category columns like
+        # species, Sex, Name, Ticket, Cabin, etc.
+        if looks_like_date_name:
+            datetime_series = pd.to_datetime(non_null, errors="coerce")
+            datetime_ratio_non_null = datetime_series.notna().mean()
+
+            if datetime_ratio_non_null > 0.75:
+                schema["datetime"].append(column)
+                continue
+
+        # High uniqueness + longer string values often indicates text/reference data.
         if unique_ratio > 0.95 and row_count >= 20:
             average_length = non_null.astype(str).str.len().mean()
 
@@ -244,6 +287,7 @@ def infer_schema(df):
                 schema["text"].append(column)
                 continue
 
+        # Very sparse columns are often not useful as simple categories.
         missing_ratio = series.isna().mean()
 
         if missing_ratio > 0.5 and unique_count > 10:
@@ -251,6 +295,7 @@ def infer_schema(df):
             schema["text"].append(column)
             continue
 
+        # Categorical detection.
         if unique_count <= min(30, max(10, row_count * 0.2)):
             schema["categorical"].append(column)
             continue
@@ -329,6 +374,104 @@ def add_derived_features(df, quality, missing_threshold=30):
         })
 
     return analysis_df, derived_features
+
+
+def add_nps_bucket_features(df):
+    """
+    Add an NPS bucket classification column when an NPS-like score exists.
+
+    Raw NPS scores from 0 to 10 are useful, but predicting the exact score creates
+    an 11-class ML problem. For CX analysis, it is usually more useful to classify
+    rows as Detractor, Passive or Promoter.
+    """
+    analysis_df = df.copy()
+    derived_features = []
+
+    nps_candidates = []
+
+    for column in analysis_df.columns:
+        column_lower = str(column).lower().strip()
+
+        # Do not create buckets from existing bucket columns.
+        if is_nps_bucket_column(column):
+            continue
+
+        if is_raw_nps_column(column):
+            nps_candidates.append(column)
+
+    for column in nps_candidates:
+        numeric = pd.to_numeric(analysis_df[column], errors="coerce")
+        valid = numeric.dropna()
+
+        if valid.empty:
+            continue
+
+        # Only create the bucket if the values look like a real 0-10 NPS scale.
+        if valid.min() < 0 or valid.max() > 10:
+            continue
+
+        bucket_col = make_derived_feature_name(f"{column}_bucket", analysis_df.columns)
+
+        analysis_df[bucket_col] = numeric.apply(nps_score_to_bucket)
+
+        derived_features.append({
+            "name": bucket_col,
+            "source_column": column,
+            "type": "nps_bucket",
+            "reason": (
+                f"{column} appears to be an NPS score from 0 to 10. "
+                "A Detractor / Passive / Promoter bucket was created for clearer analysis and prediction."
+            ),
+        })
+
+    return analysis_df, derived_features
+
+
+def nps_score_to_bucket(value):
+    if pd.isna(value):
+        return np.nan
+
+    try:
+        score = float(value)
+    except Exception:
+        return np.nan
+
+    if score <= 6:
+        return "Detractor"
+
+    if score <= 8:
+        return "Passive"
+
+    return "Promoter"
+
+
+def is_nps_bucket_column(column):
+    """
+    Return True when a column looks like a derived NPS bucket field.
+    """
+    column_lower = str(column or "").lower().strip()
+
+    return (
+        "nps" in column_lower
+        and any(token in column_lower for token in ["bucket", "segment", "category", "class"])
+    )
+
+
+def is_raw_nps_column(column):
+    """
+    Return True when a column looks like a raw 0-10 NPS score field.
+
+    This intentionally excludes nps_bucket-style fields.
+    """
+    column_lower = str(column or "").lower().strip()
+
+    if is_nps_bucket_column(column):
+        return False
+
+    if column_lower in {"nps", "nps_score", "net_promoter_score"}:
+        return True
+
+    return "nps" in column_lower
 
 
 def make_derived_feature_name(base_name, existing_columns):
@@ -436,7 +579,39 @@ def recommend_charts(df, schema, segmentation=None):
     charts.extend(build_target_charts(df, schema))
     charts.extend(build_segmentation_charts(df, schema, segmentation=segmentation))
 
-    return charts[:MAX_CHARTS]
+    def chart_priority(chart):
+    phase_priority = {
+        "advanced": 1,
+        "time_series": 2,
+        "bivariate": 3,
+        "multivariate": 4,
+        "composition": 5,
+        "univariate": 6,
+    }
+
+    type_priority = {
+        "target_distribution": 1,
+        "correlation_heatmap": 2,
+        "pca_scatter": 3,
+        "line": 4,
+        "stacked_bar": 5,
+        "grouped_bar": 6,
+        "scatter": 7,
+        "bar": 8,
+        "boxplot_by_category": 9,
+        "violin_by_category": 10,
+        "histogram": 11,
+        "boxplot": 12,
+    }
+
+    return (
+        phase_priority.get(chart.get("phase"), 99),
+        type_priority.get(chart.get("chart_type"), 99),
+        chart.get("title", ""),
+    )
+
+charts = sorted(charts, key=chart_priority)
+return charts[:MAX_CHARTS]
 
 
 def build_numeric_charts(df, numeric_cols):
@@ -1172,26 +1347,131 @@ def build_advanced_report(df, schema):
 
 
 def detect_target_column(df, schema):
-    preferred_names = ["survived", "species", "target", "label", "class", "outcome", "result", "status", "churn", "converted", "conversion", "purchased", "purchase", "nps", "score", "rating", "satisfaction", "sentiment"]
+    """
+    Try to identify a likely target/outcome column.
+
+    This is deliberately heuristic. It should be useful, not perfect.
+
+    Priority:
+    1. Strong binary business outcomes, e.g. churned, converted, purchased.
+    2. Other explicit target/label/outcome fields.
+    3. Score/rating fields such as nps.
+    4. Low-cardinality categorical/boolean fields.
+    5. Low-cardinality numeric fields.
+    """
+
     all_columns = list(df.columns)
     lower_to_original = {str(col).lower(): col for col in all_columns}
-    for name in preferred_names:
+
+    # Strong business outcome fields should usually win over score fields.
+    # Example: in a CX dataset, predicting churned is usually more useful than
+    # trying to predict exact NPS score as an 11-class classification problem.
+    strong_outcome_names = [
+        "churned",
+        "churn",
+        "cancelled",
+        "canceled",
+        "retained",
+        "renewed",
+        "converted",
+        "conversion",
+        "purchased",
+        "purchase",
+        "subscribed",
+        "resolved",
+        "escalated",
+        "complained",
+        "closed",
+        "won",
+        "lost",
+    ]
+
+    for name in strong_outcome_names:
+        if name in lower_to_original:
+            column = lower_to_original[name]
+            unique_count = df[column].dropna().nunique()
+
+            if 2 <= unique_count <= 10:
+                return column
+
+    # Other explicit ML target labels.
+    explicit_target_names = [
+        "target",
+        "label",
+        "class",
+        "outcome",
+        "result",
+        "status",
+        "species",
+        "survived",
+    ]
+
+    for name in explicit_target_names:
         if name in lower_to_original:
             return lower_to_original[name]
+
     for column in all_columns:
         column_lower = str(column).lower()
-        for name in preferred_names:
+
+        for name in explicit_target_names:
             if name in column_lower:
                 return column
-    candidate_columns = schema.get("categorical", []) + schema.get("boolean", [])
+
+    # Score/rating-style fields are useful, but usually less ideal as a default
+    # ML target if a clearer business outcome exists.
+    bucket_score_names = [
+        "nps_bucket",
+        "nps score bucket",
+        "net promoter score bucket",
+    ]
+
+    for name in bucket_score_names:
+        if name in lower_to_original:
+            return lower_to_original[name]
+
+    for column in all_columns:
+        column_lower = str(column).lower()
+
+        if "nps" in column_lower and "bucket" in column_lower:
+            return column
+
+    score_names = [
+        "nps",
+        "score",
+        "rating",
+        "satisfaction",
+        "sentiment",
+        "csat",
+        "ces",
+    ]
+
+    for name in score_names:
+        if name in lower_to_original:
+            return lower_to_original[name]
+
+    for column in all_columns:
+        column_lower = str(column).lower()
+
+        for name in score_names:
+            if name in column_lower:
+                return column
+
+    # Then look for low-cardinality categorical/boolean columns.
+    candidate_columns = schema.get("boolean", []) + schema.get("categorical", [])
+
     for column in candidate_columns:
         unique_count = df[column].dropna().nunique()
+
         if 2 <= unique_count <= 10:
             return column
+
+    # Finally look for low-cardinality numeric columns, e.g. 0/1 outcomes.
     for column in schema.get("numeric", []):
         unique_values = sorted(df[column].dropna().unique())
+
         if 2 <= len(unique_values) <= 10:
             return column
+
     return None
 
 
@@ -1244,28 +1524,102 @@ def build_numeric_by_target(df, schema, target_column):
 # =============================================================================
 
 def prepare_ml_features(df, schema, target_column):
-    numeric_cols = [column for column in schema.get("numeric", []) if column != target_column]
-    boolean_cols = [column for column in schema.get("boolean", []) if column != target_column]
-    categorical_cols = [column for column in schema.get("categorical", []) if column != target_column]
+    numeric_cols = [
+        column for column in schema.get("numeric", [])
+        if column != target_column
+    ]
+
+    boolean_cols = [
+        column for column in schema.get("boolean", [])
+        if column != target_column
+    ]
+
+    categorical_cols = [
+        column for column in schema.get("categorical", [])
+        if column != target_column
+    ]
+
+    # Prevent target leakage for derived NPS buckets.
+    # If the target is nps_bucket, raw nps must not be used as a feature because
+    # nps_bucket is directly calculated from nps.
+    if is_nps_bucket_column(target_column):
+        numeric_cols = [
+            column for column in numeric_cols
+            if not is_raw_nps_column(column)
+        ]
+
+        boolean_cols = [
+            column for column in boolean_cols
+            if not is_raw_nps_column(column)
+        ]
+
+        categorical_cols = [
+            column for column in categorical_cols
+            if not is_raw_nps_column(column)
+        ]
+
+    # Avoid redundant NPS leakage/noise.
+    # If raw NPS is available as a numeric feature, do not also use derived
+    # nps_bucket dummy variables as features. They contain the same information
+    # in a coarser form and can make feature importance harder to interpret.
+    has_raw_nps_feature = any(is_raw_nps_column(column) for column in numeric_cols)
+
+    if has_raw_nps_feature:
+        categorical_cols = [
+            column for column in categorical_cols
+            if not is_nps_bucket_column(column)
+        ]
+
     selected_cols = numeric_cols + boolean_cols + categorical_cols
+
     if not selected_cols:
-        return None, [], {"numeric": [], "boolean": [], "categorical": [], "encoded": []}
+        return None, [], {
+            "numeric": [],
+            "boolean": [],
+            "categorical": [],
+            "encoded": [],
+        }
+
     feature_df = df[selected_cols].copy()
+
     for column in numeric_cols:
         feature_df[column] = pd.to_numeric(feature_df[column], errors="coerce")
         median_value = feature_df[column].median()
+
         if pd.isna(median_value):
             median_value = 0
+
         feature_df[column] = feature_df[column].fillna(median_value)
+
     for column in boolean_cols:
         feature_df[column] = boolean_to_numeric(feature_df[column])
         feature_df[column] = feature_df[column].fillna(0).astype(int)
+
     if categorical_cols:
         for column in categorical_cols:
-            feature_df[column] = feature_df[column].astype("object").where(feature_df[column].notna(), "Missing").astype(str)
-        feature_df = pd.get_dummies(feature_df, columns=categorical_cols, dummy_na=False, drop_first=False)
+            feature_df[column] = (
+                feature_df[column]
+                .astype("object")
+                .where(feature_df[column].notna(), "Missing")
+                .astype(str)
+            )
+
+        feature_df = pd.get_dummies(
+            feature_df,
+            columns=categorical_cols,
+            dummy_na=False,
+            drop_first=False,
+        )
+
     feature_columns = list(feature_df.columns)
-    feature_groups = {"numeric": numeric_cols, "boolean": boolean_cols, "categorical": categorical_cols, "encoded": feature_columns}
+
+    feature_groups = {
+        "numeric": numeric_cols,
+        "boolean": boolean_cols,
+        "categorical": categorical_cols,
+        "encoded": feature_columns,
+    }
+
     return feature_df, feature_columns, feature_groups
 
 

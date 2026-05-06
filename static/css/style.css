@@ -39,7 +39,6 @@ body {
 
 /* ========================================
    2. SHARED SITE SHELL
-   Header, nav, page spacing, footer
 ======================================== */
 
 .site-shell {
@@ -113,7 +112,7 @@ body {
   font-size: 0.95rem;
 }
 
-/* Shared panel styling used in multiple places */
+/* Shared panel styling */
 .page-panel,
 .section-panel,
 .feature-card,
@@ -478,7 +477,6 @@ body {
 
 /* ========================================
    6. EMBEDDED GAME FRAMES
-   Used for Sudoku and Sudoblocku
 ======================================== */
 
 .frame-wrap,
@@ -506,17 +504,23 @@ body {
    7. COUNTRY GAME
 ======================================== */
 
-#game-container {
+#game-container,
+#capital-game-container {
   width: 100%;
   max-width: 760px;
   margin: 0 auto;
   text-align: center;
 }
 
-#question {
+#question,
+#capital-question {
   font-size: 1.1rem;
   margin: 0 0 18px;
   color: #ffffff;
+}
+
+#capital-question {
+  margin-bottom: 12px;
 }
 
 #country-outline {
@@ -528,7 +532,8 @@ body {
   margin: 0 auto 20px;
 }
 
-#options-container {
+#options-container,
+#capital-options-container {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
@@ -536,7 +541,8 @@ body {
   max-width: 680px;
 }
 
-#options-container button {
+#options-container button,
+#capital-options-container button {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -546,18 +552,22 @@ body {
   transition: 0.2s ease;
 }
 
-#options-container button:hover {
+#options-container button:hover,
+#capital-options-container button:hover {
   background: rgba(124, 58, 237, 0.22);
 }
 
 #score,
-#streak {
+#streak,
+#population-score,
+#population-streak,
+#capital-score,
+#capital-streak {
   color: var(--cxms-muted);
   margin: 8px 0 0;
 }
 
-/* Optional support for any older country/population markup
-   still used elsewhere */
+/* Older country/population markup support */
 #country-options {
   display: flex;
   justify-content: space-around;
@@ -600,115 +610,7 @@ body {
 }
 
 /* ========================================
-   8. STYLE GUIDE PAGE
-======================================== */
-
-.color-square {
-  width: 50px;
-  height: 50px;
-  margin-right: 10px;
-  display: inline-block;
-  border: 1px solid #000;
-}
-
-/* ========================================
-   9. RESPONSIVE
-======================================== */
-
-@media (max-width: 980px) {
-  .hero {
-    grid-template-columns: 1fr;
-  }
-
-  .features-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .hero-carousel {
-    min-height: 460px;
-  }
-}
-
-@media (max-width: 768px) {
-  .image-container {
-    min-height: 360px;
-  }
-}
-
-@media (max-width: 640px) {
-  .page-wrap,
-  .site-main {
-    padding-top: 22px;
-  }
-
-  .hero-copy,
-  .section-panel,
-  .feature-card,
-  .hero-carousel,
-  .game-panel {
-    padding: 20px;
-  }
-
-  .features-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-carousel {
-    padding: 14px;
-    min-height: 400px;
-  }
-
-  .carousel,
-  .image-container {
-    min-height: 360px;
-  }
-
-  .text-container {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    padding: 14px 16px;
-    font-size: 0.95rem;
-  }
-
-  .carousel-button.left {
-    left: 16px;
-  }
-
-  .carousel-button.right {
-    right: 16px;
-  }
-
-  .games-nav {
-    gap: 8px;
-  }
-
-  .games-nav .tab-btn {
-    padding: 6px 8px;
-  }
-
-  .frame-wrap,
-  .frame-wrap--game {
-    height: clamp(620px, 82vh, 900px);
-  }
-
-  #options-container {
-    grid-template-columns: 1fr;
-  }
-
-  #country-options {
-    flex-direction: column;
-  }
-
-  #country-options .country-option {
-    flex-basis: 80%;
-    margin-bottom: 20px;
-  }
-}
-
-
-/* ========================================
-   7B. POPULATION + CAPITAL GAME UI
+   8. POPULATION + CAPITAL GAME UI
 ======================================== */
 
 .country-option-btn {
@@ -746,19 +648,6 @@ body {
   font-weight: 600;
 }
 
-#capital-game-container {
-  width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-#capital-question {
-  font-size: 1.1rem;
-  margin: 0 0 12px;
-  color: #ffffff;
-}
-
 #capital-country-name {
   margin: 0 0 18px;
   font-size: clamp(1.35rem, 3vw, 2rem);
@@ -766,36 +655,17 @@ body {
   font-weight: 700;
 }
 
-#capital-options-container {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0 auto 22px;
-  max-width: 680px;
-}
+/* ========================================
+   9. STYLE GUIDE PAGE
+======================================== */
 
-#capital-options-container button {
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  cursor: pointer;
-  transition: 0.2s ease;
+.color-square {
+  width: 50px;
+  height: 50px;
+  margin-right: 10px;
+  display: inline-block;
+  border: 1px solid #000;
 }
-
-#capital-options-container button:hover {
-  background: rgba(124, 58, 237, 0.22);
-}
-
-#population-score,
-#population-streak,
-#capital-score,
-#capital-streak {
-  color: var(--cxms-muted);
-  margin: 8px 0 0;
-}
-
 
 /* ========================================
    10. DATA EXPLORER / EDA TOOL
@@ -811,11 +681,20 @@ body {
 .chart-card,
 .column-card,
 .metric-card,
-.insight-card {
+.insight-card,
+.chart-guide-card {
   background: var(--cxms-panel);
   border: 1px solid var(--cxms-panel-border);
-  border-radius: 24px;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
+}
+
+.data-explorer-panel,
+.analysis-card,
+.chart-card,
+.column-card,
+.metric-card,
+.insight-card {
+  border-radius: 24px;
 }
 
 .data-explorer-panel {
@@ -850,15 +729,22 @@ body {
 
 .primary-button,
 .secondary-button,
-.eda-tab {
-  border: 0;
+.eda-tab,
+.chart-mode-tab {
   border-radius: 999px;
-  padding: 0.8rem 1.2rem;
   font: inherit;
   cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.primary-button,
+.secondary-button,
+.eda-tab {
+  padding: 0.8rem 1.2rem;
 }
 
 .primary-button {
+  border: 0;
   color: #07110b;
   background: linear-gradient(135deg, var(--cxms-green), #a7f3d0);
   font-weight: 700;
@@ -873,7 +759,8 @@ body {
 
 .primary-button:hover,
 .secondary-button:hover,
-.eda-tab:hover {
+.eda-tab:hover,
+.chart-mode-tab:hover {
   transform: translateY(-1px);
   filter: brightness(1.05);
 }
@@ -902,7 +789,7 @@ body {
 
 .eda-tabs {
   position: sticky;
-  top: 73px; /* sits just below the sticky navbar */
+  top: 73px;
   z-index: 900;
 
   display: flex;
@@ -918,7 +805,7 @@ body {
 
 .eda-tab.active {
   background: linear-gradient(135deg, var(--cxms-purple), var(--cxms-green));
-  color: white;
+  color: #ffffff;
 }
 
 .eda-tab-panel {
@@ -1057,6 +944,187 @@ body {
   color: var(--cxms-muted);
 }
 
+.data-credit {
+  margin-top: 1rem;
+  color: var(--cxms-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.data-credit a {
+  color: var(--cxms-green);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.data-credit a:hover {
+  color: #86efac;
+  text-decoration: underline;
+}
+
+.chart-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.chart-guide-card {
+  border-radius: 20px;
+  padding: 1.25rem;
+}
+
+.chart-guide-card h3 {
+  margin-top: 0;
+  color: #ffffff;
+}
+
+.chart-guide-card p {
+  color: var(--cxms-muted);
+  line-height: 1.6;
+}
+
+/* ========================================
+   11. DATA EXPLORER - CHART MODES / MANUAL EXPLORER
+======================================== */
+
+.chart-mode-tabs {
+  position: sticky;
+  top: 138px;
+  z-index: 850;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+
+  padding: 0.75rem 0;
+  margin: 0 0 1.25rem;
+
+  background: rgba(11, 15, 25, 0.94);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--cxms-panel-border);
+}
+
+.chart-mode-tab {
+  border: 1px solid var(--cxms-panel-border);
+  padding: 0.75rem 1.1rem;
+  color: var(--cxms-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.chart-mode-tab.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--cxms-purple), var(--cxms-green));
+  border-color: transparent;
+}
+
+.chart-mode-panel {
+  display: none;
+}
+
+.chart-mode-panel.active {
+  display: block;
+}
+
+.compact-heading {
+  margin-bottom: 1rem;
+}
+
+.manual-chart-explorer {
+  margin-bottom: 1.5rem;
+}
+
+.manual-chart-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
+.manual-chart-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.manual-chart-control span {
+  color: var(--cxms-muted);
+  font-size: 0.9rem;
+}
+
+.manual-chart-control select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--cxms-panel-border);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--cxms-text);
+  padding: 0.75rem 0.85rem;
+  font: inherit;
+}
+
+.manual-chart-control select:focus {
+  outline: 2px solid rgba(34, 197, 94, 0.55);
+  border-color: rgba(34, 197, 94, 0.8);
+}
+
+.manual-chart-help {
+  margin: 0.75rem 0 1rem;
+}
+
+.manual-chart-card {
+  margin-top: 1rem;
+  min-height: 520px;
+}
+
+.manual-chart-notes {
+  margin-top: 1rem;
+}
+
+/* ========================================
+   12. RESPONSIVE
+======================================== */
+
+@media (max-width: 980px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .features-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-carousel {
+    min-height: 460px;
+  }
+}
+
+@media (max-width: 900px) {
+  .eda-tabs {
+    top: 64px;
+  }
+
+  .chart-mode-tabs {
+    top: 124px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0.75rem 0.25rem;
+    scrollbar-width: thin;
+  }
+
+  .chart-mode-tab {
+    flex: 0 0 auto;
+  }
+
+  .manual-chart-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .image-container {
+    min-height: 360px;
+  }
+}
+
 @media (max-width: 720px) {
   .data-explorer-panel,
   .analysis-card,
@@ -1086,259 +1154,74 @@ body {
   }
 }
 
-.data-credit {
-  margin-top: 1rem;
-  color: var(--cxms-muted);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.data-credit a {
-  color: var(--cxms-green);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.data-credit a:hover {
-  color: #86efac;
-  text-decoration: underline;
-}
-
-.chart-guide-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
-}
-
-.chart-guide-card {
-  background: var(--cxms-panel);
-  border: 1px solid var(--cxms-panel-border);
-  border-radius: 20px;
-  padding: 1.25rem;
-  box-shadow: var(--cxms-shadow);
-}
-
-.chart-guide-card h3 {
-  margin-top: 0;
-  color: #ffffff;
-}
-
-.chart-guide-card p {
-  color: var(--cxms-muted);
-  line-height: 1.6;
-}
-
-
-.chart-mode-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin: 1rem 0 1.5rem;
-}
-
-.chart-mode-tab {
-  border: 1px solid var(--cxms-panel-border);
-  border-radius: 999px;
-  padding: 0.75rem 1.1rem;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--cxms-text);
-  cursor: pointer;
-  font: inherit;
-}
-
-.chart-mode-tab.active {
-  background: linear-gradient(135deg, var(--cxms-purple), var(--cxms-green));
-  color: #ffffff;
-}
-
-.chart-mode-panel {
-  display: none;
-}
-
-.chart-mode-panel.active {
-  display: block;
-}
-
-.compact-heading {
-  margin-bottom: 1rem;
-}
-
-.manual-chart-controls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 1rem;
-  margin: 1.25rem 0;
-}
-
-.manual-chart-control {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.manual-chart-control span {
-  color: var(--cxms-muted);
-  font-size: 0.9rem;
-}
-
-.manual-chart-control select {
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid var(--cxms-panel-border);
-  background: rgba(0, 0, 0, 0.28);
-  color: var(--cxms-text);
-  padding: 0.75rem 0.85rem;
-  font: inherit;
-}
-
-.manual-chart-help {
-  margin: 0.5rem 0 1rem;
-}
-
-.manual-chart-card {
-  margin-top: 1rem;
-}
-
-.manual-chart-notes {
-  margin-top: 1rem;
-}
-
-
-/* ========================================
-   DATA EXPLORER - STICKY CHART MODE TABS
-======================================== */
-
-.chart-mode-tabs {
-  position: sticky;
-  top: 138px; /* adjust if your main sticky tab row height changes */
-  z-index: 850;
-
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-
-  padding: 0.75rem 0;
-  margin: 0 0 1.25rem;
-
-  background: rgba(11, 15, 25, 0.94);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--cxms-panel-border);
-}
-
-.chart-mode-tab {
-  border: 1px solid var(--cxms-panel-border);
-  border-radius: 999px;
-  padding: 0.75rem 1.1rem;
-  cursor: pointer;
-  color: var(--cxms-text);
-  background: rgba(255, 255, 255, 0.06);
-  font: inherit;
-}
-
-.chart-mode-tab.active {
-  color: #ffffff;
-  background: linear-gradient(135deg, var(--cxms-purple), var(--cxms-green));
-  border-color: transparent;
-}
-
-.chart-mode-panel {
-  display: none;
-}
-
-.chart-mode-panel.active {
-  display: block;
-}
-
-
-.eda-tabs {
-  position: sticky;
-  top: 72px;
-  z-index: 900;
-  backdrop-filter: blur(14px);
-  background: rgba(15, 17, 21, 0.88);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.chart-mode-tabs {
-  position: sticky;
-  top: 132px;
-  z-index: 850;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  padding: 0.75rem 0;
-  margin-bottom: 1.25rem;
-  backdrop-filter: blur(14px);
-  background: rgba(15, 17, 21, 0.88);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.chart-mode-tab {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  padding: 0.65rem 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.chart-mode-tab.active {
-  border-color: rgba(34, 197, 94, 0.65);
-  background: rgba(34, 197, 94, 0.16);
-}
-
-.chart-mode-panel {
-  display: none;
-}
-
-.chart-mode-panel.active {
-  display: block;
-}
-
-.manual-chart-controls {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: 1rem;
-  margin: 1.25rem 0;
-}
-
-.manual-chart-control {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.manual-chart-control span {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.manual-chart-control select {
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  padding: 0.7rem 0.8rem;
-}
-
-.manual-chart-help {
-  margin: 0.75rem 0 1rem;
-}
-
-.manual-chart-card {
-  min-height: 520px;
-}
-
-@media (max-width: 900px) {
-  .eda-tabs {
-    top: 64px;
+@media (max-width: 640px) {
+  .page-wrap,
+  .site-main {
+    padding-top: 22px;
   }
 
-  .chart-mode-tabs {
-    top: 124px;
+  .hero-copy,
+  .section-panel,
+  .feature-card,
+  .hero-carousel,
+  .game-panel {
+    padding: 20px;
   }
 
-  .manual-chart-controls {
+  .features-grid {
     grid-template-columns: 1fr;
+  }
+
+  .hero-carousel {
+    padding: 14px;
+    min-height: 400px;
+  }
+
+  .carousel,
+  .image-container {
+    min-height: 360px;
+  }
+
+  .text-container {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    padding: 14px 16px;
+    font-size: 0.95rem;
+  }
+
+  .carousel-button.left {
+    left: 16px;
+  }
+
+  .carousel-button.right {
+    right: 16px;
+  }
+
+  .games-nav {
+    gap: 8px;
+  }
+
+  .games-nav .tab-btn {
+    padding: 6px 8px;
+  }
+
+  .frame-wrap,
+  .frame-wrap--game {
+    height: clamp(620px, 82vh, 900px);
+  }
+
+  #options-container,
+  #capital-options-container {
+    grid-template-columns: 1fr;
+  }
+
+  #country-options {
+    flex-direction: column;
+  }
+
+  #country-options .country-option {
+    flex-basis: 80%;
+    margin-bottom: 20px;
   }
 }
