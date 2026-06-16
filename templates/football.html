@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Football Sweepstake Tracker | CXMS{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/football.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="football-hero">
+  <div>
+    <span class="football-eyebrow">World Cup sweepstake tracker</span>
+    <h1>Follow your teams, fixtures and family sweepstake in one place.</h1>
+    <p>
+      A personalised football dashboard for fixtures, results, live scores and sweepstake bragging rights.
+    </p>
+
+    <div class="football-actions">
+      <button class="football-btn primary">Create sweepstake</button>
+      <button class="football-btn secondary">Subscribe to calendar</button>
+    </div>
+  </div>
+
+  <div class="football-card football-card-highlight">
+    <p class="small-label">Cox family sweepstake</p>
+    <h2>8 players · 8 teams</h2>
+    <p>Joseph, Dan, Louise, Helena, Claire, Sammy, Liv and Caspar.</p>
+  </div>
+</section>
+
+<section class="football-section">
+  <div class="football-section-heading">
+    <h2>Leaderboard</h2>
+    <p>Prototype data for now — later this will update from live fixtures and results.</p>
+  </div>
+
+  <div id="leaderboard" class="leaderboard-grid"></div>
+</section>
+
+<section class="football-section">
+  <div class="football-section-heading">
+    <h2>Upcoming fixtures</h2>
+    <p>Your sweepstake teams’ next matches.</p>
+  </div>
+
+  <div id="fixtures" class="fixtures-list"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/football.js') }}"></script>
+{% endblock %}

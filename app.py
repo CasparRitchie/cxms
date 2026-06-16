@@ -26,6 +26,10 @@ def style_guide():
 def games():
     return render_template("games.html")
 
+@app.route("/football")
+@app.route("/football/")
+def football():
+    return render_template("football.html")
 
 @app.route("/games/country-data")
 def country_data():

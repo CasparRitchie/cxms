@@ -1,0 +1,175 @@
+.football-hero {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 28px;
+  align-items: stretch;
+  margin-bottom: 28px;
+}
+
+.football-hero,
+.football-section,
+.football-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.football-hero,
+.football-section {
+  padding: 32px;
+}
+
+.football-eyebrow,
+.small-label {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: #bbf7d0;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.football-hero h1 {
+  margin: 0 0 18px;
+  max-width: 760px;
+  font-size: clamp(2.2rem, 5vw, 4.8rem);
+  line-height: 0.98;
+  color: #ffffff;
+}
+
+.football-hero p,
+.football-section p,
+.football-card p {
+  color: #cbd5e1;
+  line-height: 1.7;
+}
+
+.football-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.football-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.football-btn.primary {
+  background: linear-gradient(135deg, #22c55e, #34d399);
+  color: #08110c;
+}
+
+.football-btn.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  border: 1px solid rgba(124, 58, 237, 0.45);
+}
+
+.football-card {
+  padding: 24px;
+}
+
+.football-card-highlight {
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.22), transparent 38%),
+    rgba(255, 255, 255, 0.05);
+}
+
+.football-section {
+  margin-bottom: 28px;
+}
+
+.football-section-heading {
+  margin-bottom: 20px;
+}
+
+.football-section-heading h2 {
+  margin: 0 0 8px;
+  color: #ffffff;
+  font-size: 1.7rem;
+}
+
+.leaderboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.sweepstake-card {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sweepstake-card h3 {
+  margin: 0 0 8px;
+  color: #ffffff;
+}
+
+.team-pill {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.18);
+  color: #ddd6fe;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.fixtures-list {
+  display: grid;
+  gap: 12px;
+}
+
+.fixture-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fixture-row strong {
+  color: #ffffff;
+}
+
+.fixture-date {
+  color: #bbf7d0;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .football-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .football-hero,
+  .football-section {
+    padding: 22px;
+  }
+
+  .leaderboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fixture-row {
+    grid-template-columns: 1fr;
+  }
+}
