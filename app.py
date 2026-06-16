@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, send_from_directory, request
 import os
 import random
+import json
 from flask import abort, redirect, url_for
 
 from services.data_explorer.eda_engine import (
@@ -208,6 +209,20 @@ def sample_dataset(dataset_name):
         "dataset_name": dataset_name,
         "csv": csv_data,
     })
+
+
+@app.route("/api/football/worldcup/fixtures")
+def worldcup_fixtures():
+    fixtures_path = os.path.join(app.root_path, "static/data", "worldcup_2026_fixtures.json")
+
+    with open(fixtures_path, "r", encoding="utf-8") as file:
+        fixtures = json.load(file)
+
+    return jsonify({
+        "ok": True,
+        "fixtures": fixtures
+    })
+
 
 if __name__ == "__main__":
     # Run the application

@@ -37,14 +37,33 @@
   <div id="leaderboard" class="leaderboard-grid"></div>
 </section>
 
+<section id="setup" class="football-section football-setup">
+  <div class="football-section-heading">
+    <h2>Personalise your sweepstake</h2>
+    <p>Add names separated by commas or line breaks, then randomly assign teams. This saves in your browser for now.</p>
+  </div>
+
+  <form id="sweepstake-form" class="sweepstake-form">
+    <label for="participant-names">Participants</label>
+    <textarea id="participant-names" rows="6" placeholder="Joseph&#10;Dan&#10;Louise&#10;Helena&#10;Claire&#10;Sammy&#10;Liv&#10;Caspar"></textarea>
+
+    <div class="football-actions">
+      <button class="football-btn primary" type="submit">Randomly assign teams</button>
+      <button id="reset-sweepstake" class="football-btn secondary" type="button">Reset demo</button>
+    </div>
+  </form>
+</section>
+
 <section class="football-section">
   <div class="football-section-heading">
-    <h2>Upcoming fixtures</h2>
-    <p>Your sweepstake teams’ next matches.</p>
+    <h2>Fixtures & results</h2>
+    <p>Matches linked to the sweepstake owners.</p>
   </div>
 
   <div id="fixtures" class="fixtures-list"></div>
 </section>
+
+
 {% endblock %}
 
 {% block scripts %}

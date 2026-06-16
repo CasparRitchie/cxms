@@ -173,3 +173,57 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+.sweepstake-form {
+  display: grid;
+  gap: 12px;
+}
+
+.sweepstake-form label {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sweepstake-form textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 16px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  font: inherit;
+  line-height: 1.5;
+}
+
+.sweepstake-form textarea:focus {
+  outline: 2px solid rgba(34, 197, 94, 0.45);
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
+.rank-badge {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  color: #08110c;
+  background: linear-gradient(135deg, #22c55e, #bbf7d0);
+  font-weight: 800;
+}
+
+
+.team-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.team-list .team-pill {
+  margin-top: 0;
+}
