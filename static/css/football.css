@@ -227,3 +227,88 @@
 .team-list .team-pill {
   margin-top: 0;
 }
+
+
+.fixture-table {
+  display: grid;
+  gap: 10px;
+}
+
+.fixture-table-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr 1.2fr;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fixture-table-row.is-complete {
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.fixture-owner {
+  display: block;
+  margin-top: 4px;
+  color: #bbf7d0;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.fixture-score {
+  min-width: 56px;
+  text-align: center;
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.fixture-meta {
+  display: grid;
+  gap: 4px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 800px) {
+  .fixture-table-row {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .fixture-meta {
+    grid-column: 1 / -1;
+  }
+}
+
+.sweepstake-table {
+  display: grid;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.sweepstake-table-row {
+  display: grid;
+  grid-template-columns:
+    minmax(130px, 1.5fr)
+    repeat(4, minmax(70px, 0.7fr))
+    repeat(4, minmax(110px, 0.9fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 980px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #e5e7eb;
+}
+
+.sweepstake-table-header {
+  color: #bbf7d0;
+  font-weight: 800;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.sweepstake-table-row span:not(:first-child) {
+  text-align: center;
+}

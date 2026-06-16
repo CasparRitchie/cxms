@@ -35,7 +35,7 @@ const defaultPlayers = [
     teams: ["Spain", "Morocco", "Senegal", "Norway", "South Africa", "Iraq"],
   },
   {
-    name: "Helena",
+    name: "Henela",
     teams: ["France", "Colombia", "Ecuador", "Panama", "Jordan", "New Zealand"],
   },
   {
@@ -48,11 +48,24 @@ const defaultPlayers = [
   },
 ].map((player) => ({
   ...player,
-  points: 0,
   status: "Still alive",
 }));
 
 let fixtures = [];
+
+const teamAliases = {
+  "Czech Republic": "Czechia",
+  "Bosnia-Herzegovina": "Bosnia & Herzegovina",
+  "Bosnia and Herzegovina": "Bosnia & Herzegovina",
+  "Cape Verde": "Cabo Verde",
+  "Ivory Coast": "Côte d’Ivoire",
+  "Curacao": "Curaçao",
+  "Turkey": "Türkiye",
+};
+
+function normaliseTeamName(teamName) {
+  return teamAliases[teamName] || teamName;
+}
 
 async function loadFixtures() {
   try {
@@ -61,8 +74,7 @@ async function loadFixtures() {
 
     if (data.ok && Array.isArray(data.fixtures)) {
       fixtures = data.fixtures;
-      renderLeaderboard(players);
-      renderFixtures();
+      renderAll(players);
     }
   } catch (error) {
     console.error("Could not load World Cup fixtures", error);
@@ -84,7 +96,14 @@ function loadPlayers() {
 
   try {
     const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) && parsed.length ? parsed : defaultPlayers;
+
+    if (!Array.isArray(parsed) || !parsed.length) {
+      return defaultPlayers;
+    }
+
+    const hasOldOneTeamFormat = parsed.some((player) => !Array.isArray(player.teams));
+
+    return hasOldOneTeamFormat ? defaultPlayers : parsed;
   } catch (error) {
     return defaultPlayers;
   }
@@ -108,10 +127,18 @@ function buildPlayersFromNames(rawNames) {
 
   return names.map((name, index) => ({
     name,
-    team: shuffledTeams[index % shuffledTeams.length],
-    points: 0,
+    teams: [shuffledTeams[index % shuffledTeams.length]],
     status: "Ready to play",
   }));
+}
+
+function formatMatchScore(fixture) {
+  if (fixture.status !== "complete") return "vs";
+  return `${fixture.homeScore}–${fixture.awayScore}`;
+}
+
+function getFixtureSortTime(fixture) {
+  return new Date(fixture.kickoff).getTime();
 }
 
 function renderSummary(players) {
@@ -123,28 +150,127 @@ function renderSummary(players) {
   }
 }
 
+function getTeamStats(teamName) {
+  const normalisedTeam = normaliseTeamName(teamName);
+
+  return fixtures.reduce(
+    (stats, fixture) => {
+      if (fixture.status !== "complete") return stats;
+      if (fixture.homeScore === null || fixture.awayScore === null) return stats;
+
+      const homeTeam = normaliseTeamName(fixture.home);
+      const awayTeam = normaliseTeamName(fixture.away);
+
+      const isHome = homeTeam === normalisedTeam;
+      const isAway = awayTeam === normalisedTeam;
+
+      if (!isHome && !isAway) return stats;
+
+      const goalsFor = isHome ? fixture.homeScore : fixture.awayScore;
+      const goalsAgainst = isHome ? fixture.awayScore : fixture.homeScore;
+
+      stats.played += 1;
+      stats.goalsFor += goalsFor;
+      stats.goalsAgainst += goalsAgainst;
+
+      if (goalsFor > goalsAgainst) stats.wins += 1;
+      else if (goalsFor === goalsAgainst) stats.draws += 1;
+      else stats.losses += 1;
+
+      return stats;
+    },
+    {
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+    }
+  );
+}
+
+function getPlayerStats(player) {
+  const stats = player.teams.reduce(
+    (totals, team) => {
+      const teamStats = getTeamStats(team);
+
+      totals.played += teamStats.played;
+      totals.wins += teamStats.wins;
+      totals.draws += teamStats.draws;
+      totals.losses += teamStats.losses;
+      totals.goalsFor += teamStats.goalsFor;
+      totals.goalsAgainst += teamStats.goalsAgainst;
+
+      return totals;
+    },
+    {
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+    }
+  );
+
+  stats.goalDifference = stats.goalsFor - stats.goalsAgainst;
+  stats.points = stats.wins * 3 + stats.draws;
+
+  return stats;
+}
+
 function renderLeaderboard(players) {
   if (!leaderboard) return;
 
-  leaderboard.innerHTML = [...players]
-    .sort((a, b) => getPlayerPoints(b) - getPlayerPoints(a))
-    .map((player, index) => `
-      <article class="sweepstake-card">
-        <div class="rank-badge">${index + 1}</div>
-        <h3>${player.name}</h3>
-        <p>${getPlayerPoints(player)} pts</p>
-        <div class="team-list">
-          ${player.teams.map((team) => `
-            <span class="team-pill">${team} · ${getTeamPoints(team)} pts</span>
-          `).join("")}
+  const rows = [...players]
+    .map((player) => ({
+      player,
+      stats: getPlayerStats(player),
+    }))
+    .sort((a, b) =>
+      b.stats.points - a.stats.points ||
+      b.stats.goalDifference - a.stats.goalDifference ||
+      b.stats.goalsFor - a.stats.goalsFor
+    );
+
+  leaderboard.innerHTML = `
+    <div class="sweepstake-table">
+      <div class="sweepstake-table-row sweepstake-table-header">
+        <span>Player</span>
+        <span>Played</span>
+        <span>Won</span>
+        <span>Drawn</span>
+        <span>Lost</span>
+        <span>Goals Scored</span>
+        <span>Goals Against</span>
+        <span>Goal Difference</span>
+        <span>Points</span>
+      </div>
+
+      ${rows.map(({ player, stats }, index) => `
+        <div class="sweepstake-table-row">
+          <span><strong>${index + 1}. ${player.name}</strong></span>
+          <span>${stats.played}</span>
+          <span>${stats.wins}</span>
+          <span>${stats.draws}</span>
+          <span>${stats.losses}</span>
+          <span>${stats.goalsFor}</span>
+          <span>${stats.goalsAgainst}</span>
+          <span>${stats.goalDifference > 0 ? "+" : ""}${stats.goalDifference}</span>
+          <span><strong>${stats.points}</strong></span>
         </div>
-      </article>
-    `)
-    .join("");
+      `).join("")}
+    </div>
+  `;
 }
 
 function getTeamOwner(teamName) {
-  return players.find((player) => player.teams.includes(teamName));
+  const normalisedTeam = normaliseTeamName(teamName);
+
+  return players.find((player) =>
+    player.teams.some((team) => normaliseTeamName(team) === normalisedTeam)
+  );
 }
 
 function getFixtureOwnerLabel(fixture) {
@@ -169,29 +295,50 @@ function getFixtureOwnerLabel(fixture) {
 function renderFixtures() {
   if (!fixturesList) return;
 
-  fixturesList.innerHTML = fixtures
-    .map((fixture) => {
-      const kickoff = new Date(fixture.kickoff).toLocaleString(undefined, {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+  const sortedFixtures = [...fixtures].sort(
+    (a, b) => getFixtureSortTime(a) - getFixtureSortTime(b)
+  );
 
-      const ownerLabel = getFixtureOwnerLabel(fixture);
+  fixturesList.innerHTML = `
+    <div class="fixture-table">
+      ${sortedFixtures.map((fixture) => {
+        const kickoff = new Date(fixture.kickoff).toLocaleString(undefined, {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
 
-      return `
-        <div class="fixture-row">
-          <div>
-            <strong>${fixture.home} vs ${fixture.away}</strong>
-            <p>${ownerLabel}</p>
+        const ownerLabel = getFixtureOwnerLabel(fixture);
+        const score = fixture.status === "complete"
+          ? `${fixture.homeScore}–${fixture.awayScore}`
+          : "vs";
+
+        return `
+          <div class="fixture-table-row ${fixture.status === "complete" ? "is-complete" : ""}">
+            <div>
+              <strong>${fixture.home}</strong>
+              <span class="fixture-owner">${getTeamOwner(fixture.home)?.name || "Unowned"}</span>
+            </div>
+
+            <div class="fixture-score">${score}</div>
+
+            <div>
+              <strong>${fixture.away}</strong>
+              <span class="fixture-owner">${getTeamOwner(fixture.away)?.name || "Unowned"}</span>
+            </div>
+
+            <div class="fixture-meta">
+              <span>${fixture.stage}</span>
+              <span>${kickoff}</span>
+              <span>${ownerLabel}</span>
+            </div>
           </div>
-          <div class="fixture-date">${kickoff}</div>
-        </div>
-      `;
-    })
-    .join("");
+        `;
+      }).join("")}
+    </div>
+  `;
 }
 
 function renderAll(players) {
@@ -209,12 +356,17 @@ renderAll(players);
 loadFixtures();
 
 function getTeamPoints(teamName) {
+  const normalisedTeam = normaliseTeamName(teamName);
+
   return fixtures.reduce((total, fixture) => {
     if (fixture.status !== "complete") return total;
     if (fixture.homeScore === null || fixture.awayScore === null) return total;
 
-    const isHome = fixture.home === teamName;
-    const isAway = fixture.away === teamName;
+    const homeTeam = normaliseTeamName(fixture.home);
+    const awayTeam = normaliseTeamName(fixture.away);
+
+    const isHome = homeTeam === normalisedTeam;
+    const isAway = awayTeam === normalisedTeam;
 
     if (!isHome && !isAway) return total;
 

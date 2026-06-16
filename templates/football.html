@@ -16,36 +16,44 @@
     </p>
 
     <div class="football-actions">
-      <button class="football-btn primary">Create sweepstake</button>
-      <button class="football-btn secondary">Subscribe to calendar</button>
+      <button class="football-btn primary" type="button">Create sweepstake</button>
+      <button class="football-btn secondary" type="button">Subscribe to calendar</button>
     </div>
   </div>
 
   <div class="football-card football-card-highlight">
     <p class="small-label">Cox family sweepstake</p>
-    <h2>8 players · 8 teams</h2>
-    <p>Joseph, Dan, Louise, Helena, Claire, Sammy, Liv and Caspar.</p>
+    <h2><span id="summary-participants">8</span> players · <span id="summary-teams">48</span> teams</h2>
+    <p>£5 entry · Winner £20 · Runner-up £10 · Third place £5 · Worst performing team £5.</p>
   </div>
 </section>
 
 <section class="football-section">
   <div class="football-section-heading">
-    <h2>Leaderboard</h2>
-    <p>Prototype data for now — later this will update from live fixtures and results.</p>
+    <h2>Sweepstake table</h2>
+    <p>Ranked by points, then goal difference, then goals scored.</p>
   </div>
 
-  <div id="leaderboard" class="leaderboard-grid"></div>
+  <div id="leaderboard"></div>
 </section>
 
+<section class="football-section">
+  <div class="football-section-heading">
+    <h2>Fixtures & results</h2>
+    <p>Scores and fixtures linked to the sweepstake owners.</p>
+  </div>
+
+  <div id="fixtures" class="fixtures-list"></div>
+</section>
 <section id="setup" class="football-section football-setup">
   <div class="football-section-heading">
     <h2>Personalise your sweepstake</h2>
-    <p>Add names separated by commas or line breaks, then randomly assign teams. This saves in your browser for now.</p>
+    <p>Add names separated by commas or line breaks. For now, this is still the quick one-team randomiser.</p>
   </div>
 
   <form id="sweepstake-form" class="sweepstake-form">
     <label for="participant-names">Participants</label>
-    <textarea id="participant-names" rows="6" placeholder="Joseph&#10;Dan&#10;Louise&#10;Helena&#10;Claire&#10;Sammy&#10;Liv&#10;Caspar"></textarea>
+    <textarea id="participant-names" rows="6" placeholder="Joseph&#10;Dan&#10;Louisa&#10;Henela&#10;Claire&#10;Sammy&#10;Liv&#10;Caspar"></textarea>
 
     <div class="football-actions">
       <button class="football-btn primary" type="submit">Randomly assign teams</button>
@@ -53,16 +61,6 @@
     </div>
   </form>
 </section>
-
-<section class="football-section">
-  <div class="football-section-heading">
-    <h2>Fixtures & results</h2>
-    <p>Matches linked to the sweepstake owners.</p>
-  </div>
-
-  <div id="fixtures" class="fixtures-list"></div>
-</section>
-
 
 {% endblock %}
 
