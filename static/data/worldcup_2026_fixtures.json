@@ -369,9 +369,9 @@
     "away": "South Africa",
     "kickoff": "2026-06-18T18:00:00+02:00",
     "stage": "Group A",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 1,
+    "awayScore": 1,
     "venue": "Mercedes-Benz Stadium"
   },
   {
@@ -384,9 +384,9 @@
     "away": "Bosnia & Herzegovina",
     "kickoff": "2026-06-18T21:00:00+02:00",
     "stage": "Group B",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 4,
+    "awayScore": 1,
     "venue": "SoFi Stadium"
   },
   {
@@ -399,9 +399,9 @@
     "away": "Qatar",
     "kickoff": "2026-06-19T00:00:00+02:00",
     "stage": "Group B",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 6,
+    "awayScore": 0,
     "venue": "BC Place Stadium"
   },
   {
@@ -414,9 +414,9 @@
     "away": "South Korea",
     "kickoff": "2026-06-19T03:00:00+02:00",
     "stage": "Group A",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 1,
+    "awayScore": 0,
     "venue": "Estadio Akron"
   },
   {
