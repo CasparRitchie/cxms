@@ -40,7 +40,7 @@ const defaultPlayers = [
   },
   {
     name: "Claire",
-    teams: ["Argentina", "Switzerland", "Iran", "Paraguay", "Georgia", "Bosnia & Herzegovina"],
+    teams: ["Argentina", "Switzerland", "Iran", "Paraguay", "Czechia", "Bosnia & Herzegovina"],
   },
   {
     name: "Caspar",
