@@ -89,6 +89,8 @@ const participantInput = document.getElementById("participant-names");
 const resetButton = document.getElementById("reset-sweepstake");
 const summaryParticipants = document.getElementById("summary-participants");
 const summaryTeams = document.getElementById("summary-teams");
+const raceChart = document.getElementById("race-chart");
+const teamSummary = document.getElementById("team-summary");
 
 function loadPlayers() {
   const saved = localStorage.getItem(storageKey);
@@ -292,6 +294,83 @@ function getFixtureOwnerLabel(fixture) {
   return fixture.stage;
 }
 
+function getTeamForm(teamName) {
+  const normalisedTeam = normaliseTeamName(teamName);
+
+  return fixtures
+    .filter((fixture) => {
+      if (fixture.status !== "complete") return false;
+      return (
+        normaliseTeamName(fixture.home) === normalisedTeam ||
+        normaliseTeamName(fixture.away) === normalisedTeam
+      );
+    })
+    .map((fixture) => {
+      const isHome = normaliseTeamName(fixture.home) === normalisedTeam;
+      const goalsFor = isHome ? fixture.homeScore : fixture.awayScore;
+      const goalsAgainst = isHome ? fixture.awayScore : fixture.homeScore;
+
+      if (goalsFor > goalsAgainst) return "W";
+      if (goalsFor === goalsAgainst) return "D";
+      return "L";
+    });
+}
+
+function renderFormDots(teamName) {
+  const form = getTeamForm(teamName);
+
+  if (!form.length) {
+    return `<span class="form-dot form-empty" title="Not played yet">–</span>`;
+  }
+
+  return form
+    .map((result) => {
+      const className =
+        result === "W" ? "form-win" :
+        result === "D" ? "form-draw" :
+        "form-loss";
+
+      return `<span class="form-dot ${className}" title="${result}">${result}</span>`;
+    })
+    .join("");
+}
+
+function renderTeamSummary(players) {
+  if (!teamSummary) return;
+
+  const ordered = [...players].sort((a, b) =>
+    getPlayerPoints(b) - getPlayerPoints(a)
+  );
+
+  teamSummary.innerHTML = ordered.map((player, index) => `
+    <article class="sweepstake-card">
+      <div class="rank-badge">${index + 1}</div>
+      <h3>${player.name}</h3>
+      <p><strong>${getPlayerPoints(player)} pts</strong></p>
+
+      <div class="team-summary-list">
+        ${player.teams.map((team) => `
+          <div class="team-summary-row">
+            <span class="team-summary-name">${team}</span>
+            <span class="team-summary-form">${renderFormDots(team)}</span>
+            <strong>${getTeamPoints(team)} pts</strong>
+          </div>
+        `).join("")}
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderRaceChart(players) {
+  if (!raceChart) return;
+
+  raceChart.innerHTML = `
+    <div class="race-empty">
+      Race chart placeholder — next step is plotting each player’s points after every completed match.
+    </div>
+  `;
+}
+
 function renderFixtures() {
   if (!fixturesList) return;
 
@@ -344,6 +423,8 @@ function renderFixtures() {
 function renderAll(players) {
   renderSummary(players);
   renderLeaderboard(players);
+  renderRaceChart(players);
+  renderTeamSummary(players);
   renderFixtures();
 
   if (participantInput) {
