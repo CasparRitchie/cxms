@@ -39,12 +39,31 @@
 
 <section class="football-section">
   <div class="football-section-heading">
+    <h2>Race chart</h2>
+    <p>See who was leading as each completed match changed the sweepstake table.</p>
+  </div>
+
+  <div id="race-chart" class="race-chart"></div>
+</section>
+
+<section class="football-section">
+  <div class="football-section-heading">
+    <h2>Team summary</h2>
+    <p>Each player’s teams, current points and form so far.</p>
+  </div>
+
+  <div id="team-summary" class="leaderboard-grid"></div>
+</section>
+
+<section class="football-section">
+  <div class="football-section-heading">
     <h2>Fixtures & results</h2>
     <p>Scores and fixtures linked to the sweepstake owners.</p>
   </div>
 
   <div id="fixtures" class="fixtures-list"></div>
 </section>
+
 <section id="setup" class="football-section football-setup">
   <div class="football-section-heading">
     <h2>Personalise your sweepstake</h2>
@@ -61,7 +80,6 @@
     </div>
   </form>
 </section>
-
 {% endblock %}
 
 {% block scripts %}

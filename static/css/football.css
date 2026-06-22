@@ -59,6 +59,7 @@
   padding: 12px 18px;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .football-btn.primary {
@@ -149,32 +150,6 @@
   font-weight: 700;
 }
 
-@media (max-width: 900px) {
-  .football-hero {
-    grid-template-columns: 1fr;
-  }
-
-  .leaderboard-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
-  .football-hero,
-  .football-section {
-    padding: 22px;
-  }
-
-  .leaderboard-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .fixture-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-
 .sweepstake-form {
   display: grid;
   gap: 12px;
@@ -216,18 +191,50 @@
   font-weight: 800;
 }
 
-
-.team-list {
-  display: flex;
-  flex-wrap: wrap;
+.team-summary-list {
+  display: grid;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
-.team-list .team-pill {
-  margin-top: 0;
+.team-summary-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
 }
 
+.team-summary-name {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.team-summary-form {
+  display: inline-flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.form-dot {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #07110b;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.form-win { background: #22c55e; }
+.form-draw { background: #f59e0b; }
+.form-loss { background: #ef4444; color: #ffffff; }
+.form-empty { background: rgba(255, 255, 255, 0.12); color: #cbd5e1; }
 
 .fixture-table {
   display: grid;
@@ -272,16 +279,6 @@
   font-size: 0.9rem;
 }
 
-@media (max-width: 800px) {
-  .fixture-table-row {
-    grid-template-columns: 1fr auto 1fr;
-  }
-
-  .fixture-meta {
-    grid-column: 1 / -1;
-  }
-}
-
 .sweepstake-table {
   display: grid;
   gap: 8px;
@@ -311,4 +308,131 @@
 
 .sweepstake-table-row span:not(:first-child) {
   text-align: center;
+}
+
+.race-chart {
+  display: grid;
+  gap: 18px;
+}
+
+.race-chart-summary {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 14px;
+}
+
+.race-chart-summary > div,
+.race-empty {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.race-chart-summary h3,
+.race-chart-summary p {
+  margin: 0;
+}
+
+.race-chart-scroll {
+  overflow-x: auto;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.race-svg {
+  display: block;
+  min-width: 900px;
+  width: 100%;
+  height: auto;
+}
+
+.race-axis,
+.race-grid-line {
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1;
+}
+
+.race-grid-line {
+  stroke-dasharray: 4 6;
+}
+
+.race-axis-label,
+.race-axis-title,
+.race-label {
+  fill: #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.race-axis-title {
+  fill: #bbf7d0;
+}
+
+.race-label {
+  font-size: 14px;
+}
+
+.race-line {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.race-line-0 { stroke: #22c55e; }
+.race-line-1 { stroke: #a78bfa; }
+.race-line-2 { stroke: #38bdf8; }
+.race-line-3 { stroke: #f59e0b; }
+.race-line-4 { stroke: #fb7185; }
+.race-line-5 { stroke: #facc15; }
+.race-line-6 { stroke: #2dd4bf; }
+.race-line-7 { stroke: #c084fc; }
+
+@media (max-width: 900px) {
+  .football-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .race-chart-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .fixture-table-row {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .fixture-meta {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .football-hero,
+  .football-section {
+    padding: 22px;
+  }
+
+  .leaderboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fixture-row {
+    grid-template-columns: 1fr;
+  }
+
+  .team-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .team-summary-form {
+    justify-content: flex-start;
+  }
 }
