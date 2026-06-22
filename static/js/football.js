@@ -361,12 +361,225 @@ function renderTeamSummary(players) {
   `).join("");
 }
 
+function buildRaceSnapshots(players) {
+  const completedFixtures = [...fixtures]
+    .filter((fixture) => fixture.status === "complete")
+    .sort((a, b) => getFixtureSortTime(a) - getFixtureSortTime(b));
+
+  const snapshots = [
+    {
+      label: "Start",
+      fixtureSet: [],
+    },
+    ...completedFixtures.map((fixture, index) => ({
+      label: `${index + 1}. ${fixture.home} ${fixture.homeScore}–${fixture.awayScore} ${fixture.away}`,
+      shortLabel: `${index + 1}`,
+      fixtureSet: completedFixtures.slice(0, index + 1),
+      fixture,
+    })),
+  ];
+
+  return snapshots.map((snapshot) => ({
+    ...snapshot,
+    standings: players
+      .map((player) => {
+        const stats = getPlayerStatsForFixtures(player, snapshot.fixtureSet);
+
+        return {
+          name: player.name,
+          points: stats.points,
+          stats,
+        };
+      })
+      .sort((a, b) =>
+        b.points - a.points ||
+        b.stats.goalDifference - a.stats.goalDifference ||
+        b.stats.goalsFor - a.stats.goalsFor
+      ),
+  }));
+}
+
+function getTeamStatsForFixtures(teamName, fixtureSet) {
+  const normalisedTeam = normaliseTeamName(teamName);
+
+  return fixtureSet.reduce(
+    (stats, fixture) => {
+      if (fixture.status !== "complete") return stats;
+      if (fixture.homeScore === null || fixture.awayScore === null) return stats;
+
+      const homeTeam = normaliseTeamName(fixture.home);
+      const awayTeam = normaliseTeamName(fixture.away);
+
+      const isHome = homeTeam === normalisedTeam;
+      const isAway = awayTeam === normalisedTeam;
+
+      if (!isHome && !isAway) return stats;
+
+      const goalsFor = isHome ? fixture.homeScore : fixture.awayScore;
+      const goalsAgainst = isHome ? fixture.awayScore : fixture.homeScore;
+
+      stats.played += 1;
+      stats.goalsFor += goalsFor;
+      stats.goalsAgainst += goalsAgainst;
+
+      if (goalsFor > goalsAgainst) stats.wins += 1;
+      else if (goalsFor === goalsAgainst) stats.draws += 1;
+      else stats.losses += 1;
+
+      return stats;
+    },
+    {
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+    }
+  );
+}
+
+function getPlayerStatsForFixtures(player, fixtureSet) {
+  const stats = player.teams.reduce(
+    (totals, team) => {
+      const teamStats = getTeamStatsForFixtures(team, fixtureSet);
+
+      totals.played += teamStats.played;
+      totals.wins += teamStats.wins;
+      totals.draws += teamStats.draws;
+      totals.losses += teamStats.losses;
+      totals.goalsFor += teamStats.goalsFor;
+      totals.goalsAgainst += teamStats.goalsAgainst;
+
+      return totals;
+    },
+    {
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+    }
+  );
+
+  stats.goalDifference = stats.goalsFor - stats.goalsAgainst;
+  stats.points = stats.wins * 3 + stats.draws;
+
+  return stats;
+}
+
 function renderRaceChart(players) {
   if (!raceChart) return;
 
+  const snapshots = buildRaceSnapshots(players);
+
+  if (snapshots.length <= 1) {
+    raceChart.innerHTML = `
+      <div class="race-empty">
+        Race chart will appear once completed scores are added.
+      </div>
+    `;
+    return;
+  }
+
+  const width = 1000;
+  const height = 420;
+  const padding = { top: 28, right: 150, bottom: 70, left: 52 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+
+  const maxPoints = Math.max(
+    1,
+    ...snapshots.flatMap((snapshot) =>
+      snapshot.standings.map((standing) => standing.points)
+    )
+  );
+
+  const playerNames = players.map((player) => player.name);
+  const playerIndex = Object.fromEntries(
+    playerNames.map((name, index) => [name, index])
+  );
+
+  const xForIndex = (index) =>
+    padding.left + (index / (snapshots.length - 1)) * plotWidth;
+
+  const yForPoints = (points) =>
+    padding.top + plotHeight - (points / maxPoints) * plotHeight;
+
+  const lines = playerNames.map((name) => {
+    const points = snapshots.map((snapshot, index) => {
+      const standing = snapshot.standings.find((item) => item.name === name);
+      return `${xForIndex(index)},${yForPoints(standing?.points || 0)}`;
+    }).join(" ");
+
+    const lastStanding = snapshots[snapshots.length - 1].standings.find(
+      (item) => item.name === name
+    );
+
+    const lastX = xForIndex(snapshots.length - 1);
+    const lastY = yForPoints(lastStanding?.points || 0);
+
+    return `
+      <polyline class="race-line race-line-${playerIndex[name] % 8}" points="${points}" />
+      <text class="race-label" x="${lastX + 10}" y="${lastY + 4}">${name}</text>
+    `;
+  }).join("");
+
+  const tickCount = Math.min(maxPoints, 6);
+  const yTicks = Array.from({ length: tickCount + 1 }, (_, index) => {
+    const value = Math.round((maxPoints / tickCount) * index);
+    const y = yForPoints(value);
+
+    return `
+      <line class="race-grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" />
+      <text class="race-axis-label" x="${padding.left - 12}" y="${y + 4}" text-anchor="end">${value}</text>
+    `;
+  }).join("");
+
+  const xTicks = snapshots
+    .filter((snapshot, index) =>
+      index === 0 || index === snapshots.length - 1 || index % 4 === 0
+    )
+    .map((snapshot) => {
+      const index = snapshots.indexOf(snapshot);
+      const x = xForIndex(index);
+
+      return `
+        <line class="race-grid-line" x1="${x}" y1="${padding.top}" x2="${x}" y2="${height - padding.bottom}" />
+        <text class="race-axis-label" x="${x}" y="${height - padding.bottom + 24}" text-anchor="middle">${snapshot.shortLabel || "Start"}</text>
+      `;
+    }).join("");
+
+  const latest = snapshots[snapshots.length - 1];
+  const leader = latest.standings[0];
+
+  const latestMatch = latest.fixture
+    ? `${latest.fixture.home} ${latest.fixture.homeScore}–${latest.fixture.awayScore} ${latest.fixture.away}`
+    : "Start";
+
   raceChart.innerHTML = `
-    <div class="race-empty">
-      Race chart placeholder — next step is plotting each player’s points after every completed match.
+    <div class="race-chart-summary">
+      <div>
+        <span class="small-label">Current leader</span>
+        <h3>${leader.name} · ${leader.points} pts</h3>
+      </div>
+      <div>
+        <span class="small-label">Latest result included</span>
+        <p>${latestMatch}</p>
+      </div>
+    </div>
+
+    <div class="race-chart-scroll">
+      <svg class="race-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Sweepstake race chart">
+        ${yTicks}
+        ${xTicks}
+        <line class="race-axis" x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" />
+        <line class="race-axis" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" />
+        ${lines}
+        <text class="race-axis-title" x="${padding.left}" y="${height - 20}">Completed match number</text>
+        <text class="race-axis-title" x="18" y="${padding.top}" transform="rotate(-90 18 ${padding.top})">Points</text>
+      </svg>
     </div>
   `;
 }
