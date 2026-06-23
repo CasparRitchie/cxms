@@ -594,52 +594,71 @@ function renderPlayerFormTable(players) {
 
   playerFormTable.innerHTML = `
     <div class="player-form-table">
-      ${players.map((player) => `
-        <div class="player-form-row">
-          <strong>${player.name}</strong>
+      ${players.map((player) => {
+        const playerResults = completedFixtures.flatMap((fixture) => {
+          const results = [];
 
-          <div class="player-form-dots">
-            ${completedFixtures
-            .filter((fixture) =>
-              player.teams.some((team) =>
-                normaliseTeamName(team) === normaliseTeamName(fixture.home) ||
-                normaliseTeamName(team) === normaliseTeamName(fixture.away)
-              )
-            )
-            .map((fixture) => {
-              const ownedHome = player.teams.some(
-                (team) => normaliseTeamName(team) === normaliseTeamName(fixture.home)
-              );
-              const ownedAway = player.teams.some(
-                (team) => normaliseTeamName(team) === normaliseTeamName(fixture.away)
-              );
+          const ownsHome = player.teams.some(
+            (team) => normaliseTeamName(team) === normaliseTeamName(fixture.home)
+          );
 
-              const isHome = ownedHome;
-              const team = isHome ? fixture.home : fixture.away;
-              const goalsFor = isHome ? fixture.homeScore : fixture.awayScore;
-              const goalsAgainst = isHome ? fixture.awayScore : fixture.homeScore;
+          const ownsAway = player.teams.some(
+            (team) => normaliseTeamName(team) === normaliseTeamName(fixture.away)
+          );
 
-              let result = "L";
-              if (goalsFor > goalsAgainst) result = "W";
-              if (goalsFor === goalsAgainst) result = "D";
+          if (ownsHome) {
+            const result =
+              fixture.homeScore > fixture.awayScore ? "W" :
+              fixture.homeScore === fixture.awayScore ? "D" :
+              "L";
 
-              const className =
-                result === "W" ? "form-win" :
-                result === "D" ? "form-draw" :
-                "form-loss";
+            results.push({
+              result,
+              team: fixture.home,
+              fixture,
+            });
+          }
 
-              return `
-                <span
-                  class="form-dot ${className}"
-                  title="${player.name}: ${team} ${result} (${fixture.home} ${fixture.homeScore}–${fixture.awayScore} ${fixture.away})"
-                >
-                  ${result}
-                </span>
-              `;
-            }).join("")}
+          if (ownsAway) {
+            const result =
+              fixture.awayScore > fixture.homeScore ? "W" :
+              fixture.awayScore === fixture.homeScore ? "D" :
+              "L";
+
+            results.push({
+              result,
+              team: fixture.away,
+              fixture,
+            });
+          }
+
+          return results;
+        });
+
+        return `
+          <div class="player-form-row">
+            <strong>${player.name}</strong>
+
+            <div class="player-form-dots">
+              ${playerResults.map(({ result, team, fixture }) => {
+                const className =
+                  result === "W" ? "form-win" :
+                  result === "D" ? "form-draw" :
+                  "form-loss";
+
+                return `
+                  <span
+                    class="form-dot ${className}"
+                    title="${player.name}: ${team} ${result} (${fixture.home} ${fixture.homeScore}–${fixture.awayScore} ${fixture.away})"
+                  >
+                    ${result}
+                  </span>
+                `;
+              }).join("")}
+            </div>
           </div>
-        </div>
-      `).join("")}
+        `;
+      }).join("")}
     </div>
   `;
 }
