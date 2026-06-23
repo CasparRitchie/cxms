@@ -609,9 +609,9 @@
     "away": "Austria",
     "kickoff": "2026-06-22T19:00:00+02:00",
     "stage": "Group J",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 2,
+    "awayScore": 0,
     "venue": "AT&T Stadium"
   },
   {
@@ -624,9 +624,9 @@
     "away": "Iraq",
     "kickoff": "2026-06-22T23:00:00+02:00",
     "stage": "Group I",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 3,
+    "awayScore": 0,
     "venue": "Lincoln Financial Field"
   },
   {
@@ -639,9 +639,9 @@
     "away": "Senegal",
     "kickoff": "2026-06-23T02:00:00+02:00",
     "stage": "Group I",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 3,
+    "awayScore": 2,
     "venue": "MetLife Stadium"
   },
   {
@@ -654,9 +654,9 @@
     "away": "Algeria",
     "kickoff": "2026-06-23T05:00:00+02:00",
     "stage": "Group J",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 1,
+    "awayScore": 2,
     "venue": "Levi's Stadium"
   },
   {
