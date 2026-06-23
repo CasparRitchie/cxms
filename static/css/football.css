@@ -462,3 +462,12 @@
   flex-wrap: nowrap;
   gap: 5px;
 }
+
+
+.timezone-label {
+  display: inline-block;
+  margin-top: 8px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-style: italic;
+}

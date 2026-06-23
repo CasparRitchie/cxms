@@ -92,6 +92,7 @@ const summaryTeams = document.getElementById("summary-teams");
 const raceChart = document.getElementById("race-chart");
 const teamSummary = document.getElementById("team-summary");
 const playerFormTable = document.getElementById("player-form-table");
+const timezoneLabel = document.getElementById("timezone-label");
 
 function loadPlayers() {
   const saved = localStorage.getItem(storageKey);
@@ -663,6 +664,27 @@ function renderPlayerFormTable(players) {
   `;
 }
 
+function renderTimezoneLabel() {
+  if (!timezoneLabel) return;
+
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  // Europe/Paris -> Paris
+  // America/New_York -> New York
+  const city = timeZone.split("/").pop().replace(/_/g, " ");
+
+  // Get BST / CEST / EDT etc.
+  const abbreviation = new Intl.DateTimeFormat("en", {
+    timeZone,
+    timeZoneName: "short",
+  })
+    .formatToParts(new Date())
+    .find(part => part.type === "timeZoneName")?.value || "";
+
+  timezoneLabel.textContent =
+    `Times shown in your local timezone (${city}${abbreviation ? ` • ${abbreviation}` : ""})`;
+}
+
 function renderFixtures() {
   if (!fixturesList) return;
 
@@ -716,9 +738,9 @@ function renderAll(players) {
   renderSummary(players);
   renderLeaderboard(players);
   renderRaceChart(players);
-  renderPlayerFormTable(players);
   renderTeamSummary(players);
   renderFixtures();
+  renderTimezoneLabel();
 
   if (participantInput) {
     participantInput.value = players.map((player) => player.name).join("\n");
