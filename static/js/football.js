@@ -91,6 +91,7 @@ const summaryParticipants = document.getElementById("summary-participants");
 const summaryTeams = document.getElementById("summary-teams");
 const raceChart = document.getElementById("race-chart");
 const teamSummary = document.getElementById("team-summary");
+const playerFormTable = document.getElementById("player-form-table");
 
 function loadPlayers() {
   const saved = localStorage.getItem(storageKey);
@@ -584,6 +585,62 @@ function renderRaceChart(players) {
   `;
 }
 
+function renderPlayerFormTable(players) {
+  if (!playerFormTable) return;
+
+  const completedFixtures = [...fixtures]
+    .filter((fixture) => fixture.status === "complete")
+    .sort((a, b) => getFixtureSortTime(a) - getFixtureSortTime(b));
+
+  playerFormTable.innerHTML = `
+    <div class="player-form-table">
+      ${players.map((player) => `
+        <div class="player-form-row">
+          <strong>${player.name}</strong>
+
+          <div class="player-form-dots">
+            ${completedFixtures.map((fixture) => {
+              const ownedHome = player.teams.some(
+                (team) => normaliseTeamName(team) === normaliseTeamName(fixture.home)
+              );
+              const ownedAway = player.teams.some(
+                (team) => normaliseTeamName(team) === normaliseTeamName(fixture.away)
+              );
+
+              if (!ownedHome && !ownedAway) {
+                return `<span class="form-dot form-empty" title="No team in ${fixture.home} vs ${fixture.away}">–</span>`;
+              }
+
+              const isHome = ownedHome;
+              const team = isHome ? fixture.home : fixture.away;
+              const goalsFor = isHome ? fixture.homeScore : fixture.awayScore;
+              const goalsAgainst = isHome ? fixture.awayScore : fixture.homeScore;
+
+              let result = "L";
+              if (goalsFor > goalsAgainst) result = "W";
+              if (goalsFor === goalsAgainst) result = "D";
+
+              const className =
+                result === "W" ? "form-win" :
+                result === "D" ? "form-draw" :
+                "form-loss";
+
+              return `
+                <span
+                  class="form-dot ${className}"
+                  title="${player.name}: ${team} ${result} (${fixture.home} ${fixture.homeScore}–${fixture.awayScore} ${fixture.away})"
+                >
+                  ${result}
+                </span>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
 function renderFixtures() {
   if (!fixturesList) return;
 
@@ -637,6 +694,7 @@ function renderAll(players) {
   renderSummary(players);
   renderLeaderboard(players);
   renderRaceChart(players);
+  renderPlayerFormTable(players);
   renderTeamSummary(players);
   renderFixtures();
 
