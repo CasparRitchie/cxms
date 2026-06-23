@@ -738,6 +738,7 @@ function renderAll(players) {
   renderSummary(players);
   renderLeaderboard(players);
   renderRaceChart(players);
+  renderPlayerFormTable(players);
   renderTeamSummary(players);
   renderFixtures();
   renderTimezoneLabel();
