@@ -599,17 +599,20 @@ function renderPlayerFormTable(players) {
           <strong>${player.name}</strong>
 
           <div class="player-form-dots">
-            ${completedFixtures.map((fixture) => {
+            ${completedFixtures
+            .filter((fixture) =>
+              player.teams.some((team) =>
+                normaliseTeamName(team) === normaliseTeamName(fixture.home) ||
+                normaliseTeamName(team) === normaliseTeamName(fixture.away)
+              )
+            )
+            .map((fixture) => {
               const ownedHome = player.teams.some(
                 (team) => normaliseTeamName(team) === normaliseTeamName(fixture.home)
               );
               const ownedAway = player.teams.some(
                 (team) => normaliseTeamName(team) === normaliseTeamName(fixture.away)
               );
-
-              if (!ownedHome && !ownedAway) {
-                return `<span class="form-dot form-empty" title="No team in ${fixture.home} vs ${fixture.away}">–</span>`;
-              }
 
               const isHome = ownedHome;
               const team = isHome ? fixture.home : fixture.away;
