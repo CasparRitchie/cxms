@@ -471,3 +471,78 @@
   font-size: 0.9rem;
   font-style: italic;
 }
+
+
+
+.race-controls {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.race-slider {
+  width: 100%;
+  accent-color: #22c55e;
+}
+
+.race-bars {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.race-bar-row {
+  display: grid;
+  grid-template-columns: 34px 110px minmax(160px, 1fr) 70px 150px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.race-rank {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.16);
+  color: #bbf7d0;
+  font-weight: 900;
+}
+
+.race-player-name {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.race-bar-track {
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.race-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.55s ease;
+}
+
+.race-points {
+  color: #ffffff;
+  text-align: right;
+}
+
+.race-points span {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.race-mini-stats {
+  color: #cbd5e1;
+  font-size: 0.85rem;
+}

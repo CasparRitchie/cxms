@@ -90,6 +90,7 @@ const resetButton = document.getElementById("reset-sweepstake");
 const summaryParticipants = document.getElementById("summary-participants");
 const summaryTeams = document.getElementById("summary-teams");
 const raceChart = document.getElementById("race-chart");
+const animatedStandings = document.getElementById("animated-standings");
 const teamSummary = document.getElementById("team-summary");
 const playerFormTable = document.getElementById("player-form-table");
 const timezoneLabel = document.getElementById("timezone-label");
@@ -586,6 +587,133 @@ function renderRaceChart(players) {
   `;
 }
 
+function renderAnimatedStandings(players) {
+  if (!animatedStandings) return;
+
+  const snapshots = buildRaceSnapshots(players);
+
+  if (snapshots.length <= 1) {
+    animatedStandings.innerHTML = `
+      <div class="race-empty">
+        Animated standings will appear once completed scores are added.
+      </div>
+    `;
+    return;
+  }
+
+  animatedStandings.innerHTML = `
+    <div class="race-chart-summary">
+      <div>
+        <span class="small-label">Current leader</span>
+        <h3 id="animated-leader">Loading...</h3>
+      </div>
+      <div>
+        <span class="small-label">Match</span>
+        <p id="animated-match">Use play or drag the slider.</p>
+      </div>
+    </div>
+
+    <div class="race-controls">
+      <button id="animated-play" class="football-btn primary" type="button">Play</button>
+      <button id="animated-reset" class="football-btn secondary" type="button">Reset</button>
+      <input id="animated-slider" class="race-slider" type="range" min="0" max="${snapshots.length - 1}" value="${snapshots.length - 1}">
+    </div>
+
+    <div id="animated-bars" class="race-bars"></div>
+  `;
+
+  const leaderEl = document.getElementById("animated-leader");
+  const matchEl = document.getElementById("animated-match");
+  const barsEl = document.getElementById("animated-bars");
+  const playButton = document.getElementById("animated-play");
+  const resetButton = document.getElementById("animated-reset");
+  const slider = document.getElementById("animated-slider");
+
+  let currentIndex = snapshots.length - 1;
+  let intervalId = null;
+
+  function stopAnimation() {
+    if (intervalId) clearInterval(intervalId);
+    intervalId = null;
+    playButton.textContent = "Play";
+  }
+
+  function renderSnapshot(index) {
+    const snapshot = snapshots[index];
+    const maxPoints = Math.max(1, ...snapshot.standings.map((s) => s.points));
+    const leader = snapshot.standings[0];
+
+    leaderEl.textContent = `${leader.name} · ${leader.points} pts`;
+    matchEl.textContent = snapshot.fixture ? snapshot.label : "Start of tournament";
+    slider.value = index;
+
+    barsEl.innerHTML = snapshot.standings.map((standing, rowIndex) => {
+      const widthPercent = Math.max(4, (standing.points / maxPoints) * 100);
+      const gd = standing.stats.goalDifference;
+      const gdLabel = gd > 0 ? `+${gd}` : `${gd}`;
+      const colourIndex = players.findIndex((player) => player.name === standing.name) % 8;
+
+      return `
+        <div class="race-bar-row">
+          <div class="race-rank">${rowIndex + 1}</div>
+          <div class="race-player-name">${standing.name}</div>
+
+          <div class="race-bar-track">
+            <div class="race-bar-fill race-line-${colourIndex}" style="width: ${widthPercent}%"></div>
+          </div>
+
+          <div class="race-points">
+            <strong>${standing.points}</strong>
+            <span>pts</span>
+          </div>
+
+          <div class="race-mini-stats">
+            ${standing.stats.wins}W ${standing.stats.draws}D ${standing.stats.losses}L · GD ${gdLabel}
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  playButton.addEventListener("click", () => {
+    if (intervalId) {
+      stopAnimation();
+      return;
+    }
+
+    currentIndex = 0;
+    renderSnapshot(currentIndex);
+    playButton.textContent = "Playing...";
+
+    intervalId = setInterval(() => {
+      currentIndex += 1;
+
+      if (currentIndex >= snapshots.length) {
+        stopAnimation();
+        currentIndex = snapshots.length - 1;
+        renderSnapshot(currentIndex);
+        return;
+      }
+
+      renderSnapshot(currentIndex);
+    }, 750);
+  });
+
+  resetButton.addEventListener("click", () => {
+    stopAnimation();
+    currentIndex = 0;
+    renderSnapshot(currentIndex);
+  });
+
+  slider.addEventListener("input", (event) => {
+    stopAnimation();
+    currentIndex = Number(event.target.value);
+    renderSnapshot(currentIndex);
+  });
+
+  renderSnapshot(currentIndex);
+}
+
 function renderPlayerFormTable(players) {
   if (!playerFormTable) return;
 
@@ -738,6 +866,7 @@ function renderAll(players) {
   renderSummary(players);
   renderLeaderboard(players);
   renderRaceChart(players);
+  renderAnimatedStandings(players);
   renderPlayerFormTable(players);
   renderTeamSummary(players);
   renderFixtures();
