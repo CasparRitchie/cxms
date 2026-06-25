@@ -665,7 +665,8 @@ function renderAnimatedStandings(players) {
     playButton.textContent = "Play";
   }
 
-  function renderSnapshot(index) {
+  function renderSnapshot(index, options = {}) {
+    const { animatePosition = true } = options;
     const snapshot = snapshots[index];
     const previousSnapshot = snapshots[index - 1];
     const leader = snapshot.standings[0];
@@ -686,11 +687,6 @@ function renderAnimatedStandings(players) {
         ? previousSnapshot.standings.findIndex((item) => item.name === standing.name)
         : rowIndex;
 
-      const rankMovement =
-        previousRank > rowIndex ? " ▲" :
-        previousRank < rowIndex ? " ▼" :
-        "";
-
       const pointsGained = previousStanding
         ? standing.points - previousStanding.points
         : standing.points;
@@ -703,7 +699,10 @@ function renderAnimatedStandings(players) {
       const gd = standing.stats.goalDifference;
       const gdLabel = gd > 0 ? `+${gd}` : `${gd}`;
 
-      row.style.transform = `translateY(${rowIndex * rowHeight}px)`;
+      const rankMovement =
+        previousRank > rowIndex ? " ▲" :
+        previousRank < rowIndex ? " ▼" :
+        "";
 
       row.querySelector(".race-rank").textContent = `${rowIndex + 1}${rankMovement}`;
       row.querySelector(".race-bar-fill").style.width = `${widthPercent}%`;
@@ -717,6 +716,14 @@ function renderAnimatedStandings(players) {
       if (pointsGained > 0) {
         row.classList.add("race-bar-row-gained");
       }
+
+      if (animatePosition) {
+        setTimeout(() => {
+          row.style.transform = `translateY(${rowIndex * rowHeight}px)`;
+        }, 520);
+      } else {
+        row.style.transform = `translateY(${rowIndex * rowHeight}px)`;
+      }
     });
   }
 
@@ -727,7 +734,7 @@ function renderAnimatedStandings(players) {
     }
 
     currentIndex = currentIndex >= snapshots.length - 1 ? 0 : currentIndex;
-    renderSnapshot(currentIndex);
+    renderSnapshot(currentIndex, { animatePosition: false });
     playButton.textContent = "Playing...";
 
     intervalId = setInterval(() => {
@@ -741,22 +748,22 @@ function renderAnimatedStandings(players) {
       }
 
       renderSnapshot(currentIndex);
-    }, 900);
+    }, 1450);
   });
 
   resetButton.addEventListener("click", () => {
     stopAnimation();
     currentIndex = 0;
-    renderSnapshot(currentIndex);
+    renderSnapshot(currentIndex, { animatePosition: false });
   });
 
   slider.addEventListener("input", (event) => {
     stopAnimation();
     currentIndex = Number(event.target.value);
-    renderSnapshot(currentIndex);
+    renderSnapshot(currentIndex, { animatePosition: false });
   });
 
-  renderSnapshot(currentIndex);
+  renderSnapshot(currentIndex, { animatePosition: false });
 }
 
 function renderPlayerFormTable(players) {
