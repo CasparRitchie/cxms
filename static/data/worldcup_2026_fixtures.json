@@ -669,9 +669,9 @@
     "away": "Uzbekistan",
     "kickoff": "2026-06-23T19:00:00+02:00",
     "stage": "Group K",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 5,
+    "awayScore": 0,
     "venue": "Reliant Stadium"
   },
   {
@@ -684,9 +684,9 @@
     "away": "Ghana",
     "kickoff": "2026-06-23T22:00:00+02:00",
     "stage": "Group L",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 0,
+    "awayScore": 0,
     "venue": "Gillette Stadium"
   },
   {
@@ -699,9 +699,9 @@
     "away": "Croatia",
     "kickoff": "2026-06-24T01:00:00+02:00",
     "stage": "Group L",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 0,
+    "awayScore": 1,
     "venue": "BMO Field"
   },
   {
@@ -714,9 +714,9 @@
     "away": "DR Congo",
     "kickoff": "2026-06-24T04:00:00+02:00",
     "stage": "Group K",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 1,
+    "awayScore": 0,
     "venue": "Estadio Akron"
   },
   {
@@ -729,9 +729,9 @@
     "away": "Canada",
     "kickoff": "2026-06-24T21:00:00+02:00",
     "stage": "Group B",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 2,
+    "awayScore": 1,
     "venue": "BC Place Stadium"
   },
   {
@@ -744,9 +744,9 @@
     "away": "Qatar",
     "kickoff": "2026-06-24T21:00:00+02:00",
     "stage": "Group B",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 3,
+    "awayScore": 1,
     "venue": "Lumen Field"
   },
   {
@@ -759,9 +759,9 @@
     "away": "Brazil",
     "kickoff": "2026-06-25T00:00:00+02:00",
     "stage": "Group C",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 0,
+    "awayScore": 3,
     "venue": "Hard Rock Stadium"
   },
   {
@@ -774,9 +774,9 @@
     "away": "Haiti",
     "kickoff": "2026-06-25T00:00:00+02:00",
     "stage": "Group C",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 4,
+    "awayScore": 2,
     "venue": "Mercedes-Benz Stadium"
   },
   {
@@ -789,9 +789,9 @@
     "away": "South Korea",
     "kickoff": "2026-06-25T03:00:00+02:00",
     "stage": "Group A",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 1,
+    "awayScore": 0,
     "venue": "Estadio BBVA Bancomer"
   },
   {
@@ -804,9 +804,9 @@
     "away": "Mexico",
     "kickoff": "2026-06-25T03:00:00+02:00",
     "stage": "Group A",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 0,
+    "awayScore": 3,
     "venue": "Estadio Banorte"
   },
   {
