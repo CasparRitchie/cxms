@@ -609,6 +609,8 @@ function renderAnimatedStandings(players) {
   );
 
   const rowHeight = 58;
+  const frameDuration = 1400;
+  const pauseBetweenFrames = 250;
 
   animatedStandings.innerHTML = `
     <div class="race-chart-summary">
@@ -633,16 +635,13 @@ function renderAnimatedStandings(players) {
         <div class="race-bar-row" data-player="${player.name}">
           <div class="race-rank"></div>
           <div class="race-player-name">${player.name}</div>
-
           <div class="race-bar-track">
             <div class="race-bar-fill race-bar-colour-${index % 8}"></div>
           </div>
-
           <div class="race-points">
             <strong>0</strong>
             <span>pts</span>
           </div>
-
           <div class="race-mini-stats"></div>
         </div>
       `).join("")}
@@ -657,113 +656,156 @@ function renderAnimatedStandings(players) {
   const slider = document.getElementById("animated-slider");
 
   let currentIndex = snapshots.length - 1;
-  let intervalId = null;
+  let animationFrame = null;
+  let playing = false;
 
-  function stopAnimation() {
-    if (intervalId) clearInterval(intervalId);
-    intervalId = null;
-    playButton.textContent = "Play";
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
   }
 
-  function renderSnapshot(index, options = {}) {
-    const { animatePosition = true } = options;
-    const snapshot = snapshots[index];
-    const previousSnapshot = snapshots[index - 1];
-    const leader = snapshot.standings[0];
+  function getStandingMap(snapshot) {
+    return Object.fromEntries(
+      snapshot.standings.map((standing) => [standing.name, standing])
+    );
+  }
 
-    leaderEl.textContent = `${leader.name} · ${leader.points} pts`;
-    matchEl.textContent = snapshot.fixture ? snapshot.label : "Start of tournament";
-    slider.value = index;
+  function drawAnimatedState(fromSnapshot, toSnapshot, progress) {
+    const eased = easeOutCubic(progress);
+    const fromMap = getStandingMap(fromSnapshot);
+    const toMap = getStandingMap(toSnapshot);
 
-    snapshot.standings.forEach((standing, rowIndex) => {
+    const animatedStandingsList = players.map((player) => {
+      const from = fromMap[player.name];
+      const to = toMap[player.name];
+
+      const fromPoints = from?.points || 0;
+      const toPoints = to?.points || 0;
+      const animatedPoints = fromPoints + (toPoints - fromPoints) * eased;
+
+      return {
+        name: player.name,
+        animatedPoints,
+        finalPoints: toPoints,
+        stats: to?.stats || from?.stats,
+      };
+    }).sort((a, b) =>
+      b.animatedPoints - a.animatedPoints ||
+      b.stats.goalDifference - a.stats.goalDifference ||
+      b.stats.goalsFor - a.stats.goalsFor
+    );
+
+    const leader = animatedStandingsList[0];
+
+    leaderEl.textContent = `${leader.name} · ${leader.finalPoints} pts`;
+    matchEl.textContent = toSnapshot.fixture ? toSnapshot.label : "Start of tournament";
+
+    animatedStandingsList.forEach((standing, rowIndex) => {
       const row = barsEl.querySelector(`[data-player="${standing.name}"]`);
       if (!row) return;
 
-      const previousStanding = previousSnapshot?.standings.find(
-        (item) => item.name === standing.name
-      );
-
-      const previousRank = previousSnapshot
-        ? previousSnapshot.standings.findIndex((item) => item.name === standing.name)
-        : rowIndex;
-
-      const pointsGained = previousStanding
-        ? standing.points - previousStanding.points
-        : standing.points;
-
       const widthPercent = Math.max(
-        standing.points === 0 ? 2 : 6,
-        (standing.points / globalMaxPoints) * 100
+        standing.animatedPoints === 0 ? 2 : 6,
+        (standing.animatedPoints / globalMaxPoints) * 100
       );
 
       const gd = standing.stats.goalDifference;
       const gdLabel = gd > 0 ? `+${gd}` : `${gd}`;
 
-      const rankMovement =
-        previousRank > rowIndex ? " ▲" :
-        previousRank < rowIndex ? " ▼" :
-        "";
-
-      row.querySelector(".race-rank").textContent = `${rowIndex + 1}${rankMovement}`;
+      row.style.transform = `translateY(${rowIndex * rowHeight}px)`;
+      row.querySelector(".race-rank").textContent = rowIndex + 1;
       row.querySelector(".race-bar-fill").style.width = `${widthPercent}%`;
-      row.querySelector(".race-points strong").textContent = standing.points;
+      row.querySelector(".race-points strong").textContent =
+        Math.round(standing.animatedPoints);
       row.querySelector(".race-mini-stats").textContent =
         `${standing.stats.wins}W ${standing.stats.draws}D ${standing.stats.losses}L · GD ${gdLabel}`;
-
-      row.classList.remove("race-bar-row-gained");
-      void row.offsetWidth;
-
-      if (pointsGained > 0) {
-        row.classList.add("race-bar-row-gained");
-      }
-
-      if (animatePosition) {
-        setTimeout(() => {
-          row.style.transform = `translateY(${rowIndex * rowHeight}px)`;
-        }, 520);
-      } else {
-        row.style.transform = `translateY(${rowIndex * rowHeight}px)`;
-      }
     });
   }
 
-  playButton.addEventListener("click", () => {
-    if (intervalId) {
-      stopAnimation();
-      return;
+  function renderStaticSnapshot(index) {
+    const snapshot = snapshots[index];
+    drawAnimatedState(snapshot, snapshot, 1);
+    slider.value = index;
+  }
+
+  function stopAnimation() {
+    playing = false;
+    if (animationFrame) cancelAnimationFrame(animationFrame);
+    animationFrame = null;
+    playButton.textContent = "Play";
+  }
+
+  function animateStep(fromIndex, toIndex, onComplete) {
+    const fromSnapshot = snapshots[fromIndex];
+    const toSnapshot = snapshots[toIndex];
+    const startedAt = performance.now();
+
+    function frame(now) {
+      if (!playing) return;
+
+      const progress = Math.min(1, (now - startedAt) / frameDuration);
+      drawAnimatedState(fromSnapshot, toSnapshot, progress);
+      slider.value = toIndex;
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(frame);
+      } else {
+        setTimeout(onComplete, pauseBetweenFrames);
+      }
     }
 
-    currentIndex = currentIndex >= snapshots.length - 1 ? 0 : currentIndex;
-    renderSnapshot(currentIndex, { animatePosition: false });
+    animationFrame = requestAnimationFrame(frame);
+  }
+
+  function playFromCurrent() {
+    playing = true;
     playButton.textContent = "Playing...";
 
-    intervalId = setInterval(() => {
-      currentIndex += 1;
+    if (currentIndex >= snapshots.length - 1) {
+      currentIndex = 0;
+      renderStaticSnapshot(currentIndex);
+    }
 
-      if (currentIndex >= snapshots.length) {
+    function next() {
+      if (!playing) return;
+
+      if (currentIndex >= snapshots.length - 1) {
         stopAnimation();
         currentIndex = snapshots.length - 1;
-        renderSnapshot(currentIndex);
+        renderStaticSnapshot(currentIndex);
         return;
       }
 
-      renderSnapshot(currentIndex);
-    }, 1450);
+      const fromIndex = currentIndex;
+      const toIndex = currentIndex + 1;
+      currentIndex = toIndex;
+
+      animateStep(fromIndex, toIndex, next);
+    }
+
+    next();
+  }
+
+  playButton.addEventListener("click", () => {
+    if (playing) {
+      stopAnimation();
+    } else {
+      playFromCurrent();
+    }
   });
 
   resetButton.addEventListener("click", () => {
     stopAnimation();
     currentIndex = 0;
-    renderSnapshot(currentIndex, { animatePosition: false });
+    renderStaticSnapshot(currentIndex);
   });
 
   slider.addEventListener("input", (event) => {
     stopAnimation();
     currentIndex = Number(event.target.value);
-    renderSnapshot(currentIndex, { animatePosition: false });
+    renderStaticSnapshot(currentIndex);
   });
 
-  renderSnapshot(currentIndex, { animatePosition: false });
+  renderStaticSnapshot(currentIndex);
 }
 
 function renderPlayerFormTable(players) {
