@@ -473,7 +473,6 @@
 }
 
 
-
 .race-controls {
   display: grid;
   grid-template-columns: auto auto 1fr;
@@ -487,31 +486,44 @@
 }
 
 .race-bars {
-  display: grid;
-  gap: 10px;
+  position: relative;
+  display: block;
   margin-top: 16px;
 }
 
 .race-bar-row {
+  position: absolute;
+  left: 0;
+  right: 0;
   display: grid;
-  grid-template-columns: 34px 110px minmax(160px, 1fr) 70px 150px;
+  grid-template-columns: 44px 110px minmax(160px, 1fr) 70px 150px;
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.05);
+  transition:
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.race-bar-row-gained {
+  background: rgba(34, 197, 94, 0.12);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
 }
 
 .race-rank {
-  width: 28px;
+  width: 34px;
   height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 999px;
   background: rgba(34, 197, 94, 0.16);
   color: #bbf7d0;
   font-weight: 900;
+  font-size: 0.85rem;
 }
 
 .race-player-name {
@@ -520,7 +532,7 @@
 }
 
 .race-bar-track {
-  height: 18px;
+  height: 20px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
@@ -528,9 +540,19 @@
 
 .race-bar-fill {
   height: 100%;
+  width: 0;
   border-radius: 999px;
-  transition: width 0.55s ease;
+  transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+.race-bar-colour-0 { background: #22c55e; }
+.race-bar-colour-1 { background: #a78bfa; }
+.race-bar-colour-2 { background: #38bdf8; }
+.race-bar-colour-3 { background: #f59e0b; }
+.race-bar-colour-4 { background: #fb7185; }
+.race-bar-colour-5 { background: #facc15; }
+.race-bar-colour-6 { background: #2dd4bf; }
+.race-bar-colour-7 { background: #c084fc; }
 
 .race-points {
   color: #ffffff;
@@ -545,4 +567,22 @@
 .race-mini-stats {
   color: #cbd5e1;
   font-size: 0.85rem;
+}
+
+@media (max-width: 800px) {
+  .race-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .race-slider {
+    grid-column: 1 / -1;
+  }
+
+  .race-bar-row {
+    grid-template-columns: 34px 90px 1fr 54px;
+  }
+
+  .race-mini-stats {
+    grid-column: 3 / -1;
+  }
 }

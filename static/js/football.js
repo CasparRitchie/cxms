@@ -601,6 +601,15 @@ function renderAnimatedStandings(players) {
     return;
   }
 
+  const globalMaxPoints = Math.max(
+    1,
+    ...snapshots.flatMap((snapshot) =>
+      snapshot.standings.map((standing) => standing.points)
+    )
+  );
+
+  const rowHeight = 58;
+
   animatedStandings.innerHTML = `
     <div class="race-chart-summary">
       <div>
@@ -619,7 +628,25 @@ function renderAnimatedStandings(players) {
       <input id="animated-slider" class="race-slider" type="range" min="0" max="${snapshots.length - 1}" value="${snapshots.length - 1}">
     </div>
 
-    <div id="animated-bars" class="race-bars"></div>
+    <div id="animated-bars" class="race-bars" style="height: ${players.length * rowHeight}px;">
+      ${players.map((player, index) => `
+        <div class="race-bar-row" data-player="${player.name}">
+          <div class="race-rank"></div>
+          <div class="race-player-name">${player.name}</div>
+
+          <div class="race-bar-track">
+            <div class="race-bar-fill race-bar-colour-${index % 8}"></div>
+          </div>
+
+          <div class="race-points">
+            <strong>0</strong>
+            <span>pts</span>
+          </div>
+
+          <div class="race-mini-stats"></div>
+        </div>
+      `).join("")}
+    </div>
   `;
 
   const leaderEl = document.getElementById("animated-leader");
@@ -640,39 +667,57 @@ function renderAnimatedStandings(players) {
 
   function renderSnapshot(index) {
     const snapshot = snapshots[index];
-    const maxPoints = Math.max(1, ...snapshot.standings.map((s) => s.points));
+    const previousSnapshot = snapshots[index - 1];
     const leader = snapshot.standings[0];
 
     leaderEl.textContent = `${leader.name} · ${leader.points} pts`;
     matchEl.textContent = snapshot.fixture ? snapshot.label : "Start of tournament";
     slider.value = index;
 
-    barsEl.innerHTML = snapshot.standings.map((standing, rowIndex) => {
-      const widthPercent = Math.max(4, (standing.points / maxPoints) * 100);
+    snapshot.standings.forEach((standing, rowIndex) => {
+      const row = barsEl.querySelector(`[data-player="${standing.name}"]`);
+      if (!row) return;
+
+      const previousStanding = previousSnapshot?.standings.find(
+        (item) => item.name === standing.name
+      );
+
+      const previousRank = previousSnapshot
+        ? previousSnapshot.standings.findIndex((item) => item.name === standing.name)
+        : rowIndex;
+
+      const rankMovement =
+        previousRank > rowIndex ? " ▲" :
+        previousRank < rowIndex ? " ▼" :
+        "";
+
+      const pointsGained = previousStanding
+        ? standing.points - previousStanding.points
+        : standing.points;
+
+      const widthPercent = Math.max(
+        standing.points === 0 ? 2 : 6,
+        (standing.points / globalMaxPoints) * 100
+      );
+
       const gd = standing.stats.goalDifference;
       const gdLabel = gd > 0 ? `+${gd}` : `${gd}`;
-      const colourIndex = players.findIndex((player) => player.name === standing.name) % 8;
 
-      return `
-        <div class="race-bar-row">
-          <div class="race-rank">${rowIndex + 1}</div>
-          <div class="race-player-name">${standing.name}</div>
+      row.style.transform = `translateY(${rowIndex * rowHeight}px)`;
 
-          <div class="race-bar-track">
-            <div class="race-bar-fill race-line-${colourIndex}" style="width: ${widthPercent}%"></div>
-          </div>
+      row.querySelector(".race-rank").textContent = `${rowIndex + 1}${rankMovement}`;
+      row.querySelector(".race-bar-fill").style.width = `${widthPercent}%`;
+      row.querySelector(".race-points strong").textContent = standing.points;
+      row.querySelector(".race-mini-stats").textContent =
+        `${standing.stats.wins}W ${standing.stats.draws}D ${standing.stats.losses}L · GD ${gdLabel}`;
 
-          <div class="race-points">
-            <strong>${standing.points}</strong>
-            <span>pts</span>
-          </div>
+      row.classList.remove("race-bar-row-gained");
+      void row.offsetWidth;
 
-          <div class="race-mini-stats">
-            ${standing.stats.wins}W ${standing.stats.draws}D ${standing.stats.losses}L · GD ${gdLabel}
-          </div>
-        </div>
-      `;
-    }).join("");
+      if (pointsGained > 0) {
+        row.classList.add("race-bar-row-gained");
+      }
+    });
   }
 
   playButton.addEventListener("click", () => {
@@ -681,7 +726,7 @@ function renderAnimatedStandings(players) {
       return;
     }
 
-    currentIndex = 0;
+    currentIndex = currentIndex >= snapshots.length - 1 ? 0 : currentIndex;
     renderSnapshot(currentIndex);
     playButton.textContent = "Playing...";
 
@@ -696,7 +741,7 @@ function renderAnimatedStandings(players) {
       }
 
       renderSnapshot(currentIndex);
-    }, 750);
+    }, 900);
   });
 
   resetButton.addEventListener("click", () => {
