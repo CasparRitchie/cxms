@@ -1089,9 +1089,9 @@
     "away": "Canada",
     "kickoff": "2026-06-28T21:00:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 0,
+    "awayScore": 1,
     "venue": "SoFi Stadium"
   },
   {
