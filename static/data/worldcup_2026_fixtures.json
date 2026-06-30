@@ -1104,9 +1104,9 @@
     "away": "Japan",
     "kickoff": "2026-06-29T19:00:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 2,
+    "awayScore": 1,
     "venue": "Reliant Stadium"
   },
   {
@@ -1119,9 +1119,9 @@
     "away": "Paraguay",
     "kickoff": "2026-06-29T22:30:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 1,
+    "awayScore": 1,
     "venue": "Gillette Stadium"
   },
   {
@@ -1134,9 +1134,9 @@
     "away": "Morocco",
     "kickoff": "2026-06-30T03:00:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 1,
+    "awayScore": 1,
     "venue": "Estadio BBVA Bancomer"
   },
   {
