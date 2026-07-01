@@ -1149,9 +1149,9 @@
     "away": "Norway",
     "kickoff": "2026-06-30T19:00:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 1,
+    "awayScore": 2,
     "venue": "AT&T Stadium"
   },
   {
@@ -1164,9 +1164,9 @@
     "away": "Sweden",
     "kickoff": "2026-06-30T23:00:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 3,
+    "awayScore": 0,
     "venue": "MetLife Stadium"
   },
   {
@@ -1179,9 +1179,9 @@
     "away": "Ecuador",
     "kickoff": "2026-07-01T03:00:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 2,
+    "awayScore": 0,
     "venue": "Estadio Banorte"
   },
   {
