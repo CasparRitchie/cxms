@@ -1194,9 +1194,9 @@
     "away": "DR Congo",
     "kickoff": "2026-07-01T18:00:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 2,
+    "awayScore": 1,
     "venue": "Mercedes-Benz Stadium"
   },
   {
@@ -1209,9 +1209,9 @@
     "away": "Senegal",
     "kickoff": "2026-07-01T22:00:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 2,
+    "awayScore": 2,
     "venue": "Lumen Field"
   },
   {
@@ -1224,9 +1224,9 @@
     "away": "Bosnia & Herzegovina",
     "kickoff": "2026-07-02T02:00:00+02:00",
     "stage": "Round of 32",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
+    "status": "complete",
+    "homeScore": 2,
+    "awayScore": 0,
     "venue": "Levi's Stadium"
   },
   {
