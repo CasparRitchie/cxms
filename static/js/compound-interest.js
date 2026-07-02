@@ -8,6 +8,23 @@ const compoundTable = document.getElementById("compoundTable");
 const canvas = document.getElementById("compoundChart");
 const ctx = canvas.getContext("2d");
 
+document.querySelectorAll(".compound-tab").forEach((button) => {
+  button.addEventListener("click", () => {
+    const tab = button.dataset.tab;
+
+    document.querySelectorAll(".compound-tab").forEach((btn) =>
+      btn.classList.remove("is-active")
+    );
+
+    document.querySelectorAll(".compound-panel").forEach((panel) =>
+      panel.classList.remove("is-active")
+    );
+
+    button.classList.add("is-active");
+    document.getElementById(`compound-${tab}`).classList.add("is-active");
+  });
+});
+
 function money(value) {
   return `£${Number(value).toFixed(2)}`;
 }
@@ -23,8 +40,7 @@ function calculateRows(start, annualRate, years, monthlyContribution, frequency)
     let yearlyContributions = 0;
 
     for (let period = 1; period <= frequency; period += 1) {
-      const monthlyPeriods = 12 / frequency;
-      const contributionThisPeriod = monthlyContribution * monthlyPeriods;
+      const contributionThisPeriod = monthlyContribution * (12 / frequency);
 
       amount += contributionThisPeriod;
       yearlyContributions += contributionThisPeriod;
@@ -49,7 +65,6 @@ function drawChart(rows) {
   const padding = 40;
   const width = canvas.width - padding * 2;
   const height = canvas.height - padding * 2;
-
   const maxAmount = Math.max(...rows.map(row => row.end));
   const xStep = width / Math.max(1, rows.length - 1);
 
@@ -88,14 +103,17 @@ function render() {
 
   const rows = calculateRows(start, rate, years, monthlyContribution, frequency);
   const last = rows[rows.length - 1];
-  const interestEarned = last.end - start;
+
+  const totalContributions = monthlyContribution * 12 * years;
+  const interestEarned = last.end - start - totalContributions;
 
   yearsLabel.textContent = `${years} year${years === 1 ? "" : "s"}`;
   finalAmount.textContent = money(last.end);
-  gainText.textContent = `That means ${money(interestEarned)} interest has been earned.`;
+  gainText.textContent =
+    `That includes ${money(totalContributions)} added contributions and ${money(interestEarned)} interest earned.`;
 
   formulaExample.textContent =
-    `${money(start)} × ${multiplier.toFixed(2)}^${years} = ${money(last.end)}`;
+    `${money(start)} × ${multiplier.toFixed(2)}^${years} = ${money(start * Math.pow(multiplier, years))}`;
 
   compoundTable.innerHTML = `
     <div class="compound-table">

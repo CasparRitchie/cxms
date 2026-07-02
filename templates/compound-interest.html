@@ -16,61 +16,109 @@
   </p>
 </section>
 
-<section class="compound-grid">
-  <div class="compound-card">
-    <h2>Try it</h2>
+<div class="compound-tabs">
+  <button class="compound-tab is-active" type="button" data-tab="learn">🎓 Learn</button>
+  <button class="compound-tab" type="button" data-tab="calculator">💷 Calculator</button>
+</div>
 
-    <form id="interestForm" class="compound-form">
-      <label>
-        Starting amount
-        <input type="number" name="initialInvestment" value="100" min="0" step="0.01">
-      </label>
+<section id="compound-learn" class="compound-panel is-active">
+  <div class="compound-grid">
+    <div class="compound-card">
+      <h2>Simple example</h2>
+      <p>
+        Imagine you start with <strong>£100</strong> and earn <strong>10%</strong> interest per year.
+      </p>
 
-      <label>
-        Interest rate %
-        <input type="number" name="annualRate" value="10" min="0" step="0.1">
-      </label>
+      <div class="formula-box">
+        <strong>Year 1</strong>
+        <p>£100 × 1.10 = £110</p>
+      </div>
 
-      <label>
-        Years
-        <input id="yearsSlider" type="range" name="years" value="5" min="1" max="30">
-        <span id="yearsLabel">5 years</span>
-      </label>
-      <label>
-        Monthly contribution
-        <input type="number" name="monthlyContribution" value="0" min="0" step="0.01">
-      </label>
+      <div class="formula-box">
+        <strong>Year 2</strong>
+        <p>£110 × 1.10 = £121</p>
+      </div>
 
-      <label>
-        Compounding frequency
-        <select name="frequency">
-          <option value="1">Annually</option>
-          <option value="2">Semi-annually</option>
-          <option value="4">Quarterly</option>
-          <option value="12" selected>Monthly</option>
-          <option value="365">Daily</option>
-        </select>
-      </label>
-    </form>
-
-    <div class="formula-box">
-      <strong>Shortcut formula</strong>
-      <p>Final amount = starting amount × multiplier<sup>years</sup></p>
-      <p id="formulaExample">£100 × 1.10⁵ = £161.05</p>
+      <div class="formula-box">
+        <strong>Shortcut formula</strong>
+        <p>Final amount = starting amount × multiplier<sup>years</sup></p>
+        <p>£100 × 1.10<sup>5</sup> = £161.05</p>
+      </div>
     </div>
-  </div>
 
-  <div class="compound-card result-card">
-    <h2 id="finalAmount">£161.05</h2>
-    <p id="gainText">That means £61.05 interest has been earned.</p>
+    <div class="compound-card">
+      <h2>£100 at 10% for 5 years</h2>
 
-    <canvas id="compoundChart" width="600" height="300"></canvas>
+      <div class="compound-example">
+        <div><span>Year 0</span><strong>£100.00</strong></div>
+        <div><span>Year 1</span><strong>£110.00</strong></div>
+        <div><span>Year 2</span><strong>£121.00</strong></div>
+        <div><span>Year 3</span><strong>£133.10</strong></div>
+        <div><span>Year 4</span><strong>£146.41</strong></div>
+        <div><span>Year 5</span><strong>£161.05</strong></div>
+      </div>
+    </div>
   </div>
 </section>
 
-<section class="compound-card">
-  <h2>Year by year</h2>
-  <div id="compoundTable"></div>
+<section id="compound-calculator" class="compound-panel">
+  <section class="compound-grid">
+    <div class="compound-card">
+      <h2>Try it</h2>
+
+      <form id="interestForm" class="compound-form">
+        <label>
+          Starting amount
+          <input type="number" name="initialInvestment" value="100" min="0" step="0.01">
+        </label>
+
+        <label>
+          Interest rate %
+          <input type="number" name="annualRate" value="10" min="0" step="0.1">
+        </label>
+
+        <label>
+          Years
+          <input id="yearsSlider" type="range" name="years" value="5" min="1" max="30">
+          <span id="yearsLabel">5 years</span>
+        </label>
+
+        <label>
+          Monthly contribution
+          <input type="number" name="monthlyContribution" value="0" min="0" step="0.01">
+        </label>
+
+        <label>
+          Compounding frequency
+          <select name="frequency">
+            <option value="1">Annually</option>
+            <option value="2">Semi-annually</option>
+            <option value="4">Quarterly</option>
+            <option value="12" selected>Monthly</option>
+            <option value="365">Daily</option>
+          </select>
+        </label>
+      </form>
+
+      <div class="formula-box">
+        <strong>Shortcut formula</strong>
+        <p>Final amount = starting amount × multiplier<sup>years</sup></p>
+        <p id="formulaExample">£100 × 1.10⁵ = £161.05</p>
+      </div>
+    </div>
+
+    <div class="compound-card result-card">
+      <h2 id="finalAmount">£161.05</h2>
+      <p id="gainText">That means £61.05 interest has been earned.</p>
+
+      <canvas id="compoundChart" width="600" height="300"></canvas>
+    </div>
+  </section>
+
+  <section class="compound-card">
+    <h2>Year by year</h2>
+    <div id="compoundTable"></div>
+  </section>
 </section>
 {% endblock %}
 

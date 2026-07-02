@@ -666,3 +666,80 @@
   grid-template-columns: 80px repeat(4, minmax(120px, 1fr));
   min-width: 660px;
 }
+
+
+
+
+.compound-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.compound-tab {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: rgba(255,255,255,.06);
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.compound-tab.is-active {
+  background: linear-gradient(135deg, #22c55e, #9AC94E);
+  color: #07110b;
+}
+
+.compound-panel {
+  display: none;
+}
+
+.compound-panel.is-active {
+  display: block;
+}
+
+.compound-example {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0;
+}
+
+.compound-example div {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.06);
+  color: #e5e7eb;
+}
+
+.compound-example strong {
+  color: #bbf7d0;
+}
+
+.compound-form {
+  display: grid;
+  gap: 12px;
+}
+
+.compound-form input,
+.compound-form select {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.compound-form select option {
+  background: #1b1f27;
+  color: white;
+}
+
+.compound-results {
+  margin-top: 20px;
+}
