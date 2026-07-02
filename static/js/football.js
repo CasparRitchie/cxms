@@ -352,6 +352,8 @@ function getFixtureWinner(fixture) {
     fixture.qualifiedTeam ||
     fixture.advancingTeam;
 
+  if (explicitWinner === "home") return normaliseTeamName(fixture.home);
+  if (explicitWinner === "away") return normaliseTeamName(fixture.away);
   if (explicitWinner) return normaliseTeamName(explicitWinner);
 
   const homeScore = fixture.aetHomeScore ?? fixture.homeScore;
