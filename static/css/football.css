@@ -650,3 +650,14 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+.site-header {
+  position: sticky;
+  top: -150px;
+  z-index: 1000;
+  transition: top 0.22s ease;
+}
+
+.site-header.is-visible {
+  top: 0;
+}
