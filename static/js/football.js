@@ -61,6 +61,11 @@ const teamAliases = {
   "Ivory Coast": "Côte d’Ivoire",
   "Curacao": "Curaçao",
   "Turkey": "Türkiye",
+  "United States": "USA",
+  "Congo DR": "DR Congo",
+  "Bosnia–Herz": "Bosnia & Herzegovina",
+  "Bosnia & Herz.": "Bosnia & Herzegovina",
+  "Côte d'Ivoire": "Côte d’Ivoire",
 };
 
 function normaliseTeamName(teamName) {
@@ -341,10 +346,27 @@ function renderFormDots(teamName) {
 function getFixtureWinner(fixture) {
   if (fixture.status !== "complete") return null;
 
-  if (fixture.winner) return normaliseTeamName(fixture.winner);
+  const explicitWinner =
+    fixture.winner ||
+    fixture.winnerTeam ||
+    fixture.qualifiedTeam ||
+    fixture.advancingTeam;
 
-  if (fixture.homeScore > fixture.awayScore) return normaliseTeamName(fixture.home);
-  if (fixture.awayScore > fixture.homeScore) return normaliseTeamName(fixture.away);
+  if (explicitWinner) return normaliseTeamName(explicitWinner);
+
+  const homeScore = fixture.aetHomeScore ?? fixture.homeScore;
+  const awayScore = fixture.aetAwayScore ?? fixture.awayScore;
+
+  if (homeScore > awayScore) return normaliseTeamName(fixture.home);
+  if (awayScore > homeScore) return normaliseTeamName(fixture.away);
+
+  if (fixture.homePenaltyScore > fixture.awayPenaltyScore) {
+    return normaliseTeamName(fixture.home);
+  }
+
+  if (fixture.awayPenaltyScore > fixture.homePenaltyScore) {
+    return normaliseTeamName(fixture.away);
+  }
 
   return null;
 }
