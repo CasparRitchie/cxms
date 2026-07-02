@@ -1857,11 +1857,11 @@
     "scorePhase": "FT",
     "ftHomeScore": 2,
     "ftAwayScore": 2,
-    "aetHomeScore": null,
-    "aetAwayScore": null,
+    "aetHomeScore": 2,
+    "aetAwayScore": 3,
     "homePenaltyScore": null,
     "awayPenaltyScore": null,
-    "winner": null,
+    "winner": "home",
     "venue": "Lumen Field"
   },
   {
