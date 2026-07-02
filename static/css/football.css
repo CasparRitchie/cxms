@@ -630,3 +630,23 @@
 .team-eliminated {
   opacity: 0.78;
 }
+
+
+.race-player-name {
+  display: grid;
+  gap: 4px;
+}
+
+.mini-position-chart {
+  width: 72px;
+  height: 24px;
+  overflow: visible;
+}
+
+.mini-position-chart polyline {
+  fill: none;
+  stroke: #bbf7d0;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

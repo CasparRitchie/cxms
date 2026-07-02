@@ -99,6 +99,7 @@ const animatedStandings = document.getElementById("animated-standings");
 const teamSummary = document.getElementById("team-summary");
 const playerFormTable = document.getElementById("player-form-table");
 const timezoneLabel = document.getElementById("timezone-label");
+const teamStandings = document.getElementById("team-standings");
 
 function loadPlayers() {
   const saved = localStorage.getItem(storageKey);
@@ -654,6 +655,34 @@ function renderRaceChart(players) {
   `;
 }
 
+function getPlayerPositionHistory(playerName, snapshots) {
+  return snapshots.map((snapshot) => {
+    const index = snapshot.standings.findIndex((item) => item.name === playerName);
+    return index === -1 ? null : index + 1;
+  }).filter(Boolean);
+}
+
+function renderMiniPositionChart(playerName, snapshots) {
+  const positions = getPlayerPositionHistory(playerName, snapshots);
+  if (positions.length < 2) return "";
+
+  const width = 72;
+  const height = 24;
+  const maxRank = players.length;
+
+  const points = positions.map((position, index) => {
+    const x = (index / (positions.length - 1)) * width;
+    const y = ((position - 1) / Math.max(1, maxRank - 1)) * height;
+    return `${x},${y}`;
+  }).join(" ");
+
+  return `
+    <svg class="mini-position-chart" viewBox="0 0 ${width} ${height}" aria-label="${playerName} position history">
+      <polyline points="${points}" />
+    </svg>
+  `;
+}
+
 function renderAnimatedStandings(players) {
   if (!animatedStandings) return;
 
@@ -701,7 +730,10 @@ function renderAnimatedStandings(players) {
       ${players.map((player, index) => `
         <div class="race-bar-row" data-player="${player.name}">
           <div class="race-rank"></div>
-          <div class="race-player-name">${player.name}</div>
+          <div class="race-player-name">
+            <span>${player.name}</span>
+            ${renderMiniPositionChart(player.name, snapshots)}
+          </div>
           <div class="race-bar-track">
             <div class="race-bar-fill race-bar-colour-${index % 8}"></div>
           </div>
@@ -875,6 +907,62 @@ function renderAnimatedStandings(players) {
   renderStaticSnapshot(currentIndex);
 }
 
+function renderTeamStandings() {
+  if (!teamStandings) return;
+
+  const allTeams = [...new Set(players.flatMap((player) => player.teams || []))];
+
+  const rows = allTeams
+    .map((team) => ({
+      team,
+      owner: getTeamOwner(team)?.name || "Unowned",
+      stats: getTeamStats(team),
+      stillAlive: isTeamStillAlive(team),
+    }))
+    .map((row) => ({
+      ...row,
+      goalDifference: row.stats.goalsFor - row.stats.goalsAgainst,
+      points: row.stats.wins * 3 + row.stats.draws,
+    }))
+    .sort((a, b) =>
+      b.points - a.points ||
+      b.goalDifference - a.goalDifference ||
+      b.stats.goalsFor - a.stats.goalsFor
+    );
+
+  teamStandings.innerHTML = `
+    <div class="sweepstake-table">
+      <div class="sweepstake-table-row sweepstake-table-header">
+        <span>Team</span>
+        <span>Owner</span>
+        <span>Played</span>
+        <span>Won</span>
+        <span>Drawn</span>
+        <span>Lost</span>
+        <span>GD</span>
+        <span>Points</span>
+        <span>Status</span>
+      </div>
+
+      ${rows.map((row, index) => `
+        <div class="sweepstake-table-row">
+          <span>
+            <strong>${index + 1}. ${row.team}</strong>
+          </span>
+          <span>${row.owner}</span>
+          <span>${row.stats.played}</span>
+          <span>${row.stats.wins}</span>
+          <span>${row.stats.draws}</span>
+          <span>${row.stats.losses}</span>
+          <span>${row.goalDifference > 0 ? "+" : ""}${row.goalDifference}</span>
+          <span><strong>${row.points}</strong></span>
+          <span>${row.stillAlive ? "🟢 In" : "🔴 Out"}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
 function renderPlayerFormTable(players) {
   if (!playerFormTable) return;
 
@@ -978,7 +1066,7 @@ function renderFixtures() {
   if (!fixturesList) return;
 
   const sortedFixtures = [...fixtures].sort(
-    (a, b) => getFixtureSortTime(a) - getFixtureSortTime(b)
+    (a, b) => getFixtureSortTime(b) - getFixtureSortTime(a)
   );
 
   fixturesList.innerHTML = `
@@ -1030,6 +1118,7 @@ function renderAll(players) {
   renderAnimatedStandings(players);
   renderPlayerFormTable(players);
   renderTeamSummary(players);
+  renderTeamStandings();
   renderFixtures();
   renderTimezoneLabel();
 
