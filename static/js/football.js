@@ -338,6 +338,38 @@ function renderFormDots(teamName) {
     .join("");
 }
 
+function getFixtureWinner(fixture) {
+  if (fixture.status !== "complete") return null;
+
+  if (fixture.winner) return normaliseTeamName(fixture.winner);
+
+  if (fixture.homeScore > fixture.awayScore) return normaliseTeamName(fixture.home);
+  if (fixture.awayScore > fixture.homeScore) return normaliseTeamName(fixture.away);
+
+  return null;
+}
+
+function isTeamStillAlive(teamName) {
+  const normalisedTeam = normaliseTeamName(teamName);
+
+  const knockoutFixtures = fixtures.filter((fixture) =>
+    fixture.round !== "Group stage" &&
+    (
+      normaliseTeamName(fixture.home) === normalisedTeam ||
+      normaliseTeamName(fixture.away) === normalisedTeam
+    )
+  );
+
+  if (!knockoutFixtures.length) return false;
+
+  const latestKnockoutFixture = [...knockoutFixtures]
+    .sort((a, b) => getFixtureSortTime(b) - getFixtureSortTime(a))[0];
+
+  if (latestKnockoutFixture.status !== "complete") return true;
+
+  return getFixtureWinner(latestKnockoutFixture) === normalisedTeam;
+}
+
 function renderTeamSummary(players) {
   if (!teamSummary) return;
 
@@ -352,13 +384,24 @@ function renderTeamSummary(players) {
       <p><strong>${getPlayerPoints(player)} pts</strong></p>
 
       <div class="team-summary-list">
-        ${player.teams.map((team) => `
-          <div class="team-summary-row">
-            <span class="team-summary-name">${team}</span>
-            <span class="team-summary-form">${renderFormDots(team)}</span>
-            <strong>${getTeamPoints(team)} pts</strong>
-          </div>
-        `).join("")}
+        ${player.teams.map((team) => {
+          const stillAlive = isTeamStillAlive(team);
+
+          return `
+            <div class="team-summary-row ${stillAlive ? "team-alive" : "team-eliminated"}">
+              <span class="team-summary-name">
+                <span
+                  class="team-status-dot ${stillAlive ? "is-alive" : "is-eliminated"}"
+                  title="${stillAlive ? "Still in the tournament" : "Eliminated"}"
+                ></span>
+                ${team}
+              </span>
+
+              <span class="team-summary-form">${renderFormDots(team)}</span>
+              <strong>${getTeamPoints(team)} pts</strong>
+            </div>
+          `;
+        }).join("")}
       </div>
     </article>
   `).join("");

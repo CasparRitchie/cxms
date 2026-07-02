@@ -12,6 +12,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Estadio Banorte"
   },
   {
@@ -27,6 +35,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Estadio Akron"
   },
   {
@@ -42,6 +58,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "BMO Field"
   },
   {
@@ -57,6 +81,14 @@
     "status": "complete",
     "homeScore": 4,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 4,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "SoFi Stadium"
   },
   {
@@ -72,6 +104,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Levi's Stadium"
   },
   {
@@ -87,6 +127,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "MetLife Stadium"
   },
   {
@@ -102,6 +150,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Gillette Stadium"
   },
   {
@@ -117,6 +173,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "BC Place Stadium"
   },
   {
@@ -132,6 +196,14 @@
     "status": "complete",
     "homeScore": 7,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 7,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Reliant Stadium"
   },
   {
@@ -147,6 +219,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "AT&T Stadium"
   },
   {
@@ -162,6 +242,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Lincoln Financial Field"
   },
   {
@@ -177,6 +265,14 @@
     "status": "complete",
     "homeScore": 5,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 5,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Estadio BBVA Bancomer"
   },
   {
@@ -192,6 +288,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Lumen Field"
   },
   {
@@ -207,6 +311,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Mercedes-Benz Stadium"
   },
   {
@@ -222,6 +334,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "SoFi Stadium"
   },
   {
@@ -237,6 +357,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Hard Rock Stadium"
   },
   {
@@ -252,6 +380,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "MetLife Stadium"
   },
   {
@@ -267,6 +403,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 4,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 4,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Gillette Stadium"
   },
   {
@@ -282,6 +426,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "GEHA Field at Arrowhead Stadium"
   },
   {
@@ -297,6 +449,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Levi's Stadium"
   },
   {
@@ -312,6 +472,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Reliant Stadium"
   },
   {
@@ -327,6 +495,14 @@
     "status": "complete",
     "homeScore": 4,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 4,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "AT&T Stadium"
   },
   {
@@ -342,6 +518,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "BMO Field"
   },
   {
@@ -357,6 +541,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 3,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 3,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Estadio Banorte"
   },
   {
@@ -372,6 +564,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Mercedes-Benz Stadium"
   },
   {
@@ -387,6 +587,14 @@
     "status": "complete",
     "homeScore": 4,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 4,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "SoFi Stadium"
   },
   {
@@ -402,6 +610,14 @@
     "status": "complete",
     "homeScore": 6,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 6,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "BC Place Stadium"
   },
   {
@@ -417,6 +633,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Estadio Akron"
   },
   {
@@ -432,6 +656,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Lumen Field"
   },
   {
@@ -447,6 +679,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Gillette Stadium"
   },
   {
@@ -462,6 +702,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Levi's Stadium"
   },
   {
@@ -477,6 +725,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Lincoln Financial Field"
   },
   {
@@ -492,6 +748,14 @@
     "status": "complete",
     "homeScore": 5,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 5,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Reliant Stadium"
   },
   {
@@ -507,6 +771,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "BMO Field"
   },
   {
@@ -522,6 +794,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "GEHA Field at Arrowhead Stadium"
   },
   {
@@ -537,6 +817,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 4,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 4,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Estadio BBVA Bancomer"
   },
   {
@@ -552,6 +840,14 @@
     "status": "complete",
     "homeScore": 4,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 4,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Mercedes-Benz Stadium"
   },
   {
@@ -567,6 +863,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "SoFi Stadium"
   },
   {
@@ -582,6 +886,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Hard Rock Stadium"
   },
   {
@@ -597,6 +909,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 3,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 3,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "BC Place Stadium"
   },
   {
@@ -612,6 +932,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "AT&T Stadium"
   },
   {
@@ -627,6 +955,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Lincoln Financial Field"
   },
   {
@@ -642,6 +978,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "MetLife Stadium"
   },
   {
@@ -657,6 +1001,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Levi's Stadium"
   },
   {
@@ -672,6 +1024,14 @@
     "status": "complete",
     "homeScore": 5,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 5,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Reliant Stadium"
   },
   {
@@ -687,6 +1047,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Gillette Stadium"
   },
   {
@@ -702,6 +1070,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "BMO Field"
   },
   {
@@ -717,6 +1093,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Estadio Akron"
   },
   {
@@ -732,6 +1116,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "BC Place Stadium"
   },
   {
@@ -747,6 +1139,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Lumen Field"
   },
   {
@@ -762,6 +1162,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 3,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 3,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Hard Rock Stadium"
   },
   {
@@ -777,6 +1185,14 @@
     "status": "complete",
     "homeScore": 4,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 4,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Mercedes-Benz Stadium"
   },
   {
@@ -792,6 +1208,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Estadio BBVA Bancomer"
   },
   {
@@ -807,6 +1231,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 3,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 3,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Estadio Banorte"
   },
   {
@@ -822,6 +1254,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Lincoln Financial Field"
   },
   {
@@ -837,6 +1277,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "MetLife Stadium"
   },
   {
@@ -852,6 +1300,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "AT&T Stadium"
   },
   {
@@ -867,6 +1323,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 3,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 3,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "GEHA Field at Arrowhead Stadium"
   },
   {
@@ -882,6 +1346,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Levi's Stadium"
   },
   {
@@ -897,6 +1369,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "SoFi Stadium"
   },
   {
@@ -912,6 +1392,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 4,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 4,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Gillette Stadium"
   },
   {
@@ -927,6 +1415,14 @@
     "status": "complete",
     "homeScore": 5,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 5,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "BMO Field"
   },
   {
@@ -942,6 +1438,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "Estadio Akron"
   },
   {
@@ -957,6 +1461,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Reliant Stadium"
   },
   {
@@ -972,6 +1484,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Lumen Field"
   },
   {
@@ -987,6 +1507,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 5,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 5,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "BC Place Stadium"
   },
   {
@@ -1002,6 +1530,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "MetLife Stadium"
   },
   {
@@ -1017,6 +1553,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Lincoln Financial Field"
   },
   {
@@ -1032,6 +1576,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Hard Rock Stadium"
   },
   {
@@ -1047,6 +1599,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Mercedes-Benz Stadium"
   },
   {
@@ -1062,6 +1622,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 3,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 3,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "AT&T Stadium"
   },
   {
@@ -1077,6 +1645,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 3,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 3,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "GEHA Field at Arrowhead Stadium"
   },
   {
@@ -1092,6 +1668,14 @@
     "status": "complete",
     "homeScore": 0,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 0,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "SoFi Stadium"
   },
   {
@@ -1107,6 +1691,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Reliant Stadium"
   },
   {
@@ -1122,7 +1714,16 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
-    "venue": "Gillette Stadium"
+    "scorePhase": "PEN",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": 1,
+    "aetAwayScore": 1,
+    "homePenaltyScore": 3,
+    "awayPenaltyScore": 4,
+    "winner": "away",
+    "venue": "Gillette Stadium",
+    "notes": "Paraguay won on penalty kicks following extra time"
   },
   {
     "id": "wc2026-r32-004",
@@ -1137,7 +1738,16 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 1,
-    "venue": "Estadio BBVA Bancomer"
+    "scorePhase": "PEN",
+    "ftHomeScore": 1,
+    "ftAwayScore": 1,
+    "aetHomeScore": 1,
+    "aetAwayScore": 1,
+    "homePenaltyScore": 2,
+    "awayPenaltyScore": 3,
+    "winner": "away",
+    "venue": "Estadio BBVA Bancomer",
+    "notes": "Morocco won on penalty kicks following extra time"
   },
   {
     "id": "wc2026-r32-005",
@@ -1152,6 +1762,14 @@
     "status": "complete",
     "homeScore": 1,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 1,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "away",
     "venue": "AT&T Stadium"
   },
   {
@@ -1167,6 +1785,14 @@
     "status": "complete",
     "homeScore": 3,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 3,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "MetLife Stadium"
   },
   {
@@ -1182,6 +1808,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Estadio Banorte"
   },
   {
@@ -1197,6 +1831,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 1,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 1,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Mercedes-Benz Stadium"
   },
   {
@@ -1212,6 +1854,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 2,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 2,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Lumen Field"
   },
   {
@@ -1227,6 +1877,14 @@
     "status": "complete",
     "homeScore": 2,
     "awayScore": 0,
+    "scorePhase": "FT",
+    "ftHomeScore": 2,
+    "ftAwayScore": 0,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": "home",
     "venue": "Levi's Stadium"
   },
   {
@@ -1242,6 +1900,14 @@
     "status": "scheduled",
     "homeScore": null,
     "awayScore": null,
+    "scorePhase": null,
+    "ftHomeScore": null,
+    "ftAwayScore": null,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "SoFi Stadium"
   },
   {
@@ -1257,6 +1923,14 @@
     "status": "scheduled",
     "homeScore": null,
     "awayScore": null,
+    "scorePhase": null,
+    "ftHomeScore": null,
+    "ftAwayScore": null,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "BMO Field"
   },
   {
@@ -1272,6 +1946,14 @@
     "status": "scheduled",
     "homeScore": null,
     "awayScore": null,
+    "scorePhase": null,
+    "ftHomeScore": null,
+    "ftAwayScore": null,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "BC Place Stadium"
   },
   {
@@ -1287,6 +1969,14 @@
     "status": "scheduled",
     "homeScore": null,
     "awayScore": null,
+    "scorePhase": null,
+    "ftHomeScore": null,
+    "ftAwayScore": null,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "AT&T Stadium"
   },
   {
@@ -1302,6 +1992,14 @@
     "status": "scheduled",
     "homeScore": null,
     "awayScore": null,
+    "scorePhase": null,
+    "ftHomeScore": null,
+    "ftAwayScore": null,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "Hard Rock Stadium"
   },
   {
@@ -1317,6 +2015,14 @@
     "status": "scheduled",
     "homeScore": null,
     "awayScore": null,
+    "scorePhase": null,
+    "ftHomeScore": null,
+    "ftAwayScore": null,
+    "aetHomeScore": null,
+    "aetAwayScore": null,
+    "homePenaltyScore": null,
+    "awayPenaltyScore": null,
+    "winner": null,
     "venue": "GEHA Field at Arrowhead Stadium"
   }
 ]
