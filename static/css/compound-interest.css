@@ -1,0 +1,116 @@
+.compound-hero,
+.compound-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  padding: 32px;
+  margin-bottom: 28px;
+}
+
+.compound-hero h1 {
+  margin: 0 0 16px;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 6vw, 5rem);
+  line-height: 0.95;
+}
+
+.compound-hero p,
+.compound-card p {
+  color: #cbd5e1;
+  line-height: 1.7;
+}
+
+.compound-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 28px;
+}
+
+.compound-card h2 {
+  margin-top: 0;
+  color: #ffffff;
+}
+
+.compound-form {
+  display: grid;
+  gap: 18px;
+}
+
+.compound-form label {
+  display: grid;
+  gap: 8px;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.compound-form input {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font: inherit;
+}
+
+.compound-form input[type="range"] {
+  accent-color: #22c55e;
+}
+
+#yearsLabel {
+  color: #bbf7d0;
+}
+
+.formula-box {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+}
+
+.result-card h2 {
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  margin-bottom: 8px;
+  color: #bbf7d0;
+}
+
+#compoundChart {
+  width: 100%;
+  margin-top: 20px;
+  background: rgba(0, 0, 0, 0.16);
+  border-radius: 16px;
+}
+
+.compound-table {
+  display: grid;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.compound-table-row {
+  display: grid;
+  grid-template-columns: 80px repeat(3, minmax(120px, 1fr));
+  gap: 12px;
+  min-width: 520px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.compound-table-header {
+  color: #bbf7d0;
+  font-weight: 800;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+@media (max-width: 800px) {
+  .compound-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compound-hero,
+  .compound-card {
+    padding: 22px;
+  }
+}

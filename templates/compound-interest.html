@@ -2,94 +2,63 @@
 
 {% block title %}Compound Interest Calculator | CXMS{% endblock %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/compound-interest.css') }}">
+{% endblock %}
+
 {% block content %}
-<section class="section-panel calculator-panel">
-  <div class="calculator-header">
-    <span class="eyebrow">Financial tools</span>
-    <h1>Compound Interest Calculator</h1>
-    <p>
-      Estimate how an initial investment and regular monthly contributions could grow over time.
-    </p>
+<section class="compound-hero">
+  <span class="eyebrow">GCSE maths revision</span>
+  <h1>Compound Interest Calculator</h1>
+  <p>
+    Start with the simple idea: £100 at 10% interest. Each year, the interest is added,
+    then the next year’s interest is calculated on the new total.
+  </p>
+</section>
+
+<section class="compound-grid">
+  <div class="compound-card">
+    <h2>Try it</h2>
+
+    <form id="interestForm" class="compound-form">
+      <label>
+        Starting amount
+        <input type="number" name="initialInvestment" value="100" min="0" step="0.01">
+      </label>
+
+      <label>
+        Interest rate %
+        <input type="number" name="annualRate" value="10" min="0" step="0.1">
+      </label>
+
+      <label>
+        Years
+        <input id="yearsSlider" type="range" name="years" value="5" min="1" max="30">
+        <span id="yearsLabel">5 years</span>
+      </label>
+    </form>
+
+    <div class="formula-box">
+      <strong>Shortcut formula</strong>
+      <p>Final amount = starting amount × multiplier<sup>years</sup></p>
+      <p id="formulaExample">£100 × 1.10⁵ = £161.05</p>
+    </div>
   </div>
 
-  <form id="interestForm" class="calc-form">
-    <div class="calc-grid">
-      <label>
-        Initial investment
-        <input type="number" name="initialInvestment" placeholder="e.g. 1000" required>
-      </label>
+  <div class="compound-card result-card">
+    <h2 id="finalAmount">£161.05</h2>
+    <p id="gainText">That means £61.05 interest has been earned.</p>
 
-      <label>
-        Monthly contribution
-        <input type="number" name="monthlyContribution" placeholder="e.g. 200" required>
-      </label>
+    <canvas id="compoundChart" width="600" height="300"></canvas>
+  </div>
+</section>
 
-      <label>
-        Length of time
-        <input type="number" name="years" placeholder="Years" required>
-      </label>
-
-      <label>
-        Estimated interest rate
-        <input type="number" name="annualRate" step="0.1" placeholder="e.g. 7" required>
-      </label>
-
-      <label>
-        Variance range
-        <input type="number" name="varianceRange" step="0.1" placeholder="e.g. 2" required>
-      </label>
-
-      <label>
-        Compounding frequency
-        <select name="frequency">
-          <option value="1">Annually</option>
-          <option value="2">Semi-annually</option>
-          <option value="4">Quarterly</option>
-          <option value="12">Monthly</option>
-          <option value="365">Daily</option>
-        </select>
-      </label>
-    </div>
-
-    <button type="submit" class="btn-primary calc-submit">Calculate</button>
-  </form>
-
-  <div id="results" class="calc-results"></div>
+<section class="compound-card">
+  <h2>Year by year</h2>
+  <div id="compoundTable"></div>
 </section>
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.getElementById("interestForm").addEventListener("submit", function(event) {
-  event.preventDefault();
-
-  const formData = new FormData(event.target);
-
-  fetch("/compound-interest", {
-    method: "POST",
-    body: formData
-  })
-    .then(response => response.json())
-    .then(data => {
-      const resultsElement = document.getElementById("results");
-      resultsElement.innerHTML = `
-        <h2>Estimated results</h2>
-        <div class="result-list">
-          ${Object.entries(data).map(([rate, amount]) => `
-            <div class="result-card">
-              <span>${rate}</span>
-              <strong>$${amount}</strong>
-            </div>
-          `).join("")}
-        </div>
-      `;
-    })
-    .catch(error => {
-      console.error("Error:", error);
-      document.getElementById("results").innerHTML = `
-        <p class="calc-error">Sorry, something went wrong. Please try again.</p>
-      `;
-    });
-});
-</script>
+<script src="{{ url_for('static', filename='js/compound-interest.js') }}"></script>
 {% endblock %}
