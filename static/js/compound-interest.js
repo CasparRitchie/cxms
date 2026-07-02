@@ -12,17 +12,32 @@ function money(value) {
   return `£${Number(value).toFixed(2)}`;
 }
 
-function calculateRows(start, rate, years) {
-  const rows = [{ year: 0, start, interest: 0, end: start }];
+function calculateRows(start, annualRate, years, monthlyContribution, frequency) {
+  const rows = [{ year: 0, start, contribution: 0, interest: 0, end: start }];
 
   let amount = start;
+  const periodRate = annualRate / frequency;
 
   for (let year = 1; year <= years; year += 1) {
-    const interest = amount * rate;
-    const end = amount + interest;
+    const yearStart = amount;
+    let yearlyContributions = 0;
 
-    rows.push({ year, start: amount, interest, end });
-    amount = end;
+    for (let period = 1; period <= frequency; period += 1) {
+      const monthlyPeriods = 12 / frequency;
+      const contributionThisPeriod = monthlyContribution * monthlyPeriods;
+
+      amount += contributionThisPeriod;
+      yearlyContributions += contributionThisPeriod;
+      amount += amount * periodRate;
+    }
+
+    rows.push({
+      year,
+      start: yearStart,
+      contribution: yearlyContributions,
+      interest: amount - yearStart - yearlyContributions,
+      end: amount,
+    });
   }
 
   return rows;
@@ -68,7 +83,10 @@ function render() {
   const rate = ratePercent / 100;
   const multiplier = 1 + rate;
 
-  const rows = calculateRows(start, rate, years);
+  const monthlyContribution = Number(form.monthlyContribution.value || 0);
+  const frequency = Number(form.frequency.value || 12);
+
+  const rows = calculateRows(start, rate, years, monthlyContribution, frequency);
   const last = rows[rows.length - 1];
   const interestEarned = last.end - start;
 
@@ -84,6 +102,7 @@ function render() {
       <div class="compound-table-row compound-table-header">
         <span>Year</span>
         <span>Start</span>
+        <span>Contribution</span>
         <span>Interest</span>
         <span>End</span>
       </div>
@@ -92,6 +111,7 @@ function render() {
         <div class="compound-table-row">
           <span>${row.year}</span>
           <span>${money(row.start)}</span>
+          <span>${row.year === 0 ? "-" : money(row.contribution)}</span>
           <span>${row.year === 0 ? "-" : money(row.interest)}</span>
           <strong>${money(row.end)}</strong>
         </div>

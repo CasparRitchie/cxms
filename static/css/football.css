@@ -661,3 +661,8 @@
 .site-header.is-visible {
   top: 0;
 }
+
+.compound-table-row {
+  grid-template-columns: 80px repeat(4, minmax(120px, 1fr));
+  min-width: 660px;
+}
