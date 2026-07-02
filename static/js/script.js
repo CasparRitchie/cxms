@@ -10,16 +10,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!siteHeader) return;
 
     const currentScrollY = window.scrollY;
-    const delta = currentScrollY - lastScrollY;
+    const scrollingUp = currentScrollY < lastScrollY;
+    const scrollingDown = currentScrollY > lastScrollY;
 
-    // Ignore tiny movements
-    if (Math.abs(delta) < 5) return;
-
-    if (delta < 0 && currentScrollY > 80) {
-      // scrolling up
+    if (currentScrollY < 20) {
       siteHeader.classList.add("is-visible");
-    } else {
-      // scrolling down
+    } else if (scrollingUp) {
+      siteHeader.classList.add("is-visible");
+    } else if (scrollingDown) {
       siteHeader.classList.remove("is-visible");
     }
 
