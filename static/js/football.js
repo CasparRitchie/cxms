@@ -148,6 +148,13 @@ function formatMatchScore(fixture) {
   return `${fixture.homeScore}–${fixture.awayScore}`;
 }
 
+function getPointsScores(fixture) {
+  return {
+    home: fixture.ftHomeScore ?? fixture.homeScore,
+    away: fixture.ftAwayScore ?? fixture.awayScore,
+  };
+}
+
 function getFixtureSortTime(fixture) {
   return new Date(fixture.kickoff).getTime();
 }
@@ -177,8 +184,9 @@ function getTeamStats(teamName) {
 
       if (!isHome && !isAway) return stats;
 
-      const goalsFor = isHome ? fixture.homeScore : fixture.awayScore;
-      const goalsAgainst = isHome ? fixture.awayScore : fixture.homeScore;
+      const pointsScore = getPointsScores(fixture);
+      const goalsFor = isHome ? pointsScore.home : pointsScore.away;
+      const goalsAgainst = isHome ? pointsScore.away : pointsScore.home;
 
       stats.played += 1;
       stats.goalsFor += goalsFor;
@@ -316,8 +324,9 @@ function getTeamForm(teamName) {
     })
     .map((fixture) => {
       const isHome = normaliseTeamName(fixture.home) === normalisedTeam;
-      const goalsFor = isHome ? fixture.homeScore : fixture.awayScore;
-      const goalsAgainst = isHome ? fixture.awayScore : fixture.homeScore;
+      const pointsScore = getPointsScores(fixture);
+      const goalsFor = isHome ? pointsScore.home : pointsScore.away;
+      const goalsAgainst = isHome ? pointsScore.away : pointsScore.home;
 
       if (goalsFor > goalsAgainst) return "W";
       if (goalsFor === goalsAgainst) return "D";
@@ -486,8 +495,9 @@ function getTeamStatsForFixtures(teamName, fixtureSet) {
 
       if (!isHome && !isAway) return stats;
 
-      const goalsFor = isHome ? fixture.homeScore : fixture.awayScore;
-      const goalsAgainst = isHome ? fixture.awayScore : fixture.homeScore;
+      const pointsScore = getPointsScores(fixture);
+      const goalsFor = isHome ? pointsScore.home : pointsScore.away;
+      const goalsAgainst = isHome ? pointsScore.away : pointsScore.home;
 
       stats.played += 1;
       stats.goalsFor += goalsFor;
@@ -975,6 +985,7 @@ function renderPlayerFormTable(players) {
       ${players.map((player) => {
         const playerResults = completedFixtures.flatMap((fixture) => {
           const results = [];
+          const pointsScore = getPointsScores(fixture);
 
           const ownsHome = player.teams.some(
             (team) => normaliseTeamName(team) === normaliseTeamName(fixture.home)
@@ -986,8 +997,8 @@ function renderPlayerFormTable(players) {
 
           if (ownsHome) {
             const result =
-              fixture.homeScore > fixture.awayScore ? "W" :
-              fixture.homeScore === fixture.awayScore ? "D" :
+              pointsScore.home > pointsScore.away ? "W" :
+              pointsScore.home === pointsScore.away ? "D" :
               "L";
 
             results.push({
@@ -999,8 +1010,8 @@ function renderPlayerFormTable(players) {
 
           if (ownsAway) {
             const result =
-              fixture.awayScore > fixture.homeScore ? "W" :
-              fixture.awayScore === fixture.homeScore ? "D" :
+              pointsScore.away > pointsScore.home ? "W" :
+              pointsScore.away === pointsScore.home ? "D" :
               "L";
 
             results.push({
@@ -1024,10 +1035,16 @@ function renderPlayerFormTable(players) {
                   result === "D" ? "form-draw" :
                   "form-loss";
 
+                const scoreLabel = fixture.scorePhase === "AET"
+                  ? `${fixture.ftHomeScore}–${fixture.ftAwayScore} FT, ${fixture.aetHomeScore}–${fixture.aetAwayScore} AET`
+                  : fixture.scorePhase === "PEN"
+                    ? `${fixture.ftHomeScore}–${fixture.ftAwayScore} FT, ${fixture.homePenaltyScore}–${fixture.awayPenaltyScore} pens`
+                    : `${fixture.homeScore}–${fixture.awayScore}`;
+
                 return `
                   <span
                     class="form-dot ${className}"
-                    title="${player.name}: ${team} ${result} (${fixture.home} ${fixture.homeScore}–${fixture.awayScore} ${fixture.away})"
+                    title="${player.name}: ${team} ${result} (${fixture.home} ${scoreLabel} ${fixture.away})"
                   >
                     ${result}
                   </span>
@@ -1146,8 +1163,9 @@ function getTeamPoints(teamName) {
 
     if (!isHome && !isAway) return total;
 
-    const teamScore = isHome ? fixture.homeScore : fixture.awayScore;
-    const opponentScore = isHome ? fixture.awayScore : fixture.homeScore;
+    const pointsScore = getPointsScores(fixture);
+    const teamScore = isHome ? pointsScore.home : pointsScore.away;
+    const opponentScore = isHome ? pointsScore.away : pointsScore.home;
 
     if (teamScore > opponentScore) return total + 3;
     if (teamScore === opponentScore) return total + 1;
