@@ -100,6 +100,7 @@ const teamSummary = document.getElementById("team-summary");
 const playerFormTable = document.getElementById("player-form-table");
 const timezoneLabel = document.getElementById("timezone-label");
 const teamStandings = document.getElementById("team-standings");
+const prizeSummary = document.getElementById("prize-summary");
 
 function loadPlayers() {
   const saved = localStorage.getItem(storageKey);
@@ -920,25 +921,11 @@ function renderAnimatedStandings(players) {
 function renderTeamStandings() {
   if (!teamStandings) return;
 
-  const allTeams = [...new Set(players.flatMap((player) => player.teams || []))];
-
-  const rows = allTeams
-    .map((team) => ({
-      team,
-      owner: getTeamOwner(team)?.name || "Unowned",
-      stats: getTeamStats(team),
-      stillAlive: isTeamStillAlive(team),
-    }))
-    .map((row) => ({
-      ...row,
-      goalDifference: row.stats.goalsFor - row.stats.goalsAgainst,
-      points: row.stats.wins * 3 + row.stats.draws,
-    }))
-    .sort((a, b) =>
-      b.points - a.points ||
-      b.goalDifference - a.goalDifference ||
-      b.stats.goalsFor - a.stats.goalsFor
-    );
+  const rows = buildAllTeamRows().sort((a, b) =>
+    b.points - a.points ||
+    b.goalDifference - a.goalDifference ||
+    b.stats.goalsFor - a.stats.goalsFor
+  );
 
   teamStandings.innerHTML = `
     <div class="sweepstake-table">
@@ -964,7 +951,9 @@ function renderTeamStandings() {
           <span>${row.stats.wins}</span>
           <span>${row.stats.draws}</span>
           <span>${row.stats.losses}</span>
-          <span>${row.goalDifference > 0 ? "+" : ""}${row.goalDifference}</span>
+          <span>
+            ${row.goalDifference > 0 ? "+" : ""}${row.goalDifference}
+          </span>
           <span><strong>${row.points}</strong></span>
           <span>${row.stillAlive ? "🟢 In" : "🔴 Out"}</span>
         </div>
@@ -1128,8 +1117,318 @@ function renderFixtures() {
   `;
 }
 
+function normaliseStageLabel(value = "") {
+  return value
+    .toLowerCase()
+    .replace(/[–—-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function fixtureMatchesStage(fixture, acceptedLabels) {
+  const labels = [
+    normaliseStageLabel(fixture.round),
+    normaliseStageLabel(fixture.stage),
+  ];
+
+  return labels.some((label) => acceptedLabels.includes(label));
+}
+
+function isSemiFinalFixture(fixture) {
+  return fixtureMatchesStage(fixture, [
+    "semi final",
+    "semi finals",
+    "semifinal",
+    "semifinals",
+  ]);
+}
+
+function isFinalFixture(fixture) {
+  return fixtureMatchesStage(fixture, [
+    "final",
+    "world cup final",
+  ]);
+}
+
+function isThirdPlaceFixture(fixture) {
+  return fixtureMatchesStage(fixture, [
+    "third place",
+    "third place match",
+    "third place play off",
+    "bronze match",
+    "bronze medal match",
+  ]);
+}
+
+function getLatestMatchingFixture(predicate) {
+  return [...fixtures]
+    .filter(predicate)
+    .sort((a, b) => getFixtureSortTime(b) - getFixtureSortTime(a))[0] || null;
+}
+
+function getFixtureLoser(fixture) {
+  if (!fixture || fixture.status !== "complete") return null;
+
+  const winner = getFixtureWinner(fixture);
+  if (!winner) return null;
+
+  const homeTeam = normaliseTeamName(fixture.home);
+  const awayTeam = normaliseTeamName(fixture.away);
+
+  if (winner === homeTeam) return awayTeam;
+  if (winner === awayTeam) return homeTeam;
+
+  return null;
+}
+
+function uniqueTeams(teamNames) {
+  return [
+    ...new Set(
+      teamNames
+        .filter(Boolean)
+        .map((team) => normaliseTeamName(team))
+    ),
+  ];
+}
+
+function getSemiFinalOutcomes() {
+  const semiFinals = [...fixtures]
+    .filter(isSemiFinalFixture)
+    .sort((a, b) => getFixtureSortTime(a) - getFixtureSortTime(b));
+
+  return {
+    finalists: uniqueTeams(
+      semiFinals.map((fixture) => getFixtureWinner(fixture))
+    ),
+    thirdPlaceTeams: uniqueTeams(
+      semiFinals.map((fixture) => getFixtureLoser(fixture))
+    ),
+  };
+}
+
+function buildAllTeamRows() {
+  const allTeams = [
+    ...new Set(players.flatMap((player) => player.teams || [])),
+  ];
+
+  return allTeams.map((team) => {
+    const stats = getTeamStats(team);
+    const goalDifference = stats.goalsFor - stats.goalsAgainst;
+
+    return {
+      team,
+      owner: getTeamOwner(team)?.name || "Unowned",
+      stats,
+      goalDifference,
+      points: stats.wins * 3 + stats.draws,
+      stillAlive: isTeamStillAlive(team),
+    };
+  });
+}
+
+function getWorstTeamCandidates() {
+  const rows = buildAllTeamRows();
+
+  if (!rows.length || rows.some((row) => row.stats.played === 0)) {
+    return [];
+  }
+
+  const orderedWorstFirst = [...rows].sort((a, b) =>
+    a.points - b.points ||
+    a.goalDifference - b.goalDifference ||
+    a.stats.goalsFor - b.stats.goalsFor
+  );
+
+  const worst = orderedWorstFirst[0];
+
+  return orderedWorstFirst.filter((row) =>
+    row.points === worst.points &&
+    row.goalDifference === worst.goalDifference &&
+    row.stats.goalsFor === worst.stats.goalsFor
+  );
+}
+
+function formatGoalsScored(value) {
+  return `${value} goal${value === 1 ? "" : "s"} scored`;
+}
+
+function renderPrizeContenders(teamNames) {
+  if (!teamNames.length) {
+    return `<span class="prize-awaiting">To be decided</span>`;
+  }
+
+  return teamNames
+    .map((team) => {
+      const owner = getTeamOwner(team)?.name || "Unowned";
+
+      return `
+        <span class="prize-contender">
+          <strong>${owner}</strong>
+          <small>${team}</small>
+        </span>
+      `;
+    })
+    .join(`<span class="prize-or">or</span>`);
+}
+
+function renderPrizeCard({
+  icon,
+  title,
+  amount,
+  team = null,
+  contenders = [],
+  description,
+  confirmed = false,
+}) {
+  let resultMarkup;
+
+  if (team) {
+    const owner = getTeamOwner(team)?.name || "Unowned";
+
+    resultMarkup = `
+      <div class="prize-result">
+        <strong>${owner}</strong>
+        <span>${team}</span>
+      </div>
+    `;
+  } else {
+    resultMarkup = `
+      <div class="prize-contenders">
+        ${renderPrizeContenders(contenders)}
+      </div>
+    `;
+  }
+
+  return `
+    <article class="prize-card ${confirmed ? "is-confirmed" : "is-pending"}">
+      <div class="prize-card-top">
+        <span class="prize-icon" aria-hidden="true">${icon}</span>
+
+        <div>
+          <span class="small-label">${title}</span>
+          <strong class="prize-amount">£${amount}</strong>
+        </div>
+      </div>
+
+      ${resultMarkup}
+
+      <p>${description}</p>
+
+      <span class="prize-status">
+        ${confirmed ? "Confirmed" : "To be decided"}
+      </span>
+    </article>
+  `;
+}
+
+function renderPrizeSummary() {
+  if (!prizeSummary) return;
+
+  const finalFixture = getLatestMatchingFixture(isFinalFixture);
+  const thirdPlaceFixture = getLatestMatchingFixture(isThirdPlaceFixture);
+  const semiFinalOutcomes = getSemiFinalOutcomes();
+
+  const finalContenders = uniqueTeams(
+    finalFixture
+      ? [finalFixture.home, finalFixture.away]
+      : semiFinalOutcomes.finalists
+  );
+
+  const thirdPlaceContenders = uniqueTeams(
+    thirdPlaceFixture
+      ? [thirdPlaceFixture.home, thirdPlaceFixture.away]
+      : semiFinalOutcomes.thirdPlaceTeams
+  );
+
+  const finalComplete =
+    finalFixture && finalFixture.status === "complete";
+
+  const thirdPlaceComplete =
+    thirdPlaceFixture && thirdPlaceFixture.status === "complete";
+
+  const champion = finalComplete
+    ? getFixtureWinner(finalFixture)
+    : null;
+
+  const runnerUp = finalComplete
+    ? getFixtureLoser(finalFixture)
+    : null;
+
+  const thirdPlace = thirdPlaceComplete
+    ? getFixtureWinner(thirdPlaceFixture)
+    : null;
+
+  const worstCandidates = getWorstTeamCandidates();
+  const worstTeam =
+    worstCandidates.length === 1 ? worstCandidates[0] : null;
+
+  const worstCard = worstTeam
+    ? renderPrizeCard({
+        icon: "🪵",
+        title: "Worst-performing team",
+        amount: 5,
+        team: worstTeam.team,
+        confirmed: true,
+        description:
+          `${worstTeam.points} points · ` +
+          `GD ${worstTeam.goalDifference > 0 ? "+" : ""}${worstTeam.goalDifference} · ` +
+          formatGoalsScored(worstTeam.stats.goalsFor),
+      })
+    : renderPrizeCard({
+        icon: "🪵",
+        title: "Worst-performing team",
+        amount: 5,
+        contenders: worstCandidates.map((row) => row.team),
+        confirmed: false,
+        description: worstCandidates.length > 1
+          ? "The teams remain tied on points, goal difference and goals scored."
+          : "Calculated from points, goal difference and goals scored.",
+      });
+
+  prizeSummary.innerHTML = `
+    ${renderPrizeCard({
+      icon: "🥇",
+      title: "Tournament winner",
+      amount: 20,
+      team: champion,
+      contenders: finalContenders,
+      confirmed: Boolean(champion),
+      description: champion
+        ? "Winner of the World Cup final."
+        : "Argentina and Spain will contest the final.",
+    })}
+
+    ${renderPrizeCard({
+      icon: "🥈",
+      title: "Runner-up",
+      amount: 10,
+      team: runnerUp,
+      contenders: finalContenders,
+      confirmed: Boolean(runnerUp),
+      description: runnerUp
+        ? "The losing finalist."
+        : "Awarded to the owner of the losing finalist.",
+    })}
+
+    ${renderPrizeCard({
+      icon: "🥉",
+      title: "Third place",
+      amount: 5,
+      team: thirdPlace,
+      contenders: thirdPlaceContenders,
+      confirmed: Boolean(thirdPlace),
+      description: thirdPlace
+        ? "Winner of the bronze medal match."
+        : "England and France will contest the bronze medal match.",
+    })}
+
+    ${worstCard}
+  `;
+}
+
 function renderAll(players) {
   renderSummary(players);
+  renderPrizeSummary();
   renderLeaderboard(players);
   renderRaceChart(players);
   renderAnimatedStandings(players);

@@ -663,3 +663,152 @@
 }
 
 
+.prize-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.prize-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 230px;
+  padding: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.045);
+  overflow: hidden;
+}
+
+.prize-card.is-confirmed {
+  border-color: rgba(154, 201, 78, 0.55);
+  background:
+    linear-gradient(
+      145deg,
+      rgba(154, 201, 78, 0.14),
+      rgba(255, 255, 255, 0.04)
+    );
+}
+
+.prize-card.is-pending {
+  border-style: dashed;
+}
+
+.prize-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.25rem;
+}
+
+.prize-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 1.5rem;
+}
+
+.prize-card-top > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.prize-amount {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.prize-result {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.prize-result strong {
+  font-size: 1.35rem;
+}
+
+.prize-result span {
+  margin-top: 0.2rem;
+  opacity: 0.72;
+}
+
+.prize-contenders {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.prize-contender {
+  display: flex;
+  flex-direction: column;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.prize-contender strong {
+  font-size: 0.95rem;
+}
+
+.prize-contender small {
+  margin-top: 0.1rem;
+  opacity: 0.7;
+}
+
+.prize-or {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.prize-awaiting {
+  opacity: 0.65;
+}
+
+.prize-card p {
+  margin: 0 0 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.prize-status {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.prize-card.is-confirmed .prize-status {
+  background: rgba(154, 201, 78, 0.18);
+}
+
+@media (max-width: 1000px) {
+  .prize-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .prize-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prize-card {
+    min-height: 0;
+  }
+}
