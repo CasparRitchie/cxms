@@ -27,10 +27,18 @@ def style_guide():
 def games():
     return render_template("games.html")
 
+
+@app.route("/circuit-training")
+@app.route("/circuit-training/")
+def circuit_training():
+    return render_template("circuit-training.html")
+
+
 @app.route("/football")
 @app.route("/football/")
 def football():
     return render_template("football.html")
+
 
 @app.route("/games/country-data")
 def country_data():
@@ -59,6 +67,7 @@ def country_data():
         ],
     }
     return jsonify(game_data)
+
 
 @app.route("/games/sudoku")
 @app.route("/games/sudoku/")
@@ -166,6 +175,7 @@ def myschool_page():
     if not MYSCHOOL_ENABLED:
         return redirect(url_for("index"))
     return render_template("myschool.html")
+
 
 @app.route("/data-explorer")
 def data_explorer():
