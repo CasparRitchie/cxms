@@ -4,7 +4,7 @@
 
 {% block head_extra %}
   <meta name="description" content="AQA GCSE History 8145 revision, exam question guidance and constructive answer feedback for the 2027 exams.">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/gcse-history.css') }}?v=3">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/gcse-history.css') }}?v=4">
 {% endblock %}
 
 {% block content %}
@@ -43,7 +43,7 @@
     <div class="section-intro">
       <p class="section-kicker">KNOWLEDGE</p>
       <h2>Topic library</h2>
-      <p>Explore every option in the AQA specification. Each topic is broken into its required content, big questions and revision priorities.</p>
+      <p>Explore every option in the AQA specification. Each topic is broken into its required content and revision priorities.</p>
     </div>
     <div class="filter-row">
       <input id="topic-search" type="search" placeholder="Search people, events or themes…" aria-label="Search topics">
@@ -74,7 +74,7 @@
     <div class="section-intro">
       <p class="section-kicker">ACTIVE PRACTICE</p>
       <h2>Write an answer and improve it</h2>
-      <p>The first draft uses transparent AQA-aligned checks. It does not pretend to be an official examiner mark.</p>
+      <p>This first draft gives transparent formative coaching rather than pretending to be an official examiner mark.</p>
     </div>
     <div class="practice-layout">
       <form class="practice-form card" id="practice-form">
@@ -86,11 +86,11 @@
           <span id="target-time"></span>
         </div>
         <label>Your answer<textarea id="student-answer" rows="14" placeholder="Write your answer here…"></textarea></label>
-        <div class="answer-meta"><span id="word-count">0 words</span><span id="answer-autosave">Saved locally</span></div>
+        <div class="answer-meta"><span id="word-count">0 words</span><span>Saved on this device</span></div>
         <button type="submit" class="primary-button">Get constructive feedback</button>
       </form>
       <aside class="feedback-panel card" id="feedback-panel">
-        <div class="empty-state"><strong>Your feedback will appear here</strong><p>You will receive strengths, priorities, a checklist and suggested revision areas.</p></div>
+        <div class="empty-state"><strong>Your feedback will appear here</strong><p>You will receive strengths, priorities and suggested revision areas.</p></div>
       </aside>
     </div>
   </section>
@@ -102,49 +102,33 @@
       <p>Rate your confidence and use practice feedback to decide what to revise next.</p>
     </div>
     <div class="dashboard-grid">
-      <div class="card">
-        <h3>My confidence</h3>
-        <div id="confidence-list"></div>
-      </div>
-      <div class="card">
-        <h3>Recommended next steps</h3>
-        <div id="revision-recommendations"></div>
-      </div>
+      <div class="card"><h3>My confidence</h3><div id="confidence-list"></div></div>
+      <div class="card"><h3>Recommended next steps</h3><div id="revision-recommendations"></div></div>
     </div>
   </section>
 
   <footer class="history-note">
-    <p>Independent revision helper based on the published AQA GCSE History (8145) specification. Not endorsed by AQA. Always follow your teacher’s guidance and current AQA materials.</p>
+    <p>Independent revision helper based on the published AQA GCSE History (8145) specification. Not endorsed by AQA.</p>
   </footer>
 </section>
 {% endblock %}
 
 {% block scripts %}
   <script>
-    (() => {
-      const tabs = Array.from(document.querySelectorAll('.history-tabs .tab'));
-      const panels = Array.from(document.querySelectorAll('.history-app .tab-panel'));
-
-      function activateTab(tabName) {
-        tabs.forEach((button) => {
-          const isActive = button.dataset.tab === tabName;
-          button.classList.toggle('active', isActive);
-          button.setAttribute('aria-selected', String(isActive));
+    document.querySelectorAll('.history-tabs .tab').forEach(function (button) {
+      button.addEventListener('click', function () {
+        document.querySelectorAll('.history-tabs .tab').forEach(function (item) {
+          var active = item === button;
+          item.classList.toggle('active', active);
+          item.setAttribute('aria-selected', active ? 'true' : 'false');
         });
-
-        panels.forEach((panel) => {
-          const isActive = panel.id === `${tabName}-panel`;
-          panel.hidden = !isActive;
-          panel.classList.toggle('active', isActive);
+        document.querySelectorAll('.history-app .tab-panel').forEach(function (panel) {
+          var active = panel.id === button.dataset.tab + '-panel';
+          panel.hidden = !active;
+          panel.classList.toggle('active', active);
         });
-      }
-
-      tabs.forEach((button) => {
-        button.addEventListener('click', () => activateTab(button.dataset.tab));
       });
-
-      window.gcseHistoryActivateTab = activateTab;
-    })();
+    });
   </script>
-  <script src="{{ url_for('static', filename='js/gcse-history.js') }}?v=3" defer></script>
+  <script src="{{ url_for('static', filename='js/gcse-history-v4.js') }}?v=4"></script>
 {% endblock %}
