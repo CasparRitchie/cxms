@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}AQA GCSE History Helper — 2027 Exams{% endblock %}
+
+{% block head_extra %}
+  <meta name="description" content="AQA GCSE History 8145 revision, exam question guidance and constructive answer feedback for the 2027 exams.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/gcse-history.css') }}?v=1">
+{% endblock %}
+
+{% block content %}
+<section class="history-app" id="history-app">
+  <header class="history-hero">
+    <div>
+      <p class="eyebrow">AQA GCSE HISTORY 8145 · 2027 EXAMS</p>
+      <h1>History Revision &amp; Answer Coach</h1>
+      <p class="hero-copy">Choose your course, understand the context, practise every AQA question type and get constructive feedback on how to improve.</p>
+    </div>
+    <div class="exam-summary" aria-label="Exam summary">
+      <strong>2 papers</strong><span>2 hours each</span>
+      <strong>168 marks</strong><span>50% per paper</span>
+    </div>
+  </header>
+
+  <nav class="history-tabs" aria-label="History helper sections">
+    <button class="tab active" data-tab="course">My course</button>
+    <button class="tab" data-tab="topics">Topic library</button>
+    <button class="tab" data-tab="questions">Question coach</button>
+    <button class="tab" data-tab="practice">Practise &amp; feedback</button>
+    <button class="tab" data-tab="revision">Revision dashboard</button>
+  </nav>
+
+  <section class="tab-panel active" id="course-panel">
+    <div class="section-intro">
+      <p class="section-kicker">START HERE</p>
+      <h2>Build your AQA course</h2>
+      <p>AQA schools choose one option from each group. Your choices are saved on this device.</p>
+    </div>
+    <div class="course-builder" id="course-builder"></div>
+    <div class="course-overview card" id="course-overview"></div>
+  </section>
+
+  <section class="tab-panel" id="topics-panel" hidden>
+    <div class="section-intro">
+      <p class="section-kicker">KNOWLEDGE</p>
+      <h2>Topic library</h2>
+      <p>Explore every option in the AQA specification. Each topic is broken into its required content, big questions and revision priorities.</p>
+    </div>
+    <div class="filter-row">
+      <input id="topic-search" type="search" placeholder="Search people, events or themes…" aria-label="Search topics">
+      <select id="topic-group-filter" aria-label="Filter by paper section">
+        <option value="all">All sections</option>
+        <option value="period">Paper 1A: Period studies</option>
+        <option value="world-depth">Paper 1B: Wider world depth</option>
+        <option value="thematic">Paper 2A: Thematic studies</option>
+        <option value="british-depth">Paper 2B: British depth</option>
+      </select>
+    </div>
+    <div class="topic-grid" id="topic-grid"></div>
+  </section>
+
+  <section class="tab-panel" id="questions-panel" hidden>
+    <div class="section-intro">
+      <p class="section-kicker">EXAM TECHNIQUE</p>
+      <h2>Question coach</h2>
+      <p>Learn what each command word demands, how marks are awarded and a reliable structure for answering.</p>
+    </div>
+    <div class="question-layout">
+      <aside class="question-list" id="question-list"></aside>
+      <article class="question-guide card" id="question-guide"></article>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="practice-panel" hidden>
+    <div class="section-intro">
+      <p class="section-kicker">ACTIVE PRACTICE</p>
+      <h2>Write an answer and improve it</h2>
+      <p>The first draft uses transparent AQA-aligned checks. It does not pretend to be an official examiner mark.</p>
+    </div>
+    <div class="practice-layout">
+      <form class="practice-form card" id="practice-form">
+        <label>Topic<select id="practice-topic"></select></label>
+        <label>Question type<select id="practice-question"></select></label>
+        <label>Your question<input id="practice-prompt" type="text"></label>
+        <div class="prompt-actions">
+          <button type="button" class="secondary-button" id="generate-question">Generate practice question</button>
+          <span id="target-time"></span>
+        </div>
+        <label>Your answer<textarea id="student-answer" rows="14" placeholder="Write your answer here…"></textarea></label>
+        <div class="answer-meta"><span id="word-count">0 words</span><span id="answer-autosave">Saved locally</span></div>
+        <button type="submit" class="primary-button">Get constructive feedback</button>
+      </form>
+      <aside class="feedback-panel card" id="feedback-panel">
+        <div class="empty-state"><strong>Your feedback will appear here</strong><p>You will receive strengths, priorities, a checklist and suggested revision areas.</p></div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="revision-panel" hidden>
+    <div class="section-intro">
+      <p class="section-kicker">TARGETED REVISION</p>
+      <h2>Revision dashboard</h2>
+      <p>Rate your confidence and use practice feedback to decide what to revise next.</p>
+    </div>
+    <div class="dashboard-grid">
+      <div class="card">
+        <h3>My confidence</h3>
+        <div id="confidence-list"></div>
+      </div>
+      <div class="card">
+        <h3>Recommended next steps</h3>
+        <div id="revision-recommendations"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="history-note">
+    <p>Independent revision helper based on the published AQA GCSE History (8145) specification. Not endorsed by AQA. Always follow your teacher’s guidance and current AQA materials.</p>
+  </footer>
+</section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/gcse-history.js') }}?v=1"></script>
+{% endblock %}
