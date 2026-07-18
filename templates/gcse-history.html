@@ -4,7 +4,7 @@
 
 {% block head_extra %}
   <meta name="description" content="AQA GCSE History 8145 revision, exam question guidance and constructive answer feedback for the 2027 exams.">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/gcse-history.css') }}?v=4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/gcse-history.css') }}?v=5">
 {% endblock %}
 
 {% block content %}
@@ -13,11 +13,11 @@
     <div>
       <p class="eyebrow">AQA GCSE HISTORY 8145 · 2027 EXAMS</p>
       <h1>History Revision &amp; Answer Coach</h1>
-      <p class="hero-copy">Choose your course, understand the context, practise every AQA question type and get constructive feedback on how to improve.</p>
+      <p class="hero-copy">A content-grounded Germany 1890–1945 prototype that checks historical knowledge, misconceptions and exam technique.</p>
     </div>
     <div class="exam-summary" aria-label="Exam summary">
-      <strong>2 papers</strong><span>2 hours each</span>
-      <strong>168 marks</strong><span>50% per paper</span>
+      <strong>Germany</strong><span>1890–1945</span>
+      <strong>AQA</strong><span>Period study</span>
     </div>
   </header>
 
@@ -31,9 +31,9 @@
 
   <section class="tab-panel active" id="course-panel" role="tabpanel">
     <div class="section-intro">
-      <p class="section-kicker">START HERE</p>
-      <h2>Build your AQA course</h2>
-      <p>AQA schools choose one option from each group. Your choices are saved on this device.</p>
+      <p class="section-kicker">CONTENT-RICH PROTOTYPE</p>
+      <h2>Germany, 1890–1945</h2>
+      <p>This vertical slice proves the detailed knowledge-store and grounded assessment approach before expansion to the remaining AQA topics.</p>
     </div>
     <div class="course-builder" id="course-builder"></div>
     <div class="course-overview card" id="course-overview"></div>
@@ -41,19 +41,13 @@
 
   <section class="tab-panel" id="topics-panel" role="tabpanel" hidden>
     <div class="section-intro">
-      <p class="section-kicker">KNOWLEDGE</p>
-      <h2>Topic library</h2>
-      <p>Explore every option in the AQA specification. Each topic is broken into its required content and revision priorities.</p>
+      <p class="section-kicker">KNOWLEDGE STORE</p>
+      <h2>Germany topic library</h2>
+      <p>Browse the explanations, key facts, vocabulary and misconception corrections used by the assessor.</p>
     </div>
     <div class="filter-row">
       <input id="topic-search" type="search" placeholder="Search people, events or themes…" aria-label="Search topics">
-      <select id="topic-group-filter" aria-label="Filter by paper section">
-        <option value="all">All sections</option>
-        <option value="period">Paper 1A: Period studies</option>
-        <option value="world-depth">Paper 1B: Wider world depth</option>
-        <option value="thematic">Paper 2A: Thematic studies</option>
-        <option value="british-depth">Paper 2B: British depth</option>
-      </select>
+      <select id="topic-group-filter" aria-label="Filter by Germany section"><option value="all">All Germany sections</option></select>
     </div>
     <div class="topic-grid" id="topic-grid"></div>
   </section>
@@ -62,7 +56,7 @@
     <div class="section-intro">
       <p class="section-kicker">EXAM TECHNIQUE</p>
       <h2>Question coach</h2>
-      <p>Learn what each command word demands, how marks are awarded and a reliable structure for answering.</p>
+      <p>Understand the evidence, analysis and judgement each question requires.</p>
     </div>
     <div class="question-layout">
       <aside class="question-list" id="question-list"></aside>
@@ -72,9 +66,9 @@
 
   <section class="tab-panel" id="practice-panel" role="tabpanel" hidden>
     <div class="section-intro">
-      <p class="section-kicker">ACTIVE PRACTICE</p>
+      <p class="section-kicker">GROUNDED PRACTICE</p>
       <h2>Write an answer and improve it</h2>
-      <p>This first draft gives transparent formative coaching rather than pretending to be an official examiner mark.</p>
+      <p>The assessor compares the response with the selected Germany knowledge pack and known misconceptions.</p>
     </div>
     <div class="practice-layout">
       <form class="practice-form card" id="practice-form">
@@ -86,11 +80,11 @@
           <span id="target-time"></span>
         </div>
         <label>Your answer<textarea id="student-answer" rows="14" placeholder="Write your answer here…"></textarea></label>
-        <div class="answer-meta"><span id="word-count">0 words</span><span>Saved on this device</span></div>
-        <button type="submit" class="primary-button">Get constructive feedback</button>
+        <div class="answer-meta"><span id="word-count">0 words</span><span id="answer-autosave">Uses selected knowledge pack</span></div>
+        <button type="submit" class="primary-button">Get grounded feedback</button>
       </form>
       <aside class="feedback-panel card" id="feedback-panel">
-        <div class="empty-state"><strong>Your feedback will appear here</strong><p>You will receive strengths, priorities and suggested revision areas.</p></div>
+        <div class="empty-state"><strong>Your feedback will appear here</strong><p>It will separate factual corrections, accurate knowledge, missing evidence and exam technique.</p></div>
       </aside>
     </div>
   </section>
@@ -99,7 +93,7 @@
     <div class="section-intro">
       <p class="section-kicker">TARGETED REVISION</p>
       <h2>Revision dashboard</h2>
-      <p>Rate your confidence and use practice feedback to decide what to revise next.</p>
+      <p>Rate confidence for each Germany subtopic and use answer feedback to decide what to revise next.</p>
     </div>
     <div class="dashboard-grid">
       <div class="card"><h3>My confidence</h3><div id="confidence-list"></div></div>
@@ -107,9 +101,7 @@
     </div>
   </section>
 
-  <footer class="history-note">
-    <p>Independent revision helper based on the published AQA GCSE History (8145) specification. Not endorsed by AQA.</p>
-  </footer>
+  <footer class="history-note"><p>Independent revision helper based on the published AQA GCSE History (8145) specification. Not endorsed by AQA. Feedback is formative and should be checked against current teacher and AQA materials.</p></footer>
 </section>
 {% endblock %}
 
@@ -130,5 +122,5 @@
       });
     });
   </script>
-  <script src="{{ url_for('static', filename='js/gcse-history-v4.js') }}?v=4"></script>
+  <script src="{{ url_for('static', filename='js/gcse-history-v5.js') }}?v=5"></script>
 {% endblock %}
