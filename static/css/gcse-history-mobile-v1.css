@@ -1,0 +1,115 @@
+@media (max-width: 850px) {
+  body.gcse-history-page .site-header {
+    transition: transform 220ms ease, box-shadow 220ms ease;
+    will-change: transform;
+  }
+
+  body.gcse-history-page .site-header.nav-hidden {
+    transform: translateY(calc(-100% - 2px));
+    box-shadow: none;
+  }
+
+  body.gcse-history-page .site-header__inner {
+    min-height: 58px;
+    gap: 8px;
+  }
+
+  body.gcse-history-page .site-brand {
+    font-size: 1rem;
+  }
+
+  body.gcse-history-page .site-nav {
+    flex-wrap: nowrap;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 6px;
+  }
+
+  body.gcse-history-page .site-nav::-webkit-scrollbar,
+  .history-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  body.gcse-history-page .site-nav a {
+    flex: 0 0 auto;
+    padding: 8px 11px;
+    font-size: .86rem;
+  }
+
+  body.gcse-history-page .site-main {
+    padding-top: 14px;
+  }
+
+  .history-app {
+    padding-top: 0;
+  }
+
+  .history-hero {
+    padding: 22px 18px;
+    border-radius: 18px;
+    gap: 12px;
+  }
+
+  .history-hero h1 {
+    font-size: clamp(1.9rem, 10vw, 2.7rem);
+    line-height: 1;
+  }
+
+  .history-hero .hero-copy {
+    font-size: .96rem;
+    line-height: 1.5;
+    margin-top: 12px;
+  }
+
+  .history-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    margin: 0 -16px;
+    padding: 12px 16px;
+    background: rgba(245, 247, 251, .96);
+    border-bottom: 1px solid #cbd3df;
+    box-shadow: 0 8px 18px rgba(16, 24, 40, .08);
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .history-tabs .tab {
+    flex: 0 0 auto;
+    scroll-snap-align: center;
+    padding: 10px 14px;
+  }
+
+  .tab-panel {
+    padding-top: 18px;
+  }
+
+  .practice-form textarea {
+    min-height: 42vh;
+  }
+
+  .mobile-feedback-toggle {
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 10px;
+    padding: 11px 14px;
+    border: 2px solid #9eabc0;
+    border-radius: 10px;
+    background: #e5ebf3;
+    color: #17375f;
+    font-weight: 800;
+  }
+
+  .feedback-panel.mobile-collapsed {
+    display: none;
+  }
+}
+
+@media (min-width: 851px) {
+  .mobile-feedback-toggle {
+    display: none !important;
+  }
+}
