@@ -4,7 +4,7 @@
 
 {% block head_extra %}
   <meta name="description" content="AQA GCSE History 8145 revision, exam question guidance and constructive answer feedback for the 2027 exams.">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/gcse-history.css') }}?v=2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/gcse-history.css') }}?v=3">
 {% endblock %}
 
 {% block content %}
@@ -21,15 +21,15 @@
     </div>
   </header>
 
-  <nav class="history-tabs" aria-label="History helper sections">
-    <button type="button" class="tab active" data-tab="course">My course</button>
-    <button type="button" class="tab" data-tab="topics">Topic library</button>
-    <button type="button" class="tab" data-tab="questions">Question coach</button>
-    <button type="button" class="tab" data-tab="practice">Practise &amp; feedback</button>
-    <button type="button" class="tab" data-tab="revision">Revision dashboard</button>
+  <nav class="history-tabs" aria-label="History helper sections" role="tablist">
+    <button type="button" class="tab active" data-tab="course" role="tab" aria-controls="course-panel" aria-selected="true">My course</button>
+    <button type="button" class="tab" data-tab="topics" role="tab" aria-controls="topics-panel" aria-selected="false">Topic library</button>
+    <button type="button" class="tab" data-tab="questions" role="tab" aria-controls="questions-panel" aria-selected="false">Question coach</button>
+    <button type="button" class="tab" data-tab="practice" role="tab" aria-controls="practice-panel" aria-selected="false">Practise &amp; feedback</button>
+    <button type="button" class="tab" data-tab="revision" role="tab" aria-controls="revision-panel" aria-selected="false">Revision dashboard</button>
   </nav>
 
-  <section class="tab-panel active" id="course-panel">
+  <section class="tab-panel active" id="course-panel" role="tabpanel">
     <div class="section-intro">
       <p class="section-kicker">START HERE</p>
       <h2>Build your AQA course</h2>
@@ -39,7 +39,7 @@
     <div class="course-overview card" id="course-overview"></div>
   </section>
 
-  <section class="tab-panel" id="topics-panel" hidden>
+  <section class="tab-panel" id="topics-panel" role="tabpanel" hidden>
     <div class="section-intro">
       <p class="section-kicker">KNOWLEDGE</p>
       <h2>Topic library</h2>
@@ -58,7 +58,7 @@
     <div class="topic-grid" id="topic-grid"></div>
   </section>
 
-  <section class="tab-panel" id="questions-panel" hidden>
+  <section class="tab-panel" id="questions-panel" role="tabpanel" hidden>
     <div class="section-intro">
       <p class="section-kicker">EXAM TECHNIQUE</p>
       <h2>Question coach</h2>
@@ -70,7 +70,7 @@
     </div>
   </section>
 
-  <section class="tab-panel" id="practice-panel" hidden>
+  <section class="tab-panel" id="practice-panel" role="tabpanel" hidden>
     <div class="section-intro">
       <p class="section-kicker">ACTIVE PRACTICE</p>
       <h2>Write an answer and improve it</h2>
@@ -95,7 +95,7 @@
     </div>
   </section>
 
-  <section class="tab-panel" id="revision-panel" hidden>
+  <section class="tab-panel" id="revision-panel" role="tabpanel" hidden>
     <div class="section-intro">
       <p class="section-kicker">TARGETED REVISION</p>
       <h2>Revision dashboard</h2>
@@ -120,5 +120,31 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='js/gcse-history.js') }}?v=2"></script>
+  <script>
+    (() => {
+      const tabs = Array.from(document.querySelectorAll('.history-tabs .tab'));
+      const panels = Array.from(document.querySelectorAll('.history-app .tab-panel'));
+
+      function activateTab(tabName) {
+        tabs.forEach((button) => {
+          const isActive = button.dataset.tab === tabName;
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-selected', String(isActive));
+        });
+
+        panels.forEach((panel) => {
+          const isActive = panel.id === `${tabName}-panel`;
+          panel.hidden = !isActive;
+          panel.classList.toggle('active', isActive);
+        });
+      }
+
+      tabs.forEach((button) => {
+        button.addEventListener('click', () => activateTab(button.dataset.tab));
+      });
+
+      window.gcseHistoryActivateTab = activateTab;
+    })();
+  </script>
+  <script src="{{ url_for('static', filename='js/gcse-history.js') }}?v=3" defer></script>
 {% endblock %}
