@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Circuit Training Timer — CXMS{% endblock %}
+
+{% block head_extra %}
+  <meta name="description" content="Build and run a custom circuit workout with timed stations, rests, beeps and voice prompts.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/circuit-training.css') }}?v=1">
+{% endblock %}
+
+{% block content %}
+<section class="circuit-app" id="circuit-app">
+  <header class="circuit-hero">
+    <p class="circuit-eyebrow">CXMS FITNESS TOOL</p>
+    <h1>Circuit Training Timer</h1>
+    <p>Choose your stations, set the timings and let the timer guide your workout.</p>
+  </header>
+
+  <div id="builder-view" class="circuit-grid">
+    <section class="circuit-card circuit-settings" aria-labelledby="settings-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">1. SET YOUR SESSION</p>
+          <h2 id="settings-title">Workout settings</h2>
+        </div>
+      </div>
+
+      <label class="field-label">Target workout length</label>
+      <div class="chip-row" id="duration-options" aria-label="Workout duration">
+        <button class="choice-chip" type="button" data-duration="5">5 min</button>
+        <button class="choice-chip active" type="button" data-duration="10">10 min</button>
+        <button class="choice-chip" type="button" data-duration="15">15 min</button>
+        <button class="choice-chip" type="button" data-duration="20">20 min</button>
+        <button class="choice-chip" type="button" data-duration="30">30 min</button>
+      </div>
+
+      <div class="settings-row">
+        <label>
+          <span>Workstation</span>
+          <select id="work-duration">
+            <option value="20">20 seconds</option>
+            <option value="30">30 seconds</option>
+            <option value="40" selected>40 seconds</option>
+            <option value="45">45 seconds</option>
+            <option value="60">60 seconds</option>
+          </select>
+        </label>
+        <label>
+          <span>Pause</span>
+          <select id="rest-duration">
+            <option value="10">10 seconds</option>
+            <option value="15">15 seconds</option>
+            <option value="20" selected>20 seconds</option>
+            <option value="30">30 seconds</option>
+          </select>
+        </label>
+        <label>
+          <span>Get ready</span>
+          <select id="prep-duration">
+            <option value="5">5 seconds</option>
+            <option value="10" selected>10 seconds</option>
+            <option value="15">15 seconds</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="toggle-row">
+        <input id="voice-toggle" type="checkbox" checked>
+        <span>
+          <strong>Voice prompts</strong>
+          <small>Announce stations and rest periods</small>
+        </span>
+      </label>
+    </section>
+
+    <section class="circuit-card circuit-stations" aria-labelledby="stations-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">2. BUILD YOUR CIRCUIT</p>
+          <h2 id="stations-title">Choose workstations</h2>
+        </div>
+        <button id="select-all" class="text-button" type="button">Select all</button>
+      </div>
+
+      <div id="exercise-list" class="exercise-list"></div>
+
+      <form id="custom-exercise-form" class="custom-exercise-form">
+        <label for="custom-exercise">Add your own workstation</label>
+        <div>
+          <input id="custom-exercise" maxlength="40" placeholder="e.g. Kettlebell swings">
+          <button type="submit">Add</button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="circuit-card circuit-summary" aria-labelledby="summary-title">
+      <p class="section-kicker">3. REVIEW</p>
+      <h2 id="summary-title">Your circuit</h2>
+      <div class="summary-stat"><span>Stations</span><strong id="summary-stations">0</strong></div>
+      <div class="summary-stat"><span>Rounds</span><strong id="summary-rounds">0</strong></div>
+      <div class="summary-stat"><span>Work / rest</span><strong id="summary-intervals">40s / 20s</strong></div>
+      <div class="summary-stat summary-total"><span>Estimated duration</span><strong id="summary-duration">0:00</strong></div>
+      <p id="summary-note" class="summary-note"></p>
+      <button id="start-workout" class="primary-button" type="button">Start workout</button>
+      <p id="builder-error" class="builder-error" role="alert"></p>
+    </aside>
+  </div>
+
+  <section id="timer-view" class="timer-view" hidden>
+    <div class="timer-topline">
+      <span id="phase-label" class="phase-label">GET READY</span>
+      <span id="round-label">Round 1 of 1</span>
+    </div>
+
+    <div class="timer-card">
+      <p id="station-position" class="station-position">Station 1 of 1</p>
+      <h2 id="current-station">Get ready</h2>
+      <div id="timer-display" class="timer-display" aria-live="polite">00:10</div>
+      <div class="progress-track"><div id="phase-progress" class="phase-progress"></div></div>
+      <p id="next-station" class="next-station">Next: Squats</p>
+    </div>
+
+    <div class="workout-progress-wrap">
+      <div class="workout-progress-labels"><span>Workout progress</span><span id="workout-progress-text">0%</span></div>
+      <div class="progress-track progress-track--workout"><div id="workout-progress" class="workout-progress"></div></div>
+    </div>
+
+    <div class="timer-controls">
+      <button id="pause-workout" class="primary-button" type="button">Pause</button>
+      <button id="skip-phase" class="secondary-button" type="button">Skip</button>
+      <button id="end-workout" class="danger-button" type="button">End</button>
+    </div>
+  </section>
+
+  <section id="complete-view" class="complete-view circuit-card" hidden>
+    <p class="section-kicker">WORKOUT COMPLETE</p>
+    <h2>Nice work!</h2>
+    <p id="complete-summary"></p>
+    <div class="complete-actions">
+      <button id="repeat-workout" class="primary-button" type="button">Repeat workout</button>
+      <button id="edit-workout" class="secondary-button" type="button">Edit circuit</button>
+    </div>
+  </section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/circuit-training.js') }}?v=1"></script>
+{% endblock %}
