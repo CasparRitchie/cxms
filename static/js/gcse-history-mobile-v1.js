@@ -5,11 +5,25 @@ document.addEventListener('DOMContentLoaded', function () {
   var tabs = Array.prototype.slice.call(document.querySelectorAll('.history-tabs .tab'));
   var feedbackPanel = document.getElementById('feedback-panel');
   var practiceLayout = document.querySelector('.practice-layout');
+  var questionField = document.getElementById('practice-prompt');
+  var questionTopic = document.getElementById('practice-topic');
+  var questionType = document.getElementById('practice-question');
+  var generateQuestion = document.getElementById('generate-question');
   var lastY = window.scrollY || 0;
   var ticking = false;
 
   function isMobile() {
     return window.matchMedia('(max-width: 850px)').matches;
+  }
+
+  function resizeQuestionField() {
+    if (!questionField) return;
+    questionField.style.height = 'auto';
+    questionField.style.height = questionField.scrollHeight + 'px';
+  }
+
+  function scheduleQuestionResize() {
+    window.setTimeout(resizeQuestionField, 0);
   }
 
   function updateHeader() {
@@ -42,7 +56,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }, { passive: true });
 
-  window.addEventListener('resize', updateHeader);
+  window.addEventListener('resize', function () {
+    updateHeader();
+    resizeQuestionField();
+  });
 
   function activateSavedTab() {
     var saved = localStorage.getItem('gcseHistoryActiveTab');
@@ -56,10 +73,19 @@ document.addEventListener('DOMContentLoaded', function () {
       if (isMobile()) {
         window.setTimeout(function () {
           button.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          resizeQuestionField();
         }, 0);
       }
     });
   });
+
+  if (questionField) {
+    questionField.addEventListener('input', resizeQuestionField);
+    [questionTopic, questionType, generateQuestion].forEach(function (control) {
+      if (!control) return;
+      control.addEventListener(control.tagName === 'BUTTON' ? 'click' : 'change', scheduleQuestionResize);
+    });
+  }
 
   if (practiceLayout && feedbackPanel) {
     var toggle = document.createElement('button');
@@ -87,4 +113,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
   activateSavedTab();
   updateHeader();
+  scheduleQuestionResize();
 });
