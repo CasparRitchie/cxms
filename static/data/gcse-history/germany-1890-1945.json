@@ -1,0 +1,257 @@
+{
+  "id": "germany",
+  "title": "Germany, 1890–1945: Democracy and dictatorship",
+  "examBoard": "AQA 8145",
+  "parts": [
+    {
+      "id": "kaiser-weimar",
+      "title": "Part one: Germany and the growth of democracy",
+      "overview": "Germany changed from an authoritarian empire under Kaiser Wilhelm II to a parliamentary republic. War, revolution, political violence and economic crisis threatened democracy, before a period of partial recovery under Stresemann.",
+      "subtopics": [
+        {
+          "id": "kaiser-government",
+          "title": "Kaiser Wilhelm II and government",
+          "summary": "The Kaiser appointed the Chancellor and controlled foreign policy and the armed forces. The Reichstag was elected but could not appoint or dismiss the Chancellor. Prussian elites and the military remained powerful.",
+          "keyFacts": [
+            "Germany was a federal empire made up of 25 states.",
+            "All adult men could vote for the Reichstag, but the Kaiser appointed the Chancellor.",
+            "The Bundesrat represented the states and could block Reichstag legislation.",
+            "Prussia dominated Germany and militarism influenced government and society."
+          ],
+          "keywords": ["Kaiser", "Chancellor", "Reichstag", "Bundesrat", "Prussia", "militarism", "federal"],
+          "misconceptions": [
+            {"triggers": ["kaiser was elected", "wilhelm was elected"], "correction": "The Kaiser was a hereditary monarch, not an elected president."},
+            {"triggers": ["reichstag chose the chancellor", "reichstag appointed the chancellor"], "correction": "The Kaiser appointed and dismissed the Chancellor; the Reichstag did not choose the government."}
+          ]
+        },
+        {
+          "id": "industrialisation-socialism",
+          "title": "Industrialisation, social reform and socialism",
+          "summary": "Rapid industrial growth created wealth and urbanisation but also difficult working and living conditions. The SPD grew as industrial workers demanded political and social change.",
+          "keyFacts": [
+            "Germany became one of Europe's leading industrial powers by 1914.",
+            "Urban populations grew rapidly as workers moved to industrial centres.",
+            "The SPD became the largest party in the Reichstag in 1912.",
+            "The government introduced limited social reforms but also feared socialism."
+          ],
+          "keywords": ["industrialisation", "urbanisation", "SPD", "socialism", "workers", "social reform"],
+          "misconceptions": [
+            {"triggers": ["spd took control", "socialists ruled germany before 1914"], "correction": "The SPD became the largest Reichstag party in 1912, but it did not control the government because the Kaiser appointed the Chancellor."}
+          ]
+        },
+        {
+          "id": "navy-laws",
+          "title": "Navy Laws and domestic politics",
+          "summary": "The Navy Laws expanded Germany's fleet and promoted Weltpolitik. They encouraged nationalism and supported heavy industry, but increased taxation and political tension.",
+          "keyFacts": [
+            "Admiral Tirpitz promoted the Navy Laws from 1898.",
+            "The fleet was intended to support Weltpolitik and challenge British naval power.",
+            "Naval expansion benefited steel, coal and shipbuilding industries.",
+            "The cost of the fleet increased financial and political pressure inside Germany."
+          ],
+          "keywords": ["Navy Laws", "Tirpitz", "Weltpolitik", "nationalism", "Britain", "fleet"],
+          "misconceptions": []
+        },
+        {
+          "id": "first-world-war",
+          "title": "The impact of the First World War",
+          "summary": "Total war caused shortages, inflation, casualties and war weariness. Military defeat undermined the monarchy and helped produce revolution in 1918.",
+          "keyFacts": [
+            "The British blockade contributed to food and fuel shortages.",
+            "The winter of 1916–17 became known as the Turnip Winter.",
+            "Germany suffered around two million military deaths during the war.",
+            "Sailors mutinied at Kiel in October 1918 and unrest spread.",
+            "Kaiser Wilhelm II abdicated on 9 November 1918."
+          ],
+          "keywords": ["blockade", "Turnip Winter", "war weariness", "Kiel mutiny", "abdication", "revolution"],
+          "misconceptions": [
+            {"triggers": ["germany won the first world war", "germany surrendered in 1917"], "correction": "Germany was defeated in 1918; the armistice was signed on 11 November 1918."}
+          ]
+        },
+        {
+          "id": "weimar-crises",
+          "title": "Weimar democracy and crises, 1919–1923",
+          "summary": "The new republic had democratic strengths but faced opposition from left and right, resentment of Versailles and severe economic crisis.",
+          "keyFacts": [
+            "The Weimar Constitution created proportional representation and an elected president.",
+            "Article 48 allowed the President to rule by emergency decree.",
+            "The Spartacist uprising was defeated in January 1919 with help from the Freikorps.",
+            "The Kapp Putsch failed in 1920 after a general strike.",
+            "France and Belgium occupied the Ruhr in January 1923 after Germany defaulted on reparations.",
+            "The government funded passive resistance by printing money, contributing to hyperinflation."
+          ],
+          "keywords": ["Weimar Constitution", "proportional representation", "Article 48", "Spartacists", "Freikorps", "Kapp Putsch", "Ruhr", "hyperinflation"],
+          "misconceptions": [
+            {"triggers": ["hyperinflation was caused only by versailles", "versailles directly caused hyperinflation"], "correction": "Reparations contributed to pressure, but the immediate 1923 crisis followed the Ruhr occupation and the government's decision to print money to fund passive resistance."},
+            {"triggers": ["kapp putsch succeeded"], "correction": "The Kapp Putsch collapsed after workers organised a general strike."}
+          ]
+        },
+        {
+          "id": "stresemann-recovery",
+          "title": "Stresemann and recovery, 1924–1929",
+          "summary": "Stresemann ended the immediate crisis and improved international relations, but recovery relied heavily on foreign loans and political weaknesses remained.",
+          "keyFacts": [
+            "The Rentenmark helped stabilise the currency in 1923.",
+            "The Dawes Plan of 1924 reorganised reparations and brought US loans.",
+            "The Locarno Treaties of 1925 improved relations with western neighbours.",
+            "Germany joined the League of Nations in 1926.",
+            "The Young Plan of 1929 reduced and extended reparations payments.",
+            "Recovery was vulnerable because Germany depended heavily on American credit."
+          ],
+          "keywords": ["Stresemann", "Rentenmark", "Dawes Plan", "Locarno", "League of Nations", "Young Plan", "US loans"],
+          "misconceptions": [
+            {"triggers": ["stresemann ended reparations", "dawes plan cancelled reparations"], "correction": "The Dawes and Young Plans reorganised or reduced payments; they did not abolish reparations."},
+            {"triggers": ["weimar was completely stable by 1929"], "correction": "There was substantial recovery, but dependence on US loans and continuing support for anti-democratic parties made it fragile."}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "depression-dictatorship",
+      "title": "Part two: Germany and the Depression",
+      "overview": "The Depression destroyed confidence in Weimar governments. Nazi electoral growth, Hitler's appeal and political intrigue led to his appointment, followed by rapid destruction of democracy.",
+      "subtopics": [
+        {
+          "id": "depression-nazi-growth",
+          "title": "Depression and growth of Nazi support",
+          "summary": "Economic collapse increased unemployment and weakened moderate parties. Nazi propaganda, organisation, promises and the SA helped attract different social groups.",
+          "keyFacts": [
+            "The Wall Street Crash in October 1929 led US lenders to recall loans.",
+            "German unemployment reached roughly six million by 1932.",
+            "The Nazis won 107 Reichstag seats in September 1930 and 230 in July 1932.",
+            "Nazi support fell to 196 seats in November 1932, although they remained the largest party.",
+            "Hitler promised work, national revival, opposition to Versailles and strong leadership.",
+            "The SA protected Nazi meetings and intimidated opponents, but its violence also worried some voters."
+          ],
+          "keywords": ["Depression", "unemployment", "propaganda", "SA", "electoral support", "Versailles", "Volksgemeinschaft"],
+          "misconceptions": [
+            {"triggers": ["nazis won a majority", "hitler won a majority", "majority of germans voted nazi"], "correction": "The Nazis became the largest party but never won more than 50% of the vote in a free Reichstag election."},
+            {"triggers": ["nazi support rose continuously", "nazis kept gaining seats until 1933"], "correction": "Nazi seats fell from 230 in July 1932 to 196 in November 1932."}
+          ]
+        },
+        {
+          "id": "hitler-appointed",
+          "title": "Failure of Weimar democracy and Hitler's appointment",
+          "summary": "Presidential government replaced effective parliamentary rule. Papen, Schleicher and Hindenburg made political calculations that culminated in Hitler's appointment as Chancellor.",
+          "keyFacts": [
+            "From 1930, Chancellors increasingly governed using Article 48 rather than stable Reichstag majorities.",
+            "President Hindenburg appointed Hitler Chancellor on 30 January 1933.",
+            "Franz von Papen helped persuade Hindenburg that Hitler could be controlled in a conservative cabinet.",
+            "Only three Nazis initially held cabinet posts.",
+            "Hitler was appointed; he was not directly elected Chancellor."
+          ],
+          "keywords": ["Hindenburg", "Papen", "Schleicher", "Article 48", "appointment", "Chancellor", "30 January 1933"],
+          "misconceptions": [
+            {"triggers": ["hitler was elected chancellor", "germans elected hitler chancellor", "hitler won the 1933 election and became chancellor"], "correction": "Hitler was appointed Chancellor by President Hindenburg on 30 January 1933. Nazi electoral success mattered, but there was no direct election for Chancellor."},
+            {"triggers": ["hindenburg supported hitler from the start"], "correction": "Hindenburg initially distrusted Hitler and only appointed him after pressure and political manoeuvring involving Papen."}
+          ]
+        },
+        {
+          "id": "dictatorship-1933-34",
+          "title": "Establishing the dictatorship, 1933–1934",
+          "summary": "Hitler used emergency powers, legislation, violence and political deals to remove opposition and combine the offices of Chancellor and President.",
+          "keyFacts": [
+            "The Reichstag Fire occurred on 27 February 1933.",
+            "The Reichstag Fire Decree suspended civil liberties and enabled arrests of political opponents.",
+            "The Enabling Act was passed on 23 March 1933 and allowed Hitler's government to make laws without the Reichstag for four years.",
+            "Trade unions were abolished in May 1933 and replaced by the German Labour Front.",
+            "Other political parties were banned; Germany became a one-party state by July 1933.",
+            "During the Night of the Long Knives, 30 June–2 July 1934, Röhm and other perceived opponents were killed.",
+            "After Hindenburg died on 2 August 1934, Hitler combined the offices of President and Chancellor and became Führer."
+          ],
+          "keywords": ["Reichstag Fire", "Fire Decree", "Enabling Act", "one-party state", "trade unions", "Night of the Long Knives", "Röhm", "Führer"],
+          "misconceptions": [
+            {"triggers": ["enabling act made hitler president", "enabling act made hitler fuhrer"], "correction": "The Enabling Act allowed Hitler's government to legislate without the Reichstag. He became Führer after Hindenburg's death in August 1934."},
+            {"triggers": ["night of the long knives killed only communists"], "correction": "The purge targeted Röhm and SA leaders as well as other political enemies, including conservative opponents."}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nazi-society-war",
+      "title": "Part three: The experiences of Germans under the Nazis",
+      "overview": "The regime used terror and propaganda, attempted to reshape work, youth, women and culture, persecuted minorities, faced limited opposition and led Germany into total war and defeat.",
+      "subtopics": [
+        {
+          "id": "control-propaganda-terror",
+          "title": "Control, propaganda and terror",
+          "summary": "The Nazi state combined consent, propaganda, surveillance and terror. Different organisations performed overlapping roles in controlling society.",
+          "keyFacts": [
+            "Goebbels led the Ministry of Propaganda and controlled radio, press, film and culture.",
+            "The SS developed into a major instrument of racial and political control under Himmler.",
+            "The Gestapo investigated opponents and relied partly on denunciations from the public.",
+            "Concentration camps imprisoned political opponents and groups defined as enemies.",
+            "The People's Court dealt harshly with political offences."
+          ],
+          "keywords": ["Goebbels", "propaganda", "SS", "Gestapo", "concentration camps", "People's Court", "denunciation"],
+          "misconceptions": [
+            {"triggers": ["gestapo had agents everywhere", "every german was watched by gestapo agents"], "correction": "The Gestapo was feared, but it had relatively limited personnel and depended heavily on reports and denunciations from ordinary people."}
+          ]
+        },
+        {
+          "id": "economy-workers",
+          "title": "Economy and workers",
+          "summary": "Unemployment fell through public works, rearmament, conscription and labour controls, but workers lost independent rights and living standards did not improve evenly.",
+          "keyFacts": [
+            "Public works such as autobahn construction contributed to employment and propaganda.",
+            "Rearmament and conscription greatly increased demand for labour.",
+            "Independent trade unions were replaced by the German Labour Front.",
+            "Strength Through Joy offered leisure activities, while Beauty of Labour sought workplace improvements.",
+            "Women's removal from some jobs and the exclusion of Jews also affected unemployment figures.",
+            "The Four Year Plan from 1936 prepared Germany for war and greater self-sufficiency."
+          ],
+          "keywords": ["rearmament", "conscription", "autobahn", "German Labour Front", "Strength Through Joy", "Four Year Plan", "autarky"],
+          "misconceptions": [
+            {"triggers": ["hitler solved unemployment only by building autobahns"], "correction": "Public works helped, but rearmament, conscription, labour controls and exclusion of groups from employment statistics were also important."},
+            {"triggers": ["workers could join free trade unions"], "correction": "Independent trade unions were abolished in May 1933 and workers were placed under the German Labour Front."}
+          ]
+        },
+        {
+          "id": "youth-women-churches",
+          "title": "Youth, women and churches",
+          "summary": "Nazis sought to shape family life, education and belief, but policy changed according to regime needs and did not achieve complete control.",
+          "keyFacts": [
+            "School curricula emphasised race, physical fitness, obedience and Nazi ideology.",
+            "The Hitler Youth and League of German Maidens prepared young people for gendered Nazi roles.",
+            "The Nazis encouraged marriage and motherhood through loans and awards.",
+            "Wartime labour shortages led to increased female employment despite earlier ideology.",
+            "The 1933 Concordat with the Catholic Church was repeatedly violated by the regime.",
+            "Some Protestant churches formed the Confessing Church in opposition to Nazi interference."
+          ],
+          "keywords": ["Hitler Youth", "League of German Maidens", "education", "marriage loans", "Concordat", "Confessing Church", "Niemöller"],
+          "misconceptions": [
+            {"triggers": ["all women were banned from working"], "correction": "The regime discouraged some female employment and promoted motherhood, but women continued to work and their employment increased as war created labour shortages."},
+            {"triggers": ["all churches supported hitler"], "correction": "Some church leaders cooperated, while others resisted specific Nazi policies; relations were complex and changed over time."}
+          ]
+        },
+        {
+          "id": "persecution-opposition-war",
+          "title": "Persecution, opposition and war",
+          "summary": "Racial persecution intensified from discrimination to genocide. Opposition existed but was fragmented and dangerous. War increased repression and ultimately destroyed the regime.",
+          "keyFacts": [
+            "The Nuremberg Laws of 1935 removed German citizenship from Jews and banned marriage or sexual relations between Jews and people classified as German blood.",
+            "Kristallnacht on 9–10 November 1938 involved destruction of synagogues and businesses, killings and mass arrests.",
+            "During the war, Nazi persecution developed into systematic mass murder of European Jews and other groups.",
+            "Youth opposition included the Edelweiss Pirates and Swing Youth.",
+            "The White Rose group distributed anti-Nazi leaflets and its leading members were executed in 1943.",
+            "The July Bomb Plot of 1944 attempted to kill Hitler and overthrow the regime.",
+            "Germany surrendered in May 1945 after military defeat and Hitler's suicide."
+          ],
+          "keywords": ["Nuremberg Laws", "Kristallnacht", "Holocaust", "Edelweiss Pirates", "White Rose", "July Plot", "total war"],
+          "misconceptions": [
+            {"triggers": ["holocaust began with kristallnacht", "final solution started in 1933"], "correction": "Persecution radicalised in stages. Kristallnacht was a major escalation in 1938; systematic mass murder developed during the Second World War."},
+            {"triggers": ["there was no opposition to hitler"], "correction": "Opposition was limited and fragmented, but included youth groups, church figures, students, workers and military conspirators."}
+          ]
+        }
+      ]
+    }
+  ],
+  "questionTypes": [
+    {"id":"describe","name":"Describe two problems/features","marks":4,"time":5,"requirements":["two separate accurate points","a supporting detail for each"],"assessment":"AO1"},
+    {"id":"ways","name":"In what ways… Explain","marks":8,"time":10,"requirements":["two developed ways","precise supporting knowledge","explain how each answers the question"],"assessment":"AO1 and AO2"},
+    {"id":"factor","name":"Which factor was more important?","marks":12,"time":15,"requirements":["address the stated factor","analyse at least one other factor","compare importance","supported judgement"],"assessment":"AO1 and AO2"},
+    {"id":"interp-difference","name":"How do interpretations differ?","marks":4,"time":5,"requirements":["a clear difference","support from both interpretations"],"assessment":"AO4"},
+    {"id":"interp-reason","name":"Why do interpretations differ?","marks":4,"time":5,"requirements":["use the ascriptions","explain how provenance, purpose, evidence or emphasis produced the difference"],"assessment":"AO4"},
+    {"id":"convincing","name":"How convincing is an interpretation?","marks":8,"time":10,"requirements":["test claims against contextual knowledge","explain strengths and limitations","reach a supported judgement"],"assessment":"AO4"}
+  ]
+}
