@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CXMS Football Intelligence helps ambitious football clubs use data, video, AI and digital technology to improve performance on and off the pitch.">
+  <title>Football Intelligence | CXMS</title>
+  <link rel="icon" type="image/jpeg" href="/static/images/cxms-favicon1.jpeg">
+  <link rel="stylesheet" href="/static/css/football-intelligence.css">
+</head>
+<body>
+  <header class="fi-header">
+    <div class="fi-shell fi-header__inner">
+      <a class="fi-brand" href="/">CXMS</a>
+      <nav class="fi-nav" aria-label="Football Intelligence navigation">
+        <a href="#capabilities">Capabilities</a>
+        <a href="#platform">Platform</a>
+        <a href="#pilot">90-day pilot</a>
+        <a class="fi-nav__cta" href="#contact">Start a conversation</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="fi-hero">
+      <div class="fi-shell fi-hero__grid">
+        <div class="fi-hero__copy">
+          <span class="fi-kicker">CXMS Football Intelligence</span>
+          <h1>Better decisions.<br><span>On and off the pitch.</span></h1>
+          <p class="fi-lead">We help ambitious football clubs turn match video, performance data and operational information into clear actions for coaches, players and club leaders.</p>
+          <div class="fi-actions">
+            <a class="fi-button fi-button--primary" href="#pilot">Explore the pilot</a>
+            <a class="fi-button fi-button--ghost" href="#platform">View the concept</a>
+          </div>
+          <div class="fi-proof">
+            <div><strong>Video + data</strong><span>One connected workflow</span></div>
+            <div><strong>Coach-first</strong><span>Insights people can use</span></div>
+            <div><strong>Built to scale</strong><span>From non-league upward</span></div>
+          </div>
+        </div>
+
+        <div class="fi-dashboard" aria-label="Interactive match intelligence concept">
+          <div class="fi-dashboard__top">
+            <div>
+              <span class="fi-dashboard__label">Match intelligence</span>
+              <h2>Performance overview</h2>
+            </div>
+            <span class="fi-live"><i></i> Prototype</span>
+          </div>
+
+          <div class="fi-scoreline">
+            <div><span>Home</span><strong id="home-score">2</strong></div>
+            <p><b>FT</b><span>Oaklands Park</span></p>
+            <div><span>Away</span><strong id="away-score">1</strong></div>
+          </div>
+
+          <div class="fi-metrics">
+            <button class="fi-metric is-active" data-view="attack"><span>Chance quality</span><strong>1.86 xG</strong><small>+0.64 vs opponent</small></button>
+            <button class="fi-metric" data-view="press"><span>Pressing</span><strong>71%</strong><small>Successful high regains</small></button>
+            <button class="fi-metric" data-view="setpieces"><span>Set pieces</span><strong>8</strong><small>First contacts won</small></button>
+          </div>
+
+          <div class="fi-insight">
+            <div class="fi-insight__pitch" id="pitch-visual" aria-hidden="true">
+              <span class="fi-dot dot-1"></span><span class="fi-dot dot-2"></span><span class="fi-dot dot-3"></span><span class="fi-dot dot-4"></span><span class="fi-dot dot-5"></span>
+            </div>
+            <div>
+              <span class="fi-dashboard__label">Recommended focus</span>
+              <h3 id="insight-title">Create more from left-side overloads</h3>
+              <p id="insight-copy">Five of the side's seven strongest attacks began with a regain or combination on the left. Rehearse the pattern and improve the final cutback.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="fi-section fi-section--intro">
+      <div class="fi-shell fi-intro-grid">
+        <div>
+          <span class="fi-kicker">Intelligence, not noise</span>
+          <h2>Technology should make the next decision clearer.</h2>
+        </div>
+        <p>Most clubs already produce information: match footage, coaches' notes, player observations, social content and commercial data. The opportunity is to connect it, reduce manual work and turn it into a repeatable improvement process.</p>
+      </div>
+    </section>
+
+    <section id="capabilities" class="fi-section">
+      <div class="fi-shell">
+        <div class="fi-section-heading">
+          <span class="fi-kicker">Capabilities</span>
+          <h2>One partner across performance, technology and growth.</h2>
+        </div>
+        <div class="fi-capability-grid">
+          <article><span>01</span><h3>Match & opposition analysis</h3><p>Structured tagging, concise match reports, tactical patterns, set-piece review and evidence-linked recommendations.</p></article>
+          <article><span>02</span><h3>Player development</h3><p>Individual clip libraries, development objectives, minutes and availability tracking, progress reviews and coach feedback.</p></article>
+          <article><span>03</span><h3>Recruitment intelligence</h3><p>A consistent player database, role profiles, scouting evidence and shortlists designed around the club's playing model.</p></article>
+          <article><span>04</span><h3>AI-assisted workflows</h3><p>Automated first drafts, searchable video and reports, recurring summaries and alerts—with people retaining control.</p></article>
+          <article><span>05</span><h3>Digital matchday</h3><p>Modern web experiences, live match centres, digital scoreboards, supporter voting, merchandise and sponsor activation.</p></article>
+          <article><span>06</span><h3>Club performance</h3><p>Dashboards for attendance, content, sponsorship and revenue so off-pitch decisions receive the same clarity as football decisions.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="platform" class="fi-section fi-section--dark">
+      <div class="fi-shell">
+        <div class="fi-section-heading fi-section-heading--light">
+          <span class="fi-kicker">The connected club concept</span>
+          <h2>A practical intelligence layer for the whole club.</h2>
+          <p>Start with one valuable workflow. Add capabilities only when they solve a real problem.</p>
+        </div>
+        <div class="fi-platform">
+          <div class="fi-platform__rail" role="tablist" aria-label="Platform views">
+            <button class="is-active" data-panel="coach" role="tab">Coach</button>
+            <button data-panel="player" role="tab">Player</button>
+            <button data-panel="recruitment" role="tab">Recruitment</button>
+            <button data-panel="club" role="tab">Club</button>
+          </div>
+          <div class="fi-platform__screen">
+            <div class="fi-platform__bar"><span></span><span></span><span></span><b>CXMS / Football Intelligence</b></div>
+            <div id="platform-panel" class="fi-platform__content">
+              <div>
+                <span class="fi-dashboard__label">Coach workspace</span>
+                <h3>The next match, distilled.</h3>
+                <p>Key patterns, clips, availability and suggested training priorities in a single focused view.</p>
+              </div>
+              <div class="fi-task-list">
+                <p><i>1</i><span><strong>Opposition build-up</strong>Right-back advances early; space appears behind.</span></p>
+                <p><i>2</i><span><strong>Defensive transition</strong>Review three central turnovers from the last match.</span></p>
+                <p><i>3</i><span><strong>Set-piece opportunity</strong>Near-post delivery produced five first contacts.</span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pilot" class="fi-section">
+      <div class="fi-shell fi-pilot-grid">
+        <div>
+          <span class="fi-kicker">A focused 90-day pilot</span>
+          <h2>Prove the value before investing in complexity.</h2>
+          <p class="fi-lead fi-lead--small">We begin with the club's existing people, footage and tools. Together we identify one or two high-value problems, build a working process and measure whether it helps.</p>
+          <a class="fi-button fi-button--primary" href="#contact">Discuss a club pilot</a>
+        </div>
+        <ol class="fi-timeline">
+          <li><span>01</span><div><strong>Discover</strong><p>Meet coaches, media and club leaders. Map the current workflow and agree success measures.</p></div></li>
+          <li><span>02</span><div><strong>Build</strong><p>Create the first match-analysis workflow, dashboard or digital experience using existing resources.</p></div></li>
+          <li><span>03</span><div><strong>Use</strong><p>Run it through real matches, gather feedback and remove anything that does not improve decisions.</p></div></li>
+          <li><span>04</span><div><strong>Scale</strong><p>Present results and a pragmatic roadmap for video, data, AI, supporter growth and commercial value.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="fi-section fi-section--outcomes">
+      <div class="fi-shell">
+        <div class="fi-section-heading">
+          <span class="fi-kicker">Designed around outcomes</span>
+          <h2>What should be noticeably better?</h2>
+        </div>
+        <div class="fi-outcomes">
+          <div><strong>Less manual work</strong><p>Reusable processes and automated first drafts give volunteers and staff time back.</p></div>
+          <div><strong>Clearer coaching decisions</strong><p>Short, evidence-linked insights replace reports that are impressive but rarely used.</p></div>
+          <div><strong>Visible player progress</strong><p>Players understand their objectives and can see the moments behind the feedback.</p></div>
+          <div><strong>More commercial value</strong><p>Better digital experiences create new inventory for sponsors, merchandise and supporters.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="fi-contact">
+      <div class="fi-shell fi-contact__inner">
+        <div>
+          <span class="fi-kicker">Start with a conversation</span>
+          <h2>What could technology make easier for your club?</h2>
+        </div>
+        <a class="fi-button fi-button--light" href="mailto:caspar@cxms.fr?subject=Football%20Intelligence">caspar@cxms.fr</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="fi-footer">
+    <div class="fi-shell"><span>© CXMS</span><span>Data · AI · Digital innovation</span><a href="/">Back to cxms.fr</a></div>
+  </footer>
+
+  <script src="/static/js/football-intelligence.js"></script>
+</body>
+</html>
