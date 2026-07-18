@@ -85,8 +85,16 @@
     padding-top: 18px;
   }
 
-  .practice-form textarea {
+  #student-answer {
     min-height: 42vh;
+  }
+
+  #practice-prompt {
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+    resize: none;
+    line-height: 1.45;
   }
 
   .mobile-feedback-toggle {
