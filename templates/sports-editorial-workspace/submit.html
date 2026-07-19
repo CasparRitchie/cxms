@@ -1,0 +1,20 @@
+{% extends "sports-editorial-workspace/_workspace_base.html" %}
+{% block workspace_title %}New stat pack{% endblock %}
+{% block workspace_content %}
+<div class="sew-page-heading"><p class="sew-kicker">Journalist submission</p><h1>Create a stat pack</h1><p>Write one clear fact per bullet. The editorial team will handle tagging and structured output.</p></div>
+<form class="sew-form" method="post" novalidate>
+  <section class="sew-card"><h2>About this stat pack</h2><div class="sew-form-grid">
+    <label class="sew-field sew-field--wide"><span>Title <em>Required</em></span><input name="title" required value="{{ (values.get('title') or [''])[0] }}" placeholder="e.g. Race notes: Val d'Isere"></label>
+    <label class="sew-field"><span>Sport</span><input name="sport" value="{{ (values.get('sport') or ['alpine_skiing'])[0] }}" placeholder="alpine_skiing"></label>
+    <label class="sew-field"><span>Competition</span><input name="competition" value="{{ (values.get('competition') or [''])[0] }}" placeholder="FIS World Cup"></label>
+    <label class="sew-field"><span>Event</span><input name="event_name" value="{{ (values.get('event_name') or [''])[0] }}" placeholder="Men's Downhill"></label>
+    <label class="sew-field"><span>Event date</span><input type="date" name="event_date" value="{{ (values.get('event_date') or [''])[0] }}"></label>
+  </div></section>
+  <section class="sew-card"><div class="sew-section-heading"><div><h2>Statistics</h2><p>Add, remove, and drag facts into the right order.</p></div><button class="sew-button" type="button" data-add-stat>Add bullet</button></div>
+    <div class="sew-stats-builder" data-stats-list>{% set existing_stats = values.get('stats') or ['', '', ''] %}{% for stat in existing_stats %}<div class="sew-stat-input" draggable="true"><span class="sew-drag" title="Drag to reorder">⋮⋮</span><label><span>Bullet {{ loop.index }}</span><textarea name="stats" rows="3" placeholder="Enter one curated fact">{{ stat }}</textarea></label><button type="button" class="sew-remove" data-remove-stat aria-label="Remove bullet">×</button></div>{% endfor %}</div>
+  </section>
+  <section class="sew-card"><h2>Your details</h2><div class="sew-form-grid"><label class="sew-field"><span>Name <em>Required</em></span><input name="author_name" required value="{{ (values.get('author_name') or [''])[0] }}"></label><label class="sew-field"><span>Email <small>Optional for pilot</small></span><input type="email" name="author_email" value="{{ (values.get('author_email') or [''])[0] }}"></label></div></section>
+  <div class="sew-form-actions"><button class="sew-button" type="submit" name="action" value="draft">Save draft</button><button class="sew-button sew-button--primary" type="submit" name="action" value="submit">Submit for review</button></div>
+</form>
+{% endblock %}
+{% block workspace_scripts %}<script src="{{ url_for('static', filename='js/sports-editorial-submit.js') }}" defer></script>{% endblock %}

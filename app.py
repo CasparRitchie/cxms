@@ -9,8 +9,11 @@ from services.data_explorer.eda_engine import (
     get_sample_dataset_csv,
     parse_csv_dataset,
 )
+from services.sports_editorial import sports_editorial_workspace
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "sports-editorial-pilot-dev-only")
+app.register_blueprint(sports_editorial_workspace)
 
 
 @app.route("/")

@@ -1,0 +1,14 @@
+{% extends "sports-editorial-workspace/_workspace_base.html" %}
+{% block workspace_title %}Editorial workspace{% endblock %}
+{% block workspace_content %}
+<section class="sew-hero">
+  <div><p class="sew-kicker">Working pilot</p><h1>Sports statistics, from submission to structured export.</h1><p>Try the complete editorial workflow with fictional alpine-skiing demonstration data.</p></div>
+  <div class="sew-actions">{% if workspace_role == 'journalist' %}<a class="sew-button sew-button--primary" href="{{ url_for('sports_editorial_workspace.submit') }}">Create a stat pack</a>{% else %}<a class="sew-button sew-button--primary" href="{{ url_for('sports_editorial_workspace.queue') }}">Open review queue</a>{% endif %}<a class="sew-button" href="{{ url_for('sports_editorial') }}">View public showcase</a></div>
+</section>
+<section class="sew-metrics" aria-label="Queue summary">
+  <article><strong>{{ counts.submitted }}</strong><span>Waiting</span></article><article><strong>{{ counts.in_review }}</strong><span>In review</span></article><article><strong>{{ counts.changes_requested }}</strong><span>Changes requested</span></article><article><strong>{{ counts.approved }}</strong><span>Approved</span></article>
+</section>
+<section class="sew-section"><div class="sew-section-heading"><div><p class="sew-kicker">Demonstration content</p><h2>Recent stat packs</h2></div><a href="{{ url_for('sports_editorial_workspace.queue') }}">View all</a></div>
+  <div class="sew-list">{% for item in submissions %}<a class="sew-list-row" href="{{ url_for('sports_editorial_workspace.detail', submission_id=item.id) }}"><div><strong>{{ item.title }}</strong><span>{{ item.sport|replace('_', ' ')|title }} · {{ item.event_name }}</span></div><span class="sew-status sew-status--{{ item.status }}">{{ item.status|replace('_', ' ') }}</span></a>{% endfor %}</div>
+</section>
+{% endblock %}
