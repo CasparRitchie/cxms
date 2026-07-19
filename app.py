@@ -19,4 +19,9 @@ def index():
 
 
 @app.route("/style-guide")
-def style_guide
+def style_guide():
+    return render_template("style-guide.html")
+
+
+@app.route("/games")
+def games
