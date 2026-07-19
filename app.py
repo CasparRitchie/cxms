@@ -46,6 +46,12 @@ def football():
     return render_template("football.html")
 
 
+@app.route("/sports-editorial")
+@app.route("/sports-editorial/")
+def sports_editorial():
+    return render_template("sports-editorial.html")
+
+
 @app.route("/games/country-data")
 def country_data():
     directory = "static/images/games-images/country-outlines"

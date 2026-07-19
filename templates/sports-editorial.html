@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Sports Editorial Workflow | CXMS{% endblock %}
+
+{% block head_extra %}
+  <meta name="description" content="CXMS Sports Editorial turns journalist-written statistics into reviewed, enriched and schema-compliant publication data." />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="sports-hero">
+  <div class="sports-hero__copy">
+    <p class="eyebrow">CXMS Sports Editorial</p>
+    <h1>From expert-written stats to publication-ready data.</h1>
+    <p class="sports-hero__lead">
+      A configurable editorial workflow for sports organisations, broadcasters and media teams.
+      Journalists submit curated statistics in a simple interface; editors review, enrich and approve
+      them before CXMS generates validated, schema-compliant JSON.
+    </p>
+    <div class="sports-hero__actions">
+      <a class="btn-primary" href="#workflow">See the workflow</a>
+      <a class="btn-secondary" href="#capabilities">Explore capabilities</a>
+    </div>
+  </div>
+
+  <div class="sports-preview" aria-label="Editorial workflow preview">
+    <div class="sports-preview__topline">
+      <span>Editorial queue</span>
+      <span class="status-pill">12 ready for review</span>
+    </div>
+    <article class="submission-card">
+      <div>
+        <p class="submission-card__meta">Alpine skiing · Men’s downhill</p>
+        <h2>Race notes: Val d’Isère</h2>
+      </div>
+      <span class="review-state">In review</span>
+      <ul>
+        <li>First podium since returning from injury</li>
+        <li>Fastest final sector of the field</li>
+        <li>Fourth consecutive top-ten finish</li>
+      </ul>
+      <div class="entity-row">
+        <span>Athlete linked</span>
+        <span>Country linked</span>
+        <span>Event linked</span>
+      </div>
+    </article>
+    <div class="json-strip">
+      <code>{ "status": "validated", "format": "publication-json" }</code>
+    </div>
+  </div>
+</section>
+
+<section class="sports-proof">
+  <div><strong>Simple for contributors</strong><span>No JSON knowledge required</span></div>
+  <div><strong>Controlled by editors</strong><span>Review, enrich and approve</span></div>
+  <div><strong>Reliable for publishing</strong><span>Validated structured output</span></div>
+</section>
+
+<section id="workflow" class="sports-section">
+  <div class="section-heading sports-section__heading">
+    <p class="eyebrow">A controlled publishing pipeline</p>
+    <h2>One workflow from research to release</h2>
+    <p>
+      CXMS keeps the human expertise that makes sports statistics valuable, while removing the repetitive
+      formatting, tagging and validation work that slows editorial teams down.
+    </p>
+  </div>
+
+  <div class="workflow-grid">
+    <article>
+      <span class="workflow-number">01</span>
+      <h3>Submit</h3>
+      <p>Journalists enter curated bullet-point statistics using a clear, guided form.</p>
+    </article>
+    <article>
+      <span class="workflow-number">02</span>
+      <h3>Review</h3>
+      <p>Sub-editors check wording, accuracy, duplication and readiness for publication.</p>
+    </article>
+    <article>
+      <span class="workflow-number">03</span>
+      <h3>Enrich</h3>
+      <p>Athletes, countries, competitions and events are connected to approved entities and links.</p>
+    </article>
+    <article>
+      <span class="workflow-number">04</span>
+      <h3>Generate</h3>
+      <p>CXMS validates the content and produces JSON that matches the required publishing schema.</p>
+    </article>
+  </div>
+</section>
+
+<section id="capabilities" class="sports-section sports-section--panel">
+  <div class="section-heading sports-section__heading">
+    <p class="eyebrow">Built for editorial operations</p>
+    <h2>Structured where it matters. Flexible where it helps.</h2>
+  </div>
+
+  <div class="capability-grid">
+    <article><h3>Role-based access</h3><p>Contributors submit content, while editors control approval and export.</p></article>
+    <article><h3>Editorial queues</h3><p>See what is new, in review, returned for changes, approved or published.</p></article>
+    <article><h3>Entity management</h3><p>Use consistent athlete, nation, competition and event references across every stat pack.</p></article>
+    <article><h3>Schema validation</h3><p>Catch missing fields and invalid structures before data reaches a publishing system.</p></article>
+    <article><h3>Version history</h3><p>Keep a clear record of submissions, edits, approvals and generated outputs.</p></article>
+    <article><h3>Configurable outputs</h3><p>Support different sports, competitions, terminology and destination schemas.</p></article>
+  </div>
+</section>
+
+<section class="sports-section sports-use-cases">
+  <div class="sports-use-cases__copy">
+    <p class="eyebrow">A reusable CXMS product</p>
+    <h2>Designed for more than one tournament or client.</h2>
+    <p>
+      The underlying workflow can be configured for federations, rights holders, broadcasters,
+      publishers and specialist data teams. Each workspace can have its own users, editorial rules,
+      taxonomy, schemas and integrations without rebuilding the platform from scratch.
+    </p>
+  </div>
+  <div class="use-case-list">
+    <span>Event stat packs</span>
+    <span>Broadcast research</span>
+    <span>Live editorial desks</span>
+    <span>Competition archives</span>
+    <span>Digital publishing feeds</span>
+    <span>Multi-sport workflows</span>
+  </div>
+</section>
+
+<section class="sports-cta">
+  <p class="eyebrow">CXMS Sports Editorial</p>
+  <h2>Keep the expertise. Remove the publishing friction.</h2>
+  <p>A product concept currently being developed within the CXMS workflow platform.</p>
+  <a class="btn-primary" href="mailto:hello@cxms.fr">Discuss a workflow</a>
+</section>
+{% endblock %}
