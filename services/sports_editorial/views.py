@@ -4,6 +4,7 @@ from io import BytesIO
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, session, url_for
 
 from .json_export import build_pilot_export
+from .formatting import sanitise_rich_text
 from .repository import repository
 from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, validate_status_transition, validate_submission
 
@@ -14,7 +15,7 @@ VALID_ROLES = ("journalist", "sub_editor")
 
 @blueprint.app_context_processor
 def workspace_context():
-    return {"workspace_role": session.get("sports_editorial_role", "journalist"), "workspace_mode": "Local demo mode"}
+    return {"workspace_role": session.get("sports_editorial_role", "journalist"), "workspace_mode": "Local demo mode", "workspace_user": session.get("sports_editorial_user", "Jamie Laurent")}
 
 
 def _submission_or_404(submission_id):
@@ -57,13 +58,18 @@ def switch_role():
 def submit():
     values = request.form.to_dict(flat=False) if request.method == "POST" else {}
     if request.method == "POST":
+        values["content_html"] = [sanitise_rich_text(value) for value in request.form.getlist("content_html")]
         action = request.form.get("action", "draft")
         status = "submitted" if action == "submit" else "draft"
         data = {
             "title": request.form.get("title", ""), "sport": request.form.get("sport", ""),
             "competition": request.form.get("competition", ""), "event_name": request.form.get("event_name", ""),
-            "event_date": request.form.get("event_date", ""), "author_name": request.form.get("author_name", ""),
-            "author_email": request.form.get("author_email", ""), "stats": request.form.getlist("stats"),
+            "gender": request.form.get("gender", ""), "location": request.form.get("location", ""),
+            "event_date": request.form.get("event_date", ""), "author_name": session.get("sports_editorial_user", "Jamie Laurent"),
+            "author_email": "", "content": [
+                {"content_type": content_type, "content_html": sanitise_rich_text(content_html)}
+                for content_type, content_html in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))
+            ],
         }
         errors = validate_submission(data, submitting=status == "submitted")
         if not errors:

@@ -4,6 +4,7 @@ import unittest
 from app import app
 from services.sports_editorial.demo_data import fresh_demo_data
 from services.sports_editorial.json_export import build_pilot_export
+from services.sports_editorial.formatting import sanitise_rich_text
 from services.sports_editorial.repository import repository
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 
@@ -19,9 +20,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
             session["sports_editorial_role"] = "sub_editor"
 
     def test_submission_validation(self):
-        errors = validate_submission({"title": "", "author_name": "", "stats": [""]}, submitting=True)
-        self.assertEqual(len(errors), 3)
-        self.assertEqual(validate_submission({"title": "Pack", "author_name": "Jamie", "stats": ["One fact"]}, submitting=True), [])
+        errors = validate_submission({"title": "", "content": [{"content_type": "stat", "content_html": ""}]}, submitting=True)
+        self.assertEqual(len(errors), 2)
+        self.assertEqual(validate_submission({"title": "Pack", "content": [{"content_type": "stat", "content_html": "One fact"}]}, submitting=True), [])
+
+    def test_rich_text_sanitisation(self):
+        self.assertEqual(sanitise_rich_text('<strong>Safe</strong><script>alert(1)</script><a href="bad"> link</a>'), "<strong>Safe</strong>alert(1) link")
 
     def test_status_transition_validation(self):
         self.assertTrue(validate_status_transition("submitted", "approved")[0])
@@ -30,10 +34,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_json_transformation_prefers_edited_text_and_links_entities(self):
         submissions, entities = fresh_demo_data()
-        payload = build_pilot_export(submissions[2], {item["id"]: item for item in entities})
+        payload = build_pilot_export(submissions[0], {item["id"]: item for item in entities})
         self.assertEqual(payload["schema_version"], "pilot-1.0")
-        self.assertTrue(payload["stats"][0]["text"].startswith("Noa Martin earned"))
-        self.assertEqual(payload["stats"][0]["entities"][0]["type"], "athlete")
+        self.assertEqual(payload["submission"]["event"]["gender"], "W")
+        self.assertEqual(payload["stats"][0]["type"], "section")
+        self.assertEqual(payload["stats"][1]["entities"][0]["type"], "athlete")
 
     def test_smoke_routes(self):
         paths = [
@@ -48,8 +53,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_create_review_approve_and_download_workflow(self):
         response = self.client.post("/workspace/sports-editorial/submit", data={
             "title": "Tomorrow demo pack", "sport": "alpine_skiing", "competition": "FIS Demo Cup",
-            "event_name": "Demo downhill", "event_date": "2026-12-12", "author_name": "Journalist Demo",
-            "author_email": "journalist@example.com", "stats": ["First demonstration fact.", "Second demonstration fact."],
+            "event_name": "Demo downhill", "gender": "W", "location": "Kronplatz", "event_date": "2026-12-12",
+            "content_type": ["section", "stat", "stat"], "content_html": ["Previous race", "<strong>First</strong> demonstration fact.", "Second demonstration fact."],
             "action": "submit",
         })
         self.assertEqual(response.status_code, 302)

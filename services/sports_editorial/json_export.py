@@ -1,3 +1,6 @@
+from .formatting import rich_text_to_plain
+
+
 def build_pilot_export(submission, entities_by_id):
     required = ("id", "title", "sport", "status")
     missing = [field for field in required if not submission.get(field)]
@@ -6,7 +9,8 @@ def build_pilot_export(submission, entities_by_id):
 
     stats = []
     for stat in sorted(submission.get("stats", []), key=lambda item: item.get("sort_order", 0)):
-        text = (stat.get("edited_text") or stat.get("stat_text") or "").strip()
+        formatted_text = (stat.get("edited_text") or stat.get("stat_text") or "").strip()
+        text = rich_text_to_plain(formatted_text)
         if not text:
             raise ValueError("Cannot create pilot JSON with an empty statistic.")
         linked = []
@@ -20,14 +24,14 @@ def build_pilot_export(submission, entities_by_id):
                 "name": entity["name"],
                 "url": entity.get("canonical_url") or None,
             })
-        stats.append({"id": stat["id"], "text": text, "entities": linked})
+        stats.append({"id": stat["id"], "type": stat.get("content_type", "stat"), "text": text, "formatted_text": formatted_text, "entities": linked})
 
     return {
         "schema_version": "pilot-1.0",
         "submission": {
             "id": submission["id"], "title": submission["title"], "sport": submission["sport"],
             "competition": submission.get("competition") or None,
-            "event": {"name": submission.get("event_name") or None, "date": submission.get("event_date") or None},
+            "event": {"name": submission.get("event_name") or None, "gender": submission.get("gender") or None, "location": submission.get("location") or None, "date": submission.get("event_date") or None},
             "status": submission["status"],
         },
         "stats": stats,

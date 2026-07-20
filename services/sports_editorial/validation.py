@@ -1,5 +1,8 @@
 VALID_STATUSES = ("draft", "submitted", "in_review", "changes_requested", "approved", "exported")
 VALID_ENTITY_TYPES = ("athlete", "country", "event", "competition")
+VALID_CONTENT_TYPES = ("stat", "section", "heading")
+
+from .formatting import rich_text_to_plain
 
 STATUS_TRANSITIONS = {
     "draft": {"draft", "submitted"},
@@ -15,14 +18,15 @@ def validate_submission(data, submitting=False):
     errors = []
     if not str(data.get("title", "")).strip():
         errors.append("Add a title for this stat pack.")
-    if not str(data.get("author_name", "")).strip():
-        errors.append("Add the journalist's name.")
-    stats = [str(item).strip() for item in data.get("stats", [])]
-    non_empty = [item for item in stats if item]
-    if not non_empty:
+    content = data.get("content", [])
+    if not content and data.get("stats"):
+        content = [{"content_type": "stat", "content_html": item} for item in data["stats"]]
+    valid_blocks = [item for item in content if item.get("content_type") in VALID_CONTENT_TYPES and rich_text_to_plain(item.get("content_html"))]
+    stats = [item for item in valid_blocks if item["content_type"] == "stat"]
+    if not stats:
         errors.append("Add at least one statistic.")
-    if submitting and non_empty and len(non_empty) != len(stats):
-        errors.append("Remove or complete empty bullet points before submitting.")
+    if submitting and valid_blocks and len(valid_blocks) != len(content):
+        errors.append("Remove or complete empty content blocks before submitting.")
     return errors
 
 
