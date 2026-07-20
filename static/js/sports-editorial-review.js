@@ -71,4 +71,7 @@
     type.addEventListener("change", runSearch);
     selected.addEventListener("click", (event) => { if (event.target.matches("[data-remove-entity]")) event.target.closest("[data-entity-id]").remove(); });
   });
+  document.querySelectorAll("form[data-confirm]").forEach((form) => form.addEventListener("submit", (event) => {
+    if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+  }));
 })();

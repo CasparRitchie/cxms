@@ -1,16 +1,23 @@
 import json
+import re
 from io import BytesIO
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from .json_export import build_pilot_export
 from .formatting import sanitise_rich_text
+from .fis_client import FisApiError, fis_configuration, get_fis_client
+from .fis_export import FisPayloadValidationError, build_fis_payload
 from .repository import repository
 from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, validate_status_transition, validate_submission
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
 VALID_ROLES = ("journalist", "sub_editor")
+
+
+def _event_ids_from_form(value):
+    return [int(part) for part in re.split(r"[\s,]+", value.strip()) if part.isdigit() and int(part) > 0]
 
 
 @blueprint.app_context_processor
@@ -64,7 +71,7 @@ def submit():
         data = {
             "title": request.form.get("title", ""), "sport": request.form.get("sport", ""),
             "competition": request.form.get("competition", ""), "event_name": request.form.get("event_name", ""),
-            "gender": request.form.get("gender", ""), "location": request.form.get("location", ""),
+            "gender": request.form.get("gender", ""), "location": request.form.get("location", ""), "fis_event_ids": _event_ids_from_form(request.form.get("fis_event_ids", "")),
             "event_date": request.form.get("event_date", ""), "author_name": session.get("sports_editorial_user", "Jamie Laurent"),
             "author_email": "", "content": [
                 {"content_type": content_type, "content_html": sanitise_rich_text(content_html)}
@@ -130,7 +137,53 @@ def detail(submission_id):
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
     entities = repository.list_entities()
     grouped_entities = {entity_type: [item for item in entities if item["entity_type"] == entity_type] for entity_type in VALID_ENTITY_TYPES}
-    return render_template("sports-editorial-workspace/detail.html", submission=repository.get_submission(submission_id), grouped_entities=grouped_entities, entities_by_id=_entities_by_id(), statuses=VALID_STATUSES)
+    return render_template("sports-editorial-workspace/detail.html", submission=repository.get_submission(submission_id), grouped_entities=grouped_entities, entities_by_id=_entities_by_id(), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration())
+
+
+@blueprint.get("/submissions/<submission_id>/fis-preview")
+def fis_preview(submission_id):
+    submission = _submission_or_404(submission_id)
+    publication = repository.get_fis_publication(submission_id) or {}
+    try:
+        payload = build_fis_payload(submission, _entities_by_id(), expected_version=publication.get("version"), organisation_uuid=fis_configuration()["organisation_uuid"])
+        errors = []
+    except FisPayloadValidationError as exc:
+        payload, errors = None, exc.errors
+    return render_template("sports-editorial-workspace/fis-preview.html", submission=submission, payload=payload, formatted_json=json.dumps(payload, indent=2, ensure_ascii=False) if payload else "", errors=errors, fis_config=fis_configuration())
+
+
+@blueprint.post("/submissions/<submission_id>/fis-publish")
+def fis_publish(submission_id):
+    _require_sub_editor()
+    submission = _submission_or_404(submission_id)
+    if submission["status"] not in ("approved", "exported"):
+        abort(403, description="Approve the submission in CXMS before publishing to FIS.")
+    previous = repository.get_fis_publication(submission_id) or {}
+    config = fis_configuration()
+    try:
+        payload = build_fis_payload(submission, _entities_by_id(), expected_version=previous.get("version"), organisation_uuid=config["organisation_uuid"])
+        publication = get_fis_client().publish(submission.get("fis_external_id") or f"cxms-{submission_id}", payload, previous=previous, submission=submission)
+        repository.save_fis_publication(submission_id, publication)
+        flash("FIS simulation completed. No data was transmitted." if config["mode"] == "mock" else "Published to FIS.", "success")
+    except (FisPayloadValidationError, FisApiError) as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+
+
+@blueprint.post("/submissions/<submission_id>/fis-withdraw")
+def fis_withdraw(submission_id):
+    _require_sub_editor()
+    submission = _submission_or_404(submission_id)
+    previous = repository.get_fis_publication(submission_id)
+    if not previous or previous.get("status") != "published":
+        abort(409, description="This sheet is not currently published to FIS.")
+    try:
+        publication = get_fis_client().withdraw(submission.get("fis_external_id") or f"cxms-{submission_id}", previous=previous)
+        repository.save_fis_publication(submission_id, publication)
+        flash("FIS simulation withdrawn." if fis_configuration()["mode"] == "mock" else "FIS sheet withdrawn.", "success")
+    except FisApiError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
 
 
 @blueprint.post("/submissions/<submission_id>/entities")

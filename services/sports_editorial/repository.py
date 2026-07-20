@@ -22,6 +22,7 @@ class DemoSportsEditorialRepository:
     def reset(self):
         with self._lock:
             self._submissions, self._entities = fresh_demo_data()
+            self._fis_publications = {}
 
     def list_submissions(self, status="", sport="", order="newest"):
         items = self._submissions
@@ -42,10 +43,11 @@ class DemoSportsEditorialRepository:
             "id": str(uuid4()), "title": data["title"].strip(), "sport": data.get("sport", "").strip() or "alpine_skiing",
             "competition": data.get("competition", "").strip(), "event_name": data.get("event_name", "").strip(),
             "gender": data.get("gender", "").strip().upper(), "location": data.get("location", "").strip(),
-            "event_date": data.get("event_date", "").strip(), "author_name": data["author_name"].strip(),
+            "event_date": data.get("event_date", "").strip(), "fis_event_ids": data.get("fis_event_ids", []),
+            "fis_external_id": f"cxms-{uuid4()}", "author_name": data["author_name"].strip(),
             "author_email": data.get("author_email", "").strip(), "status": status, "editor_notes": "",
             "created_at": now, "updated_at": now, "submitted_at": now if status == "submitted" else None, "approved_at": None,
-            "stats": [{"id": str(uuid4()), "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "entity_ids": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()],
+            "stats": [{"id": str(uuid4()), "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "entity_ids": [], "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()],
         }
         with self._lock:
             self._submissions.append(item)
@@ -59,6 +61,7 @@ class DemoSportsEditorialRepository:
                 stat_id = stat["id"]
                 stat["edited_text"] = sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", ""))
                 stat["editor_comment"] = form_data.get(f"editor_comment_{stat_id}", "").strip()
+                stat["tags"] = [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()]
                 allowed_ids = {entity["id"] for entity in self._entities}
                 stat["entity_ids"] = [entity_id for entity_id in form_data.getlist(f"entity_ids_{stat_id}") if entity_id in allowed_ids]
             item["status"] = requested_status
@@ -66,6 +69,14 @@ class DemoSportsEditorialRepository:
             if requested_status == "approved" and not item["approved_at"]:
                 item["approved_at"] = item["updated_at"]
             return deepcopy(item)
+
+    def get_fis_publication(self, submission_id):
+        return deepcopy(self._fis_publications.get(submission_id))
+
+    def save_fis_publication(self, submission_id, publication):
+        with self._lock:
+            self._fis_publications[submission_id] = deepcopy(publication)
+        return deepcopy(publication)
 
     def list_entities(self):
         return deepcopy(sorted(self._entities, key=lambda item: (item["entity_type"], item["name"])))
