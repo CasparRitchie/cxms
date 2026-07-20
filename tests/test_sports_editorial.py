@@ -81,6 +81,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.get("/workspace/sports-editorial/exports/demo-submission-submitted.json")
         self.assertEqual(response.status_code, 403)
 
+    def test_entity_autocomplete_search(self):
+        response = self.client.get("/workspace/sports-editorial/entities/search?q=cam&type=athlete")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["provider"], "local_pilot")
+        self.assertEqual(payload["results"][0]["canonical_id"], "demo-athlete-rast")
+
+        invalid = self.client.get("/workspace/sports-editorial/entities/search?q=cam&type=invalid")
+        self.assertEqual(invalid.status_code, 400)
+
     def test_journalist_cannot_change_editorial_status(self):
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "approved"})
         self.assertEqual(response.status_code, 403)

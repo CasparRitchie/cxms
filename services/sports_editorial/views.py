@@ -1,7 +1,7 @@
 import json
 from io import BytesIO
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from .json_export import build_pilot_export
 from .formatting import sanitise_rich_text
@@ -98,6 +98,21 @@ def queue():
     sports = sorted({item["sport"] for item in all_submissions})
     submissions = repository.list_submissions(status=status, sport=sport, order=order)
     return render_template("sports-editorial-workspace/queue.html", submissions=submissions, sports=sports, filters={"status": status, "sport": sport, "order": order}, statuses=VALID_STATUSES)
+
+
+@blueprint.get("/entities/search")
+def search_entities():
+    query = request.args.get("q", "").strip()
+    entity_type = request.args.get("type", "").strip()
+    if entity_type and entity_type not in VALID_ENTITY_TYPES:
+        return jsonify({"ok": False, "error": "Unknown entity type."}), 400
+    if len(query) < 2:
+        return jsonify({"ok": True, "results": []})
+    results = repository.search_entities(query, entity_type=entity_type)
+    return jsonify({"ok": True, "provider": "local_pilot", "results": [
+        {"id": item["id"], "type": item["entity_type"], "name": item["name"], "canonical_id": item.get("canonical_id"), "country_code": item.get("country_code")}
+        for item in results
+    ]})
 
 
 @blueprint.route("/submissions/<submission_id>", methods=["GET", "POST"])

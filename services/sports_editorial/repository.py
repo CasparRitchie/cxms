@@ -70,6 +70,15 @@ class DemoSportsEditorialRepository:
     def list_entities(self):
         return deepcopy(sorted(self._entities, key=lambda item: (item["entity_type"], item["name"])))
 
+    def search_entities(self, query, entity_type="", limit=10):
+        needle = query.casefold().strip()
+        matches = [
+            entity for entity in self._entities
+            if (not entity_type or entity["entity_type"] == entity_type)
+            and (needle in entity["name"].casefold() or needle in entity.get("canonical_id", "").casefold())
+        ]
+        return deepcopy(sorted(matches, key=lambda item: (not item["name"].casefold().startswith(needle), item["name"]))[:limit])
+
     def add_entity(self, data):
         entity = {"id": str(uuid4()), "entity_type": data["entity_type"], "name": data["name"].strip(), "canonical_id": data.get("canonical_id", "").strip(), "canonical_url": data.get("canonical_url", "").strip(), "country_code": data.get("country_code", "").strip().upper()}
         with self._lock:
