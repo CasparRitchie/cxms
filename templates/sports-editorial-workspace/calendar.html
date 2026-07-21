@@ -1,0 +1,7 @@
+{% extends "sports-editorial-workspace/_workspace_base.html" %}
+{% block workspace_title %}FIS calendar{% endblock %}
+{% block workspace_content %}
+<div class="sew-page-heading"><p class="sew-kicker">Interim public source</p><h1>FIS Alpine calendar</h1><p>Import Alpine World Cup event IDs from the public FIS calendar. Replace this adapter with the official calendar API when FIS supplies access.</p></div>
+<section class="sew-card"><form method="post" class="sew-filters"><label>FIS season<input name="season_code" inputmode="numeric" pattern="[0-9]{4}" value="{{ season_code }}" required></label><label>Discipline<input value="Alpine Skiing (AL)" disabled></label><label>Category<input value="World Cup (WC)" disabled></label><button class="sew-button sew-button--primary" type="submit">Refresh from FIS</button></form><p><small>This reads FIS’s public calendar and updates the local selector. It does not publish or change anything at FIS.</small></p></section>
+<section class="sew-card sew-table-card"><table class="sew-table"><thead><tr><th>Event</th><th>FIS event ID</th><th>Season</th><th>Source</th></tr></thead><tbody>{% for event in events %}<tr><td><strong>{{ event.name }}</strong></td><td>{{ event.canonical_id }}</td><td>{{ event.metadata.season_code|default('—') }}</td><td>{% if event.canonical_url %}<a href="{{ event.canonical_url }}" target="_blank" rel="noopener">FIS page</a>{% else %}—{% endif %}</td></tr>{% else %}<tr><td colspan="4">No numeric FIS calendar events imported yet.</td></tr>{% endfor %}</tbody></table></section>
+{% endblock %}

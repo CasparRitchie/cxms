@@ -106,6 +106,16 @@ class DemoSportsEditorialRepository:
             self._entities.append(entity)
         return deepcopy(entity)
 
+    def upsert_calendar_events(self, events):
+        with self._lock:
+            for incoming in events:
+                existing = next((item for item in self._entities if item["entity_type"] == "event" and item.get("canonical_id") == incoming["canonical_id"]), None)
+                if existing:
+                    existing.update(deepcopy(incoming))
+                else:
+                    self._entities.append({"id": str(uuid4()), **deepcopy(incoming)})
+        return len(events)
+
 
 class SupabaseSportsEditorialRepository:
     """Workspace-scoped persistence using the isolated sports_editorial_* tables."""
@@ -208,6 +218,17 @@ class SupabaseSportsEditorialRepository:
     def add_entity(self, data):
         payload = {"workspace_id": self._workspace(), "entity_type": data["entity_type"], "name": data["name"].strip(), "canonical_id": data.get("canonical_id", "").strip() or None, "canonical_url": data.get("canonical_url", "").strip() or None, "country_code": data.get("country_code", "").strip().upper() or None}
         return self.client.request("sports_editorial_entities", "POST", payload=payload, prefer="return=representation")[0]
+
+    def upsert_calendar_events(self, events):
+        payload = [{**event, "workspace_id": self._workspace()} for event in events]
+        if payload:
+            self.client.request(
+                "sports_editorial_entities", "POST",
+                query={"on_conflict": "workspace_id,entity_type,canonical_id"},
+                payload=payload,
+                prefer="resolution=merge-duplicates,return=minimal",
+            )
+        return len(payload)
 
 
 def _build_repository():

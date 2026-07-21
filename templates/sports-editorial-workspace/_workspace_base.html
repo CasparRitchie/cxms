@@ -6,7 +6,7 @@
   <div class="sew-pilot-banner">Sports Editorial Pilot — workflow and schema subject to feedback.</div>
   <header class="sew-toolbar">
     <div><a class="sew-brand" href="{{ url_for('sports_editorial_workspace.dashboard') }}">Editorial workspace</a><span class="sew-mode">{{ workspace_mode }}</span></div>
-    <nav aria-label="Workspace"><a href="{{ url_for('sports_editorial_workspace.submit') }}">New stat pack</a><a href="{{ url_for('sports_editorial_workspace.queue') }}">Review queue</a>{% if workspace_auth_mode == 'workspace' and workspace_account_role in ['owner', 'admin'] %}<a href="{{ url_for('sports_editorial_workspace.users') }}">Users</a>{% endif %}</nav>
+    <nav aria-label="Workspace"><a href="{{ url_for('sports_editorial_workspace.submit') }}">New stat pack</a><a href="{{ url_for('sports_editorial_workspace.queue') }}">Review queue</a>{% if workspace_auth_mode == 'workspace' and workspace_account_role in ['owner', 'admin'] %}<a href="{{ url_for('sports_editorial_workspace.calendar') }}">Calendar</a><a href="{{ url_for('sports_editorial_workspace.users') }}">Users</a>{% endif %}</nav>
     {% if workspace_auth_mode == 'demo' %}<form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.switch_role') }}">
       <input type="hidden" name="next" value="{{ request.path }}">
       <label for="role-switcher">Pilot view</label>

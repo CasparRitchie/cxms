@@ -13,6 +13,7 @@ from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, validate_status_tran
 from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_role, require_workspace_admin
 from .supabase_rest import SupabaseError
 from .calendar import RepositoryCalendarProvider
+from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
@@ -90,6 +91,24 @@ def users():
         except (ValueError, SupabaseError) as exc:
             flash(str(exc), "error")
     return render_template("sports-editorial-workspace/users.html", users=list_workspace_users(admin["workspace_id"]))
+
+
+@blueprint.route("/calendar", methods=["GET", "POST"])
+def calendar():
+    if auth_configuration()["mode"] != "workspace":
+        abort(404)
+    require_workspace_admin()
+    season_code = request.form.get("season_code", "2027") if request.method == "POST" else request.args.get("season_code", "2027")
+    if request.method == "POST":
+        try:
+            events, source_url = fetch_alpine_world_cup_events(season_code)
+            count = repository.upsert_calendar_events(events)
+            flash(f"Imported {count} Alpine World Cup events from the public FIS calendar.", "success")
+            return redirect(url_for("sports_editorial_workspace.calendar", season_code=season_code))
+        except (FisCalendarError, SupabaseError) as exc:
+            flash(str(exc), "error")
+    events = _calendar_events()
+    return render_template("sports-editorial-workspace/calendar.html", events=events, season_code=season_code)
 
 
 def _submission_or_404(submission_id):

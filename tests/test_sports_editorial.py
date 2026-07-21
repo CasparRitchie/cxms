@@ -9,6 +9,7 @@ from services.sports_editorial.json_export import build_pilot_export
 from services.sports_editorial.formatting import sanitise_rich_text
 from services.sports_editorial.fis_client import FisApiError, get_fis_client
 from services.sports_editorial.fis_export import build_fis_payload
+from services.sports_editorial.fis_calendar import parse_calendar_events
 from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import repository
 from services.sports_editorial.validation import validate_status_transition, validate_submission
@@ -168,6 +169,17 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'contenteditable="true"', response.data)
         self.assertIn(b'aria-label="Publication wording"', response.data)
+
+    def test_fis_calendar_parser_deduplicates_event_links(self):
+        html = '''
+        <a href="/DB/general/event-details.html?eventid=62716&amp;seasoncode=2027&amp;sectorcode=AL">28-31 Jul</a>
+        <a href="/DB/general/event-details.html?eventid=62716&amp;seasoncode=2027&amp;sectorcode=AL">Cerro Castor, Ushuaia FIS 4xGS 4xSL</a>
+        <a href="/DB/general/event-details.html?eventid=62984&amp;seasoncode=2027&amp;sectorcode=AL">Sestriere World Cup GS</a>
+        '''
+        events = parse_calendar_events(html, "https://www.fis-ski.com/DB/general/calendar-results.html", 2027)
+        self.assertEqual([item["canonical_id"] for item in events], ["62716", "62984"])
+        self.assertEqual(events[0]["name"], "Cerro Castor, Ushuaia FIS 4xGS 4xSL")
+        self.assertEqual(events[0]["metadata"]["category_code"], "WC")
 
 
 if __name__ == "__main__":

@@ -77,6 +77,18 @@ create index if not exists sports_editorial_submissions_workspace_status_idx on 
 create index if not exists sports_editorial_stats_submission_order_idx on public.sports_editorial_stats(submission_id, sort_order);
 create index if not exists sports_editorial_entities_workspace_name_idx on public.sports_editorial_entities(workspace_id, entity_type, name);
 
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'sports_editorial_entities_workspace_type_canonical_key'
+  ) then
+    alter table public.sports_editorial_entities
+      add constraint sports_editorial_entities_workspace_type_canonical_key
+      unique (workspace_id, entity_type, canonical_id);
+  end if;
+end $$;
+
 alter table public.sports_editorial_memberships enable row level security;
 alter table public.sports_editorial_submissions enable row level security;
 alter table public.sports_editorial_stats enable row level security;
