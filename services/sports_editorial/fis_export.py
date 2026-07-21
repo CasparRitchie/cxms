@@ -3,10 +3,7 @@ import re
 from .formatting import rich_text_to_plain
 
 
-DISCIPLINE_CODES = {
-    "alpine_skiing": "AL", "cross_country": "CC", "snowboard": "SB", "freestyle": "FS",
-    "ski_jumping": "JP", "nordic_combined": "NK", "speed_skiing": "SS", "telemark": "TM",
-}
+DISCIPLINE_CODES = {"alpine_skiing": "AL"}
 LINK_TYPES = {"athlete": "athlete", "country": "nation", "event": "event", "competition": "competition"}
 TAG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -36,7 +33,9 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
     if not submission.get("title"):
         errors.append("FIS requires a sheet title.")
     if not discipline_code:
-        errors.append("Map this sport to a FIS discipline code.")
+        errors.append("This pilot currently accepts Alpine Skiing (AL/ALP) only.")
+    elif discipline_code != "AL":
+        errors.append("This pilot currently accepts Alpine Skiing (AL/ALP) only.")
     if not event_ids:
         errors.append("Add at least one FIS calendar event ID.")
     if len(event_ids) > 10:

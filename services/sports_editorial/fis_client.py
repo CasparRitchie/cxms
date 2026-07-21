@@ -18,12 +18,16 @@ def fis_configuration():
     mode = os.getenv("FIS_API_MODE", "mock").strip().lower()
     base_url = os.getenv("FIS_API_BASE_URL", "").strip().rstrip("/")
     token = os.getenv("FIS_API_TOKEN", "").strip()
+    safe_event_ids = [int(value) for value in os.getenv("FIS_SAFE_EVENT_IDS", "").replace(",", " ").split() if value.isdigit() and int(value) > 0]
+    live_enabled = os.getenv("FIS_LIVE_PUBLISH_ENABLED", "false").strip().lower() == "true"
     return {
         "mode": mode if mode in ("mock", "live") else "mock",
         "base_url": base_url,
         "token": token,
         "organisation_uuid": os.getenv("FIS_ORGANISATION_UUID", "").strip() or None,
-        "live_ready": bool(base_url and token),
+        "safe_event_ids": safe_event_ids,
+        "live_enabled": live_enabled,
+        "live_ready": bool(base_url and token and live_enabled and safe_event_ids),
     }
 
 
@@ -56,12 +60,14 @@ class MockFisClient:
 class LiveFisClient:
     mode = "live"
 
-    def __init__(self, base_url, token, organisation_uuid=None, timeout=5):
+    def __init__(self, base_url, token, organisation_uuid=None, safe_event_ids=None, live_enabled=False, timeout=5):
         if not base_url or not token:
             raise FisApiError("Live FIS mode is not configured. Add the API base URL and token.", 503)
         self.base_url = base_url
         self.token = token
         self.organisation_uuid = organisation_uuid
+        self.safe_event_ids = set(safe_event_ids or [])
+        self.live_enabled = live_enabled
         self.timeout = timeout
 
     def _request(self, method, path, payload=None):
@@ -80,10 +86,36 @@ class LiveFisClient:
         except (URLError, TimeoutError) as exc:
             raise FisApiError("The FIS API is currently unavailable.", 502) from exc
 
+    def list(self):
+        return self._request("GET", "/media/stat-sheets")
+
+    def get(self, external_id):
+        try:
+            return self._request("GET", f"/media/stat-sheets/{quote(external_id, safe='')}")
+        except FisApiError as exc:
+            if exc.status_code == 404:
+                return None
+            raise
+
+    def _assert_safe(self, payload=None):
+        if not self.live_enabled:
+            raise FisApiError("Live FIS writes are disabled. Set FIS_LIVE_PUBLISH_ENABLED=true only for an agreed test.", 503)
+        event_ids = set((payload or {}).get("eventIds", []))
+        if payload is not None and (not event_ids or not event_ids.issubset(self.safe_event_ids)):
+            raise FisApiError("This sheet is not limited to an explicitly allowed FIS test event.", 403)
+
     def publish(self, external_id, payload, previous=None, submission=None):
-        return self._request("PUT", f"/media/stat-sheets/{quote(external_id, safe='')}", payload)
+        self._assert_safe(payload)
+        remote = self.get(external_id)
+        outgoing = dict(payload)
+        if remote and remote.get("version") is not None:
+            outgoing["expectedVersion"] = remote["version"]
+        elif previous and previous.get("version") is not None:
+            outgoing["expectedVersion"] = previous["version"]
+        return self._request("PUT", f"/media/stat-sheets/{quote(external_id, safe='')}", outgoing)
 
     def withdraw(self, external_id, previous=None):
+        self._assert_safe()
         suffix = f"?organisationUuid={quote(self.organisation_uuid, safe='')}" if self.organisation_uuid else ""
         return self._request("DELETE", f"/media/stat-sheets/{quote(external_id, safe='')}{suffix}")
 
@@ -91,5 +123,5 @@ class LiveFisClient:
 def get_fis_client():
     config = fis_configuration()
     if config["mode"] == "live":
-        return LiveFisClient(config["base_url"], config["token"], config["organisation_uuid"])
+        return LiveFisClient(config["base_url"], config["token"], config["organisation_uuid"], config["safe_event_ids"], config["live_enabled"])
     return MockFisClient()

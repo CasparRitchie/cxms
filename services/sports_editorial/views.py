@@ -2,7 +2,7 @@ import json
 import re
 from io import BytesIO
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, abort, flash, jsonify, make_response, redirect, render_template, request, send_file, session, url_for
 
 from .json_export import build_pilot_export
 from .formatting import sanitise_rich_text
@@ -10,10 +10,21 @@ from .fis_client import FisApiError, fis_configuration, get_fis_client
 from .fis_export import FisPayloadValidationError, build_fis_payload
 from .repository import repository
 from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, validate_status_transition, validate_submission
+from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, make_token, require_role
+from .supabase_rest import SupabaseError
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
 VALID_ROLES = ("journalist", "sub_editor")
+
+
+@blueprint.before_request
+def require_workspace_session():
+    if request.endpoint in ("sports_editorial_workspace.login", "sports_editorial_workspace.logout"):
+        return None
+    if auth_configuration()["mode"] == "workspace" and not current_user():
+        return redirect(url_for("sports_editorial_workspace.login", next=request.path))
+    return None
 
 
 def _event_ids_from_form(value):
@@ -22,7 +33,43 @@ def _event_ids_from_form(value):
 
 @blueprint.app_context_processor
 def workspace_context():
-    return {"workspace_role": session.get("sports_editorial_role", "journalist"), "workspace_mode": "Local demo mode", "workspace_user": session.get("sports_editorial_user", "Jamie Laurent")}
+    user = current_user() or {}
+    mode = auth_configuration()["mode"]
+    return {"workspace_role": user.get("role", "journalist"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode}
+
+
+@blueprint.route("/login", methods=["GET", "POST"])
+def login():
+    if auth_configuration()["mode"] != "workspace":
+        return redirect(url_for("sports_editorial_workspace.dashboard"))
+    if request.method == "POST":
+        try:
+            user = authenticate(request.form.get("email", ""), request.form.get("password", ""))
+        except SupabaseError:
+            user = None
+            flash("Workspace sign-in is temporarily unavailable.", "error")
+        if user:
+            destination = request.form.get("next", "")
+            if not destination.startswith("/workspace/sports-editorial"):
+                destination = url_for("sports_editorial_workspace.dashboard")
+            response = make_response(redirect(destination))
+            response.set_cookie(COOKIE_NAME, make_token(user), max_age=7 * 24 * 60 * 60, httponly=True, secure=not request.host.startswith(("localhost", "127.0.0.1")), samesite="Lax", path="/")
+            return response
+        if not get_flashed_messages_safe():
+            flash("Email or password is incorrect, or this account has no Sports Editorial access.", "error")
+    return render_template("sports-editorial-workspace/login.html", next=request.args.get("next", ""))
+
+
+def get_flashed_messages_safe():
+    # Avoid importing/consuming Flask's message queue; used only to distinguish an availability error.
+    return bool(session.get("_flashes"))
+
+
+@blueprint.post("/logout")
+def logout():
+    response = make_response(redirect(url_for("sports_editorial_workspace.login")))
+    response.delete_cookie(COOKIE_NAME, path="/")
+    return response
 
 
 def _submission_or_404(submission_id):
@@ -37,8 +84,7 @@ def _entities_by_id():
 
 
 def _require_sub_editor():
-    if session.get("sports_editorial_role", "journalist") != "sub_editor":
-        abort(403, description="Switch to Sub-editor view to change editorial decisions.")
+    require_role("sub_editor")
 
 
 @blueprint.route("")
@@ -51,6 +97,8 @@ def dashboard():
 
 @blueprint.post("/role")
 def switch_role():
+    if auth_configuration()["mode"] != "demo":
+        abort(404)
     role = request.form.get("role", "")
     if role not in VALID_ROLES:
         abort(400)
@@ -69,11 +117,11 @@ def submit():
         action = request.form.get("action", "draft")
         status = "submitted" if action == "submit" else "draft"
         data = {
-            "title": request.form.get("title", ""), "sport": request.form.get("sport", ""),
+            "title": request.form.get("title", ""), "sport": "alpine_skiing",
             "competition": request.form.get("competition", ""), "event_name": request.form.get("event_name", ""),
             "gender": request.form.get("gender", ""), "location": request.form.get("location", ""), "fis_event_ids": _event_ids_from_form(request.form.get("fis_event_ids", "")),
-            "event_date": request.form.get("event_date", ""), "author_name": session.get("sports_editorial_user", "Jamie Laurent"),
-            "author_email": "", "content": [
+            "event_date": request.form.get("event_date", ""), "author_name": (current_user() or {}).get("full_name") or (current_user() or {}).get("email") or "Workspace user",
+            "author_email": (current_user() or {}).get("email", ""), "content": [
                 {"content_type": content_type, "content_html": sanitise_rich_text(content_html)}
                 for content_type, content_html in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))
             ],

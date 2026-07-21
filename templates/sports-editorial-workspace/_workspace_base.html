@@ -7,14 +7,14 @@
   <header class="sew-toolbar">
     <div><a class="sew-brand" href="{{ url_for('sports_editorial_workspace.dashboard') }}">Editorial workspace</a><span class="sew-mode">{{ workspace_mode }}</span></div>
     <nav aria-label="Workspace"><a href="{{ url_for('sports_editorial_workspace.submit') }}">New stat pack</a><a href="{{ url_for('sports_editorial_workspace.queue') }}">Review queue</a></nav>
-    <form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.switch_role') }}">
+    {% if workspace_auth_mode == 'demo' %}<form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.switch_role') }}">
       <input type="hidden" name="next" value="{{ request.path }}">
       <label for="role-switcher">Pilot view</label>
       <select id="role-switcher" name="role" onchange="this.form.submit()">
         <option value="journalist" {% if workspace_role == 'journalist' %}selected{% endif %}>Journalist</option>
         <option value="sub_editor" {% if workspace_role == 'sub_editor' %}selected{% endif %}>Sub-editor</option>
       </select>
-    </form>
+    </form>{% else %}<form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.logout') }}"><span>{{ workspace_user }} · {{ workspace_role|replace('_', ' ')|title }}</span><button class="sew-button sew-button--small" type="submit">Sign out</button></form>{% endif %}
   </header>
   {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="sew-messages">{% for category, message in messages %}<p class="sew-message sew-message--{{ category }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% endwith %}
   {% block workspace_content %}{% endblock %}

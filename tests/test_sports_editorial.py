@@ -9,6 +9,7 @@ from services.sports_editorial.json_export import build_pilot_export
 from services.sports_editorial.formatting import sanitise_rich_text
 from services.sports_editorial.fis_client import FisApiError, get_fis_client
 from services.sports_editorial.fis_export import build_fis_payload
+from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import repository
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 
@@ -27,6 +28,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         errors = validate_submission({"title": "", "content": [{"content_type": "stat", "content_html": ""}]}, submitting=True)
         self.assertEqual(len(errors), 2)
         self.assertEqual(validate_submission({"title": "Pack", "content": [{"content_type": "stat", "content_html": "One fact"}]}, submitting=True), [])
+        self.assertIn("Alpine Skiing", validate_submission({"title": "Pack", "sport": "ski_jumping", "content": [{"content_type": "stat", "content_html": "One fact"}]})[0])
+
+    def test_readable_amp_external_id(self):
+        self.assertEqual(build_fis_external_id({"gender": "W", "event_name": "Giant Slalom", "location": "Val d’Isère", "event_date": "2026-10-27"}), "amp-alp-w-giant-slalom-val-disere-2026")
 
     def test_rich_text_sanitisation(self):
         self.assertEqual(sanitise_rich_text('<strong>Safe</strong><script>alert(1)</script><a href="bad"> link</a>'), "<strong>Safe</strong>alert(1) link")
@@ -136,6 +141,13 @@ class SportsEditorialPilotTests(unittest.TestCase):
         with patch.dict(os.environ, {"FIS_API_MODE": "live", "FIS_API_BASE_URL": "", "FIS_API_TOKEN": ""}, clear=False):
             with self.assertRaises(FisApiError):
                 get_fis_client()
+
+    def test_live_fis_mode_remains_safety_locked(self):
+        with patch.dict(os.environ, {"FIS_API_MODE": "live", "FIS_API_BASE_URL": "https://fis.invalid", "FIS_API_TOKEN": "test", "FIS_LIVE_PUBLISH_ENABLED": "false", "FIS_SAFE_EVENT_IDS": "55596"}, clear=False):
+            client = get_fis_client()
+            with self.assertRaises(FisApiError) as context:
+                client.publish("amp-alp-w-test-place-2026", {"eventIds": [55596]})
+            self.assertEqual(context.exception.status_code, 503)
 
     def test_journalist_cannot_change_editorial_status(self):
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "approved"})

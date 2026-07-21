@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Sports Editorial sign in | CXMS{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial-workspace.css') }}">{% endblock %}
+{% block content %}
+<main class="sew-app sew-login-page">
+  <div class="sew-pilot-banner">Sports Editorial Pilot — workflow and schema subject to feedback.</div>
+  <section class="sew-card sew-login-panel">
+    <p class="sew-kicker">Sports Editorial workspace</p>
+    <h1>Sign in</h1>
+    <p>Use your workspace email and password. Access is limited to invited journalists and sub-editors.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="sew-messages">{% for category, message in messages %}<p class="sew-message sew-message--{{ category }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% endwith %}
+    <form method="post" class="sew-login-form">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label>Email<input type="email" name="email" autocomplete="username" required></label>
+      <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+      <button class="sew-button sew-button--primary" type="submit">Sign in</button>
+    </form>
+  </section>
+</main>
+{% endblock %}

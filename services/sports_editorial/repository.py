@@ -2,9 +2,12 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from threading import RLock
 from uuid import uuid4
+import os
 
 from .demo_data import fresh_demo_data
 from .formatting import sanitise_rich_text
+from .identifiers import build_fis_external_id
+from .supabase_rest import SupabaseRestClient
 from .validation import VALID_CONTENT_TYPES
 
 
@@ -44,7 +47,7 @@ class DemoSportsEditorialRepository:
             "competition": data.get("competition", "").strip(), "event_name": data.get("event_name", "").strip(),
             "gender": data.get("gender", "").strip().upper(), "location": data.get("location", "").strip(),
             "event_date": data.get("event_date", "").strip(), "fis_event_ids": data.get("fis_event_ids", []),
-            "fis_external_id": f"cxms-{uuid4()}", "author_name": data["author_name"].strip(),
+            "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(),
             "author_email": data.get("author_email", "").strip(), "status": status, "editor_notes": "",
             "created_at": now, "updated_at": now, "submitted_at": now if status == "submitted" else None, "approved_at": None,
             "stats": [{"id": str(uuid4()), "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "entity_ids": [], "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()],
@@ -97,4 +100,114 @@ class DemoSportsEditorialRepository:
         return deepcopy(entity)
 
 
-repository = DemoSportsEditorialRepository()
+class SupabaseSportsEditorialRepository:
+    """Workspace-scoped persistence using the isolated sports_editorial_* tables."""
+
+    def __init__(self, client=None):
+        self.client = client or SupabaseRestClient()
+
+    def reset(self):
+        # Tests use the demo repository. Never delete shared Supabase data here.
+        return None
+
+    def _workspace(self):
+        from .auth import current_user
+        user = current_user()
+        return user["workspace_id"] if user else ""
+
+    def _hydrate(self, rows):
+        if not rows:
+            return []
+        ids = [row["id"] for row in rows]
+        stats = self.client.request("sports_editorial_stats", query={"select": "*", "submission_id": f"in.({','.join(ids)})", "order": "sort_order.asc"})
+        stat_ids = [row["id"] for row in stats]
+        links = self.client.request("sports_editorial_stat_entities", query={"select": "stat_id,entity_id", "stat_id": f"in.({','.join(stat_ids)})"}) if stat_ids else []
+        entity_ids = {}
+        for link in links:
+            entity_ids.setdefault(link["stat_id"], []).append(link["entity_id"])
+        by_submission = {}
+        for stat in stats:
+            stat["entity_ids"] = entity_ids.get(stat["id"], [])
+            by_submission.setdefault(stat["submission_id"], []).append(stat)
+        for row in rows:
+            row["stats"] = by_submission.get(row["id"], [])
+        return rows
+
+    def list_submissions(self, status="", sport="", order="newest"):
+        query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": f"submitted_at.{'desc' if order != 'oldest' else 'asc'}.nullslast"}
+        if status:
+            query["status"] = f"eq.{status}"
+        if sport:
+            query["sport"] = f"eq.{sport}"
+        return self._hydrate(self.client.request("sports_editorial_submissions", query=query))
+
+    def get_submission(self, submission_id):
+        rows = self.client.request("sports_editorial_submissions", query={"select": "*", "id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}", "limit": "1"})
+        hydrated = self._hydrate(rows)
+        return hydrated[0] if hydrated else None
+
+    def create_submission(self, data, status):
+        from .auth import current_user
+        user = current_user() or {}
+        now = _now()
+        submission = {
+            "workspace_id": self._workspace(), "author_user_id": user.get("id"), "title": data["title"].strip(),
+            "sport": "alpine_skiing", "competition": data.get("competition", "").strip(), "event_name": data.get("event_name", "").strip(),
+            "gender": data.get("gender", "").strip().upper() or None, "location": data.get("location", "").strip(),
+            "event_date": data.get("event_date") or None, "fis_event_ids": data.get("fis_event_ids", []),
+            "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(), "author_email": data.get("author_email", "").strip(),
+            "status": status, "editor_notes": "", "submitted_at": now if status == "submitted" else None,
+        }
+        created = self.client.request("sports_editorial_submissions", "POST", payload=submission, prefer="return=representation")[0]
+        blocks = [{"submission_id": created["id"], "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()]
+        if blocks:
+            self.client.request("sports_editorial_stats", "POST", payload=blocks, prefer="return=minimal")
+        return self.get_submission(created["id"])
+
+    def update_review(self, submission_id, form_data, requested_status):
+        item = self.get_submission(submission_id)
+        allowed_ids = {entity["id"] for entity in self.list_entities()}
+        for stat in item["stats"]:
+            stat_id = stat["id"]
+            self.client.request("sports_editorial_stats", "PATCH", query={"id": f"eq.{stat_id}"}, payload={"edited_text": sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", "")), "editor_comment": form_data.get(f"editor_comment_{stat_id}", "").strip(), "tags": [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()], "updated_at": _now()}, prefer="return=minimal")
+            selected = [value for value in form_data.getlist(f"entity_ids_{stat_id}") if value in allowed_ids]
+            self.client.request("sports_editorial_stat_entities", "DELETE", query={"stat_id": f"eq.{stat_id}"})
+            if selected:
+                self.client.request("sports_editorial_stat_entities", "POST", payload=[{"stat_id": stat_id, "entity_id": value} for value in selected], prefer="return=minimal")
+        changes = {"status": requested_status, "editor_notes": form_data.get("editor_notes", "").strip(), "updated_at": _now()}
+        if requested_status == "approved" and not item.get("approved_at"):
+            changes["approved_at"] = changes["updated_at"]
+        self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload=changes, prefer="return=minimal")
+        return self.get_submission(submission_id)
+
+    def get_fis_publication(self, submission_id):
+        item = self.get_submission(submission_id)
+        return (item or {}).get("fis_publication")
+
+    def save_fis_publication(self, submission_id, publication):
+        self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload={"fis_publication": publication, "updated_at": _now()}, prefer="return=minimal")
+        return publication
+
+    def list_entities(self):
+        return self.client.request("sports_editorial_entities", query={"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "entity_type.asc,name.asc"})
+
+    def search_entities(self, query, entity_type="", limit=10):
+        params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "name": f"ilike.*{query}*", "limit": str(limit), "order": "name.asc"}
+        if entity_type:
+            params["entity_type"] = f"eq.{entity_type}"
+        return self.client.request("sports_editorial_entities", query=params)
+
+    def add_entity(self, data):
+        payload = {"workspace_id": self._workspace(), "entity_type": data["entity_type"], "name": data["name"].strip(), "canonical_id": data.get("canonical_id", "").strip() or None, "canonical_url": data.get("canonical_url", "").strip() or None, "country_code": data.get("country_code", "").strip().upper() or None}
+        return self.client.request("sports_editorial_entities", "POST", payload=payload, prefer="return=representation")[0]
+
+
+def _build_repository():
+    if os.getenv("SPORTS_EDITORIAL_REPOSITORY", "demo").strip().lower() == "supabase":
+        client = SupabaseRestClient()
+        if client.configured:
+            return SupabaseSportsEditorialRepository(client)
+    return DemoSportsEditorialRepository()
+
+
+repository = _build_repository()

@@ -2,5 +2,6 @@
 {% block workspace_title %}FIS payload preview{% endblock %}
 {% block workspace_content %}
 <div class="sew-page-heading"><a class="sew-back" href="{{ url_for('sports_editorial_workspace.detail', submission_id=submission.id) }}">← Back to review</a><p class="sew-kicker">FIS schema version 1 · {{ 'Simulation' if fis_config.mode == 'mock' else 'Live configuration' }}</p><h1>FIS plain-text payload preview</h1><p>Formatting is retained in CXMS but removed from the FIS payload, as required by the draft contract.</p></div>
+{% if 55596 in submission.fis_event_ids|default([]) %}<div class="sew-fis-warnings"><p><strong>Demonstration event ID:</strong> 55596 came from the draft API example and is not confirmed safe for live publishing.</p></div>{% endif %}
 {% if errors %}<section class="sew-card"><h2>Not ready for FIS</h2><ul class="sew-fis-error-list">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></section>{% else %}<section class="sew-json-card"><div class="sew-section-heading"><span>PUT /media/stat-sheets/{{ submission.fis_external_id }}</span><span class="sew-fis-mode sew-fis-mode--{{ fis_config.mode }}">{{ fis_config.mode }}</span></div><pre><code>{{ formatted_json }}</code></pre></section>{% endif %}
 {% endblock %}

@@ -54,4 +54,8 @@ SUBMISSIONS = [
 
 
 def fresh_demo_data():
-    return deepcopy(SUBMISSIONS), deepcopy(ENTITIES)
+    submissions = deepcopy(SUBMISSIONS)
+    for submission in submissions:
+        if submission.get("fis_external_id", "").startswith("wc-alp-"):
+            submission["fis_external_id"] = submission["fis_external_id"].replace("wc-alp-", "amp-alp-", 1)
+    return submissions, deepcopy(ENTITIES)

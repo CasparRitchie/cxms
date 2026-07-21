@@ -5,13 +5,13 @@
 <form class="sew-form" method="post" novalidate>
   <section class="sew-card"><h2>About this stat pack</h2><div class="sew-form-grid">
     <label class="sew-field sew-field--wide"><span>Title <em>Required</em></span><input name="title" required value="{{ (values.get('title') or [''])[0] }}" placeholder="e.g. Race notes: Val d'Isere"></label>
-    <label class="sew-field"><span>Sport</span><input name="sport" value="{{ (values.get('sport') or ['alpine_skiing'])[0] }}" placeholder="alpine_skiing"></label>
+    <label class="sew-field"><span>Sport</span><input type="hidden" name="sport" value="alpine_skiing"><input value="Alpine Skiing (ALP pilot)" disabled></label>
     <label class="sew-field"><span>Competition</span><input name="competition" value="{{ (values.get('competition') or [''])[0] }}" placeholder="FIS World Cup"></label>
     <label class="sew-field"><span>Event</span><input name="event_name" value="{{ (values.get('event_name') or [''])[0] }}" placeholder="Giant Slalom"></label>
     <label class="sew-field"><span>Gender</span><select name="gender"><option value="">Select</option>{% for code, label in [('W', 'Women'), ('M', 'Men'), ('X', 'Mixed / open')] %}<option value="{{ code }}" {% if (values.get('gender') or [''])[0] == code %}selected{% endif %}>{{ label }} ({{ code }})</option>{% endfor %}</select></label>
     <label class="sew-field"><span>Location</span><input name="location" value="{{ (values.get('location') or [''])[0] }}" placeholder="Kronplatz"></label>
     <label class="sew-field"><span>Event date</span><input type="date" name="event_date" value="{{ (values.get('event_date') or [''])[0] }}"></label>
-    <label class="sew-field"><span>FIS event IDs <small>Comma separated</small></span><input name="fis_event_ids" inputmode="numeric" value="{{ (values.get('fis_event_ids') or [''])[0] }}" placeholder="55596"></label>
+    <label class="sew-field"><span>FIS event IDs <small>Comma separated; leave blank until FIS confirms a safe event</small></span><input name="fis_event_ids" inputmode="numeric" value="{{ (values.get('fis_event_ids') or [''])[0] }}" placeholder="Confirmed FIS calendar ID"></label>
   </div></section>
   <section class="sew-card"><div class="sew-section-heading"><div><h2>Statistics</h2><p>Build the sheet with draggable sections, headings and facts. Select text to make it bold or italic.</p></div><div class="sew-add-menu"><button class="sew-button" type="button" data-add-block="stat">Add statistic</button><button class="sew-button" type="button" data-add-block="section">Add section</button><button class="sew-button" type="button" data-add-block="heading">Add heading</button></div></div>
     <div class="sew-format-toolbar" aria-label="Text formatting"><button type="button" data-format="bold" title="Bold"><strong>B</strong></button><button type="button" data-format="italic" title="Italic"><em>I</em></button><span>Select text inside a block, then choose a format.</span></div>
