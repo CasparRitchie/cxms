@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from threading import RLock
 from uuid import uuid4
 import os
+import re
 
 from .demo_data import fresh_demo_data
 from .formatting import sanitise_rich_text
@@ -13,6 +14,11 @@ from .validation import VALID_CONTENT_TYPES
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _event_ids_from_form(form_data):
+    values = re.split(r"[\s,]+", " ".join(form_data.getlist("fis_event_ids")))
+    return list(dict.fromkeys(int(value) for value in values if value.isdigit() and int(value) > 0))[:10]
 
 
 class DemoSportsEditorialRepository:
@@ -60,6 +66,7 @@ class DemoSportsEditorialRepository:
         with self._lock:
             item = next(item for item in self._submissions if item["id"] == submission_id)
             item["editor_notes"] = form_data.get("editor_notes", "").strip()
+            item["fis_event_ids"] = _event_ids_from_form(form_data)
             for stat in item["stats"]:
                 stat_id = stat["id"]
                 stat["edited_text"] = sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", ""))
@@ -174,7 +181,8 @@ class SupabaseSportsEditorialRepository:
             self.client.request("sports_editorial_stat_entities", "DELETE", query={"stat_id": f"eq.{stat_id}"})
             if selected:
                 self.client.request("sports_editorial_stat_entities", "POST", payload=[{"stat_id": stat_id, "entity_id": value} for value in selected], prefer="return=minimal")
-        changes = {"status": requested_status, "editor_notes": form_data.get("editor_notes", "").strip(), "updated_at": _now()}
+        event_ids = _event_ids_from_form(form_data)
+        changes = {"status": requested_status, "editor_notes": form_data.get("editor_notes", "").strip(), "fis_event_ids": event_ids, "updated_at": _now()}
         if requested_status == "approved" and not item.get("approved_at"):
             changes["approved_at"] = changes["updated_at"]
         self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload=changes, prefer="return=minimal")

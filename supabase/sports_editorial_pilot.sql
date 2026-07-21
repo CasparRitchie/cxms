@@ -85,6 +85,14 @@ alter table public.sports_editorial_stat_entities enable row level security;
 
 -- The pilot Flask server uses the service-role key and enforces workspace access.
 -- No public/anon policies are deliberately created.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on table
+  public.sports_editorial_memberships,
+  public.sports_editorial_submissions,
+  public.sports_editorial_stats,
+  public.sports_editorial_entities,
+  public.sports_editorial_stat_entities
+to service_role;
 
 create or replace function public.sports_editorial_provision_user(
   p_workspace_id uuid,

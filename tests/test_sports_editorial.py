@@ -26,8 +26,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_submission_validation(self):
         errors = validate_submission({"title": "", "content": [{"content_type": "stat", "content_html": ""}]}, submitting=True)
-        self.assertEqual(len(errors), 2)
-        self.assertEqual(validate_submission({"title": "Pack", "content": [{"content_type": "stat", "content_html": "One fact"}]}, submitting=True), [])
+        self.assertEqual(len(errors), 3)
+        self.assertEqual(validate_submission({"title": "Pack", "fis_event_ids": [12345], "content": [{"content_type": "stat", "content_html": "One fact"}]}, submitting=True), [])
         self.assertIn("Alpine Skiing", validate_submission({"title": "Pack", "sport": "ski_jumping", "content": [{"content_type": "stat", "content_html": "One fact"}]})[0])
 
     def test_readable_amp_external_id(self):
@@ -63,6 +63,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.post("/workspace/sports-editorial/submit", data={
             "title": "Tomorrow demo pack", "sport": "alpine_skiing", "competition": "FIS Demo Cup",
             "event_name": "Demo downhill", "gender": "W", "location": "Kronplatz", "event_date": "2026-12-12",
+            "fis_event_ids": "55596",
             "content_type": ["section", "stat", "stat"], "content_html": ["Previous race", "<strong>First</strong> demonstration fact.", "Second demonstration fact."],
             "action": "submit",
         })
@@ -74,6 +75,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         first_stat = repository.get_submission(submission_id)["stats"][0]
         response = self.client.post(f"/workspace/sports-editorial/submissions/{submission_id}", data={
             "status": "approved", "editor_notes": "Approved for demo.",
+            "fis_event_ids": "55596",
             f"edited_text_{first_stat['id']}": "First edited demonstration fact.",
             f"entity_ids_{first_stat['id']}": "entity-athlete-lena",
         })

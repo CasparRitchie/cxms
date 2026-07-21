@@ -12,6 +12,7 @@ from .repository import repository
 from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, validate_status_transition, validate_submission
 from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_role, require_workspace_admin
 from .supabase_rest import SupabaseError
+from .calendar import RepositoryCalendarProvider
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
@@ -98,6 +99,10 @@ def _entities_by_id():
     return {entity["id"]: entity for entity in repository.list_entities()}
 
 
+def _calendar_events():
+    return RepositoryCalendarProvider(repository).list_events()
+
+
 def _require_sub_editor():
     require_role("sub_editor")
 
@@ -134,7 +139,7 @@ def submit():
         data = {
             "title": request.form.get("title", ""), "sport": "alpine_skiing",
             "competition": request.form.get("competition", ""), "event_name": request.form.get("event_name", ""),
-            "gender": request.form.get("gender", ""), "location": request.form.get("location", ""), "fis_event_ids": _event_ids_from_form(request.form.get("fis_event_ids", "")),
+            "gender": request.form.get("gender", ""), "location": request.form.get("location", ""), "fis_event_ids": _event_ids_from_form(" ".join(request.form.getlist("fis_event_ids"))),
             "event_date": request.form.get("event_date", ""), "author_name": (current_user() or {}).get("full_name") or (current_user() or {}).get("email") or "Workspace user",
             "author_email": (current_user() or {}).get("email", ""), "content": [
                 {"content_type": content_type, "content_html": sanitise_rich_text(content_html)}
@@ -147,7 +152,7 @@ def submit():
             return redirect(url_for("sports_editorial_workspace.confirmation", submission_id=submission["id"]))
         for error in errors:
             flash(error, "error")
-    return render_template("sports-editorial-workspace/submit.html", values=values)
+    return render_template("sports-editorial-workspace/submit.html", values=values, calendar_events=_calendar_events())
 
 
 @blueprint.route("/confirmation/<submission_id>")
@@ -191,7 +196,10 @@ def detail(submission_id):
     if request.method == "POST":
         _require_sub_editor()
         requested_status = request.form.get("status", submission["status"])
+        event_ids = _event_ids_from_form(" ".join(request.form.getlist("fis_event_ids")))
         valid, message = validate_status_transition(submission["status"], requested_status)
+        if requested_status in ("approved", "exported") and not event_ids:
+            valid, message = False, "Select at least one FIS calendar event before approval."
         if not valid:
             flash(message, "error")
         else:
@@ -200,7 +208,7 @@ def detail(submission_id):
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
     entities = repository.list_entities()
     grouped_entities = {entity_type: [item for item in entities if item["entity_type"] == entity_type] for entity_type in VALID_ENTITY_TYPES}
-    return render_template("sports-editorial-workspace/detail.html", submission=repository.get_submission(submission_id), grouped_entities=grouped_entities, entities_by_id=_entities_by_id(), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration())
+    return render_template("sports-editorial-workspace/detail.html", submission=repository.get_submission(submission_id), grouped_entities=grouped_entities, entities_by_id=_entities_by_id(), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events())
 
 
 @blueprint.get("/submissions/<submission_id>/fis-preview")
