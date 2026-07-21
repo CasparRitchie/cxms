@@ -10,6 +10,7 @@ from services.sports_editorial.formatting import sanitise_rich_text
 from services.sports_editorial.fis_client import FisApiError, get_fis_client
 from services.sports_editorial.fis_export import build_fis_payload
 from services.sports_editorial.fis_calendar import parse_calendar_events
+from services.sports_editorial.fis_athletes import parse_athlete_csv
 from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import repository
 from services.sports_editorial.validation import validate_status_transition, validate_submission
@@ -180,6 +181,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual([item["canonical_id"] for item in events], ["62716", "62984"])
         self.assertEqual(events[0]["name"], "Cerro Castor, Ushuaia FIS 4xGS 4xSL")
         self.assertEqual(events[0]["metadata"]["category_code"], "WC")
+
+    def test_fis_athlete_csv_parser_uses_fis_code(self):
+        content = (
+            "Competitorid\tSectorcode\tFiscode\tLastname\tFirstname\tGender\tBirthdate\tNationcode\tStatus\r\n"
+            "12345\tAL\t512345\tRAST\tCamille\tW\t1999-07-09\tSUI\tO\r\n"
+            "23456\tAL\t422222\tTEAM\t\tA\t\tNOR\tE\r\n"
+        ).encode()
+        athletes = parse_athlete_csv(content, "https://www.fis-ski.com/example.zip", 2027, "4th list")
+        self.assertEqual(len(athletes), 1)
+        self.assertEqual(athletes[0]["canonical_id"], "512345")
+        self.assertEqual(athletes[0]["name"], "Camille Rast")
+        self.assertEqual(athletes[0]["country_code"], "SUI")
+        self.assertEqual(athletes[0]["metadata"]["competitor_id"], "12345")
 
 
 if __name__ == "__main__":

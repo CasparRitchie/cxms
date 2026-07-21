@@ -14,6 +14,7 @@ from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, l
 from .supabase_rest import SupabaseError
 from .calendar import RepositoryCalendarProvider
 from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
+from .fis_athletes import FisAthleteError, fetch_alpine_athletes
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
@@ -111,6 +112,25 @@ def calendar():
     return render_template("sports-editorial-workspace/calendar.html", events=events, season_code=season_code)
 
 
+@blueprint.route("/athletes", methods=["GET", "POST"])
+def athletes():
+    if auth_configuration()["mode"] != "workspace":
+        abort(404)
+    require_workspace_admin()
+    season_code = request.form.get("season_code", "2027") if request.method == "POST" else request.args.get("season_code", "2027")
+    if request.method == "POST":
+        try:
+            imported, source_url, list_name = fetch_alpine_athletes(season_code)
+            count = repository.upsert_athletes(imported)
+            flash(f"Imported {count} Alpine athletes from {list_name or 'the official FIS points list'}.", "success")
+            return redirect(url_for("sports_editorial_workspace.athletes", season_code=season_code))
+        except (FisAthleteError, SupabaseError) as exc:
+            flash(str(exc), "error")
+    catalogue = [entity for entity in repository.list_entities(entity_type="athlete", limit=200) if str(entity.get("canonical_id") or "").isdigit()]
+    athlete_count = f"{len(catalogue)}+" if len(catalogue) == 200 else str(len(catalogue))
+    return render_template("sports-editorial-workspace/athletes.html", athletes=catalogue, athlete_count=athlete_count, season_code=season_code)
+
+
 def _submission_or_404(submission_id):
     submission = repository.get_submission(submission_id)
     if not submission:
@@ -118,8 +138,11 @@ def _submission_or_404(submission_id):
     return submission
 
 
-def _entities_by_id():
-    return {entity["id"]: entity for entity in repository.list_entities()}
+def _entities_by_id(submission=None):
+    if submission is None:
+        return {}
+    entity_ids = [entity_id for stat in submission.get("stats", []) for entity_id in stat.get("entity_ids", [])]
+    return {entity["id"]: entity for entity in repository.get_entities_by_ids(entity_ids)}
 
 
 def _calendar_events():
@@ -235,9 +258,9 @@ def detail(submission_id):
             repository.update_review(submission_id, request.form, requested_status)
             flash("Review changes saved.", "success")
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
-    entities = repository.list_entities()
-    grouped_entities = {entity_type: [item for item in entities if item["entity_type"] == entity_type] for entity_type in VALID_ENTITY_TYPES}
-    return render_template("sports-editorial-workspace/detail.html", submission=repository.get_submission(submission_id), grouped_entities=grouped_entities, entities_by_id=_entities_by_id(), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events())
+    grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
+    refreshed = repository.get_submission(submission_id)
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=_entities_by_id(refreshed), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events())
 
 
 @blueprint.get("/submissions/<submission_id>/fis-preview")
@@ -245,7 +268,7 @@ def fis_preview(submission_id):
     submission = _submission_or_404(submission_id)
     publication = repository.get_fis_publication(submission_id) or {}
     try:
-        payload = build_fis_payload(submission, _entities_by_id(), expected_version=publication.get("version"), organisation_uuid=fis_configuration()["organisation_uuid"])
+        payload = build_fis_payload(submission, _entities_by_id(submission), expected_version=publication.get("version"), organisation_uuid=fis_configuration()["organisation_uuid"])
         errors = []
     except FisPayloadValidationError as exc:
         payload, errors = None, exc.errors
@@ -261,7 +284,7 @@ def fis_publish(submission_id):
     previous = repository.get_fis_publication(submission_id) or {}
     config = fis_configuration()
     try:
-        payload = build_fis_payload(submission, _entities_by_id(), expected_version=previous.get("version"), organisation_uuid=config["organisation_uuid"])
+        payload = build_fis_payload(submission, _entities_by_id(submission), expected_version=previous.get("version"), organisation_uuid=config["organisation_uuid"])
         publication = get_fis_client().publish(submission.get("fis_external_id") or f"cxms-{submission_id}", payload, previous=previous, submission=submission)
         repository.save_fis_publication(submission_id, publication)
         flash("FIS simulation completed. No data was transmitted." if config["mode"] == "mock" else "Published to FIS.", "success")
@@ -304,7 +327,7 @@ def add_entity(submission_id):
 def json_preview(submission_id):
     submission = _submission_or_404(submission_id)
     try:
-        payload = build_pilot_export(submission, _entities_by_id())
+        payload = build_pilot_export(submission, _entities_by_id(submission))
     except ValueError as exc:
         flash(str(exc), "error")
         return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
@@ -317,6 +340,6 @@ def download_json(submission_id):
     submission = _submission_or_404(submission_id)
     if submission["status"] not in ("approved", "exported"):
         abort(403, description="Only approved submissions can be downloaded.")
-    payload = build_pilot_export(submission, _entities_by_id())
+    payload = build_pilot_export(submission, _entities_by_id(submission))
     data = json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")
     return send_file(BytesIO(data), mimetype="application/json", as_attachment=True, download_name=f"sports-editorial-{submission_id}.json")

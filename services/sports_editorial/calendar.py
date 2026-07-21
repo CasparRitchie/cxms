@@ -8,7 +8,7 @@ class RepositoryCalendarProvider:
 
     def list_events(self):
         return [
-            entity for entity in self.repository.list_entities()
+            entity for entity in self.repository.list_entities(entity_type="event")
             if entity.get("entity_type") == "event"
             and str(entity.get("canonical_id") or "").isdigit()
         ]

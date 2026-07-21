@@ -88,8 +88,14 @@ class DemoSportsEditorialRepository:
             self._fis_publications[submission_id] = deepcopy(publication)
         return deepcopy(publication)
 
-    def list_entities(self):
-        return deepcopy(sorted(self._entities, key=lambda item: (item["entity_type"], item["name"])))
+    def list_entities(self, entity_type="", limit=None):
+        items = [item for item in self._entities if not entity_type or item["entity_type"] == entity_type]
+        items = sorted(items, key=lambda item: (item["entity_type"], item["name"]))
+        return deepcopy(items[:limit] if limit else items)
+
+    def get_entities_by_ids(self, entity_ids):
+        wanted = set(entity_ids)
+        return deepcopy([item for item in self._entities if item["id"] in wanted])
 
     def search_entities(self, query, entity_type="", limit=10):
         needle = query.casefold().strip()
@@ -115,6 +121,16 @@ class DemoSportsEditorialRepository:
                 else:
                     self._entities.append({"id": str(uuid4()), **deepcopy(incoming)})
         return len(events)
+
+    def upsert_athletes(self, athletes):
+        with self._lock:
+            for incoming in athletes:
+                existing = next((item for item in self._entities if item["entity_type"] == "athlete" and item.get("canonical_id") == incoming["canonical_id"]), None)
+                if existing:
+                    existing.update(deepcopy(incoming))
+                else:
+                    self._entities.append({"id": str(uuid4()), **deepcopy(incoming)})
+        return len(athletes)
 
 
 class SupabaseSportsEditorialRepository:
@@ -206,14 +222,32 @@ class SupabaseSportsEditorialRepository:
         self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload={"fis_publication": publication, "updated_at": _now()}, prefer="return=minimal")
         return publication
 
-    def list_entities(self):
-        return self.client.request("sports_editorial_entities", query={"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "entity_type.asc,name.asc"})
+    def list_entities(self, entity_type="", limit=None):
+        query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "entity_type.asc,name.asc"}
+        if entity_type:
+            query["entity_type"] = f"eq.{entity_type}"
+        if limit:
+            query["limit"] = str(limit)
+        return self.client.request("sports_editorial_entities", query=query)
+
+    def get_entities_by_ids(self, entity_ids):
+        ids = list(dict.fromkeys(entity_ids))
+        if not ids:
+            return []
+        return self.client.request("sports_editorial_entities", query={"select": "*", "workspace_id": f"eq.{self._workspace()}", "id": f"in.({','.join(ids)})"})
 
     def search_entities(self, query, entity_type="", limit=10):
         params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "name": f"ilike.*{query}*", "limit": str(limit), "order": "name.asc"}
         if entity_type:
             params["entity_type"] = f"eq.{entity_type}"
-        return self.client.request("sports_editorial_entities", query=params)
+        matches = self.client.request("sports_editorial_entities", query=params)
+        if query.isdigit() and len(matches) < limit:
+            code_params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "canonical_id": f"ilike.*{query}*", "limit": str(limit - len(matches)), "order": "name.asc"}
+            if entity_type:
+                code_params["entity_type"] = f"eq.{entity_type}"
+            seen = {item["id"] for item in matches}
+            matches.extend(item for item in self.client.request("sports_editorial_entities", query=code_params) if item["id"] not in seen)
+        return matches[:limit]
 
     def add_entity(self, data):
         payload = {"workspace_id": self._workspace(), "entity_type": data["entity_type"], "name": data["name"].strip(), "canonical_id": data.get("canonical_id", "").strip() or None, "canonical_url": data.get("canonical_url", "").strip() or None, "country_code": data.get("country_code", "").strip().upper() or None}
@@ -229,6 +263,17 @@ class SupabaseSportsEditorialRepository:
                 prefer="resolution=merge-duplicates,return=minimal",
             )
         return len(payload)
+
+    def upsert_athletes(self, athletes):
+        for start in range(0, len(athletes), 500):
+            payload = [{**athlete, "workspace_id": self._workspace()} for athlete in athletes[start:start + 500]]
+            self.client.request(
+                "sports_editorial_entities", "POST",
+                query={"on_conflict": "workspace_id,entity_type,canonical_id"},
+                payload=payload,
+                prefer="resolution=merge-duplicates,return=minimal",
+            )
+        return len(athletes)
 
 
 def _build_repository():
