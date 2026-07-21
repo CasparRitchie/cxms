@@ -132,6 +132,16 @@ class DemoSportsEditorialRepository:
                     self._entities.append({"id": str(uuid4()), **deepcopy(incoming)})
         return len(athletes)
 
+    def upsert_entities(self, entities):
+        with self._lock:
+            for incoming in entities:
+                existing = next((item for item in self._entities if item["entity_type"] == incoming["entity_type"] and item.get("canonical_id") == incoming["canonical_id"]), None)
+                if existing:
+                    existing.update(deepcopy(incoming))
+                else:
+                    self._entities.append({"id": str(uuid4()), **deepcopy(incoming)})
+        return len(entities)
+
 
 class SupabaseSportsEditorialRepository:
     """Workspace-scoped persistence using the isolated sports_editorial_* tables."""
@@ -241,7 +251,7 @@ class SupabaseSportsEditorialRepository:
         if entity_type:
             params["entity_type"] = f"eq.{entity_type}"
         matches = self.client.request("sports_editorial_entities", query=params)
-        if query.isdigit() and len(matches) < limit:
+        if len(matches) < limit:
             code_params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "canonical_id": f"ilike.*{query}*", "limit": str(limit - len(matches)), "order": "name.asc"}
             if entity_type:
                 code_params["entity_type"] = f"eq.{entity_type}"
@@ -274,6 +284,17 @@ class SupabaseSportsEditorialRepository:
                 prefer="resolution=merge-duplicates,return=minimal",
             )
         return len(athletes)
+
+    def upsert_entities(self, entities):
+        for start in range(0, len(entities), 500):
+            payload = [{**entity, "workspace_id": self._workspace()} for entity in entities[start:start + 500]]
+            self.client.request(
+                "sports_editorial_entities", "POST",
+                query={"on_conflict": "workspace_id,entity_type,canonical_id"},
+                payload=payload,
+                prefer="resolution=merge-duplicates,return=minimal",
+            )
+        return len(entities)
 
 
 def _build_repository():

@@ -15,6 +15,7 @@ from .supabase_rest import SupabaseError
 from .calendar import RepositoryCalendarProvider
 from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
 from .fis_athletes import FisAthleteError, fetch_alpine_athletes
+from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_competitions
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
@@ -122,13 +123,33 @@ def athletes():
         try:
             imported, source_url, list_name = fetch_alpine_athletes(season_code)
             count = repository.upsert_athletes(imported)
-            flash(f"Imported {count} Alpine athletes from {list_name or 'the official FIS points list'}.", "success")
+            country_count = repository.upsert_entities(countries_from_athletes(imported))
+            flash(f"Imported {count} Alpine athletes and {country_count} FIS nations from {list_name or 'the official FIS points list'}.", "success")
             return redirect(url_for("sports_editorial_workspace.athletes", season_code=season_code))
         except (FisAthleteError, SupabaseError) as exc:
             flash(str(exc), "error")
     catalogue = [entity for entity in repository.list_entities(entity_type="athlete", limit=200) if str(entity.get("canonical_id") or "").isdigit()]
     athlete_count = f"{len(catalogue)}+" if len(catalogue) == 200 else str(len(catalogue))
     return render_template("sports-editorial-workspace/athletes.html", athletes=catalogue, athlete_count=athlete_count, season_code=season_code)
+
+
+@blueprint.route("/competitions", methods=["GET", "POST"])
+def competitions():
+    if auth_configuration()["mode"] != "workspace":
+        abort(404)
+    require_workspace_admin()
+    if request.method == "POST":
+        try:
+            imported, failures = fetch_alpine_competitions(_calendar_events())
+            count = repository.upsert_entities(imported)
+            suffix = f" {failures} event pages could not be read and can be retried." if failures else ""
+            flash(f"Imported {count} Alpine competitions from the public FIS event pages.{suffix}", "success")
+            return redirect(url_for("sports_editorial_workspace.competitions"))
+        except (FisEntityError, SupabaseError) as exc:
+            flash(str(exc), "error")
+    catalogue = repository.list_entities(entity_type="competition", limit=300)
+    countries = repository.list_entities(entity_type="country", limit=300)
+    return render_template("sports-editorial-workspace/competitions.html", competitions=catalogue, countries=countries)
 
 
 def _submission_or_404(submission_id):

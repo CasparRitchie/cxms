@@ -11,6 +11,7 @@ from services.sports_editorial.fis_client import FisApiError, get_fis_client
 from services.sports_editorial.fis_export import build_fis_payload
 from services.sports_editorial.fis_calendar import parse_calendar_events
 from services.sports_editorial.fis_athletes import parse_athlete_csv
+from services.sports_editorial.fis_entities import countries_from_athletes, parse_event_competitions
 from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import repository
 from services.sports_editorial.validation import validate_status_transition, validate_submission
@@ -104,6 +105,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         invalid = self.client.get("/workspace/sports-editorial/entities/search?q=cam&type=invalid")
         self.assertEqual(invalid.status_code, 400)
 
+        country = self.client.get("/workspace/sports-editorial/entities/search?q=SUI&type=country").get_json()
+        self.assertEqual(country["results"][0]["name"], "Switzerland")
+
     def test_fis_payload_matches_v1_shape(self):
         submissions, entities = fresh_demo_data()
         payload = build_fis_payload(submissions[0], {item["id"]: item for item in entities})
@@ -194,6 +198,21 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(athletes[0]["name"], "Camille Rast")
         self.assertEqual(athletes[0]["country_code"], "SUI")
         self.assertEqual(athletes[0]["metadata"]["competitor_id"], "12345")
+
+    def test_fis_countries_are_derived_from_official_athlete_codes(self):
+        countries = countries_from_athletes([{"country_code": "SUI"}, {"country_code": "USA"}, {"country_code": "SUI"}])
+        self.assertEqual([(item["canonical_id"], item["name"]) for item in countries], [("SUI", "Switzerland"), ("USA", "United States")])
+
+    def test_fis_competition_parser_retains_race_id_and_codex(self):
+        html = '''<a href="https://www.fis-ski.com/DB/general/results.html?sectorcode=AL&amp;raceid=131458"><div data-date="2026-07-31">31 Jul</div></a>
+        <a href="https://www.fis-ski.com/DB/general/results.html?sectorcode=AL&amp;raceid=131458">0251</a>
+        <a href="https://www.fis-ski.com/DB/general/results.html?sectorcode=AL&amp;raceid=131458"><div>Giant Slalom</div></a>
+        <a href="https://www.fis-ski.com/DB/general/results.html?sectorcode=AL&amp;raceid=131458"><div>M</div></a>'''
+        items = parse_event_competitions(html, {"canonical_id": "62716", "name": "Cerro Castor", "country_code": "ARG"})
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["canonical_id"], "131458")
+        self.assertEqual(items[0]["metadata"]["codex"], "0251")
+        self.assertIn("Giant Slalom", items[0]["name"])
 
 
 if __name__ == "__main__":
