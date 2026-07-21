@@ -135,7 +135,7 @@ begin
     (workspace_id, user_id, editorial_role, is_active)
   values
     (p_workspace_id, v_user_id, p_editorial_role, true)
-  on conflict (workspace_id, user_id) do update
+  on conflict on constraint sports_editorial_memberships_workspace_id_user_id_key do update
     set editorial_role = excluded.editorial_role,
         is_active = true;
 

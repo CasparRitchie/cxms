@@ -155,6 +155,20 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "approved"})
         self.assertEqual(response.status_code, 403)
 
+    def test_review_rejects_non_numeric_fis_event_id(self):
+        self.set_sub_editor()
+        response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "submitted", "fis_event_ids": "DemoCalendarID00001x"}, follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"must contain digits only", response.data)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["fis_event_ids"], [55596])
+
+    def test_publication_wording_is_editable_for_sub_editor(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'contenteditable="true"', response.data)
+        self.assertIn(b'aria-label="Publication wording"', response.data)
+
 
 if __name__ == "__main__":
     unittest.main()

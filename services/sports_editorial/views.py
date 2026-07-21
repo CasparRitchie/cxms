@@ -32,6 +32,10 @@ def _event_ids_from_form(value):
     return [int(part) for part in re.split(r"[\s,]+", value.strip()) if part.isdigit() and int(part) > 0]
 
 
+def _invalid_event_id_tokens(value):
+    return [part for part in re.split(r"[\s,]+", value.strip()) if part and (not part.isdigit() or int(part) <= 0)]
+
+
 @blueprint.app_context_processor
 def workspace_context():
     user = current_user() or {}
@@ -136,10 +140,11 @@ def submit():
         values["content_html"] = [sanitise_rich_text(value) for value in request.form.getlist("content_html")]
         action = request.form.get("action", "draft")
         status = "submitted" if action == "submit" else "draft"
+        raw_event_ids = " ".join(request.form.getlist("fis_event_ids"))
         data = {
             "title": request.form.get("title", ""), "sport": "alpine_skiing",
             "competition": request.form.get("competition", ""), "event_name": request.form.get("event_name", ""),
-            "gender": request.form.get("gender", ""), "location": request.form.get("location", ""), "fis_event_ids": _event_ids_from_form(" ".join(request.form.getlist("fis_event_ids"))),
+            "gender": request.form.get("gender", ""), "location": request.form.get("location", ""), "fis_event_ids": _event_ids_from_form(raw_event_ids),
             "event_date": request.form.get("event_date", ""), "author_name": (current_user() or {}).get("full_name") or (current_user() or {}).get("email") or "Workspace user",
             "author_email": (current_user() or {}).get("email", ""), "content": [
                 {"content_type": content_type, "content_html": sanitise_rich_text(content_html)}
@@ -147,6 +152,8 @@ def submit():
             ],
         }
         errors = validate_submission(data, submitting=status == "submitted")
+        if _invalid_event_id_tokens(raw_event_ids):
+            errors.append("FIS calendar event IDs must contain digits only, for example 123456.")
         if not errors:
             submission = repository.create_submission(data, status)
             return redirect(url_for("sports_editorial_workspace.confirmation", submission_id=submission["id"]))
@@ -196,9 +203,12 @@ def detail(submission_id):
     if request.method == "POST":
         _require_sub_editor()
         requested_status = request.form.get("status", submission["status"])
-        event_ids = _event_ids_from_form(" ".join(request.form.getlist("fis_event_ids")))
+        raw_event_ids = " ".join(request.form.getlist("fis_event_ids"))
+        event_ids = _event_ids_from_form(raw_event_ids)
         valid, message = validate_status_transition(submission["status"], requested_status)
-        if requested_status in ("approved", "exported") and not event_ids:
+        if _invalid_event_id_tokens(raw_event_ids):
+            valid, message = False, "FIS calendar event IDs must contain digits only, for example 123456."
+        elif requested_status in ("approved", "exported") and not event_ids:
             valid, message = False, "Select at least one FIS calendar event before approval."
         if not valid:
             flash(message, "error")
