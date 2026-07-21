@@ -214,6 +214,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(items[0]["metadata"]["codex"], "0251")
         self.assertIn("Giant Slalom", items[0]["name"])
 
+    def test_combined_entity_refresh_is_admin_only_in_workspace_mode(self):
+        with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=None):
+            response = self.client.post("/workspace/sports-editorial/entities/refresh/events", data={"season_code": "2027"})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login", response.headers["Location"])
+
 
 if __name__ == "__main__":
     unittest.main()

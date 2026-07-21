@@ -149,7 +149,33 @@ def competitions():
             flash(str(exc), "error")
     catalogue = repository.list_entities(entity_type="competition", limit=300)
     countries = repository.list_entities(entity_type="country", limit=300)
-    return render_template("sports-editorial-workspace/competitions.html", competitions=catalogue, countries=countries)
+    return render_template("sports-editorial-workspace/competitions.html", competitions=catalogue, countries=countries, season_code=request.args.get("season_code", "2027"))
+
+
+@blueprint.post("/entities/refresh/<step>")
+def refresh_entities(step):
+    if auth_configuration()["mode"] != "workspace":
+        abort(404)
+    require_workspace_admin()
+    season_code = request.form.get("season_code", "2027")
+    try:
+        if step == "events":
+            events, _ = fetch_alpine_world_cup_events(season_code)
+            count = repository.upsert_calendar_events(events)
+            return jsonify({"ok": True, "message": f"{count} events updated."})
+        if step == "athletes":
+            athletes, _, list_name = fetch_alpine_athletes(season_code)
+            athlete_count = repository.upsert_athletes(athletes)
+            country_count = repository.upsert_entities(countries_from_athletes(athletes))
+            return jsonify({"ok": True, "message": f"{athlete_count} athletes and {country_count} countries updated from {list_name or 'the official points list'}."})
+        if step == "competitions":
+            competitions, failures = fetch_alpine_competitions(_calendar_events())
+            count = repository.upsert_entities(competitions)
+            warning = f" {failures} event pages could not be read and can be retried." if failures else ""
+            return jsonify({"ok": True, "message": f"{count} competitions updated.{warning}"})
+        return jsonify({"ok": False, "error": "Unknown refresh step."}), 400
+    except (FisCalendarError, FisAthleteError, FisEntityError, SupabaseError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 503
 
 
 def _submission_or_404(submission_id):
