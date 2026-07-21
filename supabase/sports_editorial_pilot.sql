@@ -86,6 +86,58 @@ alter table public.sports_editorial_stat_entities enable row level security;
 -- The pilot Flask server uses the service-role key and enforces workspace access.
 -- No public/anon policies are deliberately created.
 
+create or replace function public.sports_editorial_provision_user(
+  p_workspace_id uuid,
+  p_email text,
+  p_full_name text,
+  p_password_hash text,
+  p_editorial_role text
+)
+returns table (user_id uuid, existing_account boolean)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_existing boolean := false;
+begin
+  if p_editorial_role not in ('journalist', 'sub_editor') then
+    raise exception 'Invalid Sports Editorial role';
+  end if;
+
+  select id into v_user_id from public.app_users where lower(email) = lower(trim(p_email)) limit 1;
+  if v_user_id is null then
+    insert into public.app_users (email, password_hash, full_name, is_active)
+    values (lower(trim(p_email)), p_password_hash, nullif(trim(p_full_name), ''), true)
+    returning id into v_user_id;
+  else
+    v_existing := true;
+  end if;
+
+  if not exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = p_workspace_id and wm.user_id = v_user_id
+  ) then
+    insert into public.workspace_members (workspace_id, user_id, email, role)
+    values (p_workspace_id, v_user_id, lower(trim(p_email)), 'member');
+  end if;
+
+  insert into public.sports_editorial_memberships
+    (workspace_id, user_id, editorial_role, is_active)
+  values
+    (p_workspace_id, v_user_id, p_editorial_role, true)
+  on conflict (workspace_id, user_id) do update
+    set editorial_role = excluded.editorial_role,
+        is_active = true;
+
+  return query select v_user_id, v_existing;
+end;
+$$;
+
+revoke all on function public.sports_editorial_provision_user(uuid, text, text, text, text) from public, anon, authenticated;
+grant execute on function public.sports_editorial_provision_user(uuid, text, text, text, text) to service_role;
+
 -- After creating a user through the existing NPS Me process, grant pilot access:
 -- insert into public.sports_editorial_memberships (workspace_id, user_id, editorial_role)
 -- values ('YOUR_WORKSPACE_UUID', 'YOUR_APP_USER_UUID', 'sub_editor');

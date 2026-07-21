@@ -1,0 +1,9 @@
+{% extends "sports-editorial-workspace/_workspace_base.html" %}
+{% block workspace_title %}User access{% endblock %}
+{% block workspace_content %}
+<div class="sew-page-heading"><p class="sew-kicker">Workspace administration</p><h1>User access</h1><p>Create pilot accounts and assign Sports Editorial roles.</p></div>
+<div class="sew-review-layout">
+  <section class="sew-card"><h2>Current users</h2><div class="sew-table-card"><table class="sew-table"><thead><tr><th>Name</th><th>Email</th><th>Editorial role</th><th>Status</th></tr></thead><tbody>{% for user in users %}<tr><td>{{ user.full_name or '—' }}</td><td>{{ user.email }}</td><td>{{ user.editorial_role|replace('_', ' ')|title }}</td><td>{{ 'Active' if user.is_active else 'Inactive' }}</td></tr>{% else %}<tr><td colspan="4">No Sports Editorial users yet.</td></tr>{% endfor %}</tbody></table></div></section>
+  <aside class="sew-card"><h2>Add a user</h2><p>If the email already has an NPS Me account, its existing password remains unchanged.</p><form method="post" class="sew-login-form"><label>Full name<input name="full_name" required></label><label>Email<input type="email" name="email" required autocomplete="off"></label><label>Temporary password<input type="password" name="temporary_password" minlength="12" required autocomplete="new-password"><small>At least 12 characters. Share it securely.</small></label><label>Sports role<select name="editorial_role" required><option value="journalist">Journalist</option><option value="sub_editor">Sub-editor</option></select></label><button class="sew-button sew-button--primary" type="submit">Create user access</button></form></aside>
+</div>
+{% endblock %}

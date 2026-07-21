@@ -10,7 +10,7 @@ from .fis_client import FisApiError, fis_configuration, get_fis_client
 from .fis_export import FisPayloadValidationError, build_fis_payload
 from .repository import repository
 from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, validate_status_transition, validate_submission
-from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, make_token, require_role
+from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_role, require_workspace_admin
 from .supabase_rest import SupabaseError
 
 
@@ -35,7 +35,7 @@ def _event_ids_from_form(value):
 def workspace_context():
     user = current_user() or {}
     mode = auth_configuration()["mode"]
-    return {"workspace_role": user.get("role", "journalist"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode}
+    return {"workspace_role": user.get("role", "journalist"), "workspace_account_role": user.get("workspace_role", "member"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode}
 
 
 @blueprint.route("/login", methods=["GET", "POST"])
@@ -70,6 +70,21 @@ def logout():
     response = make_response(redirect(url_for("sports_editorial_workspace.login")))
     response.delete_cookie(COOKIE_NAME, path="/")
     return response
+
+
+@blueprint.route("/users", methods=["GET", "POST"])
+def users():
+    if auth_configuration()["mode"] != "workspace":
+        abort(404)
+    admin = require_workspace_admin()
+    if request.method == "POST":
+        try:
+            provision_workspace_user(admin["workspace_id"], request.form.get("email", ""), request.form.get("full_name", ""), request.form.get("temporary_password", ""), request.form.get("editorial_role", ""))
+            flash("User access created. Share the temporary password securely and separately.", "success")
+            return redirect(url_for("sports_editorial_workspace.users"))
+        except (ValueError, SupabaseError) as exc:
+            flash(str(exc), "error")
+    return render_template("sports-editorial-workspace/users.html", users=list_workspace_users(admin["workspace_id"]))
 
 
 def _submission_or_404(submission_id):

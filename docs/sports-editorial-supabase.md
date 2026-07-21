@@ -6,6 +6,8 @@ The pilot can safely share the current NPS Me Supabase project while it is being
 
 Open Supabase SQL Editor and run [`supabase/sports_editorial_pilot.sql`](../supabase/sports_editorial_pilot.sql).
 
+If you ran an earlier version of the file, run it again. The statements are repeatable and the latest version adds the server-only user-provisioning function.
+
 The script enables row-level security and deliberately creates no anonymous browser policies. Flask performs all database work server-side with the service-role key and scopes reads/writes to the signed-in workspace.
 
 ## 2. Grant an existing NPS Me user access
@@ -20,6 +22,8 @@ values
 ```
 
 Use `journalist` for a journalist account. A user needs an active `app_users` row, an existing `workspace_members` row, and an active sports membership.
+
+Workspace owners and admins can subsequently open **Users** in Sports Editorial to create pilot accounts. Existing NPS Me email addresses keep their current password; new addresses receive the temporary password entered by the administrator.
 
 ## 3. Configure CXMS/Heroku
 
