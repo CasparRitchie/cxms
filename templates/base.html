@@ -10,8 +10,8 @@
 
   {% block head_extra %}{% endblock %}
 </head>
-<body class="cxms-body">
-  {% include "partials/site_header.html" %}
+<body class="cxms-body{% block body_class %}{% endblock %}">
+  {% block site_header %}{% include "partials/site_header.html" %}{% endblock %}
 
   <main class="site-main">
     <div class="site-shell">
@@ -19,7 +19,7 @@
     </div>
   </main>
 
-  {% include "partials/site_footer.html" %}
+  {% block site_footer %}{% include "partials/site_footer.html" %}{% endblock %}
 
   {% block scripts %}{% endblock %}
 </body>

@@ -31,6 +31,7 @@ create table if not exists public.sports_editorial_submissions (
   author_email text,
   status text not null default 'draft' check (status in ('draft','submitted','in_review','changes_requested','approved','exported')),
   editor_notes text,
+  fis_submission_notes text,
   fis_publication jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -69,6 +70,7 @@ create table if not exists public.sports_editorial_stat_entities (
   stat_id uuid not null references public.sports_editorial_stats(id) on delete cascade,
   entity_id uuid not null references public.sports_editorial_entities(id) on delete cascade,
   relationship_type text not null default 'mentions',
+  mention_text text,
   created_at timestamptz not null default now(),
   unique (stat_id, entity_id, relationship_type)
 );

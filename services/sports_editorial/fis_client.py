@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from hashlib import sha256
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
@@ -82,6 +83,8 @@ class LiveFisClient:
                 details = json.loads(exc.read())
             except (json.JSONDecodeError, UnicodeDecodeError):
                 details = {}
+            if exc.code == 429 and exc.headers.get("Retry-After"):
+                details["retryAfter"] = exc.headers["Retry-After"]
             raise FisApiError(details.get("message", "FIS rejected the request."), exc.code, details) from exc
         except (URLError, TimeoutError) as exc:
             raise FisApiError("The FIS API is currently unavailable.", 502) from exc
@@ -106,7 +109,15 @@ class LiveFisClient:
 
     def publish(self, external_id, payload, previous=None, submission=None):
         self._assert_safe(payload)
+        if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{2,99}", external_id or ""):
+            raise FisApiError("The CXMS external ID does not match the FIS format.", 422, {"errors": {"externalId": ["Use a stable lowercase slug of 3–100 characters."]}})
         remote = self.get(external_id)
+        if remote and remote.get("schemaVersion") not in (None, 1):
+            raise FisApiError(
+                f"FIS stores this sheet using schema version {remote['schemaVersion']}, which this CXMS release cannot safely replace.",
+                409,
+                {"currentSchemaVersion": remote["schemaVersion"]},
+            )
         outgoing = dict(payload)
         if remote and remote.get("version") is not None:
             outgoing["expectedVersion"] = remote["version"]

@@ -7,8 +7,8 @@ from app import app
 from services.sports_editorial.demo_data import fresh_demo_data
 from services.sports_editorial.json_export import build_pilot_export
 from services.sports_editorial.formatting import sanitise_rich_text
-from services.sports_editorial.fis_client import FisApiError, get_fis_client
-from services.sports_editorial.fis_export import build_fis_payload
+from services.sports_editorial.fis_client import FisApiError, LiveFisClient, get_fis_client
+from services.sports_editorial.fis_export import FisPayloadValidationError, build_fis_payload
 from services.sports_editorial.fis_calendar import parse_calendar_events
 from services.sports_editorial.fis_athletes import parse_athlete_csv
 from services.sports_editorial.fis_entities import countries_from_athletes, parse_event_competitions
@@ -47,10 +47,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_json_transformation_prefers_edited_text_and_links_entities(self):
         submissions, entities = fresh_demo_data()
         payload = build_pilot_export(submissions[0], {item["id"]: item for item in entities})
-        self.assertEqual(payload["schema_version"], "pilot-1.0")
+        self.assertEqual(payload["schema_version"], "pilot-1.1")
         self.assertEqual(payload["submission"]["event"]["gender"], "W")
+        self.assertEqual(payload["submission"]["fis"]["event_ids"], [55596])
         self.assertEqual(payload["stats"][0]["type"], "section")
         self.assertEqual(payload["stats"][1]["entities"][0]["type"], "athlete")
+        self.assertEqual(payload["stats"][1]["entities"][0]["fis_reference"]["type"], "athlete")
 
     def test_smoke_routes(self):
         paths = [
@@ -100,7 +102,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertEqual(payload["provider"], "local_pilot")
-        self.assertEqual(payload["results"][0]["canonical_id"], "demo-athlete-rast")
+        self.assertEqual(payload["results"][0]["canonical_id"], "516562")
 
         invalid = self.client.get("/workspace/sports-editorial/entities/search?q=cam&type=invalid")
         self.assertEqual(invalid.status_code, 400)
@@ -118,6 +120,55 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn("<strong>", payload["sections"][0]["items"][0]["text"])
         self.assertEqual(payload["sections"][0]["items"][0]["links"][0]["type"], "athlete")
         self.assertIn("previous-competition", payload["sections"][0]["items"][0]["tags"])
+
+    def test_fis_payload_links_all_supported_entity_types(self):
+        submission = {
+            "id": "sheet-1", "title": "Linked sheet", "sport": "alpine_skiing", "gender": "W",
+            "fis_event_ids": [62716], "stats": [{"id": "stat-1", "sort_order": 0, "stat_text": "Linked fact", "entity_ids": ["a", "n", "e", "c"]}],
+        }
+        entities = {
+            "a": {"entity_type": "athlete", "canonical_id": "516562"},
+            "n": {"entity_type": "country", "canonical_id": "SUI"},
+            "e": {"entity_type": "event", "canonical_id": "62716"},
+            "c": {"entity_type": "competition", "canonical_id": "131458"},
+        }
+        links = build_fis_payload(submission, entities)["sections"][0]["items"][0]["links"]
+        self.assertEqual(links, [
+            {"type": "athlete", "id": "516562"}, {"type": "nation", "id": "SUI"},
+            {"type": "event", "id": "62716"}, {"type": "competition", "id": "131458"},
+        ])
+
+    def test_fis_payload_generates_inline_marker_and_separate_note(self):
+        submission = {
+            "id": "sheet-1", "title": "Linked sheet", "sport": "alpine_skiing", "gender": "W",
+            "fis_event_ids": [62716], "editor_notes": "Internal only", "fis_submission_notes": "V2 corrects a result.",
+            "stats": [{"id": "stat-1", "sort_order": 0, "stat_text": "Camille Rast won.", "entity_ids": ["a"], "entity_mentions": {"a": "Camille Rast"}}],
+        }
+        entities = {"a": {"entity_type": "athlete", "canonical_id": "516562", "name": "Camille Rast"}}
+        payload = build_fis_payload(submission, entities)
+        self.assertEqual(payload["sections"][0]["items"][0]["text"], "{{athlete:516562|Camille Rast}} won.")
+        self.assertEqual(payload["notes"], "V2 corrects a result.")
+        self.assertNotIn("Internal only", json.dumps(payload))
+
+    def test_fis_preflight_rejects_contract_limits(self):
+        submission = {
+            "id": "sheet-1", "title": "x" * 256, "sport": "alpine_skiing", "fis_event_ids": [62716],
+            "stats": [{"id": "stat-1", "sort_order": 0, "stat_text": "x" * 5001, "entity_ids": [], "tags": [f"tag-{index}" for index in range(11)]}],
+        }
+        with self.assertRaises(FisPayloadValidationError) as context:
+            build_fis_payload(submission, {})
+        message = str(context.exception)
+        self.assertIn("255", message)
+        self.assertIn("5,000", message)
+        self.assertIn("more than 10", message)
+
+    def test_live_client_blocks_unknown_remote_schema(self):
+        client = LiveFisClient("https://fis.invalid", "token", safe_event_ids=[62716], live_enabled=True)
+        with patch.object(client, "get", return_value={"schemaVersion": 2, "version": 3}):
+            with self.assertRaises(FisApiError) as context:
+                client.publish("wc-al-w-test-2027", {"eventIds": [62716]})
+        self.assertEqual(context.exception.status_code, 409)
+        self.assertIn("schema version 2", str(context.exception))
 
     def test_mock_fis_publish_and_withdraw(self):
         self.set_sub_editor()

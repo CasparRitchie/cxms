@@ -1,6 +1,22 @@
 {% extends "base.html" %}
 {% block title %}{% block workspace_title %}Sports Editorial Pilot{% endblock %} | CXMS{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial-workspace.css') }}">{% endblock %}
+{% block body_class %} sew-page{% endblock %}
+{% block head_extra %}
+<script>document.documentElement.dataset.sewTheme=localStorage.getItem('cxms-sports-editorial-theme')||'dark';</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial-workspace.css') }}">
+{% endblock %}
+{% block site_header %}
+<header class="site-header sew-site-header">
+  <div class="site-shell site-header__inner">
+    <a href="{{ url_for('index') }}" class="site-brand">CXMS home</a>
+    <button class="sew-theme-toggle" type="button" aria-label="Switch to light mode" aria-pressed="false">
+      <span class="sew-theme-toggle__icon" aria-hidden="true">☀</span>
+      <span class="sew-theme-toggle__label">Light</span>
+    </button>
+  </div>
+</header>
+{% endblock %}
+{% block site_footer %}{% endblock %}
 {% block content %}
 <div class="sew-app">
   <div class="sew-pilot-banner">Sports Editorial Pilot — workflow and schema subject to feedback.</div>
@@ -20,4 +36,7 @@
   {% block workspace_content %}{% endblock %}
 </div>
 {% endblock %}
-{% block scripts %}{% block workspace_scripts %}{% endblock %}{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/sports-editorial-theme.js') }}"></script>
+{% block workspace_scripts %}{% endblock %}
+{% endblock %}

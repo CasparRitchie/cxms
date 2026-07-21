@@ -2,21 +2,21 @@ from copy import deepcopy
 
 
 ENTITIES = [
-    {"id": "entity-athlete-rast", "entity_type": "athlete", "name": "Camille Rast", "canonical_id": "demo-athlete-rast", "canonical_url": "", "country_code": "SUI"},
-    {"id": "entity-athlete-scheib", "entity_type": "athlete", "name": "Julia Scheib", "canonical_id": "demo-athlete-scheib", "canonical_url": "", "country_code": "AUT"},
-    {"id": "entity-athlete-robinson", "entity_type": "athlete", "name": "Alice Robinson", "canonical_id": "demo-athlete-robinson", "canonical_url": "", "country_code": "NZL"},
+    {"id": "entity-athlete-rast", "entity_type": "athlete", "name": "Camille Rast", "canonical_id": "516562", "canonical_url": "", "country_code": "SUI"},
+    {"id": "entity-athlete-scheib", "entity_type": "athlete", "name": "Julia Scheib", "canonical_id": "56388", "canonical_url": "", "country_code": "AUT"},
+    {"id": "entity-athlete-robinson", "entity_type": "athlete", "name": "Alice Robinson", "canonical_id": "415232", "canonical_url": "", "country_code": "NZL"},
     {"id": "entity-country-ch", "entity_type": "country", "name": "Switzerland", "canonical_id": "SUI", "canonical_url": "", "country_code": "SUI"},
     {"id": "entity-country-at", "entity_type": "country", "name": "Austria", "canonical_id": "AUT", "canonical_url": "", "country_code": "AUT"},
     {"id": "entity-country-it", "entity_type": "country", "name": "Italy", "canonical_id": "ITA", "canonical_url": "", "country_code": "ITA"},
     {"id": "entity-country-us", "entity_type": "country", "name": "United States", "canonical_id": "USA", "canonical_url": "", "country_code": "USA"},
-    {"id": "entity-competition-world-cup", "entity_type": "competition", "name": "FIS World Cup", "canonical_id": "demo-competition-01", "canonical_url": "", "country_code": ""},
-    {"id": "entity-event-kronplatz", "entity_type": "event", "name": "Women's Giant Slalom — Kronplatz", "canonical_id": "demo-event-kronplatz", "canonical_url": "", "country_code": "ITA"},
-    {"id": "entity-event-kranjska", "entity_type": "event", "name": "Women's Giant Slalom — Kranjska Gora", "canonical_id": "demo-event-kranjska", "canonical_url": "", "country_code": "SLO"},
+    {"id": "entity-competition-world-cup", "entity_type": "competition", "name": "FIS World Cup", "canonical_id": "124321", "canonical_url": "", "country_code": ""},
+    {"id": "entity-event-kronplatz", "entity_type": "event", "name": "Women's Giant Slalom — Kronplatz", "canonical_id": "55596", "canonical_url": "", "country_code": "ITA", "metadata": {"season_code": 2026, "discipline_code": "AL"}},
+    {"id": "entity-event-kranjska", "entity_type": "event", "name": "Women's Giant Slalom — Kranjska Gora", "canonical_id": "55595", "canonical_url": "", "country_code": "SLO", "metadata": {"season_code": 2026, "discipline_code": "AL"}},
 ]
 
 
 def _block(block_id, order, text, content_type="stat", entity_ids=None, tags=None):
-    return {"id": block_id, "sort_order": order, "content_type": content_type, "stat_text": text, "edited_text": "", "editor_comment": "", "entity_ids": entity_ids or [], "tags": tags or []}
+    return {"id": block_id, "sort_order": order, "content_type": content_type, "stat_text": text, "edited_text": "", "editor_comment": "", "entity_ids": entity_ids or [], "entity_mentions": {}, "tags": tags or []}
 
 
 KRONPLATZ_CONTENT = [

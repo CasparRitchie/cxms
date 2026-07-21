@@ -200,6 +200,21 @@ def _require_sub_editor():
     require_role("sub_editor")
 
 
+def _flash_fis_error(exc):
+    if isinstance(exc, FisPayloadValidationError):
+        for message in exc.errors:
+            flash(message, "error")
+        return
+    flash(f"FIS request failed ({exc.status_code}): {exc}", "error")
+    for path, messages in (exc.details.get("errors") or {}).items():
+        for message in messages if isinstance(messages, list) else [messages]:
+            flash(f"{path}: {message}", "error")
+    if exc.details.get("currentVersion") is not None:
+        flash(f"FIS currently has version {exc.details['currentVersion']}. Reload, review the latest sheet and try again.", "error")
+    if exc.details.get("retryAfter"):
+        flash(f"FIS has rate-limited requests. Try again after {exc.details['retryAfter']} seconds.", "error")
+
+
 @blueprint.route("")
 @blueprint.route("/")
 def dashboard():
@@ -315,7 +330,7 @@ def fis_preview(submission_id):
     submission = _submission_or_404(submission_id)
     publication = repository.get_fis_publication(submission_id) or {}
     try:
-        payload = build_fis_payload(submission, _entities_by_id(submission), expected_version=publication.get("version"), organisation_uuid=fis_configuration()["organisation_uuid"])
+        payload = build_fis_payload(submission, _entities_by_id(submission), expected_version=publication.get("version"), organisation_uuid=fis_configuration()["organisation_uuid"], calendar_events=_calendar_events())
         errors = []
     except FisPayloadValidationError as exc:
         payload, errors = None, exc.errors
@@ -331,12 +346,12 @@ def fis_publish(submission_id):
     previous = repository.get_fis_publication(submission_id) or {}
     config = fis_configuration()
     try:
-        payload = build_fis_payload(submission, _entities_by_id(submission), expected_version=previous.get("version"), organisation_uuid=config["organisation_uuid"])
+        payload = build_fis_payload(submission, _entities_by_id(submission), expected_version=previous.get("version"), organisation_uuid=config["organisation_uuid"], calendar_events=_calendar_events())
         publication = get_fis_client().publish(submission.get("fis_external_id") or f"cxms-{submission_id}", payload, previous=previous, submission=submission)
         repository.save_fis_publication(submission_id, publication)
         flash("FIS simulation completed. No data was transmitted." if config["mode"] == "mock" else "Published to FIS.", "success")
     except (FisPayloadValidationError, FisApiError) as exc:
-        flash(str(exc), "error")
+        _flash_fis_error(exc)
     return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
 
 
@@ -352,7 +367,7 @@ def fis_withdraw(submission_id):
         repository.save_fis_publication(submission_id, publication)
         flash("FIS simulation withdrawn." if fis_configuration()["mode"] == "mock" else "FIS sheet withdrawn.", "success")
     except FisApiError as exc:
-        flash(str(exc), "error")
+        _flash_fis_error(exc)
     return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
 
 
