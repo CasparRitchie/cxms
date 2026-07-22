@@ -71,7 +71,7 @@ class DemoSportsEditorialRepository:
             "sub_editor_user_id": data.get("sub_editor_user_id") or None, "sub_editor_name": data.get("sub_editor_name", ""),
             "working_notes": "", "unused_stats": "", "last_modified_by": data["author_name"].strip(),
             "created_at": now, "updated_at": now, "submitted_at": now if status == "submitted" else None, "approved_at": None,
-            "stats": [{"id": str(uuid4()), "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "entity_ids": [], "entity_mentions": {}, "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()],
+            "stats": [{"id": str(uuid4()), "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "entity_ids": [], "entity_mentions": {}, "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()],
         }
         with self._lock:
             self._submissions.append(item)
@@ -90,7 +90,10 @@ class DemoSportsEditorialRepository:
             for index, (kind, content) in enumerate(zip(form_data.getlist("content_type"), form_data.getlist("content_html"))):
                 kind = "section" if kind == "heading" else kind
                 if kind in ("stat", "section") and sanitise_rich_text(content).strip():
-                    blocks.append({"id": block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4()), "sort_order": index, "content_type": kind, "stat_text": sanitise_rich_text(content), "edited_text": "", "editor_comment": "", "entity_ids": [], "entity_mentions": {}, "tags": []})
+                    block_id = block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4())
+                    allowed_ids = {entity["id"] for entity in self._entities}
+                    entity_ids = [value for value in form_data.getlist(f"entity_ids_{block_id}") if value in allowed_ids]
+                    blocks.append({"id": block_id, "sort_order": index, "content_type": kind, "stat_text": sanitise_rich_text(content), "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "entity_ids": entity_ids, "entity_mentions": {value: form_data.get(f"entity_mention_{block_id}_{value}", "").strip() for value in entity_ids if form_data.get(f"entity_mention_{block_id}_{value}", "").strip()}, "tags": []})
             item["stats"] = blocks
             item["status"] = "submitted" if submit else "draft"
             item["submitted_at"] = _now() if submit else item.get("submitted_at")
@@ -99,6 +102,7 @@ class DemoSportsEditorialRepository:
             return deepcopy(item)
 
     def update_review(self, submission_id, form_data, requested_status):
+        from .auth import current_user
         with self._lock:
             item = next(item for item in self._submissions if item["id"] == submission_id)
             item["editor_notes"] = form_data.get("editor_notes", "").strip()
@@ -112,8 +116,11 @@ class DemoSportsEditorialRepository:
             item["sub_editor_name"] = demo_names.get(item.get("sub_editor_user_id"), "Unassigned")
             for stat in item["stats"]:
                 stat_id = stat["id"]
-                stat["edited_text"] = sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", ""))
+                stat["edited_text"] = sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", stat.get("edited_text") or stat.get("stat_text", "")))
                 stat["editor_comment"] = form_data.get(f"editor_comment_{stat_id}", "").strip()
+                accepted = form_data.get(f"accepted_{stat_id}") == "1"
+                stat["accepted_at"] = _now() if accepted else None
+                stat["accepted_by_user_id"] = (current_user() or {}).get("id") if accepted else None
                 stat["tags"] = [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()]
                 allowed_ids = {entity["id"] for entity in self._entities}
                 stat["entity_ids"] = [entity_id for entity_id in form_data.getlist(f"entity_ids_{stat_id}") if entity_id in allowed_ids]
@@ -124,7 +131,6 @@ class DemoSportsEditorialRepository:
                 }
             item["status"] = requested_status
             item["updated_at"] = _now()
-            from .auth import current_user
             user = current_user() or {}
             item["last_modified_by"] = user.get("full_name") or user.get("email") or "Workspace user"
             if requested_status == "approved" and not item["approved_at"]:
@@ -138,6 +144,13 @@ class DemoSportsEditorialRepository:
         with self._lock:
             self._fis_publications[submission_id] = deepcopy(publication)
         return deepcopy(publication)
+
+    def set_submission_status(self, submission_id, status):
+        with self._lock:
+            item = next(item for item in self._submissions if item["id"] == submission_id)
+            item["status"] = status
+            item["updated_at"] = _now()
+        return deepcopy(item)
 
     def list_entities(self, entity_type="", limit=None):
         items = [item for item in self._entities if not entity_type or item["entity_type"] == entity_type]
@@ -310,7 +323,7 @@ class SupabaseSportsEditorialRepository:
             "working_notes": "", "unused_stats": "", "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email"),
         }
         created = self.client.request("sports_editorial_submissions", "POST", payload=submission, prefer="return=representation")[0]
-        blocks = [{"submission_id": created["id"], "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()]
+        blocks = [{"submission_id": created["id"], "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()]
         if blocks:
             self.client.request("sports_editorial_stats", "POST", payload=blocks, prefer="return=minimal")
         return self.get_submission(created["id"])
@@ -332,12 +345,24 @@ class SupabaseSportsEditorialRepository:
             kind = "section" if kind == "heading" else kind
             clean = sanitise_rich_text(content)
             if kind in ("stat", "section") and clean.strip():
-                blocks.append({"id": block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4()), "submission_id": submission_id, "sort_order": index, "content_type": kind, "stat_text": clean, "edited_text": "", "editor_comment": "", "tags": []})
+                blocks.append({"id": block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4()), "submission_id": submission_id, "sort_order": index, "content_type": kind, "stat_text": clean, "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "tags": []})
         if blocks:
             self.client.request("sports_editorial_stats", "POST", payload=blocks, prefer="return=minimal")
+            requested_ids = [value for block in blocks for value in form_data.getlist(f"entity_ids_{block['id']}")]
+            allowed_ids = {entity["id"] for entity in self.get_entities_by_ids(requested_ids)}
+            links = []
+            for block in blocks:
+                for entity_id in form_data.getlist(f"entity_ids_{block['id']}"):
+                    if entity_id in allowed_ids:
+                        mention = form_data.get(f"entity_mention_{block['id']}_{entity_id}", "").strip()
+                        links.append({"stat_id": block["id"], "entity_id": entity_id, "relationship_type": "inline" if mention else "about", "mention_text": mention or None})
+            if links:
+                self.client.request("sports_editorial_stat_entities", "POST", payload=links, prefer="return=minimal")
         return self.get_submission(submission_id)
 
     def update_review(self, submission_id, form_data, requested_status):
+        from .auth import current_user
+        user = current_user() or {}
         item = self.get_submission(submission_id)
         requested_entity_ids = [
             value for stat in item["stats"]
@@ -346,7 +371,8 @@ class SupabaseSportsEditorialRepository:
         allowed_ids = {entity["id"] for entity in self.get_entities_by_ids(requested_entity_ids)}
         for stat in item["stats"]:
             stat_id = stat["id"]
-            self.client.request("sports_editorial_stats", "PATCH", query={"id": f"eq.{stat_id}"}, payload={"edited_text": sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", "")), "editor_comment": form_data.get(f"editor_comment_{stat_id}", "").strip(), "tags": [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()], "updated_at": _now()}, prefer="return=minimal")
+            accepted = form_data.get(f"accepted_{stat_id}") == "1"
+            self.client.request("sports_editorial_stats", "PATCH", query={"id": f"eq.{stat_id}"}, payload={"edited_text": sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", stat.get("edited_text") or stat.get("stat_text", ""))), "editor_comment": form_data.get(f"editor_comment_{stat_id}", "").strip(), "tags": [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()], "accepted_at": _now() if accepted else None, "accepted_by_user_id": user.get("id") if accepted else None, "updated_at": _now()}, prefer="return=minimal")
             selected = [value for value in form_data.getlist(f"entity_ids_{stat_id}") if value in allowed_ids]
             self.client.request("sports_editorial_stat_entities", "DELETE", query={"stat_id": f"eq.{stat_id}"})
             if selected:
@@ -356,8 +382,6 @@ class SupabaseSportsEditorialRepository:
                     "mention_text": form_data.get(f"entity_mention_{stat_id}_{value}", "").strip() or None,
                 } for value in selected], prefer="return=minimal")
         event_ids = _event_ids_from_form(form_data)
-        from .auth import current_user
-        user = current_user() or {}
         changes = {"status": requested_status, "editor_notes": form_data.get("editor_notes", "").strip(), "fis_submission_notes": form_data.get("fis_submission_notes", "").strip(), "fis_event_ids": event_ids, "updated_at": _now(), "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
         for field in ("title", "amp_id", "client_name", "competition", "event_name", "gender", "location", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "sub_editor_user_id", "working_notes", "unused_stats"):
             if field in form_data:
@@ -374,6 +398,10 @@ class SupabaseSportsEditorialRepository:
     def save_fis_publication(self, submission_id, publication):
         self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload={"fis_publication": publication, "updated_at": _now()}, prefer="return=minimal")
         return publication
+
+    def set_submission_status(self, submission_id, status):
+        self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload={"status": status, "updated_at": _now()}, prefer="return=minimal")
+        return self.get_submission(submission_id)
 
     def list_entities(self, entity_type="", limit=None):
         query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "entity_type.asc,name.asc"}

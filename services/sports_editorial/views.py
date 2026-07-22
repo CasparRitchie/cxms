@@ -221,9 +221,7 @@ def _flash_fis_error(exc):
 @blueprint.route("")
 @blueprint.route("/")
 def dashboard():
-    submissions = repository.list_submissions()
-    counts = {status: sum(item["status"] == status for item in submissions) for status in VALID_STATUSES}
-    return render_template("sports-editorial-workspace/dashboard.html", submissions=submissions[:4], counts=counts)
+    return redirect(url_for("sports_editorial_workspace.queue"))
 
 
 @blueprint.get("/stat-insights")
@@ -380,17 +378,26 @@ def confirmation(submission_id):
 
 @blueprint.route("/queue")
 def queue():
-    status = request.args.get("status", "")
-    sport = request.args.get("sport", "")
-    order = request.args.get("order", "newest")
+    filter_fields = ("status", "client_name", "sport", "competition", "event_name", "gender", "location", "researcher_user_id", "sub_editor_user_id")
+    filters = {field: request.args.get(field, "").strip() for field in filter_fields}
+    status = filters["status"]
+    sport = filters["sport"]
+    sort = request.args.get("sort", "updated_at")
+    direction = request.args.get("direction", "desc")
     if status not in ("",) + VALID_STATUSES:
-        status = ""
-    if order not in ("newest", "oldest"):
-        order = "newest"
+        filters["status"] = ""
+    sortable = {"amp_id", "client_name", "sport", "competition", "event_name", "gender", "location", "event_date", "publication_deadline", "researcher_deadline", "status", "researcher_name", "sub_editor_name", "updated_at", "last_modified_by"}
+    if sort not in sortable:
+        sort = "updated_at"
+    if direction not in ("asc", "desc"):
+        direction = "desc"
     all_submissions = repository.list_submissions()
-    sports = sorted({item["sport"] for item in all_submissions})
-    submissions = repository.list_submissions(status=status, sport=sport, order=order)
-    return render_template("sports-editorial-workspace/queue.html", submissions=submissions, sports=sports, filters={"status": status, "sport": sport, "order": order}, statuses=VALID_STATUSES)
+    submissions = [item for item in all_submissions if all(not value or str(item.get(field) or "") == value for field, value in filters.items())]
+    submissions.sort(key=lambda item: str(item.get(sort) or "").casefold(), reverse=direction == "desc")
+    options = {field: sorted({str(item.get(field) or "") for item in all_submissions if item.get(field)}, key=str.casefold) for field in filter_fields if field != "status"}
+    users = _assignment_users()
+    filters.update({"sort": sort, "direction": direction})
+    return render_template("sports-editorial-workspace/queue.html", submissions=submissions, options=options, assignment_users=users, filters=filters, statuses=VALID_STATUSES)
 
 
 @blueprint.get("/entities/search")
@@ -403,7 +410,7 @@ def search_entities():
         return jsonify({"ok": True, "results": []})
     results = repository.search_entities(query, entity_type=entity_type)
     return jsonify({"ok": True, "provider": "local_pilot", "results": [
-        {"id": item["id"], "type": item["entity_type"], "name": item["name"], "canonical_id": item.get("canonical_id"), "country_code": item.get("country_code")}
+        {"id": item["id"], "type": item["entity_type"], "name": item["name"], "canonical_id": item.get("canonical_id"), "canonical_url": item.get("canonical_url"), "country_code": item.get("country_code")}
         for item in results
     ]})
 
@@ -421,6 +428,8 @@ def detail(submission_id):
             valid, message = False, "FIS calendar event IDs must contain digits only, for example 123456."
         elif requested_status in ("approved", "exported") and not event_ids:
             valid, message = False, "Select at least one FIS calendar event before approval."
+        elif requested_status in ("approved", "exported") and any(request.form.get(f"accepted_{block['id']}") != "1" for block in submission.get("stats", [])):
+            valid, message = False, "Accept and lock every statistic and sub-heading before approval."
         if not valid:
             flash(message, "error")
         else:
@@ -451,7 +460,7 @@ def research(submission_id):
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
         for error in errors:
             flash(error, "error")
-    return render_template("sports-editorial-workspace/research.html", submission=submission)
+    return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=_entities_by_id(submission))
 
 
 @blueprint.get("/submissions/<submission_id>/fis-preview")
@@ -466,12 +475,20 @@ def fis_preview(submission_id):
     return render_template("sports-editorial-workspace/fis-preview.html", submission=submission, payload=payload, formatted_json=json.dumps(payload, indent=2, ensure_ascii=False) if payload else "", errors=errors, fis_config=fis_configuration())
 
 
+@blueprint.get("/submissions/<submission_id>/publication-preview")
+def publication_preview(submission_id):
+    submission = _submission_or_404(submission_id)
+    return render_template("sports-editorial-workspace/publication-preview.html", submission=submission, entities_by_id=_entities_by_id(submission))
+
+
 @blueprint.post("/submissions/<submission_id>/fis-publish")
 def fis_publish(submission_id):
     _require_sub_editor()
     submission = _submission_or_404(submission_id)
     if submission["status"] not in ("approved", "exported"):
         abort(403, description="Approve the submission in CXMS before publishing to FIS.")
+    if any(not block.get("accepted_at") for block in submission.get("stats", [])):
+        abort(409, description="Accept and lock every statistic and sub-heading before publishing to FIS.")
     previous = repository.get_fis_publication(submission_id) or {}
     config = fis_configuration()
     try:
@@ -494,6 +511,7 @@ def fis_withdraw(submission_id):
     try:
         publication = get_fis_client().withdraw(submission.get("fis_external_id") or f"cxms-{submission_id}", previous=previous)
         repository.save_fis_publication(submission_id, publication)
+        repository.set_submission_status(submission_id, "in_review")
         flash("FIS simulation withdrawn." if fis_configuration()["mode"] == "mock" else "FIS sheet withdrawn.", "success")
     except FisApiError as exc:
         _flash_fis_error(exc)

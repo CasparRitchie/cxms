@@ -16,7 +16,7 @@ ENTITIES = [
 
 
 def _block(block_id, order, text, content_type="stat", entity_ids=None, tags=None):
-    return {"id": block_id, "sort_order": order, "content_type": content_type, "stat_text": text, "edited_text": "", "editor_comment": "", "entity_ids": entity_ids or [], "entity_mentions": {}, "tags": tags or []}
+    return {"id": block_id, "sort_order": order, "content_type": content_type, "stat_text": text, "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "entity_ids": entity_ids or [], "entity_mentions": {}, "tags": tags or []}
 
 
 KRONPLATZ_CONTENT = [
@@ -67,6 +67,10 @@ def fresh_demo_data():
         submission.setdefault("working_notes", "")
         submission.setdefault("unused_stats", "")
         submission.setdefault("last_modified_by", submission.get("author_name", ""))
+        if submission.get("status") in ("approved", "exported"):
+            for block in submission.get("stats", []):
+                block["accepted_at"] = submission.get("approved_at") or submission.get("updated_at")
+                block["accepted_by_user_id"] = submission.get("sub_editor_user_id")
         if submission.get("fis_external_id", "").startswith("wc-alp-"):
             submission["fis_external_id"] = submission["fis_external_id"].replace("wc-alp-", "amp-alp-", 1)
     return submissions, deepcopy(ENTITIES)

@@ -20,7 +20,9 @@
     }));
   });
 
-  document.querySelectorAll("[data-entity-control]").forEach((control) => {
+  const initialiseEntityControl = (control) => {
+    if (control.dataset.entityInitialised) return;
+    control.dataset.entityInitialised = "true";
     const search = control.querySelector("[data-entity-search]");
     const type = control.querySelector("[data-entity-type]");
     const results = control.querySelector("[data-entity-results]");
@@ -49,8 +51,8 @@
       const mention = document.createElement("input");
       mention.name = `${control.dataset.mentionPrefix}${entity.id}`;
       mention.placeholder = "Attachment only";
-      const reviewBlock = control.closest("[data-review-block]");
-      const editor = reviewBlock?.querySelector("[data-review-editor]");
+      const reviewBlock = control.closest("[data-review-block], [data-content-block]");
+      const editor = reviewBlock?.querySelector("[data-review-editor], [data-editor]");
       const original = reviewBlock?.querySelector(".sew-rendered-content");
       const publicationText = editor?.innerText || original?.innerText || "";
       mention.value = publicationText.includes(entity.name) ? entity.name : "";
@@ -84,8 +86,50 @@
     search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(runSearch, 250); });
     type.addEventListener("change", runSearch);
     selected.addEventListener("click", (event) => { if (event.target.matches("[data-remove-entity]")) event.target.closest("[data-entity-id]").remove(); });
-  });
+  };
+  document.querySelectorAll("[data-entity-control]").forEach(initialiseEntityControl);
+  new MutationObserver((mutations) => mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
+    if (!(node instanceof Element)) return;
+    if (node.matches("[data-entity-control]")) initialiseEntityControl(node);
+    node.querySelectorAll?.("[data-entity-control]").forEach(initialiseEntityControl);
+  }))).observe(document.body, {childList: true, subtree: true});
   document.querySelectorAll("form[data-confirm]").forEach((form) => form.addEventListener("submit", (event) => {
     if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+  }));
+
+  const setAccepted = (block, accepted) => {
+    const input = block.querySelector("[data-accepted-input]");
+    const toggle = block.querySelector("[data-toggle-accepted]");
+    const editor = block.querySelector("[data-review-editor]");
+    if (!input || !toggle || !editor) return;
+    input.value = accepted ? "1" : "0";
+    block.dataset.accepted = accepted ? "1" : "0";
+    block.classList.toggle("is-accepted", accepted);
+    block.classList.toggle("needs-review", !accepted);
+    editor.contentEditable = accepted ? "false" : "true";
+    block.querySelector("[data-review-status]").textContent = accepted ? "Accepted · locked" : "Needs review";
+    toggle.textContent = accepted ? "Unlock" : "Accept and lock";
+    toggle.classList.toggle("sew-button--danger", accepted);
+    toggle.classList.toggle("sew-button--primary", !accepted);
+    block.querySelectorAll("[data-review-format], [data-remove-entity], [data-entity-type], [data-entity-search]").forEach((control) => { control.disabled = accepted; });
+    block.querySelectorAll("[data-entity-id] label input").forEach((control) => { control.readOnly = accepted; });
+  };
+  document.querySelectorAll("[data-toggle-accepted]").forEach((button) => button.addEventListener("click", () => {
+    const block = button.closest("[data-review-block]");
+    setAccepted(block, block.dataset.accepted !== "1");
+  }));
+  document.querySelector("[data-accept-all]")?.addEventListener("click", () => {
+    if (!window.confirm("Accept and lock every statistic and sub-heading?")) return;
+    document.querySelectorAll("[data-review-block]").forEach((block) => setAccepted(block, true));
+  });
+  document.querySelector("[data-check-entities]")?.addEventListener("click", () => {
+    const chips = [...document.querySelectorAll("[data-entity-id]")];
+    const invalid = chips.filter((chip) => !chip.dataset.canonicalId);
+    const links = [...new Set(chips.map((chip) => chip.dataset.entityUrl).filter(Boolean))];
+    links.forEach((url) => window.open(url, "_blank", "noopener"));
+    window.alert(`${chips.length - invalid.length} entity links have canonical IDs. ${invalid.length} need attention.${links.length ? ` Opened ${links.length} source pages.` : ""}`);
+  });
+  document.querySelectorAll("[data-confirm-button]").forEach((button) => button.addEventListener("click", (event) => {
+    if (!window.confirm(button.dataset.confirmButton)) event.preventDefault();
   }));
 })();

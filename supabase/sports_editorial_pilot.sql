@@ -58,6 +58,8 @@ create table if not exists public.sports_editorial_stats (
   stat_text text not null,
   edited_text text,
   editor_comment text,
+  accepted_at timestamptz,
+  accepted_by_user_id uuid references public.app_users(id) on delete set null,
   tags text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

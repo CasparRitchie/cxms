@@ -8,18 +8,23 @@
     row.querySelector("[data-content-input]").value = row.querySelector("[data-editor]").innerHTML;
   };
   const renumber = () => {
-    list.querySelectorAll("[data-content-block]").forEach((row, index) => {
-      row.querySelector("[data-block-label]").textContent = `${labels[row.dataset.type]} ${index + 1}`;
+    const counts = { stat: 0, section: 0, heading: 0 };
+    list.querySelectorAll("[data-content-block]").forEach((row) => {
+      const kind = row.dataset.type === "heading" ? "section" : row.dataset.type;
+      counts[kind] += 1;
+      row.querySelector("[data-block-label]").textContent = `${labels[row.dataset.type]} ${counts[kind]}`;
       syncBlock(row);
     });
   };
   const makeRow = (type) => {
+    const blockId = crypto.randomUUID();
     const row = document.createElement("div");
     row.className = "sew-stat-input";
     row.draggable = true;
     row.dataset.contentBlock = "";
     row.dataset.type = type;
-    row.innerHTML = `<span class="sew-drag" title="Drag to reorder">⋮⋮</span><label><span data-block-label>${labels[type]}</span><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" data-editor data-placeholder="Enter ${labels[type].toLowerCase()}"></div><input type="hidden" name="content_id" value=""><input type="hidden" name="content_type" value="${type}"><input type="hidden" name="content_html" data-content-input></label><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button>`;
+    const entityControl = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${blockId}" data-mention-prefix="entity_mention_${blockId}_"><span class="sew-cell-label">Entity links</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-search-row"><select data-entity-type><option value="athlete">Athlete</option><option value="country">Country</option><option value="event">Event</option><option value="competition">Competition</option></select><input type="search" data-entity-search placeholder="Find entity"><div class="sew-entity-results" data-entity-results hidden></div></div></div>` : "";
+    row.innerHTML = `<span class="sew-drag" title="Drag to reorder">⋮⋮</span><div><label><span data-block-label>${labels[type]}</span><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" data-editor data-placeholder="Enter ${labels[type].toLowerCase()}"></div><input type="hidden" name="content_id" value="${blockId}"><input type="hidden" name="content_type" value="${type}"><input type="hidden" name="content_html" data-content-input></label>${entityControl}</div><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button>`;
     return row;
   };
 

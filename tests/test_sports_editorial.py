@@ -68,7 +68,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         ]
         for path in paths:
             with self.subTest(path=path):
-                expected = 403 if path == "/workspace/sports-editorial/submit" else 200
+                expected = 403 if path == "/workspace/sports-editorial/submit" else (302 if path in ("/workspace/sports-editorial", "/workspace/sports-editorial/") else 200)
                 self.assertEqual(self.client.get(path).status_code, expected)
 
     def test_stat_insights_calculate_venue_totals_and_streaks(self):
@@ -235,13 +235,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(repository.get_submission(submission_id)["status"], "submitted")
 
         self.set_sub_editor()
-        first_stat = repository.get_submission(submission_id)["stats"][0]
-        response = self.client.post(f"/workspace/sports-editorial/submissions/{submission_id}", data={
+        blocks = repository.get_submission(submission_id)["stats"]
+        first_stat = blocks[0]
+        review_data = {
             "status": "approved", "editor_notes": "Approved for demo.",
             "fis_event_ids": "55596",
             f"edited_text_{first_stat['id']}": "First edited demonstration fact.",
             f"entity_ids_{first_stat['id']}": "entity-athlete-lena",
-        })
+        }
+        review_data.update({f"accepted_{block['id']}": "1" for block in blocks})
+        response = self.client.post(f"/workspace/sports-editorial/submissions/{submission_id}", data=review_data)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(repository.get_submission(submission_id)["status"], "approved")
 
@@ -348,6 +351,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         withdrawn = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-withdraw")
         self.assertEqual(withdrawn.status_code, 302)
         self.assertEqual(repository.get_fis_publication("demo-submission-approved")["status"], "withdrawn")
+        self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "in_review")
 
     def test_unapproved_submission_cannot_publish_to_fis(self):
         self.set_sub_editor()
@@ -382,7 +386,20 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'contenteditable="true"', response.data)
-        self.assertIn(b'aria-label="Publication wording"', response.data)
+        self.assertIn(b'aria-label="Statistic wording"', response.data)
+        self.assertIn(b"View original researcher wording", response.data)
+
+    def test_approval_requires_every_block_to_be_accepted(self):
+        self.set_sub_editor()
+        response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "approved", "fis_event_ids": "55596"}, follow_redirects=True)
+        self.assertIn(b"Accept and lock every statistic", response.data)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "submitted")
+
+    def test_publication_preview_is_visual_and_not_a_publish_action(self):
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/publication-preview")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Visual preview only", response.data)
+        self.assertNotIn(b"Working Notes", response.data)
 
     def test_fis_calendar_parser_deduplicates_event_links(self):
         html = '''
