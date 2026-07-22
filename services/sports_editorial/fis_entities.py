@@ -1,10 +1,10 @@
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
+from time import monotonic, sleep
 
 
 FIS_NATION_NAMES = {
@@ -107,18 +107,23 @@ def _fetch_event_competitions(event, timeout):
     return parse_event_competitions(html, event)
 
 
-def fetch_alpine_competitions(events, timeout=20, workers=6):
+def fetch_alpine_competitions(events, timeout=20, request_interval=1.5):
+    """Read event pages sequentially and politely; callers can safely resume upserts."""
     sources = [event for event in events if str(event.get("canonical_id") or "").isdigit() and event.get("canonical_url")]
     if not sources:
         raise FisEntityError("Import FIS calendar events before refreshing competitions.")
     competitions, failures = [], 0
-    with ThreadPoolExecutor(max_workers=min(workers, len(sources))) as pool:
-        futures = {pool.submit(_fetch_event_competitions, event, timeout): event for event in sources}
-        for future in as_completed(futures):
-            try:
-                competitions.extend(future.result())
-            except (HTTPError, URLError, TimeoutError, OSError):
-                failures += 1
+    previous_request_at = None
+    for event in sources:
+        if previous_request_at is not None:
+            remaining = request_interval - (monotonic() - previous_request_at)
+            if remaining > 0:
+                sleep(remaining)
+        previous_request_at = monotonic()
+        try:
+            competitions.extend(_fetch_event_competitions(event, timeout))
+        except (HTTPError, URLError, TimeoutError, OSError):
+            failures += 1
     if not competitions:
         raise FisEntityError("No competitions could be read from the imported FIS event pages.")
     return competitions, failures

@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import date
 from io import BytesIO
 
 from flask import Blueprint, abort, flash, jsonify, make_response, redirect, render_template, request, send_file, session, url_for
@@ -269,6 +270,7 @@ def import_stat_results():
         abort(403, description="Supervisor access is required to refresh official results.")
     limit = min(max(int(request.form.get("limit", "5")) if request.form.get("limit", "5").isdigit() else 5, 1), 5)
     season = request.form.get("season", "").strip()
+    requested_ids = list(dict.fromkeys(re.findall(r"\d+", request.form.get("race_ids", ""))))[:limit]
     imported = {str(item["race_id"]): item for item in repository.list_result_competitions()}
     candidates = []
     for race in repository.list_entities(entity_type="competition"):
@@ -276,13 +278,18 @@ def import_stat_results():
         metadata = race.get("metadata") or {}
         if not race_id.isdigit() or not race.get("canonical_url") or race_id in imported:
             continue
+        if requested_ids and race_id not in requested_ids:
+            continue
         if season and str(metadata.get("season_code") or "") != season:
+            continue
+        race_date = str(metadata.get("date") or "")
+        if not requested_ids and (not re.fullmatch(r"\d{4}-\d{2}-\d{2}", race_date) or race_date > date.today().isoformat()):
             continue
         candidates.append(race)
     candidates.sort(key=lambda item: ((item.get("metadata") or {}).get("date") or "", item.get("canonical_id") or ""), reverse=True)
     candidates = candidates[:limit]
     if not candidates:
-        flash("No missing competitions are ready to import. Refresh the competition catalogue first or choose another season.", "notice")
+        flash("No completed missing competitions are ready to import. Refresh a historical season in the competition catalogue, choose another season, or enter specific completed race IDs.", "notice")
         return redirect(url_for("sports_editorial_workspace.stat_insights"))
     try:
         rows, failures = fetch_alpine_results(candidates, request_interval=1.5)

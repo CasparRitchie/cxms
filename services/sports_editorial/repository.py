@@ -225,14 +225,17 @@ class DemoSportsEditorialRepository:
 class SupabaseSportsEditorialRepository:
     """Workspace-scoped persistence using the isolated sports_editorial_* tables."""
 
-    def __init__(self, client=None):
+    def __init__(self, client=None, workspace_id=None):
         self.client = client or SupabaseRestClient()
+        self.workspace_id = workspace_id
 
     def reset(self):
         # Tests use the demo repository. Never delete shared Supabase data here.
         return None
 
     def _workspace(self):
+        if self.workspace_id:
+            return self.workspace_id
         from .auth import current_user
         user = current_user()
         return user["workspace_id"] if user else ""

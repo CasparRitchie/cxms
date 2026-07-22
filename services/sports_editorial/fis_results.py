@@ -147,7 +147,7 @@ def fetch_alpine_results(races, timeout=20, request_interval=1.5):
     """Fetch a deliberately small batch sequentially, with spacing between FIS calls."""
     if not races or len(races) > 10:
         raise FisResultError("Choose between 1 and 10 FIS competitions per calculation.")
-    rows, failures = [], 0
+    rows, failures, failure_details = [], 0, []
     previous_request_at = None
     for race in races:
         if previous_request_at is not None:
@@ -157,8 +157,12 @@ def fetch_alpine_results(races, timeout=20, request_interval=1.5):
         previous_request_at = monotonic()
         try:
             rows.extend(_fetch_race(race, timeout))
-        except (HTTPError, URLError, TimeoutError, OSError, FisResultError):
+        except (HTTPError, URLError, TimeoutError, OSError, FisResultError) as exc:
             failures += 1
+            race_id = str(race.get("canonical_id") or "unknown")
+            reason = f"HTTP {exc.code}" if isinstance(exc, HTTPError) else str(exc) or exc.__class__.__name__
+            failure_details.append(f"{race_id}: {reason}")
     if not rows:
-        raise FisResultError("No official classifications could be read. Check the competition IDs and try again.")
+        detail = "; ".join(failure_details[:3])
+        raise FisResultError(f"No completed classifications were found for this batch.{f' {detail}' if detail else ''}")
     return rows, failures
