@@ -14,6 +14,7 @@ from services.sports_editorial.fis_athletes import parse_athlete_csv
 from services.sports_editorial.fis_entities import countries_from_athletes, parse_event_competitions
 from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import repository
+from services.sports_editorial.stat_insights import build_stat_insights, demo_result_rows
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 
 
@@ -62,12 +63,25 @@ class SportsEditorialPilotTests(unittest.TestCase):
         paths = [
             "/", "/games", "/circuit-training", "/gcse/history", "/football", "/data-explorer",
             "/sports-editorial", "/workspace/sports-editorial", "/workspace/sports-editorial/", "/workspace/sports-editorial/submit",
-            "/workspace/sports-editorial/queue",
+            "/workspace/sports-editorial/queue", "/workspace/sports-editorial/stat-insights",
         ]
         for path in paths:
             with self.subTest(path=path):
                 expected = 403 if path == "/workspace/sports-editorial/submit" else 200
                 self.assertEqual(self.client.get(path).status_code, expected)
+
+    def test_stat_insights_calculate_venue_totals_and_streaks(self):
+        insights = build_stat_insights(demo_result_rows(), venue="Kronplatz", discipline="GS")
+        self.assertEqual(insights["race_count"], 5)
+        self.assertEqual(insights["leaders"][0]["athlete"], "Mikaela Shiffrin")
+        self.assertEqual(insights["leaders"][0]["wins"], 3)
+        self.assertGreaterEqual(insights["streaks"][0]["podium_streak"], 3)
+
+    def test_stat_insights_page_explains_demo_data_and_filters(self):
+        response = self.client.get("/workspace/sports-editorial/stat-insights?venue=Kronplatz")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Demonstration data", response.data)
+        self.assertIn(b"Mikaela Shiffrin", response.data)
 
     def test_researcher_cannot_create_or_open_unassigned_sheet(self):
         self.set_sub_editor()

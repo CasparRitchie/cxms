@@ -16,6 +16,7 @@ from .calendar import RepositoryCalendarProvider
 from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
 from .fis_athletes import FisAthleteError, fetch_alpine_athletes
 from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_competitions
+from .stat_insights import build_stat_insights, demo_result_rows
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
@@ -221,6 +222,22 @@ def dashboard():
     submissions = repository.list_submissions()
     counts = {status: sum(item["status"] == status for item in submissions) for status in VALID_STATUSES}
     return render_template("sports-editorial-workspace/dashboard.html", submissions=submissions[:4], counts=counts)
+
+
+@blueprint.get("/stat-insights")
+def stat_insights():
+    rows = demo_result_rows()
+    venue = request.args.get("venue", "").strip()
+    discipline = request.args.get("discipline", "").strip().upper()
+    athlete = request.args.get("athlete", "").strip()
+    venues = sorted({row["venue"] for row in rows})
+    disciplines = sorted({row["discipline"] for row in rows})
+    venue = venue if venue in venues else ""
+    discipline = discipline if discipline in disciplines else ""
+    return render_template("sports-editorial-workspace/stat-insights.html",
+                           insights=build_stat_insights(rows, venue, discipline, athlete),
+                           venues=venues, disciplines=disciplines,
+                           filters={"venue": venue, "discipline": discipline, "athlete": athlete})
 
 
 def _assignment_users():
