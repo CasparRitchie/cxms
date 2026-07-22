@@ -449,6 +449,23 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(rows[0]["fis_code"], "516138")
         self.assertEqual(rows[0]["place"], 1)
 
+    def test_inaugural_world_cup_layout_reads_legacy_identifier(self):
+        html = '''
+        <h1>Adelboden (SUI)</h1>
+        <option selected>09.01.1967 - Men's Giant Slalom | WC</option>
+        <a class="table-row" href="https://www.fis-ski.com/DB/general/athlete-biography.html?competitorid=30378">
+          <div class="g-lg-1 pr-1 bold justify-right">1</div>
+          <div class="pr-1 g-lg-2 gray justify-right">-10427</div>
+          <div class="g-lg-15 bold justify-left">KILLY Jean-Claude</div>
+          <div class="g-lg-1 hidden-sm-down justify-left">1943</div>
+          <span class="country__name-short">FRA</span>
+          <div class="g-lg-2 blue bold justify-right">3:30.71</div>
+        </a>'''
+        rows = parse_fis_results(html, {"canonical_id": "8193", "metadata": {"season_code": 1967, "date": "1967-01-09"}})
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["fis_code"], "-10427")
+        self.assertEqual(rows[0]["athlete"], "KILLY Jean-Claude")
+
     def test_combined_entity_refresh_is_admin_only_in_workspace_mode(self):
         with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=None):
             response = self.client.post("/workspace/sports-editorial/entities/refresh/events", data={"season_code": "2027"})

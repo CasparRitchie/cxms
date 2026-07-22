@@ -77,8 +77,8 @@ def fetch_alpine_world_cup_events(season_code=2027, timeout=20):
         season = int(season_code)
     except (TypeError, ValueError) as exc:
         raise FisCalendarError("Choose a valid four-digit FIS season.") from exc
-    if season < 2000 or season > 2100:
-        raise FisCalendarError("Choose a valid four-digit FIS season.")
+    if season < 1967 or season > 2100:
+        raise FisCalendarError("Choose an Alpine World Cup season from 1967 onwards.")
     params = {
         "categorycode": "WC",
         "seasoncode": str(season),
