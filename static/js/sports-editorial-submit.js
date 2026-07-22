@@ -3,7 +3,7 @@
   if (!list) return;
   let activeEditor = null;
 
-  const labels = { stat: "Statistic", section: "Section", heading: "Heading" };
+  const labels = { stat: "Statistic", section: "Sub-heading", heading: "Sub-heading" };
   const syncBlock = (row) => {
     row.querySelector("[data-content-input]").value = row.querySelector("[data-editor]").innerHTML;
   };
@@ -19,7 +19,7 @@
     row.draggable = true;
     row.dataset.contentBlock = "";
     row.dataset.type = type;
-    row.innerHTML = `<span class="sew-drag" title="Drag to reorder">⋮⋮</span><label><span data-block-label>${labels[type]}</span><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" data-editor data-placeholder="Enter ${labels[type].toLowerCase()}"></div><input type="hidden" name="content_type" value="${type}"><input type="hidden" name="content_html" data-content-input></label><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button>`;
+    row.innerHTML = `<span class="sew-drag" title="Drag to reorder">⋮⋮</span><label><span data-block-label>${labels[type]}</span><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" data-editor data-placeholder="Enter ${labels[type].toLowerCase()}"></div><input type="hidden" name="content_id" value=""><input type="hidden" name="content_type" value="${type}"><input type="hidden" name="content_html" data-content-input></label><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button>`;
     return row;
   };
 

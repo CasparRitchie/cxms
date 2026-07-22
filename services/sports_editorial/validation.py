@@ -1,6 +1,7 @@
 VALID_STATUSES = ("draft", "submitted", "in_review", "changes_requested", "approved", "exported")
 VALID_ENTITY_TYPES = ("athlete", "country", "event", "competition")
 VALID_CONTENT_TYPES = ("stat", "section", "heading")
+STATUS_LABELS = {"draft": "In Progress", "submitted": "Submitted", "in_review": "In Sub Edit", "changes_requested": "Changes Requested", "approved": "Approved", "exported": "Published"}
 
 from .formatting import rich_text_to_plain
 
@@ -17,7 +18,7 @@ STATUS_TRANSITIONS = {
 def validate_submission(data, submitting=False):
     errors = []
     if not str(data.get("title", "")).strip():
-        errors.append("Add a title for this stat pack.")
+        errors.append("Add a title for this stat sheet.")
     if data.get("sport") and data.get("sport") != "alpine_skiing":
         errors.append("This pilot currently accepts Alpine Skiing only.")
     content = data.get("content", [])

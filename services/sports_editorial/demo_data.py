@@ -56,6 +56,17 @@ SUBMISSIONS = [
 def fresh_demo_data():
     submissions = deepcopy(SUBMISSIONS)
     for submission in submissions:
+        submission.setdefault("amp_id", {"demo-submission-kronplatz": "560001", "demo-submission-submitted": "560002", "demo-submission-approved": "560003"}.get(submission["id"], ""))
+        submission.setdefault("client_name", "FIS")
+        submission.setdefault("researcher_user_id", "demo-user")
+        submission.setdefault("researcher_name", "Jamie Laurent")
+        submission.setdefault("sub_editor_user_id", "demo-sub-editor")
+        submission.setdefault("sub_editor_name", "Nick L.")
+        submission.setdefault("publication_deadline", "2026-10-25")
+        submission.setdefault("researcher_deadline", "2026-10-24")
+        submission.setdefault("working_notes", "")
+        submission.setdefault("unused_stats", "")
+        submission.setdefault("last_modified_by", submission.get("author_name", ""))
         if submission.get("fis_external_id", "").startswith("wc-alp-"):
             submission["fis_external_id"] = submission["fis_external_id"].replace("wc-alp-", "amp-alp-", 1)
     return submissions, deepcopy(ENTITIES)

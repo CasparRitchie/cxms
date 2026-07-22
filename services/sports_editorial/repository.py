@@ -4,6 +4,7 @@ from threading import RLock
 from uuid import uuid4
 import os
 import re
+from flask import has_request_context
 
 from .demo_data import fresh_demo_data
 from .formatting import sanitise_rich_text
@@ -34,7 +35,11 @@ class DemoSportsEditorialRepository:
             self._fis_publications = {}
 
     def list_submissions(self, status="", sport="", order="newest"):
+        from .auth import current_user
+        user = current_user() or {}
         items = self._submissions
+        if has_request_context() and user.get("role") == "researcher":
+            items = [item for item in items if item.get("researcher_user_id") == user.get("id")]
         if status:
             items = [item for item in items if item["status"] == status]
         if sport:
@@ -43,7 +48,11 @@ class DemoSportsEditorialRepository:
         return deepcopy(items)
 
     def get_submission(self, submission_id):
+        from .auth import current_user
         item = next((item for item in self._submissions if item["id"] == submission_id), None)
+        user = current_user() or {}
+        if has_request_context() and item and user.get("role") == "researcher" and item.get("researcher_user_id") != user.get("id"):
+            return None
         return deepcopy(item) if item else None
 
     def create_submission(self, data, status):
@@ -55,6 +64,11 @@ class DemoSportsEditorialRepository:
             "event_date": data.get("event_date", "").strip(), "fis_event_ids": data.get("fis_event_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(),
             "author_email": data.get("author_email", "").strip(), "status": status, "editor_notes": "", "fis_submission_notes": "",
+            "amp_id": data.get("amp_id", "").strip(), "client_name": data.get("client_name", "FIS").strip(),
+            "publication_deadline": data.get("publication_deadline", ""), "researcher_deadline": data.get("researcher_deadline", ""),
+            "researcher_user_id": data.get("researcher_user_id") or None, "researcher_name": data.get("researcher_name", ""),
+            "sub_editor_user_id": data.get("sub_editor_user_id") or None, "sub_editor_name": data.get("sub_editor_name", ""),
+            "working_notes": "", "unused_stats": "", "last_modified_by": data["author_name"].strip(),
             "created_at": now, "updated_at": now, "submitted_at": now if status == "submitted" else None, "approved_at": None,
             "stats": [{"id": str(uuid4()), "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "entity_ids": [], "entity_mentions": {}, "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()],
         }
@@ -62,12 +76,39 @@ class DemoSportsEditorialRepository:
             self._submissions.append(item)
         return deepcopy(item)
 
+    def update_research(self, submission_id, form_data, submit=False):
+        from .auth import current_user
+        user = current_user() or {}
+        with self._lock:
+            item = next(item for item in self._submissions if item["id"] == submission_id)
+            item["event_date"] = form_data.get("event_date", item.get("event_date", ""))
+            item["working_notes"] = form_data.get("working_notes", "").strip()
+            item["unused_stats"] = form_data.get("unused_stats", "").strip()
+            blocks = []
+            block_ids = form_data.getlist("content_id")
+            for index, (kind, content) in enumerate(zip(form_data.getlist("content_type"), form_data.getlist("content_html"))):
+                kind = "section" if kind == "heading" else kind
+                if kind in ("stat", "section") and sanitise_rich_text(content).strip():
+                    blocks.append({"id": block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4()), "sort_order": index, "content_type": kind, "stat_text": sanitise_rich_text(content), "edited_text": "", "editor_comment": "", "entity_ids": [], "entity_mentions": {}, "tags": []})
+            item["stats"] = blocks
+            item["status"] = "submitted" if submit else "draft"
+            item["submitted_at"] = _now() if submit else item.get("submitted_at")
+            item["updated_at"] = _now()
+            item["last_modified_by"] = user.get("full_name") or user.get("email") or "Workspace user"
+            return deepcopy(item)
+
     def update_review(self, submission_id, form_data, requested_status):
         with self._lock:
             item = next(item for item in self._submissions if item["id"] == submission_id)
             item["editor_notes"] = form_data.get("editor_notes", "").strip()
             item["fis_submission_notes"] = form_data.get("fis_submission_notes", "").strip()
             item["fis_event_ids"] = _event_ids_from_form(form_data)
+            for field in ("title", "amp_id", "client_name", "competition", "event_name", "gender", "location", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "researcher_name", "sub_editor_user_id", "sub_editor_name", "working_notes", "unused_stats"):
+                if field in form_data:
+                    item[field] = form_data.get(field, "").strip() or None
+            demo_names = {"demo-user": "Jamie Laurent", "demo-researcher-2": "Andrew Hendry", "demo-sub-editor": "Nick L.", "demo-supervisor": "Supervisor Demo"}
+            item["researcher_name"] = demo_names.get(item.get("researcher_user_id"), "Unassigned")
+            item["sub_editor_name"] = demo_names.get(item.get("sub_editor_user_id"), "Unassigned")
             for stat in item["stats"]:
                 stat_id = stat["id"]
                 stat["edited_text"] = sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", ""))
@@ -82,6 +123,9 @@ class DemoSportsEditorialRepository:
                 }
             item["status"] = requested_status
             item["updated_at"] = _now()
+            from .auth import current_user
+            user = current_user() or {}
+            item["last_modified_by"] = user.get("full_name") or user.get("email") or "Workspace user"
             if requested_status == "approved" and not item["approved_at"]:
                 item["approved_at"] = item["updated_at"]
             return deepcopy(item)
@@ -184,10 +228,24 @@ class SupabaseSportsEditorialRepository:
             by_submission.setdefault(stat["submission_id"], []).append(stat)
         for row in rows:
             row["stats"] = by_submission.get(row["id"], [])
+        user_ids = list(dict.fromkeys(value for row in rows for value in (row.get("researcher_user_id"), row.get("sub_editor_user_id")) if value))
+        if user_ids:
+            users = self.client.request("app_users", query={"select": "id,full_name,email", "id": f"in.({','.join(user_ids)})"})
+            users_by_id = {item["id"]: item for item in users}
+            for row in rows:
+                researcher = users_by_id.get(row.get("researcher_user_id"), {})
+                sub_editor = users_by_id.get(row.get("sub_editor_user_id"), {})
+                row["researcher_name"] = researcher.get("full_name") or researcher.get("email") or "Unassigned"
+                row["sub_editor_name"] = sub_editor.get("full_name") or sub_editor.get("email") or "Unassigned"
+                row["last_modified_by"] = row.get("last_modified_by_name") or "—"
         return rows
 
     def list_submissions(self, status="", sport="", order="newest"):
+        from .auth import current_user
+        user = current_user() or {}
         query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": f"submitted_at.{'desc' if order != 'oldest' else 'asc'}.nullslast"}
+        if user.get("role") == "researcher":
+            query["researcher_user_id"] = f"eq.{user.get('id')}"
         if status:
             query["status"] = f"eq.{status}"
         if sport:
@@ -195,7 +253,11 @@ class SupabaseSportsEditorialRepository:
         return self._hydrate(self.client.request("sports_editorial_submissions", query=query))
 
     def get_submission(self, submission_id):
+        from .auth import current_user
+        user = current_user() or {}
         rows = self.client.request("sports_editorial_submissions", query={"select": "*", "id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}", "limit": "1"})
+        if rows and user.get("role") == "researcher" and rows[0].get("researcher_user_id") != user.get("id"):
+            return None
         hydrated = self._hydrate(rows)
         return hydrated[0] if hydrated else None
 
@@ -210,12 +272,38 @@ class SupabaseSportsEditorialRepository:
             "event_date": data.get("event_date") or None, "fis_event_ids": data.get("fis_event_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(), "author_email": data.get("author_email", "").strip(),
             "status": status, "editor_notes": "", "fis_submission_notes": "", "submitted_at": now if status == "submitted" else None,
+            "amp_id": data.get("amp_id") or None, "client_name": data.get("client_name") or "FIS",
+            "publication_deadline": data.get("publication_deadline") or None, "researcher_deadline": data.get("researcher_deadline") or None,
+            "researcher_user_id": data.get("researcher_user_id") or None, "sub_editor_user_id": data.get("sub_editor_user_id") or None,
+            "working_notes": "", "unused_stats": "", "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email"),
         }
         created = self.client.request("sports_editorial_submissions", "POST", payload=submission, prefer="return=representation")[0]
         blocks = [{"submission_id": created["id"], "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()]
         if blocks:
             self.client.request("sports_editorial_stats", "POST", payload=blocks, prefer="return=minimal")
         return self.get_submission(created["id"])
+
+    def update_research(self, submission_id, form_data, submit=False):
+        from .auth import current_user
+        user = current_user() or {}
+        now = _now()
+        changes = {"event_date": form_data.get("event_date") or None, "working_notes": form_data.get("working_notes", "").strip(), "unused_stats": form_data.get("unused_stats", "").strip(), "status": "submitted" if submit else "draft", "updated_at": now, "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
+        if submit:
+            changes["submitted_at"] = now
+        self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}", "researcher_user_id": f"eq.{user.get('id')}"}, payload=changes, prefer="return=minimal")
+        existing = self.get_submission(submission_id)
+        for stat in existing.get("stats", []):
+            self.client.request("sports_editorial_stats", "DELETE", query={"id": f"eq.{stat['id']}"})
+        blocks = []
+        block_ids = form_data.getlist("content_id")
+        for index, (kind, content) in enumerate(zip(form_data.getlist("content_type"), form_data.getlist("content_html"))):
+            kind = "section" if kind == "heading" else kind
+            clean = sanitise_rich_text(content)
+            if kind in ("stat", "section") and clean.strip():
+                blocks.append({"id": block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4()), "submission_id": submission_id, "sort_order": index, "content_type": kind, "stat_text": clean, "edited_text": "", "editor_comment": "", "tags": []})
+        if blocks:
+            self.client.request("sports_editorial_stats", "POST", payload=blocks, prefer="return=minimal")
+        return self.get_submission(submission_id)
 
     def update_review(self, submission_id, form_data, requested_status):
         item = self.get_submission(submission_id)
@@ -236,7 +324,12 @@ class SupabaseSportsEditorialRepository:
                     "mention_text": form_data.get(f"entity_mention_{stat_id}_{value}", "").strip() or None,
                 } for value in selected], prefer="return=minimal")
         event_ids = _event_ids_from_form(form_data)
-        changes = {"status": requested_status, "editor_notes": form_data.get("editor_notes", "").strip(), "fis_submission_notes": form_data.get("fis_submission_notes", "").strip(), "fis_event_ids": event_ids, "updated_at": _now()}
+        from .auth import current_user
+        user = current_user() or {}
+        changes = {"status": requested_status, "editor_notes": form_data.get("editor_notes", "").strip(), "fis_submission_notes": form_data.get("fis_submission_notes", "").strip(), "fis_event_ids": event_ids, "updated_at": _now(), "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
+        for field in ("title", "amp_id", "client_name", "competition", "event_name", "gender", "location", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "sub_editor_user_id", "working_notes", "unused_stats"):
+            if field in form_data:
+                changes[field] = form_data.get(field) or None
         if requested_status == "approved" and not item.get("approved_at"):
             changes["approved_at"] = changes["updated_at"]
         self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload=changes, prefer="return=minimal")

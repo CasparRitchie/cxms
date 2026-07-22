@@ -1,7 +1,7 @@
 import os
 from functools import wraps
 
-from flask import abort, redirect, request, session, url_for
+from flask import abort, has_request_context, redirect, request, session, url_for
 
 from .supabase_rest import SupabaseError, SupabaseRestClient
 
@@ -16,7 +16,9 @@ def auth_configuration():
 
 def current_user():
     if auth_configuration()["mode"] == "demo":
-        return {"id": "demo-user", "email": "", "full_name": session.get("sports_editorial_user", "Jamie Laurent"), "workspace_id": "demo-workspace", "role": session.get("sports_editorial_role", "journalist")}
+        if not has_request_context():
+            return {"id": "demo-user", "email": "", "full_name": "Jamie Laurent", "workspace_id": "demo-workspace", "role": "researcher", "workspace_role": "member"}
+        return {"id": "demo-user", "email": "", "full_name": session.get("sports_editorial_user", "Jamie Laurent"), "workspace_id": "demo-workspace", "role": session.get("sports_editorial_role", "researcher"), "workspace_role": "member"}
     token = request.cookies.get(COOKIE_NAME)
     import jwt
     try:
@@ -25,7 +27,8 @@ def current_user():
         return None
     if not data.get("sub") or not data.get("workspace_id"):
         return None
-    return {"id": data["sub"], "email": data.get("email", ""), "full_name": data.get("full_name", ""), "workspace_id": data["workspace_id"], "role": data.get("role", "journalist"), "workspace_role": data.get("workspace_role", "member")}
+    role = "researcher" if data.get("role") == "journalist" else data.get("role", "researcher")
+    return {"id": data["sub"], "email": data.get("email", ""), "full_name": data.get("full_name", ""), "workspace_id": data["workspace_id"], "role": role, "workspace_role": data.get("workspace_role", "member")}
 
 
 def require_workspace(view):
@@ -41,6 +44,13 @@ def require_role(role):
     user = current_user()
     if not user or user.get("role") != role:
         abort(403, description=f"{role.replace('_', ' ').title()} access is required.")
+
+
+def require_editor():
+    user = current_user()
+    if not user or user.get("role") not in ("sub_editor", "supervisor"):
+        abort(403, description="Sub-editor or Supervisor access is required.")
+    return user
 
 
 def authenticate(email, password):
@@ -85,8 +95,8 @@ def list_workspace_users(workspace_id):
 
 def provision_workspace_user(workspace_id, email, full_name, temporary_password, editorial_role):
     import bcrypt
-    if editorial_role not in ("journalist", "sub_editor"):
-        raise ValueError("Choose Journalist or Sub-editor access.")
+    if editorial_role not in ("researcher", "sub_editor", "supervisor"):
+        raise ValueError("Choose Researcher, Sub-editor or Supervisor access.")
     normalised_email = str(email or "").strip().lower()
     if "@" not in normalised_email:
         raise ValueError("Enter a valid email address.")

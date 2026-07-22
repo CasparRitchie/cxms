@@ -7,7 +7,7 @@
   <section class="sew-card sew-login-panel">
     <p class="sew-kicker">Sports Editorial workspace</p>
     <h1>Sign in</h1>
-    <p>Use your workspace email and password. Access is limited to invited journalists and sub-editors.</p>
+    <p>Use your workspace email and password. Access is limited to invited researchers, sub-editors and supervisors.</p>
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="sew-messages">{% for category, message in messages %}<p class="sew-message sew-message--{{ category }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% endwith %}
     <form method="post" class="sew-login-form">
       <input type="hidden" name="next" value="{{ next }}">

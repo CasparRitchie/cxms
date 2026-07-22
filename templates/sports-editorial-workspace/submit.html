@@ -1,26 +1,26 @@
 {% extends "sports-editorial-workspace/_workspace_base.html" %}
-{% block workspace_title %}New stat pack{% endblock %}
+{% block workspace_title %}New stat sheet{% endblock %}
 {% block workspace_content %}
-<div class="sew-page-heading"><p class="sew-kicker">Journalist submission</p><h1>Create a stat pack</h1><p>Write one clear fact per bullet. The editorial team will handle tagging and structured output.</p></div>
+<div class="sew-page-heading"><p class="sew-kicker">Controlled creation</p><h1>Create a stat sheet</h1><p>Set the season data, deadlines and assignments. The assigned researcher will add the editorial content.</p></div>
 <form class="sew-form" method="post" novalidate>
-  <section class="sew-card"><h2>About this stat pack</h2><div class="sew-form-grid">
-    <label class="sew-field sew-field--wide"><span>Title <em>Required</em></span><input name="title" required value="{{ (values.get('title') or [''])[0] }}" placeholder="e.g. Race notes: Val d'Isere"></label>
-    <label class="sew-field"><span>Sport</span><input type="hidden" name="sport" value="alpine_skiing"><input value="Alpine Skiing (ALP pilot)" disabled></label>
-    <label class="sew-field"><span>Competition</span><input name="competition" value="{{ (values.get('competition') or [''])[0] }}" placeholder="FIS World Cup"></label>
+  <section class="sew-card sew-core-data"><div class="sew-section-heading"><div><h2>Core stat-sheet data</h2><p>Managed by sub-editors and supervisors.</p></div></div><div class="sew-form-grid">
+    <label class="sew-field sew-field--wide"><span>Full stat-sheet title <em>Required</em></span><input name="title" required value="{{ (values.get('title') or [''])[0] }}" placeholder="Audi FIS Alpine Ski World Cup 2025/26 – Women’s Giant Slalom Sölden Stat Sheet"></label>
+    <label class="sew-field"><span>AMP ID</span><input name="amp_id" value="{{ (values.get('amp_id') or [''])[0] }}" placeholder="560001"></label>
+    <label class="sew-field"><span>Client</span><input name="client_name" value="{{ (values.get('client_name') or ['FIS'])[0] }}"></label>
+    <label class="sew-field"><span>Sport</span><input value="Alpine Skiing (ALP)" disabled></label>
+    <label class="sew-field"><span>Competition</span><input name="competition" value="{{ (values.get('competition') or [''])[0] }}" placeholder="World Cup"></label>
     <label class="sew-field"><span>Event</span><input name="event_name" value="{{ (values.get('event_name') or [''])[0] }}" placeholder="Giant Slalom"></label>
-    <label class="sew-field"><span>Gender</span><select name="gender"><option value="">Select</option>{% for code, label in [('W', 'Women'), ('M', 'Men'), ('X', 'Mixed / open')] %}<option value="{{ code }}" {% if (values.get('gender') or [''])[0] == code %}selected{% endif %}>{{ label }} ({{ code }})</option>{% endfor %}</select></label>
-    <label class="sew-field"><span>Location</span><input name="location" value="{{ (values.get('location') or [''])[0] }}" placeholder="Kronplatz"></label>
-    <label class="sew-field"><span>Event date</span><input type="date" name="event_date" value="{{ (values.get('event_date') or [''])[0] }}"></label>
-    <label class="sew-field"><span>FIS calendar event <em>Required to submit</em></span><input name="fis_event_ids" list="fis-calendar-events" inputmode="numeric" value="{{ (values.get('fis_event_ids') or [''])[0] }}" placeholder="Select or enter the numeric event ID"><small>Save as draft without an ID, or select an imported calendar event. Use commas for several IDs.</small></label>
-    <datalist id="fis-calendar-events">{% for event in calendar_events %}<option value="{{ event.canonical_id }}">{{ event.name }}{% if event.country_code %} · {{ event.country_code }}{% endif %}</option>{% endfor %}</datalist>
+    <label class="sew-field"><span>Gender</span><select name="gender"><option value="">Select</option>{% for code, label in [('W','Women'),('M','Men'),('X','Mixed / open')] %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></label>
+    <label class="sew-field"><span>Location</span><input name="location" value="{{ (values.get('location') or [''])[0] }}" placeholder="Sölden"></label>
+    <label class="sew-field"><span>Race date</span><input type="date" name="event_date" value="{{ (values.get('event_date') or [''])[0] }}"></label>
+    <label class="sew-field"><span>FIS Calendar Event ID</span><input name="fis_event_ids" list="fis-calendar-events" inputmode="numeric" value="{{ (values.get('fis_event_ids') or [''])[0] }}"></label>
+    <datalist id="fis-calendar-events">{% for event in calendar_events %}<option value="{{ event.canonical_id }}">{{ event.name }}</option>{% endfor %}</datalist>
+    <label class="sew-field"><span>Publication deadline</span><input type="date" name="publication_deadline" value="{{ (values.get('publication_deadline') or [''])[0] }}"></label>
+    <label class="sew-field"><span>Researcher deadline</span><input type="date" name="researcher_deadline" value="{{ (values.get('researcher_deadline') or [''])[0] }}"></label>
+    <label class="sew-field"><span>Researcher</span><select name="researcher_user_id"><option value="">Unassigned</option>{% for user in assignment_users if user.editorial_role == 'researcher' %}<option value="{{ user.id }}">{{ user.full_name or user.email }}</option>{% endfor %}</select></label>
+    <label class="sew-field"><span>Sub-editor</span><select name="sub_editor_user_id"><option value="">Unassigned</option>{% for user in assignment_users if user.editorial_role in ['sub_editor','supervisor'] %}<option value="{{ user.id }}">{{ user.full_name or user.email }}</option>{% endfor %}</select></label>
   </div></section>
-  <section class="sew-card"><div class="sew-section-heading"><div><h2>Statistics</h2><p>Build the sheet with draggable sections, headings and facts. Select text to make it bold or italic.</p></div><div class="sew-add-menu"><button class="sew-button" type="button" data-add-block="stat">Add statistic</button><button class="sew-button" type="button" data-add-block="section">Add section</button><button class="sew-button" type="button" data-add-block="heading">Add heading</button></div></div>
-    <div class="sew-format-toolbar" aria-label="Text formatting"><button type="button" data-format="bold" title="Bold"><strong>B</strong></button><button type="button" data-format="italic" title="Italic"><em>I</em></button><span>Select text inside a block, then choose a format.</span></div>
-    <div class="sew-stats-builder" data-stats-list>{% set existing_content = values.get('content_html') or ['', '', ''] %}{% set existing_types = values.get('content_type') or ['stat', 'stat', 'stat'] %}{% for content in existing_content %}<div class="sew-stat-input" draggable="true" data-content-block data-type="{{ existing_types[loop.index0] }}"><span class="sew-drag" title="Drag to reorder">⋮⋮</span><label><span data-block-label>{{ existing_types[loop.index0]|replace('_', ' ')|title }} {{ loop.index }}</span><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" data-editor data-placeholder="Enter content">{{ content|safe }}</div><input type="hidden" name="content_type" value="{{ existing_types[loop.index0] }}"><input type="hidden" name="content_html" value="{{ content|e }}" data-content-input></label><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button></div>{% endfor %}</div>
-  </section>
-  <section class="sew-card sew-signed-in"><div><span class="sew-avatar">JL</span></div><div><p class="sew-kicker">Signed in for this pilot</p><h2>{{ workspace_user }}</h2><p>Your identity is attached automatically. Production authentication will replace this demo identity.</p></div></section>
-  <div class="sew-form-actions"><button class="sew-button" type="submit" name="action" value="draft">Save draft</button><button class="sew-button sew-button--primary" type="submit" name="action" value="submit">Submit for review</button></div>
+  <input type="hidden" name="content_type" value=""><input type="hidden" name="content_html" value="">
+  <div class="sew-form-actions"><a class="sew-button" href="{{ url_for('sports_editorial_workspace.queue') }}">Cancel</a><button class="sew-button sew-button--primary" type="submit" name="action" value="draft">Create stat sheet</button></div>
 </form>
 {% endblock %}
-{% block workspace_scripts %}<script src="{{ url_for('static', filename='js/sports-editorial-submit.js') }}" defer></script>{% endblock %}
-

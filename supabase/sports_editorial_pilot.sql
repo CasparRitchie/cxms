@@ -8,7 +8,7 @@ create table if not exists public.sports_editorial_memberships (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null,
   user_id uuid not null,
-  editorial_role text not null check (editorial_role in ('journalist', 'sub_editor')),
+  editorial_role text not null check (editorial_role in ('researcher', 'sub_editor', 'supervisor')),
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   unique (workspace_id, user_id)
@@ -29,6 +29,16 @@ create table if not exists public.sports_editorial_submissions (
   fis_external_id text not null,
   author_name text not null,
   author_email text,
+  amp_id text,
+  client_name text not null default 'FIS',
+  researcher_user_id uuid,
+  sub_editor_user_id uuid,
+  publication_deadline date,
+  researcher_deadline date,
+  working_notes text,
+  unused_stats text,
+  last_modified_by_user_id uuid,
+  last_modified_by_name text,
   status text not null default 'draft' check (status in ('draft','submitted','in_review','changes_requested','approved','exported')),
   editor_notes text,
   fis_submission_notes text,
@@ -44,7 +54,7 @@ create table if not exists public.sports_editorial_stats (
   id uuid primary key default gen_random_uuid(),
   submission_id uuid not null references public.sports_editorial_submissions(id) on delete cascade,
   sort_order integer not null default 0,
-  content_type text not null default 'stat' check (content_type in ('stat','section','heading')),
+  content_type text not null default 'stat' check (content_type in ('stat','section')),
   stat_text text not null,
   edited_text text,
   editor_comment text,
@@ -124,7 +134,7 @@ declare
   v_user_id uuid;
   v_existing boolean := false;
 begin
-  if p_editorial_role not in ('journalist', 'sub_editor') then
+  if p_editorial_role not in ('researcher', 'sub_editor', 'supervisor') then
     raise exception 'Invalid Sports Editorial role';
   end if;
 

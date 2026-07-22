@@ -9,8 +9,8 @@ from .formatting import sanitise_rich_text
 from .fis_client import FisApiError, fis_configuration, get_fis_client
 from .fis_export import FisPayloadValidationError, build_fis_payload
 from .repository import repository
-from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, validate_status_transition, validate_submission
-from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_role, require_workspace_admin
+from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, STATUS_LABELS, validate_status_transition, validate_submission
+from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_editor, require_workspace_admin
 from .supabase_rest import SupabaseError
 from .calendar import RepositoryCalendarProvider
 from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
@@ -19,7 +19,7 @@ from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
-VALID_ROLES = ("journalist", "sub_editor")
+VALID_ROLES = ("researcher", "sub_editor", "supervisor")
 
 
 @blueprint.before_request
@@ -43,7 +43,7 @@ def _invalid_event_id_tokens(value):
 def workspace_context():
     user = current_user() or {}
     mode = auth_configuration()["mode"]
-    return {"workspace_role": user.get("role", "journalist"), "workspace_account_role": user.get("workspace_role", "member"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode}
+    return {"workspace_role": user.get("role", "researcher"), "workspace_account_role": user.get("workspace_role", "member"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode, "status_labels": STATUS_LABELS}
 
 
 @blueprint.route("/login", methods=["GET", "POST"])
@@ -197,7 +197,7 @@ def _calendar_events():
 
 
 def _require_sub_editor():
-    require_role("sub_editor")
+    return require_editor()
 
 
 def _flash_fis_error(exc):
@@ -223,6 +223,18 @@ def dashboard():
     return render_template("sports-editorial-workspace/dashboard.html", submissions=submissions[:4], counts=counts)
 
 
+def _assignment_users():
+    if auth_configuration()["mode"] == "demo":
+        return [
+            {"id": "demo-user", "full_name": "Jamie Laurent", "editorial_role": "researcher"},
+            {"id": "demo-researcher-2", "full_name": "Andrew Hendry", "editorial_role": "researcher"},
+            {"id": "demo-sub-editor", "full_name": "Nick L.", "editorial_role": "sub_editor"},
+            {"id": "demo-supervisor", "full_name": "Supervisor Demo", "editorial_role": "supervisor"},
+        ]
+    user = current_user() or {}
+    return list_workspace_users(user.get("workspace_id"))
+
+
 @blueprint.post("/role")
 def switch_role():
     if auth_configuration()["mode"] != "demo":
@@ -239,6 +251,7 @@ def switch_role():
 
 @blueprint.route("/submit", methods=["GET", "POST"])
 def submit():
+    _require_sub_editor()
     values = request.form.to_dict(flat=False) if request.method == "POST" else {}
     if request.method == "POST":
         values["content_html"] = [sanitise_rich_text(value) for value in request.form.getlist("content_html")]
@@ -254,8 +267,15 @@ def submit():
                 {"content_type": content_type, "content_html": sanitise_rich_text(content_html)}
                 for content_type, content_html in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))
             ],
+            "amp_id": request.form.get("amp_id", ""), "client_name": request.form.get("client_name", "FIS"),
+            "publication_deadline": request.form.get("publication_deadline", ""), "researcher_deadline": request.form.get("researcher_deadline", ""),
+            "researcher_user_id": request.form.get("researcher_user_id", ""), "researcher_name": request.form.get("researcher_name", ""),
+            "sub_editor_user_id": request.form.get("sub_editor_user_id", ""), "sub_editor_name": request.form.get("sub_editor_name", ""),
         }
-        errors = validate_submission(data, submitting=status == "submitted")
+        users_by_id = {item["id"]: item for item in _assignment_users()}
+        data["researcher_name"] = users_by_id.get(data["researcher_user_id"], {}).get("full_name", "")
+        data["sub_editor_name"] = users_by_id.get(data["sub_editor_user_id"], {}).get("full_name", "")
+        errors = [] if data["title"].strip() else ["Add a title for this stat sheet."]
         if _invalid_event_id_tokens(raw_event_ids):
             errors.append("FIS calendar event IDs must contain digits only, for example 123456.")
         if not errors:
@@ -263,7 +283,7 @@ def submit():
             return redirect(url_for("sports_editorial_workspace.confirmation", submission_id=submission["id"]))
         for error in errors:
             flash(error, "error")
-    return render_template("sports-editorial-workspace/submit.html", values=values, calendar_events=_calendar_events())
+    return render_template("sports-editorial-workspace/submit.html", values=values, calendar_events=_calendar_events(), assignment_users=_assignment_users())
 
 
 @blueprint.route("/confirmation/<submission_id>")
@@ -322,7 +342,29 @@ def detail(submission_id):
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     refreshed = repository.get_submission(submission_id)
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=_entities_by_id(refreshed), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events())
+    role = (current_user() or {}).get("role", "researcher")
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=_entities_by_id(refreshed), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=role in ("sub_editor", "supervisor"), can_edit_research=role == "researcher" and refreshed["status"] in ("draft", "changes_requested"))
+
+
+@blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])
+def research(submission_id):
+    user = current_user() or {}
+    if user.get("role") != "researcher":
+        abort(403, description="Researcher access is required.")
+    submission = _submission_or_404(submission_id)
+    if submission["status"] not in ("draft", "changes_requested"):
+        abort(403, description="This stat sheet is locked while it is in sub edit or publication.")
+    if request.method == "POST":
+        action = request.form.get("action", "draft")
+        content = [{"content_type": kind, "content_html": sanitise_rich_text(value)} for kind, value in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))]
+        errors = validate_submission({"title": submission["title"], "sport": submission["sport"], "fis_event_ids": submission.get("fis_event_ids", []), "content": content}, submitting=action == "submit")
+        if not errors:
+            repository.update_research(submission_id, request.form, submit=action == "submit")
+            flash("Stat sheet submitted for sub edit." if action == "submit" else "Research saved.", "success")
+            return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+        for error in errors:
+            flash(error, "error")
+    return render_template("sports-editorial-workspace/research.html", submission=submission)
 
 
 @blueprint.get("/submissions/<submission_id>/fis-preview")

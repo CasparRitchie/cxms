@@ -27,6 +27,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         with self.client.session_transaction() as session:
             session["sports_editorial_role"] = "sub_editor"
 
+    def set_role(self, role):
+        with self.client.session_transaction() as session:
+            session["sports_editorial_role"] = role
+
     def test_submission_validation(self):
         errors = validate_submission({"title": "", "content": [{"content_type": "stat", "content_html": ""}]}, submitting=True)
         self.assertEqual(len(errors), 3)
@@ -62,9 +66,52 @@ class SportsEditorialPilotTests(unittest.TestCase):
         ]
         for path in paths:
             with self.subTest(path=path):
-                self.assertEqual(self.client.get(path).status_code, 200)
+                expected = 403 if path == "/workspace/sports-editorial/submit" else 200
+                self.assertEqual(self.client.get(path).status_code, expected)
+
+    def test_researcher_cannot_create_or_open_unassigned_sheet(self):
+        self.set_sub_editor()
+        response = self.client.post("/workspace/sports-editorial/submit", data={
+            "title": "Unassigned researcher test", "event_name": "Slalom", "gender": "W",
+            "researcher_user_id": "demo-researcher-2", "content_type": "", "content_html": "",
+            "action": "draft",
+        })
+        submission_id = response.headers["Location"].rsplit("/", 1)[-1]
+        self.set_role("researcher")
+        self.assertEqual(self.client.get("/workspace/sports-editorial/submit").status_code, 403)
+        self.assertEqual(self.client.get(f"/workspace/sports-editorial/submissions/{submission_id}").status_code, 404)
+        self.assertNotIn(b"Unassigned researcher test", self.client.get("/workspace/sports-editorial/queue").data)
+
+    def test_researcher_edits_assigned_in_progress_sheet_then_is_locked(self):
+        self.set_sub_editor()
+        response = self.client.post("/workspace/sports-editorial/submit", data={
+            "title": "Assigned sheet", "event_name": "Downhill", "gender": "M", "event_date": "2026-10-12",
+            "fis_event_ids": "55596", "researcher_user_id": "demo-user", "sub_editor_user_id": "demo-sub-editor",
+            "content_type": "", "content_html": "", "action": "draft",
+        })
+        submission_id = response.headers["Location"].rsplit("/", 1)[-1]
+        self.set_role("researcher")
+        saved = self.client.post(f"/workspace/sports-editorial/submissions/{submission_id}/research", data={
+            "event_date": "2026-10-13", "content_type": ["section", "stat"],
+            "content_html": ["Race scenarios", "A researched statistic."],
+            "working_notes": "Source: internal workbook", "unused_stats": "Reserve statistic", "action": "submit",
+        })
+        self.assertEqual(saved.status_code, 302)
+        sheet = repository.get_submission(submission_id)
+        self.assertEqual(sheet["status"], "submitted")
+        self.assertEqual(sheet["event_date"], "2026-10-13")
+        self.assertEqual([block["content_type"] for block in sheet["stats"]], ["section", "stat"])
+        self.assertEqual(self.client.get(f"/workspace/sports-editorial/submissions/{submission_id}/research").status_code, 403)
+        exported = build_pilot_export(sheet, {})
+        self.assertNotIn("working_notes", json.dumps(exported))
+        self.assertNotIn("unused_stats", json.dumps(exported))
+
+    def test_supervisor_has_editor_creation_access(self):
+        self.set_role("supervisor")
+        self.assertEqual(self.client.get("/workspace/sports-editorial/submit").status_code, 200)
 
     def test_create_review_approve_and_download_workflow(self):
+        self.set_sub_editor()
         response = self.client.post("/workspace/sports-editorial/submit", data={
             "title": "Tomorrow demo pack", "sport": "alpine_skiing", "competition": "FIS Demo Cup",
             "event_name": "Demo downhill", "gender": "W", "location": "Kronplatz", "event_date": "2026-12-12",
