@@ -78,9 +78,10 @@ def build_stat_insights(rows, venue="", discipline="", athlete=""):
     for item in leaders:
         item["best"] = None if item["best"] == 999 else item["best"]
     discoveries = build_editorial_discoveries(filtered)
+    discovery_groups = group_editorial_discoveries(discoveries)
     return {"rows": sorted(filtered, key=lambda item: item["date"], reverse=True), "leaders": leaders,
             "streaks": streaks, "race_count": len({(r["date"], r["venue"], r["discipline"]) for r in filtered}),
-            "athlete_count": len(totals), "discoveries": discoveries}
+            "athlete_count": len(totals), "discoveries": discoveries, "discovery_groups": discovery_groups}
 
 
 def build_editorial_discoveries(rows):
@@ -158,4 +159,17 @@ def build_editorial_discoveries(rows):
         })
 
     candidates.sort(key=lambda item: (-item["score"], item["title"]))
-    return candidates[:8]
+    grouped = group_editorial_discoveries(candidates)
+    return [item for group in grouped for item in group["items"]]
+
+
+def group_editorial_discoveries(candidates, per_group=4):
+    groups = [
+        {"label": "Performance outlier", "description": "Athletes whose podium conversion is unusually strong within the current comparison."},
+        {"label": "Emerging trend", "description": "Recent finishes that differ materially from an athlete’s earlier results in this view."},
+        {"label": "Venue specialist", "description": "Athletes performing noticeably better at one venue than across their other loaded races."},
+        {"label": "Experience group", "description": "Athletes with the strongest representation in the currently loaded competition history."},
+    ]
+    for group in groups:
+        group["items"] = [item for item in candidates if item["label"] == group["label"]][:per_group]
+    return groups

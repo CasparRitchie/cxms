@@ -15,7 +15,7 @@ from services.sports_editorial.fis_entities import countries_from_athletes, pars
 from services.sports_editorial.fis_results import parse_fis_results
 from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import repository
-from services.sports_editorial.stat_insights import build_editorial_discoveries, build_stat_insights, demo_result_rows
+from services.sports_editorial.stat_insights import build_editorial_discoveries, build_stat_insights, demo_result_rows, group_editorial_discoveries
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 
 
@@ -90,6 +90,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
         discoveries = build_editorial_discoveries(rows)
         self.assertTrue(any(item["kind"] == "trend" and "Leader" in item["title"] for item in discoveries))
         self.assertTrue(all(item.get("evidence") for item in discoveries))
+
+    def test_research_leads_are_grouped_with_independent_quotas_and_empty_states(self):
+        candidates = [{"label": "Emerging trend", "title": f"Trend {index}", "score": 10 - index} for index in range(8)]
+        candidates += [{"label": "Venue specialist", "title": "Venue one", "score": 1}]
+        groups = group_editorial_discoveries(candidates)
+        self.assertEqual([group["label"] for group in groups], ["Performance outlier", "Emerging trend", "Venue specialist", "Experience group"])
+        self.assertEqual(len(groups[1]["items"]), 4)
+        self.assertEqual(len(groups[2]["items"]), 1)
+        self.assertEqual(groups[0]["items"], [])
 
     def test_stat_insights_page_explains_demo_data_and_filters(self):
         response = self.client.get("/workspace/sports-editorial/stat-insights?venue=Kronplatz")
