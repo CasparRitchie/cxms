@@ -1,7 +1,7 @@
 """Read-only editorial calculations over normalised historical result rows."""
 
 from collections import defaultdict
-from statistics import mean, pstdev
+from statistics import mean, median, pstdev
 
 
 DEMO_RESULTS = [
@@ -79,9 +79,154 @@ def build_stat_insights(rows, venue="", discipline="", athlete=""):
         item["best"] = None if item["best"] == 999 else item["best"]
     discoveries = build_editorial_discoveries(filtered)
     discovery_groups = group_editorial_discoveries(discoveries)
+    perspective_groups = build_perspective_insights(filtered)
     return {"rows": sorted(filtered, key=lambda item: item["date"], reverse=True), "leaders": leaders,
             "streaks": streaks, "race_count": len({(r["date"], r["venue"], r["discipline"]) for r in filtered}),
-            "athlete_count": len(totals), "discoveries": discoveries, "discovery_groups": discovery_groups}
+            "athlete_count": len(totals), "discoveries": discoveries, "discovery_groups": discovery_groups,
+            "perspective_groups": perspective_groups}
+
+
+def _seconds(value):
+    text = str(value or "").strip().lstrip("+")
+    try:
+        if ":" in text:
+            minutes, seconds = text.split(":", 1)
+            return int(minutes) * 60 + float(seconds)
+        return float(text)
+    except (TypeError, ValueError):
+        return None
+
+
+def _lead(label, title, summary, evidence, score=0):
+    return {"label": label, "title": title, "summary": summary, "evidence": evidence,
+            "score": score, "kind": "group"}
+
+
+def build_perspective_insights(rows):
+    """Build explainable country, time, gender, age and host-country leads."""
+    groups = [
+        {"label": "Country patterns", "description": "Podium concentration and complete podium sweeps by athlete nation."},
+        {"label": "Time and margins", "description": "Winning margins and podium closeness where difference times are available."},
+        {"label": "Women and men", "description": "Discipline-matched comparisons rather than raw comparisons across courses."},
+        {"label": "Age milestones", "description": "Approximate ages derived from race year and the stored FIS birth year."},
+        {"label": "Host-country effect", "description": "Whether athletes record stronger results when racing in their nation."},
+    ]
+    candidates = []
+    podiums = [row for row in rows if isinstance(row.get("place"), int) and row["place"] <= 3]
+
+    by_discipline = defaultdict(list)
+    for row in podiums:
+        by_discipline[row.get("discipline") or "Alpine"].append(row)
+    for discipline, results in by_discipline.items():
+        counts = defaultdict(int)
+        for row in results:
+            counts[row.get("nation") or ""] += 1
+        if counts:
+            nation, count = max(counts.items(), key=lambda item: item[1])
+            share = count / len(results)
+            if nation and count >= 5 and share >= .30:
+                candidates.append(_lead("Country patterns", f"{nation} leads {discipline} podium representation",
+                    f"{count} of {len(results)} recorded podium places ({share:.0%}) belong to {nation} athletes.",
+                    "This describes the currently loaded and filtered races, not all-time dominance.", share))
+
+    races = defaultdict(list)
+    for row in podiums:
+        key = row.get("race_id") or (row.get("date"), row.get("venue"), row.get("discipline"))
+        races[key].append(row)
+    sweeps = defaultdict(list)
+    for race_rows in races.values():
+        top_three = [row for row in race_rows if row.get("place") in (1, 2, 3)]
+        nations = {row.get("nation") for row in top_three}
+        if len(top_three) == 3 and len(nations) == 1:
+            sweeps[next(iter(nations))].append(top_three[0])
+    for nation, examples in sorted(sweeps.items(), key=lambda item: -len(item[1]))[:3]:
+        latest = max(examples, key=lambda row: row.get("date") or "")
+        candidates.append(_lead("Country patterns", f"{nation} recorded a complete podium sweep",
+            f"{len(examples)} loaded race{'s' if len(examples) != 1 else ''} finished with {nation} athletes first, second and third.",
+            f"Latest example: {latest.get('venue')} on {latest.get('date')} ({latest.get('discipline')}).", len(examples)))
+
+    margins, podium_spans = [], []
+    for race_rows in races.values():
+        placed = {row.get("place"): row for row in race_rows}
+        second, third = placed.get(2), placed.get(3)
+        if not placed.get(1):
+            continue
+        winner_seconds = _seconds(placed[1].get("time"))
+        second_seconds = _seconds((second or {}).get("time"))
+        third_seconds = _seconds((third or {}).get("time"))
+        margin = second_seconds - winner_seconds if winner_seconds is not None and second_seconds is not None else None
+        podium_span = third_seconds - winner_seconds if winner_seconds is not None and third_seconds is not None else None
+        if margin is not None and margin >= 0:
+            margins.append((margin, placed[1], f"{margin:.2f}s"))
+        if podium_span is not None and podium_span >= 0:
+            podium_spans.append((podium_span, placed[1], f"{podium_span:.2f}s"))
+    if margins:
+        biggest, closest = max(margins, key=lambda item: item[0]), min(margins, key=lambda item: item[0])
+        candidates.extend([
+            _lead("Time and margins", "Biggest recorded winning margin", f"{biggest[1]['athlete']} won by {biggest[2]} at {biggest[1]['venue']}.",
+                  f"{biggest[1]['date']} · {biggest[1]['discipline']} · {len(margins)} races had readable differences.", biggest[0]),
+            _lead("Time and margins", "Closest recorded finish", f"{closest[1]['athlete']} won by {closest[2]} at {closest[1]['venue']}.",
+                  f"{closest[1]['date']} · {closest[1]['discipline']} · verify ties and timing precision on FIS.", 1 / max(closest[0], .001)),
+        ])
+    if podium_spans:
+        closest = min(podium_spans, key=lambda item: item[0])
+        candidates.append(_lead("Time and margins", "Closest recorded podium", f"Only {closest[2]} separated first from third at {closest[1]['venue']}.",
+            f"{closest[1]['date']} · {closest[1]['discipline']} · third-place difference to the winner.", 1 / max(closest[0], .001)))
+
+    gender_margins = defaultdict(list)
+    for margin, winner, _ in margins:
+        if winner.get("gender") in ("W", "M"):
+            gender_margins[(winner.get("discipline"), winner["gender"])].append(margin)
+    for discipline in sorted({key[0] for key in gender_margins}):
+        women, men = gender_margins[(discipline, "W")], gender_margins[(discipline, "M")]
+        if len(women) >= 3 and len(men) >= 3:
+            candidates.append(_lead("Women and men", f"Winning-margin comparison for {discipline}",
+                f"Median winning margin: women {median(women):.2f}s; men {median(men):.2f}s.",
+                f"Based on {len(women)} women’s and {len(men)} men’s races; course conditions still differ.", len(women) + len(men)))
+
+    winners, athlete_wins = [], defaultdict(list)
+    for row in rows:
+        birth_year, race_year = str(row.get("birth_year") or ""), str(row.get("date") or "")[:4]
+        if row.get("place") == 1 and birth_year.isdigit() and race_year.isdigit():
+            item = {**row, "approx_age": int(race_year) - int(birth_year)}
+            winners.append(item)
+            athlete_wins[(row.get("athlete"), row.get("fis_code"))].append(item)
+    if winners:
+        youngest = min(winners, key=lambda row: row["approx_age"])
+        oldest = max(winners, key=lambda row: row["approx_age"])
+        first_wins = [min(items, key=lambda row: row.get("date") or "") for items in athlete_wins.values()]
+        oldest_first = max(first_wins, key=lambda row: row["approx_age"])
+        candidates.extend([
+            _lead("Age milestones", "Youngest winner in the loaded races", f"{youngest['athlete']} was approximately {youngest['approx_age']} at {youngest['venue']}.",
+                  f"{youngest['date']} · birth year {youngest['birth_year']}; exact age requires a full birth date.", -youngest["approx_age"]),
+            _lead("Age milestones", "Oldest winner in the loaded races", f"{oldest['athlete']} was approximately {oldest['approx_age']} at {oldest['venue']}.",
+                  f"{oldest['date']} · birth year {oldest['birth_year']}; exact age requires a full birth date.", oldest["approx_age"]),
+            _lead("Age milestones", "Oldest first win visible in this dataset", f"{oldest_first['athlete']} was approximately {oldest_first['approx_age']} at their earliest loaded win.",
+                  f"{oldest_first['date']} at {oldest_first['venue']}; earlier career wins may be outside current coverage.", oldest_first["approx_age"]),
+        ])
+
+    home_away = defaultdict(lambda: {"home_starts": 0, "home_podiums": 0, "away_starts": 0, "away_podiums": 0})
+    for row in rows:
+        nation, host = row.get("nation"), row.get("host_nation")
+        if not nation or not host or row.get("status") == "did_not_start":
+            continue
+        side = "home" if nation == host else "away"
+        home_away[nation][f"{side}_starts"] += 1
+        home_away[nation][f"{side}_podiums"] += isinstance(row.get("place"), int) and row["place"] <= 3
+    for nation, values in home_away.items():
+        if values["home_starts"] >= 5 and values["away_starts"] >= 10:
+            home_rate = values["home_podiums"] / values["home_starts"]
+            away_rate = values["away_podiums"] / values["away_starts"]
+            if abs(home_rate - away_rate) >= .05:
+                direction = "higher" if home_rate > away_rate else "lower"
+                candidates.append(_lead("Host-country effect", f"{nation} athletes show a {direction} home podium rate",
+                    f"Home podium rate {home_rate:.0%}, compared with {away_rate:.0%} elsewhere.",
+                    f"Based on {values['home_starts']} home and {values['away_starts']} away starts.", abs(home_rate - away_rate)))
+
+    for group in groups:
+        group["items"] = sorted((item for item in candidates if item["label"] == group["label"]),
+                                key=lambda item: (-item["score"], item["title"]))[:4]
+    return groups
 
 
 def build_editorial_discoveries(rows):

@@ -512,6 +512,7 @@ def _hydrate_result_row(row, imported):
     return {
         "race_id": str(row["race_id"]), "date": imported.get("race_date") or "", "venue": imported.get("venue") or "FIS event",
         "discipline": imported.get("event_code") or "AL", "gender": imported.get("gender") or "",
+        "host_nation": imported.get("nation_code") or "",
         "season_code": imported.get("season_code"),
         "competition": imported.get("category_code") or "FIS", "place": row.get("place"), "status": row.get("result_status"),
         "athlete": row.get("athlete_name"), "fis_code": str(row.get("fis_code") or ""),

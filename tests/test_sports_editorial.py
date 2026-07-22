@@ -15,7 +15,7 @@ from services.sports_editorial.fis_entities import countries_from_athletes, pars
 from services.sports_editorial.fis_results import parse_fis_results
 from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import repository
-from services.sports_editorial.stat_insights import build_editorial_discoveries, build_stat_insights, demo_result_rows, group_editorial_discoveries
+from services.sports_editorial.stat_insights import build_editorial_discoveries, build_perspective_insights, build_stat_insights, demo_result_rows, group_editorial_discoveries
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 
 
@@ -99,6 +99,24 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(len(groups[1]["items"]), 4)
         self.assertEqual(len(groups[2]["items"]), 1)
         self.assertEqual(groups[0]["items"], [])
+
+    def test_additional_perspectives_cover_country_time_gender_and_age(self):
+        rows = []
+        for index, (gender, host) in enumerate((("W", "SUI"), ("M", "AUT"))):
+            for race_number in range(3):
+                common = {"race_id": f"{index + 1}{race_number}", "date": f"2025-01-0{race_number + 1}",
+                          "venue": host, "host_nation": host, "discipline": "GS", "gender": gender, "status": "finished"}
+                rows.extend([
+                    {**common, "athlete": f"Winner {gender}", "fis_code": f"1{index}", "birth_year": "1990", "nation": host, "place": 1, "time": "1:30.00"},
+                    {**common, "athlete": f"Second {gender}", "fis_code": f"2{index}", "birth_year": "1995", "nation": host, "place": 2, "time": "1:30.20"},
+                    {**common, "athlete": f"Third {gender}", "fis_code": f"3{index}", "birth_year": "2000", "nation": host, "place": 3, "time": "1:30.50"},
+                ])
+        groups = build_perspective_insights(rows)
+        by_label = {group["label"]: group["items"] for group in groups}
+        self.assertTrue(by_label["Country patterns"])
+        self.assertTrue(by_label["Time and margins"])
+        self.assertTrue(by_label["Women and men"])
+        self.assertTrue(by_label["Age milestones"])
 
     def test_stat_insights_page_explains_demo_data_and_filters(self):
         response = self.client.get("/workspace/sports-editorial/stat-insights?venue=Kronplatz")
