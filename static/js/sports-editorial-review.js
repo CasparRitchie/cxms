@@ -2,6 +2,9 @@
   document.querySelectorAll("[data-review-block]").forEach((block) => {
     const editor = block.querySelector("[data-review-editor]");
     const input = block.querySelector("[data-review-input]");
+    // Sub-headings do not have a publication editor. Leave them rendered and
+    // continue initialising entity controls on the statistic blocks below.
+    if (!editor || !input) return;
     const sync = () => { input.value = editor.innerHTML; };
     editor.addEventListener("input", sync);
     editor.addEventListener("paste", (event) => {
