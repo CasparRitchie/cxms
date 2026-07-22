@@ -411,6 +411,26 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(items[0]["metadata"]["season_code"], 2027)
         self.assertEqual(items[0]["metadata"]["category_code"], "WC")
 
+    def test_historical_fis_result_layout_reads_six_column_athlete_name(self):
+        html = '''
+        <h1>Soelden (AUT)</h1>
+        <option selected>28.10.2023 - Women's Giant Slalom | WC</option>
+        <div data-formatted-date="October 28, 2023"></div>
+        <a class="table-row" href="https://www.fis-ski.com/DB/general/athlete-biography.html?competitorid=125871">
+          <div class="g-lg-1 pr-1 bold justify-right">1</div>
+          <div class="g-lg-1 gray justify-center">1</div>
+          <div class="pr-1 g-lg-2 gray justify-right">516138</div>
+          <div class="g-lg-6 bold justify-left">GUT-BEHRAMI Lara</div>
+          <div class="g-lg-1 hidden-sm-down justify-left">1991</div>
+          <span class="country__name-short">SUI</span>
+          <div class="g-lg-2 blue bold justify-right">2:18.94</div>
+        </a>'''
+        rows = parse_fis_results(html, {"canonical_id": "118331", "metadata": {"season_code": 2024}})
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["athlete"], "GUT-BEHRAMI Lara")
+        self.assertEqual(rows[0]["fis_code"], "516138")
+        self.assertEqual(rows[0]["place"], 1)
+
     def test_combined_entity_refresh_is_admin_only_in_workspace_mode(self):
         with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=None):
             response = self.client.post("/workspace/sports-editorial/entities/refresh/events", data={"season_code": "2027"})

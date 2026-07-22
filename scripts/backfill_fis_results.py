@@ -43,12 +43,12 @@ def main():
 
     if not args.skip_discovery:
         for season in sorted(set(args.season)):
-            print(f"Discovering Alpine World Cup competitions for FIS season {season}...", flush=True)
+            print(f"Opening Alpine World Cup competition records for FIS season {season}...", flush=True)
             events, _ = fetch_alpine_world_cup_events(season)
             repository.upsert_calendar_events(events)
             competitions, failures = fetch_alpine_competitions(events, request_interval=interval)
             repository.upsert_entities(competitions)
-            print(f"Stored {len(competitions)} competition references; {failures} event pages failed.", flush=True)
+            print(f"Stored {len(competitions)} underlying race links; {failures} competition pages failed.", flush=True)
 
     existing = {str(item["race_id"]) for item in repository.list_result_competitions()}
     seasons = {str(value) for value in args.season}
@@ -63,7 +63,7 @@ def main():
             candidates.append(race)
     candidates.sort(key=lambda item: ((item.get("metadata") or {}).get("date") or "", item["canonical_id"]))
     candidates = candidates[:max_races]
-    print(f"{len(candidates)} completed, missing competitions are eligible for this run.", flush=True)
+    print(f"{len(candidates)} completed, missing races are eligible for this incremental run.", flush=True)
 
     imported_races = imported_rows = failed = 0
     previous_request_at = None
