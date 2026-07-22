@@ -97,6 +97,37 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Demonstration data", response.data)
         self.assertIn(b"Mikaela Shiffrin", response.data)
 
+    def test_stored_official_results_replace_demo_default_and_show_coverage(self):
+        race = {"canonical_id": "127367", "canonical_url": "https://www.fis-ski.com/result",
+                "metadata": {"season_code": 2026, "event_id": "55595", "category_code": "WC"}}
+        rows = [{"race_id": "127367", "date": "2026-01-03", "venue": "Kranjska Gora", "discipline": "GS",
+                 "gender": "W", "competition": "WC", "place": 1, "status": "finished", "athlete": "RAST Camille",
+                 "fis_code": "516562", "competitor_id": "203812", "nation": "SUI", "bib": "1", "birth_year": "1999",
+                 "time": "2:00.09", "source_url": race["canonical_url"], "source": "fis_official_results", "imported_at": "2026-07-22T10:00:00+00:00"}]
+        repository.save_result_import(race, rows)
+        response = self.client.get("/workspace/sports-editorial/stat-insights")
+        self.assertIn(b"Stored official FIS result data", response.data)
+        self.assertIn(b"127367", response.data)
+        self.assertNotIn(b"Alice Robinson", response.data)
+
+    def test_controlled_import_is_missing_only_and_capped(self):
+        self.set_role("supervisor")
+        repository.upsert_entities([{"entity_type": "competition", "name": "GS W test", "canonical_id": "127367",
+                                     "canonical_url": "https://www.fis-ski.com/result", "country_code": "SLO",
+                                     "metadata": {"season_code": 2026, "event_id": "55595", "category_code": "WC", "date": "2026-01-03"}}])
+        rows = [{"race_id": "127367", "date": "2026-01-03", "venue": "Kranjska Gora", "discipline": "GS",
+                 "gender": "W", "competition": "WC", "place": 1, "status": "finished", "athlete": "RAST Camille",
+                 "fis_code": "516562", "competitor_id": "203812", "nation": "SUI", "bib": "1", "birth_year": "1999",
+                 "time": "2:00.09", "source_url": "https://www.fis-ski.com/result", "imported_at": "2026-07-22T10:00:00+00:00"}]
+        with patch("services.sports_editorial.views.fetch_alpine_results", return_value=(rows, 0)) as fetch:
+            response = self.client.post("/workspace/sports-editorial/stat-insights/import", data={"season": "2026", "limit": "99"})
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(len(fetch.call_args.args[0]), 1)
+            self.assertEqual(fetch.call_args.kwargs["request_interval"], 1.5)
+        with patch("services.sports_editorial.views.fetch_alpine_results") as fetch_again:
+            self.client.post("/workspace/sports-editorial/stat-insights/import", data={"season": "2026"})
+            fetch_again.assert_not_called()
+
     def test_official_fis_result_parser_retains_provenance_and_non_finishers(self):
         html = '''
         <h1 class="heading">Kranjska Gora (SLO)</h1>
@@ -364,6 +395,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(items[0]["canonical_id"], "131458")
         self.assertEqual(items[0]["metadata"]["codex"], "0251")
         self.assertIn("Giant Slalom", items[0]["name"])
+
+    def test_competition_parser_carries_event_season_for_result_imports(self):
+        html = '''<a href="https://www.fis-ski.com/DB/general/results.html?raceid=131458"><div data-date="2026-07-31">31 Jul</div><div>Giant Slalom</div><div>W</div></a>'''
+        items = parse_event_competitions(html, {"canonical_id": "62716", "name": "Cerro Castor", "metadata": {"season_code": 2027, "category_code": "WC"}})
+        self.assertEqual(items[0]["metadata"]["season_code"], 2027)
+        self.assertEqual(items[0]["metadata"]["category_code"], "WC")
 
     def test_combined_entity_refresh_is_admin_only_in_workspace_mode(self):
         with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=None):

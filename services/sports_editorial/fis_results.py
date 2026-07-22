@@ -1,13 +1,13 @@
 """Read-only importer for official FIS public Alpine result classifications."""
 
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 from html import unescape
+from time import monotonic, sleep
 
 
 FIS_RESULTS_URL = "https://www.fis-ski.com/DB/general/results.html"
@@ -143,17 +143,22 @@ def _fetch_race(race, timeout):
     return parse_fis_results(html, race)
 
 
-def fetch_alpine_results(races, timeout=20, workers=4):
+def fetch_alpine_results(races, timeout=20, request_interval=1.5):
+    """Fetch a deliberately small batch sequentially, with spacing between FIS calls."""
     if not races or len(races) > 10:
         raise FisResultError("Choose between 1 and 10 FIS competitions per calculation.")
     rows, failures = [], 0
-    with ThreadPoolExecutor(max_workers=min(workers, len(races))) as pool:
-        futures = [pool.submit(_fetch_race, race, timeout) for race in races]
-        for future in as_completed(futures):
-            try:
-                rows.extend(future.result())
-            except (HTTPError, URLError, TimeoutError, OSError, FisResultError):
-                failures += 1
+    previous_request_at = None
+    for race in races:
+        if previous_request_at is not None:
+            remaining = request_interval - (monotonic() - previous_request_at)
+            if remaining > 0:
+                sleep(remaining)
+        previous_request_at = monotonic()
+        try:
+            rows.extend(_fetch_race(race, timeout))
+        except (HTTPError, URLError, TimeoutError, OSError, FisResultError):
+            failures += 1
     if not rows:
         raise FisResultError("No official classifications could be read. Check the competition IDs and try again.")
     return rows, failures

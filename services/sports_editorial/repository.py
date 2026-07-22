@@ -33,6 +33,7 @@ class DemoSportsEditorialRepository:
         with self._lock:
             self._submissions, self._entities = fresh_demo_data()
             self._fis_publications = {}
+            self._result_imports, self._results = [], []
 
     def list_submissions(self, status="", sport="", order="newest"):
         from .auth import current_user
@@ -191,6 +192,34 @@ class DemoSportsEditorialRepository:
                 else:
                     self._entities.append({"id": str(uuid4()), **deepcopy(incoming)})
         return len(entities)
+
+    def list_result_competitions(self):
+        return deepcopy(sorted(self._result_imports, key=lambda item: item.get("race_date") or "", reverse=True))
+
+    def list_results(self, race_ids=None):
+        wanted = {str(value) for value in (race_ids or [])}
+        rows = self._results if not wanted else [row for row in self._results if str(row.get("race_id")) in wanted]
+        imports = {str(item["race_id"]): item for item in self._result_imports}
+        hydrated = []
+        for row in rows:
+            item = deepcopy(row)
+            imported = imports.get(str(row["race_id"]), {})
+            item["season_code"] = imported.get("season_code")
+            item["competition"] = imported.get("category_code") or item.get("competition")
+            hydrated.append(item)
+        return hydrated
+
+    def save_result_import(self, race, rows, partial=False):
+        if not rows:
+            return 0
+        first = rows[0]
+        race_id = str(first["race_id"])
+        record = _result_import_record(race, rows, partial)
+        with self._lock:
+            self._result_imports = [item for item in self._result_imports if str(item["race_id"]) != race_id]
+            self._result_imports.append(record)
+            self._results = [item for item in self._results if str(item["race_id"]) != race_id] + deepcopy(rows)
+        return len(rows)
 
 
 class SupabaseSportsEditorialRepository:
@@ -406,6 +435,88 @@ class SupabaseSportsEditorialRepository:
                 prefer="resolution=merge-duplicates,return=minimal",
             )
         return len(entities)
+
+    def list_result_competitions(self):
+        return self.client.request("sports_editorial_result_imports", query={
+            "select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "race_date.desc.nullslast", "limit": "1000",
+        })
+
+    def list_results(self, race_ids=None):
+        query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "race_id.asc,place.asc.nullslast"}
+        ids = list(dict.fromkeys(str(value) for value in (race_ids or []) if str(value).isdigit()))
+        if ids:
+            query["race_id"] = f"in.({','.join(ids)})"
+        rows = []
+        page_size = 1000
+        for offset in range(0, 50000, page_size):
+            page = self.client.request("sports_editorial_results", query={**query, "limit": str(page_size), "offset": str(offset)})
+            rows.extend(page)
+            if len(page) < page_size:
+                break
+        imports = {str(item["race_id"]): item for item in self.list_result_competitions()}
+        return [_hydrate_result_row(row, imports.get(str(row["race_id"]), {})) for row in rows]
+
+    def save_result_import(self, race, rows, partial=False):
+        if not rows:
+            return 0
+        record = {**_result_import_record(race, rows, partial), "workspace_id": self._workspace()}
+        self.client.request("sports_editorial_result_imports", "POST",
+                            query={"on_conflict": "workspace_id,race_id"}, payload=record,
+                            prefer="resolution=merge-duplicates,return=minimal")
+        payload = [_result_storage_row(self._workspace(), row) for row in rows]
+        for start in range(0, len(payload), 250):
+            self.client.request("sports_editorial_results", "POST",
+                                query={"on_conflict": "workspace_id,race_id,fis_code"}, payload=payload[start:start + 250],
+                                prefer="resolution=merge-duplicates,return=minimal")
+        current_codes = ",".join(str(row["fis_code"]) for row in payload)
+        if current_codes:
+            self.client.request("sports_editorial_results", "DELETE", query={
+                "workspace_id": f"eq.{self._workspace()}", "race_id": f"eq.{record['race_id']}", "fis_code": f"not.in.({current_codes})",
+            }, prefer="return=minimal")
+        return len(payload)
+
+
+def _result_import_record(race, rows, partial=False):
+    first = rows[0]
+    now = _now()
+    metadata = race.get("metadata") or {}
+    return {
+        "race_id": int(first["race_id"]), "event_id": int(metadata["event_id"]) if str(metadata.get("event_id") or "").isdigit() else None,
+        "season_code": int(metadata["season_code"]) if str(metadata.get("season_code") or "").isdigit() else None,
+        "discipline_code": "AL", "event_code": first.get("discipline") or metadata.get("event_code"),
+        "category_code": first.get("competition") or metadata.get("category_code"), "gender": first.get("gender") or metadata.get("gender") or None,
+        "venue": first.get("venue"), "nation_code": race.get("country_code") or None, "race_date": first.get("date") or None,
+        "source_url": first.get("source_url") or race.get("canonical_url") or "", "source_name": "fis_official_results",
+        "import_status": "partial" if partial else "complete", "row_count": len(rows), "last_error": None,
+        "imported_at": first.get("imported_at") or now, "refreshed_at": now,
+    }
+
+
+def _result_storage_row(workspace_id, row):
+    def integer(value):
+        return int(value) if str(value or "").isdigit() else None
+    return {
+        "workspace_id": workspace_id, "race_id": int(row["race_id"]), "fis_code": int(row["fis_code"]),
+        "competitor_id": integer(row.get("competitor_id")), "athlete_name": row["athlete"], "nation_code": row["nation"],
+        "bib": integer(row.get("bib")), "birth_year": integer(row.get("birth_year")), "place": row.get("place"),
+        "result_status": row.get("status") or "finished", "total_time": row.get("time") or None,
+        "diff_time": row.get("diff_time") or None, "fis_points": row.get("fis_points"), "cup_points": row.get("cup_points"),
+        "source_url": row.get("source_url") or "", "imported_at": row.get("imported_at") or _now(),
+    }
+
+
+def _hydrate_result_row(row, imported):
+    return {
+        "race_id": str(row["race_id"]), "date": imported.get("race_date") or "", "venue": imported.get("venue") or "FIS event",
+        "discipline": imported.get("event_code") or "AL", "gender": imported.get("gender") or "",
+        "season_code": imported.get("season_code"),
+        "competition": imported.get("category_code") or "FIS", "place": row.get("place"), "status": row.get("result_status"),
+        "athlete": row.get("athlete_name"), "fis_code": str(row.get("fis_code") or ""),
+        "competitor_id": str(row.get("competitor_id") or ""), "nation": row.get("nation_code"),
+        "bib": str(row.get("bib") or ""), "birth_year": str(row.get("birth_year") or ""), "time": row.get("total_time") or "",
+        "source_url": row.get("source_url") or imported.get("source_url") or "", "source": "fis_official_results",
+        "imported_at": row.get("imported_at") or imported.get("imported_at"),
+    }
 
 
 def _build_repository():

@@ -92,7 +92,10 @@ def parse_event_competitions(html, event):
         competitions.append({
             "entity_type": "competition", "name": name, "canonical_id": race_id,
             "canonical_url": race["href"], "country_code": event.get("country_code", ""),
-            "metadata": {"source": "fis_public_event_page", "discipline_code": "AL", "event_id": event.get("canonical_id"), "codex": codex, "gender": gender, "date": date or None, "imported_at": imported_at},
+            "metadata": {"source": "fis_public_event_page", "discipline_code": "AL", "event_id": event.get("canonical_id"),
+                         "season_code": (event.get("metadata") or {}).get("season_code"),
+                         "category_code": (event.get("metadata") or {}).get("category_code"),
+                         "codex": codex, "gender": gender, "date": date or None, "imported_at": imported_at},
         })
     return competitions
 

@@ -228,29 +228,79 @@ def dashboard():
 @blueprint.get("/stat-insights")
 def stat_insights():
     race_ids = list(dict.fromkeys(re.findall(r"\d+", request.args.get("race_ids", ""))))[:10]
-    rows = demo_result_rows()
+    coverage = repository.list_result_competitions()
+    rows = repository.list_results(race_ids=race_ids) if coverage else []
     source = "demonstration"
-    failures = 0
-    if race_ids:
-        known = {str(item.get("canonical_id")): item for item in repository.list_entities(entity_type="competition")}
-        races = [known.get(race_id, {"canonical_id": race_id, "name": f"FIS competition {race_id}"}) for race_id in race_ids]
-        try:
-            rows, failures = fetch_alpine_results(races)
-            source = "fis_official_results"
-        except FisResultError as exc:
-            flash(str(exc), "error")
+    if rows:
+        source = "fis_official_results"
+    elif coverage and race_ids:
+        flash("Those competitions have not been imported yet. A supervisor can add them with the controlled refresh.", "notice")
+    if not rows:
+        rows = demo_result_rows()
     venue = request.args.get("venue", "").strip()
     discipline = request.args.get("discipline", "").strip().upper()
     athlete = request.args.get("athlete", "").strip()
+    season = request.args.get("season", "").strip()
+    gender = request.args.get("gender", "").strip().upper()
+    nation = request.args.get("nation", "").strip().upper()
+    if source == "fis_official_results":
+        rows = [row for row in rows if (not season or str(row.get("season_code") or "") == season)
+                and (not gender or row.get("gender") == gender) and (not nation or row.get("nation") == nation)]
     venues = sorted({row["venue"] for row in rows})
     disciplines = sorted({row["discipline"] for row in rows})
+    seasons = sorted({str(item["season_code"]) for item in coverage if item.get("season_code")}, reverse=True)
+    nations = sorted({row["nation"] for row in rows if row.get("nation")})
     venue = venue if venue in venues else ""
     discipline = discipline if discipline in disciplines else ""
     return render_template("sports-editorial-workspace/stat-insights.html",
                            insights=build_stat_insights(rows, venue, discipline, athlete),
-                           venues=venues, disciplines=disciplines,
-                           filters={"venue": venue, "discipline": discipline, "athlete": athlete, "race_ids": ", ".join(race_ids)},
-                           result_source=source, result_failures=failures)
+                           venues=venues, disciplines=disciplines, seasons=seasons, nations=nations, coverage=coverage,
+                           filters={"venue": venue, "discipline": discipline, "athlete": athlete, "race_ids": ", ".join(race_ids),
+                                    "season": season, "gender": gender, "nation": nation},
+                           result_source=source, result_failures=0)
+
+
+@blueprint.post("/stat-insights/import")
+def import_stat_results():
+    user = current_user() or {}
+    if auth_configuration()["mode"] == "workspace":
+        require_workspace_admin()
+    elif user.get("role") != "supervisor":
+        abort(403, description="Supervisor access is required to refresh official results.")
+    limit = min(max(int(request.form.get("limit", "5")) if request.form.get("limit", "5").isdigit() else 5, 1), 5)
+    season = request.form.get("season", "").strip()
+    imported = {str(item["race_id"]): item for item in repository.list_result_competitions()}
+    candidates = []
+    for race in repository.list_entities(entity_type="competition"):
+        race_id = str(race.get("canonical_id") or "")
+        metadata = race.get("metadata") or {}
+        if not race_id.isdigit() or not race.get("canonical_url") or race_id in imported:
+            continue
+        if season and str(metadata.get("season_code") or "") != season:
+            continue
+        candidates.append(race)
+    candidates.sort(key=lambda item: ((item.get("metadata") or {}).get("date") or "", item.get("canonical_id") or ""), reverse=True)
+    candidates = candidates[:limit]
+    if not candidates:
+        flash("No missing competitions are ready to import. Refresh the competition catalogue first or choose another season.", "notice")
+        return redirect(url_for("sports_editorial_workspace.stat_insights"))
+    try:
+        rows, failures = fetch_alpine_results(candidates, request_interval=1.5)
+        by_race = {}
+        for row in rows:
+            by_race.setdefault(str(row["race_id"]), []).append(row)
+        saved = 0
+        for race in candidates:
+            race_rows = by_race.get(str(race["canonical_id"]), [])
+            if race_rows:
+                saved += repository.save_result_import(race, race_rows, partial=bool(failures))
+        message = f"Stored {saved} official classification rows from {len(by_race)} FIS competitions."
+        if failures:
+            message += f" {failures} competition could not be read and remains available for a later retry."
+        flash(message, "success")
+    except (FisResultError, SupabaseError) as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("sports_editorial_workspace.stat_insights"))
 
 
 def _assignment_users():
