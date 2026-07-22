@@ -102,3 +102,10 @@ html[data-sew-theme="light"] .sew-message--error{border-color:#d92d20;background
 html[data-sew-theme="light"] .sew-message--warning{border-color:#dc6803;background:#fef0c7;color:#713b12}
 html[data-sew-theme="light"] .sew-message--notice{border-color:#2970ff;background:#e8f1ff;color:#173b70}
 html[data-sew-theme="light"] .sew-message--success{border-color:#168a50;background:#ddf8e9;color:#14532d}
+html[data-sew-theme="light"] .sew-pilot-banner{border-color:#dc6803;background:#fef0c7;color:#713b12}
+html[data-sew-theme="light"] .sew-status{background:#eaecf0;color:#344054}
+html[data-sew-theme="light"] .sew-status--draft,html[data-sew-theme="light"] .sew-status--submitted{background:#e8f1ff;color:#173b70}
+html[data-sew-theme="light"] .sew-status--in_review{background:#fef0c7;color:#713b12}
+html[data-sew-theme="light"] .sew-status--approved,html[data-sew-theme="light"] .sew-status--exported{background:#ddf8e9;color:#14532d}
+html[data-sew-theme="light"] .sew-status--changes_requested{background:#fee4e2;color:#7a1a12}
+html[data-sew-theme="light"] .sew-stat-card--section .sew-validation{color:#16794b}
