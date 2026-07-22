@@ -241,7 +241,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "status": "approved", "editor_notes": "Approved for demo.",
             "fis_event_ids": "55596",
             f"edited_text_{first_stat['id']}": "First edited demonstration fact.",
-            f"entity_ids_{first_stat['id']}": "entity-athlete-lena",
+            f"entity_ids_{first_stat['id']}": "entity-athlete-rast",
         }
         review_data.update({f"accepted_{block['id']}": "1" for block in blocks})
         response = self.client.post(f"/workspace/sports-editorial/submissions/{submission_id}", data=review_data)
@@ -308,7 +308,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         entities = {"a": {"entity_type": "athlete", "canonical_id": "516562", "name": "Camille Rast"}}
         payload = build_fis_payload(submission, entities)
         self.assertEqual(payload["sections"][0]["items"][0]["text"], "{{athlete:516562|Camille Rast}} won.")
-        self.assertEqual(payload["notes"], "V2 corrects a result.")
+        self.assertNotIn("notes", payload)
         self.assertNotIn("Internal only", json.dumps(payload))
 
     def test_fis_preflight_rejects_contract_limits(self):
@@ -394,6 +394,62 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "approved", "fis_event_ids": "55596"}, follow_redirects=True)
         self.assertIn(b"Accept and lock every statistic", response.data)
         self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "submitted")
+
+    def test_sub_headings_do_not_require_explicit_acceptance(self):
+        self.set_sub_editor()
+        sheet = repository.get_submission("demo-submission-kronplatz")
+        data = {"status": "approved", "fis_event_ids": "55596"}
+        for block in sheet["stats"]:
+            data.setdefault("content_id", []).append(block["id"])
+            data.setdefault("content_type", []).append(block["content_type"])
+            data[f"edited_text_{block['id']}"] = block.get("edited_text") or block["stat_text"]
+            if block["content_type"] == "stat":
+                data[f"accepted_{block['id']}"] = "1"
+        response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-kronplatz", data=data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(repository.get_submission("demo-submission-kronplatz")["status"], "approved")
+
+    def test_sub_editor_can_add_remove_and_reorder_blocks(self):
+        self.set_sub_editor()
+        sheet = repository.get_submission("demo-submission-submitted")
+        original_id = sheet["stats"][0]["id"]
+        new_heading_id = "11111111-1111-4111-8111-111111111111"
+        new_stat_id = "22222222-2222-4222-8222-222222222222"
+        response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={
+            "status": "in_review", "fis_event_ids": "55596",
+            "content_id": [new_heading_id, new_stat_id], "content_type": ["section", "stat"],
+            f"edited_text_{new_heading_id}": "New heading", f"edited_text_{new_stat_id}": "New statistic",
+            f"accepted_{new_stat_id}": "0",
+        })
+        self.assertEqual(response.status_code, 302)
+        updated = repository.get_submission("demo-submission-submitted")
+        self.assertEqual([block["id"] for block in updated["stats"]], [new_heading_id, new_stat_id])
+        self.assertNotIn(original_id, [block["id"] for block in updated["stats"]])
+
+    def test_editing_published_sheet_only_unlocks_changed_statistics(self):
+        self.set_sub_editor()
+        created = repository.create_submission({
+            "title": "Published correction", "sport": "alpine_skiing", "competition": "World Cup", "event_name": "GS",
+            "gender": "W", "location": "Kronplatz", "event_date": "2026-01-01", "fis_event_ids": [55596],
+            "author_name": "Sub", "author_email": "", "content": [{"content_type": "stat", "content_html": "First"}, {"content_type": "stat", "content_html": "Second"}],
+        }, "submitted")
+        blocks = created["stats"]
+        review = {"status": "approved", "fis_event_ids": "55596", "content_id": [b["id"] for b in blocks], "content_type": ["stat", "stat"]}
+        for block in blocks:
+            review[f"edited_text_{block['id']}"] = block["stat_text"]
+            review[f"accepted_{block['id']}"] = "1"
+        self.client.post(f"/workspace/sports-editorial/submissions/{created['id']}", data=review)
+        repository.set_submission_status(created["id"], "exported")
+        edit = self.client.post(f"/workspace/sports-editorial/submissions/{created['id']}/edit")
+        self.assertEqual(edit.status_code, 302)
+        self.assertEqual(repository.get_submission(created["id"])["status"], "draft")
+        self.client.post(f"/workspace/sports-editorial/submissions/{created['id']}/research", data={
+            "action": "submit", "content_id": [b["id"] for b in blocks], "content_type": ["stat", "stat"],
+            "content_html": ["First corrected", "Second"], "event_date": "2026-01-01",
+        })
+        revised = repository.get_submission(created["id"])
+        self.assertIsNone(revised["stats"][0]["accepted_at"])
+        self.assertIsNotNone(revised["stats"][1]["accepted_at"])
 
     def test_publication_preview_is_visual_and_not_a_publish_action(self):
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/publication-preview")

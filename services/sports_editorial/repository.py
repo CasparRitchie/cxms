@@ -82,6 +82,7 @@ class DemoSportsEditorialRepository:
         user = current_user() or {}
         with self._lock:
             item = next(item for item in self._submissions if item["id"] == submission_id)
+            existing_by_id = {block["id"]: block for block in item.get("stats", [])}
             item["event_date"] = form_data.get("event_date", item.get("event_date", ""))
             item["working_notes"] = form_data.get("working_notes", "").strip()
             item["unused_stats"] = form_data.get("unused_stats", "").strip()
@@ -93,7 +94,11 @@ class DemoSportsEditorialRepository:
                     block_id = block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4())
                     allowed_ids = {entity["id"] for entity in self._entities}
                     entity_ids = [value for value in form_data.getlist(f"entity_ids_{block_id}") if value in allowed_ids]
-                    blocks.append({"id": block_id, "sort_order": index, "content_type": kind, "stat_text": sanitise_rich_text(content), "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "entity_ids": entity_ids, "entity_mentions": {value: form_data.get(f"entity_mention_{block_id}_{value}", "").strip() for value in entity_ids if form_data.get(f"entity_mention_{block_id}_{value}", "").strip()}, "tags": []})
+                    mentions = {value: form_data.get(f"entity_mention_{block_id}_{value}", "").strip() for value in entity_ids if form_data.get(f"entity_mention_{block_id}_{value}", "").strip()}
+                    existing = existing_by_id.get(block_id, {})
+                    clean = sanitise_rich_text(content)
+                    changed = not existing or kind != existing.get("content_type") or clean != (existing.get("edited_text") or existing.get("stat_text") or "") or set(entity_ids) != set(existing.get("entity_ids", [])) or mentions != existing.get("entity_mentions", {})
+                    blocks.append({"id": block_id, "sort_order": index, "content_type": kind, "stat_text": clean if changed else existing.get("stat_text", clean), "edited_text": "" if changed else existing.get("edited_text", ""), "editor_comment": "", "accepted_at": None if changed else existing.get("accepted_at"), "accepted_by_user_id": None if changed else existing.get("accepted_by_user_id"), "entity_ids": entity_ids, "entity_mentions": mentions, "tags": existing.get("tags", [])})
             item["stats"] = blocks
             item["status"] = "submitted" if submit else "draft"
             item["submitted_at"] = _now() if submit else item.get("submitted_at")
@@ -114,11 +119,22 @@ class DemoSportsEditorialRepository:
             demo_names = {"demo-user": "Jamie Laurent", "demo-researcher-2": "Andrew Hendry", "demo-sub-editor": "Nick L.", "demo-supervisor": "Supervisor Demo"}
             item["researcher_name"] = demo_names.get(item.get("researcher_user_id"), "Unassigned")
             item["sub_editor_name"] = demo_names.get(item.get("sub_editor_user_id"), "Unassigned")
+            ordered_ids = form_data.getlist("content_id")
+            if ordered_ids:
+                existing_by_id = {block["id"]: block for block in item["stats"]}
+                kinds = form_data.getlist("content_type")
+                rebuilt = []
+                for index, block_id in enumerate(ordered_ids):
+                    kind = kinds[index] if index < len(kinds) and kinds[index] in ("stat", "section") else "stat"
+                    block = existing_by_id.get(block_id) or {"id": block_id or str(uuid4()), "stat_text": sanitise_rich_text(form_data.get(f"edited_text_{block_id}", "")), "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "entity_ids": [], "entity_mentions": {}, "tags": []}
+                    block["content_type"], block["sort_order"] = kind, index
+                    rebuilt.append(block)
+                item["stats"] = rebuilt
             for stat in item["stats"]:
                 stat_id = stat["id"]
                 stat["edited_text"] = sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", stat.get("edited_text") or stat.get("stat_text", "")))
                 stat["editor_comment"] = form_data.get(f"editor_comment_{stat_id}", "").strip()
-                accepted = form_data.get(f"accepted_{stat_id}") == "1"
+                accepted = stat.get("content_type") == "stat" and form_data.get(f"accepted_{stat_id}") == "1"
                 stat["accepted_at"] = _now() if accepted else None
                 stat["accepted_by_user_id"] = (current_user() or {}).get("id") if accepted else None
                 stat["tags"] = [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()]
@@ -335,8 +351,12 @@ class SupabaseSportsEditorialRepository:
         changes = {"event_date": form_data.get("event_date") or None, "working_notes": form_data.get("working_notes", "").strip(), "unused_stats": form_data.get("unused_stats", "").strip(), "status": "submitted" if submit else "draft", "updated_at": now, "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
         if submit:
             changes["submitted_at"] = now
-        self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}", "researcher_user_id": f"eq.{user.get('id')}"}, payload=changes, prefer="return=minimal")
+        query = {"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}
+        if user.get("role") == "researcher":
+            query["researcher_user_id"] = f"eq.{user.get('id')}"
+        self.client.request("sports_editorial_submissions", "PATCH", query=query, payload=changes, prefer="return=minimal")
         existing = self.get_submission(submission_id)
+        existing_by_id = {stat["id"]: stat for stat in existing.get("stats", [])}
         for stat in existing.get("stats", []):
             self.client.request("sports_editorial_stats", "DELETE", query={"id": f"eq.{stat['id']}"})
         blocks = []
@@ -345,7 +365,12 @@ class SupabaseSportsEditorialRepository:
             kind = "section" if kind == "heading" else kind
             clean = sanitise_rich_text(content)
             if kind in ("stat", "section") and clean.strip():
-                blocks.append({"id": block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4()), "submission_id": submission_id, "sort_order": index, "content_type": kind, "stat_text": clean, "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "tags": []})
+                block_id = block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4())
+                existing_block = existing_by_id.get(block_id, {})
+                requested_ids = form_data.getlist(f"entity_ids_{block_id}")
+                mentions = {value: form_data.get(f"entity_mention_{block_id}_{value}", "").strip() for value in requested_ids if form_data.get(f"entity_mention_{block_id}_{value}", "").strip()}
+                changed = not existing_block or kind != existing_block.get("content_type") or clean != (existing_block.get("edited_text") or existing_block.get("stat_text") or "") or set(requested_ids) != set(existing_block.get("entity_ids", [])) or mentions != existing_block.get("entity_mentions", {})
+                blocks.append({"id": block_id, "submission_id": submission_id, "sort_order": index, "content_type": kind, "stat_text": clean if changed else existing_block.get("stat_text", clean), "edited_text": "" if changed else existing_block.get("edited_text", ""), "editor_comment": "", "accepted_at": None if changed else existing_block.get("accepted_at"), "accepted_by_user_id": None if changed else existing_block.get("accepted_by_user_id"), "tags": existing_block.get("tags", [])})
         if blocks:
             self.client.request("sports_editorial_stats", "POST", payload=blocks, prefer="return=minimal")
             requested_ids = [value for block in blocks for value in form_data.getlist(f"entity_ids_{block['id']}")]
@@ -364,6 +389,27 @@ class SupabaseSportsEditorialRepository:
         from .auth import current_user
         user = current_user() or {}
         item = self.get_submission(submission_id)
+        ordered_ids = form_data.getlist("content_id")
+        if ordered_ids:
+            kinds = form_data.getlist("content_type")
+            existing_by_id = {block["id"]: block for block in item["stats"]}
+            removed_ids = [block_id for block_id in existing_by_id if block_id not in ordered_ids]
+            for block_id in removed_ids:
+                self.client.request("sports_editorial_stats", "DELETE", query={"id": f"eq.{block_id}", "submission_id": f"eq.{submission_id}"})
+            new_blocks = []
+            ordered_blocks = []
+            for index, block_id in enumerate(ordered_ids):
+                kind = kinds[index] if index < len(kinds) and kinds[index] in ("stat", "section") else "stat"
+                block = existing_by_id.get(block_id)
+                if not block:
+                    wording = sanitise_rich_text(form_data.get(f"edited_text_{block_id}", ""))
+                    block = {"id": block_id, "submission_id": submission_id, "sort_order": index, "content_type": kind, "stat_text": wording, "edited_text": wording, "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "tags": [], "entity_ids": [], "entity_mentions": {}}
+                    new_blocks.append({key: block[key] for key in ("id", "submission_id", "sort_order", "content_type", "stat_text", "edited_text", "editor_comment", "accepted_at", "accepted_by_user_id", "tags")})
+                block["content_type"], block["sort_order"] = kind, index
+                ordered_blocks.append(block)
+            if new_blocks:
+                self.client.request("sports_editorial_stats", "POST", payload=new_blocks, prefer="return=minimal")
+            item["stats"] = ordered_blocks
         requested_entity_ids = [
             value for stat in item["stats"]
             for value in form_data.getlist(f"entity_ids_{stat['id']}")
@@ -371,8 +417,8 @@ class SupabaseSportsEditorialRepository:
         allowed_ids = {entity["id"] for entity in self.get_entities_by_ids(requested_entity_ids)}
         for stat in item["stats"]:
             stat_id = stat["id"]
-            accepted = form_data.get(f"accepted_{stat_id}") == "1"
-            self.client.request("sports_editorial_stats", "PATCH", query={"id": f"eq.{stat_id}"}, payload={"edited_text": sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", stat.get("edited_text") or stat.get("stat_text", ""))), "editor_comment": form_data.get(f"editor_comment_{stat_id}", "").strip(), "tags": [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()], "accepted_at": _now() if accepted else None, "accepted_by_user_id": user.get("id") if accepted else None, "updated_at": _now()}, prefer="return=minimal")
+            accepted = stat.get("content_type") == "stat" and form_data.get(f"accepted_{stat_id}") == "1"
+            self.client.request("sports_editorial_stats", "PATCH", query={"id": f"eq.{stat_id}"}, payload={"sort_order": stat.get("sort_order", 0), "content_type": stat.get("content_type", "stat"), "edited_text": sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", stat.get("edited_text") or stat.get("stat_text", ""))), "editor_comment": form_data.get(f"editor_comment_{stat_id}", "").strip(), "tags": [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()], "accepted_at": _now() if accepted else None, "accepted_by_user_id": user.get("id") if accepted else None, "updated_at": _now()}, prefer="return=minimal")
             selected = [value for value in form_data.getlist(f"entity_ids_{stat_id}") if value in allowed_ids]
             self.client.request("sports_editorial_stat_entities", "DELETE", query={"stat_id": f"eq.{stat_id}"})
             if selected:

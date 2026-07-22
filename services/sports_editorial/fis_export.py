@@ -165,9 +165,6 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
         errors.append("FIS accepts at most 20 sections.")
     if sum(len(section["items"]) for section in sections) > 200:
         errors.append("FIS accepts at most 200 items per sheet.")
-    notes = (submission.get("fis_submission_notes") or "").strip()
-    if len(notes) > 2000:
-        errors.append("The FIS submission note must be 2,000 characters or fewer.")
     if expected_version is not None and (not isinstance(expected_version, int) or expected_version < 1):
         errors.append("The expected FIS version must be a positive integer.")
     if organisation_uuid and not re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}", organisation_uuid):
@@ -182,8 +179,6 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
         "eventIds": event_ids,
         "sections": sections,
     }
-    if notes:
-        payload["notes"] = notes
     if expected_version is not None:
         payload["expectedVersion"] = expected_version
     if organisation_uuid:

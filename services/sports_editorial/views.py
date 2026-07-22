@@ -42,6 +42,21 @@ def _invalid_event_id_tokens(value):
     return [part for part in re.split(r"[\s,]+", value.strip()) if part and (not part.isdigit() or int(part) <= 0)]
 
 
+def _invalid_review_entity_links(form_data, submission):
+    block_ids = form_data.getlist("content_id") or [block["id"] for block in submission.get("stats", [])]
+    requested = list(dict.fromkeys(value for block_id in block_ids for value in form_data.getlist(f"entity_ids_{block_id}")))
+    entities = {entity["id"]: entity for entity in repository.get_entities_by_ids(requested)}
+    invalid = []
+    for entity_id in requested:
+        entity = entities.get(entity_id) or {}
+        canonical_id = str(entity.get("canonical_id") or "")
+        entity_type = entity.get("entity_type")
+        valid = canonical_id.isdigit() if entity_type in ("athlete", "event", "competition") else bool(re.fullmatch(r"[A-Z]{3}", canonical_id)) if entity_type == "country" else False
+        if not valid:
+            invalid.append(entity.get("name") or entity_id)
+    return invalid
+
+
 @blueprint.app_context_processor
 def workspace_context():
     user = current_user() or {}
@@ -428,8 +443,15 @@ def detail(submission_id):
             valid, message = False, "FIS calendar event IDs must contain digits only, for example 123456."
         elif requested_status in ("approved", "exported") and not event_ids:
             valid, message = False, "Select at least one FIS calendar event before approval."
-        elif requested_status in ("approved", "exported") and any(request.form.get(f"accepted_{block['id']}") != "1" for block in submission.get("stats", [])):
-            valid, message = False, "Accept and lock every statistic and sub-heading before approval."
+        elif requested_status in ("approved", "exported"):
+            review_ids = request.form.getlist("content_id") or [block["id"] for block in submission.get("stats", [])]
+            review_types = request.form.getlist("content_type") or [block.get("content_type", "stat") for block in submission.get("stats", [])]
+            if any(kind == "stat" and request.form.get(f"accepted_{block_id}") != "1" for block_id, kind in zip(review_ids, review_types)):
+                valid, message = False, "Accept and lock every statistic before approval."
+            else:
+                invalid_entities = _invalid_review_entity_links(request.form, submission)
+                if invalid_entities:
+                    valid, message = False, "Fix entity links without valid FIS IDs before approval: " + ", ".join(invalid_entities)
         if not valid:
             flash(message, "error")
         else:
@@ -439,14 +461,14 @@ def detail(submission_id):
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     refreshed = repository.get_submission(submission_id)
     role = (current_user() or {}).get("role", "researcher")
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=_entities_by_id(refreshed), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=role in ("sub_editor", "supervisor"), can_edit_research=role == "researcher" and refreshed["status"] in ("draft", "changes_requested"))
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=_entities_by_id(refreshed), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=role in ("sub_editor", "supervisor"), can_edit_research=role in ("researcher", "sub_editor", "supervisor") and refreshed["status"] in ("draft", "changes_requested"))
 
 
 @blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])
 def research(submission_id):
     user = current_user() or {}
-    if user.get("role") != "researcher":
-        abort(403, description="Researcher access is required.")
+    if user.get("role") not in ("researcher", "sub_editor", "supervisor"):
+        abort(403, description="Editorial access is required.")
     submission = _submission_or_404(submission_id)
     if submission["status"] not in ("draft", "changes_requested"):
         abort(403, description="This stat sheet is locked while it is in sub edit or publication.")
@@ -487,8 +509,8 @@ def fis_publish(submission_id):
     submission = _submission_or_404(submission_id)
     if submission["status"] not in ("approved", "exported"):
         abort(403, description="Approve the submission in CXMS before publishing to FIS.")
-    if any(not block.get("accepted_at") for block in submission.get("stats", [])):
-        abort(409, description="Accept and lock every statistic and sub-heading before publishing to FIS.")
+    if any(block.get("content_type") == "stat" and not block.get("accepted_at") for block in submission.get("stats", [])):
+        abort(409, description="Accept and lock every statistic before publishing to FIS.")
     previous = repository.get_fis_publication(submission_id) or {}
     config = fis_configuration()
     try:
@@ -516,6 +538,25 @@ def fis_withdraw(submission_id):
     except FisApiError as exc:
         _flash_fis_error(exc)
     return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+
+
+@blueprint.post("/submissions/<submission_id>/edit")
+def edit_published(submission_id):
+    _require_sub_editor()
+    submission = _submission_or_404(submission_id)
+    publication = repository.get_fis_publication(submission_id) or {}
+    if submission.get("status") != "exported" and publication.get("status") != "published":
+        abort(409, description="Only a published stat sheet needs to be taken back into edit.")
+    if publication.get("status") == "published":
+        try:
+            withdrawn = get_fis_client().withdraw(submission.get("fis_external_id") or f"cxms-{submission_id}", previous=publication)
+            repository.save_fis_publication(submission_id, withdrawn)
+        except FisApiError as exc:
+            _flash_fis_error(exc)
+            return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+    repository.set_submission_status(submission_id, "draft")
+    flash("The published sheet is now In Progress. Edit it, then submit it for sub edit.", "success")
+    return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id))
 
 
 @blueprint.post("/submissions/<submission_id>/entities")
