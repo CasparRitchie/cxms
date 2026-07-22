@@ -17,6 +17,7 @@ from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
 from .fis_athletes import FisAthleteError, fetch_alpine_athletes
 from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_competitions
 from .stat_insights import build_stat_insights, demo_result_rows
+from .fis_results import FisResultError, fetch_alpine_results
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
@@ -226,7 +227,18 @@ def dashboard():
 
 @blueprint.get("/stat-insights")
 def stat_insights():
+    race_ids = list(dict.fromkeys(re.findall(r"\d+", request.args.get("race_ids", ""))))[:10]
     rows = demo_result_rows()
+    source = "demonstration"
+    failures = 0
+    if race_ids:
+        known = {str(item.get("canonical_id")): item for item in repository.list_entities(entity_type="competition")}
+        races = [known.get(race_id, {"canonical_id": race_id, "name": f"FIS competition {race_id}"}) for race_id in race_ids]
+        try:
+            rows, failures = fetch_alpine_results(races)
+            source = "fis_official_results"
+        except FisResultError as exc:
+            flash(str(exc), "error")
     venue = request.args.get("venue", "").strip()
     discipline = request.args.get("discipline", "").strip().upper()
     athlete = request.args.get("athlete", "").strip()
@@ -237,7 +249,8 @@ def stat_insights():
     return render_template("sports-editorial-workspace/stat-insights.html",
                            insights=build_stat_insights(rows, venue, discipline, athlete),
                            venues=venues, disciplines=disciplines,
-                           filters={"venue": venue, "discipline": discipline, "athlete": athlete})
+                           filters={"venue": venue, "discipline": discipline, "athlete": athlete, "race_ids": ", ".join(race_ids)},
+                           result_source=source, result_failures=failures)
 
 
 def _assignment_users():

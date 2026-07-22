@@ -12,9 +12,10 @@ from services.sports_editorial.fis_export import FisPayloadValidationError, buil
 from services.sports_editorial.fis_calendar import parse_calendar_events
 from services.sports_editorial.fis_athletes import parse_athlete_csv
 from services.sports_editorial.fis_entities import countries_from_athletes, parse_event_competitions
+from services.sports_editorial.fis_results import parse_fis_results
 from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import repository
-from services.sports_editorial.stat_insights import build_stat_insights, demo_result_rows
+from services.sports_editorial.stat_insights import build_editorial_discoveries, build_stat_insights, demo_result_rows
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 
 
@@ -76,12 +77,50 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(insights["leaders"][0]["athlete"], "Mikaela Shiffrin")
         self.assertEqual(insights["leaders"][0]["wins"], 3)
         self.assertGreaterEqual(insights["streaks"][0]["podium_streak"], 3)
+        self.assertTrue(insights["discoveries"])
+
+    def test_editorial_discovery_surfaces_explainable_outliers_and_trends(self):
+        rows = [
+            {"date": f"2026-01-0{index}", "venue": "A", "discipline": "GS", "athlete": "Leader", "nation": "SUI", "place": place}
+            for index, place in enumerate([6, 5, 2, 1], 1)
+        ] + [
+            {"date": f"2026-01-0{index}", "venue": "B", "discipline": "GS", "athlete": "Peer", "nation": "AUT", "place": place}
+            for index, place in enumerate([8, 7, 6, 5], 1)
+        ]
+        discoveries = build_editorial_discoveries(rows)
+        self.assertTrue(any(item["kind"] == "trend" and "Leader" in item["title"] for item in discoveries))
+        self.assertTrue(all(item.get("evidence") for item in discoveries))
 
     def test_stat_insights_page_explains_demo_data_and_filters(self):
         response = self.client.get("/workspace/sports-editorial/stat-insights?venue=Kronplatz")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Demonstration data", response.data)
         self.assertIn(b"Mikaela Shiffrin", response.data)
+
+    def test_official_fis_result_parser_retains_provenance_and_non_finishers(self):
+        html = '''
+        <h1 class="heading">Kranjska Gora (SLO)</h1>
+        <div data-formatted-date="January 03, 2026">January 03, 2026</div>
+        <option value="127367" selected>03.01.2026 - Women's Giant Slalom | WC</option>
+        <a class="table-row" href="https://www.fis-ski.com/DB/general/athlete-biography.html?competitorid=203812">
+          <div class="g-lg-1 pr-1 bold justify-right">1</div><div class="g-lg-1 gray justify-center">1</div>
+          <div class="g-lg-2 pr-1 gray justify-right">516562</div><div class="g-lg-4 bold justify-left">RAST Camille</div>
+          <div class="g-lg-1 hidden-sm-down justify-left">1999</div><span class="country__name-short">SUI</span>
+          <div class="g-lg-2 blue bold justify-right">2:00.09</div>
+        </a>
+        <div class="g-xs-24 bold">Did not finish 1st run</div>
+        <a class="table-row" href="https://www.fis-ski.com/DB/general/athlete-biography.html?competitorid=221779">
+          <div class="g-lg-1 pr-1 bold justify-right"></div><div class="g-lg-1 gray justify-center">4</div>
+          <div class="g-lg-2 pr-1 gray justify-right">415232</div><div class="g-lg-4 bold justify-left">ROBINSON Alice</div>
+          <div class="g-lg-1 hidden-sm-down justify-left">2001</div><span class="country__name-short">NZL</span>
+        </a>'''
+        rows = parse_fis_results(html, {"canonical_id": "127367", "canonical_url": "https://www.fis-ski.com/result"})
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["discipline"], "GS")
+        self.assertEqual(rows[0]["competition"], "WC")
+        self.assertEqual(rows[0]["fis_code"], "516562")
+        self.assertEqual(rows[1]["status"], "did_not_finish")
+        self.assertEqual(rows[1]["place"], None)
 
     def test_researcher_cannot_create_or_open_unassigned_sheet(self):
         self.set_sub_editor()
