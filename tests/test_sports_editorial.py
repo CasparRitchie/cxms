@@ -436,6 +436,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b'id="queue-column-filters"', response.data)
         self.assertIn(b'aria-label="Filter by Competition"', response.data)
         self.assertIn(b'aria-label="Filter by Status"', response.data)
+        self.assertIn(b'class="sew-card sew-table-card sew-queue-table-card"', response.data)
         self.assertIn(b'<details class="sew-column-filter"', response.data)
         self.assertIn(b'class="sew-filter-icon"', response.data)
         self.assertNotIn(b"&lt;&gt;</summary>", response.data)

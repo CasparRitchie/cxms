@@ -326,6 +326,24 @@ html[data-sew-theme="light"] .sew-queue-table tbody tr:nth-child(odd) td{backgro
 html[data-sew-theme="light"] .sew-queue-table tbody tr:nth-child(even) td{background:#f2f4f7}
 html[data-sew-theme="light"] .sew-queue-table tbody tr:hover td{background:#e8f1ff}
 
+/* Keep queue headings visible while long result sets scroll in either direction. */
+.sew-queue-table-card{
+  max-height:calc(100vh - 8px);
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.sew-queue-table thead{position:static}
+.sew-queue-table .sew-column-headings>th{
+  position:sticky;
+  top:0;
+  z-index:5;
+  background:var(--sew-card);
+  box-shadow:0 1px var(--sew-line);
+}
+.sew-queue-table .sew-column-headings>th:first-child,
+.sew-queue-table .sew-column-headings>th:nth-child(2){z-index:7}
+
 /* Stage 6: full-width editorial cards with queue-like density and horizontal controls. */
 .sew-content-list{display:grid;gap:3px}
 .sew-content-list>.sew-stat-card{min-width:0;margin:0;border-radius:0;background:var(--sew-card);box-shadow:0 1px 0 rgba(0,0,0,.08)}
