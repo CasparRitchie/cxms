@@ -1,32 +1,32 @@
 {% extends "sports-editorial-workspace/_workspace_base.html" %}
 {% block workspace_title %}Stat sheets{% endblock %}
 {% macro sort_heading(label, field) -%}
-  {% set next_direction = 'desc' if filters.sort == field and filters.direction == 'asc' else 'asc' %}
-  <a href="{{ url_for('sports_editorial_workspace.queue', **dict(request.args, sort=field, direction=next_direction)) }}">{{ label }}{% if filters.sort == field %} {{ '▲' if filters.direction == 'asc' else '▼' }}{% endif %}</a>
+  <a href="{{ sort_urls[field] }}">{{ label }}{% if filters.sort == field %} {{ '▲' if filters.direction == 'asc' else '▼' }}{% endif %}</a>
 {%- endmacro %}
 {% macro column_heading(label, sort_field, filter_field='') -%}
   <th{% if filter_field and filters[filter_field] %} class="has-filter"{% endif %}>
     <div class="sew-column-heading">
       {{ sort_heading(label, sort_field) }}
       {% if filter_field %}
-      <details class="sew-column-filter">
+      <details class="sew-column-filter" data-filter-field="{{ filter_field }}">
         <summary aria-label="Filter by {{ label }}" title="Filter by {{ label }}">&lt;&gt;</summary>
         <form method="get">
           <input type="hidden" name="sort" value="{{ filters.sort }}">
           <input type="hidden" name="direction" value="{{ filters.direction }}">
-          {% for field in filter_fields if field != filter_field and filters[field] %}<input type="hidden" name="{{ field }}" value="{{ filters[field] }}">{% endfor %}
-          <label for="filter-{{ filter_field }}">Filter {{ label }}</label>
-          <select id="filter-{{ filter_field }}" name="{{ filter_field }}">
-            <option value="">All</option>
+          {% for field in filter_fields if field != filter_field %}{% for selected in filters[field] %}<input type="hidden" name="{{ field }}" value="{{ selected }}">{% endfor %}{% endfor %}
+          <label for="filter-search-{{ filter_field }}">Find {{ label|lower }}</label>
+          <input class="sew-column-filter-search" id="filter-search-{{ filter_field }}" type="search" placeholder="Type to narrow values" autocomplete="off">
+          <fieldset class="sew-column-filter-options">
+            <legend>Select {{ label|lower }}</legend>
             {% if filter_field == 'status' %}
-              {% for value in statuses %}<option value="{{ value }}" {% if filters[filter_field] == value %}selected{% endif %}>{{ status_labels[value] }}</option>{% endfor %}
+              {% for value in statuses %}<label><input type="checkbox" name="{{ filter_field }}" value="{{ value }}" {% if value in filters[filter_field] %}checked{% endif %}><span>{{ status_labels[value] }}</span></label>{% endfor %}
             {% elif filter_field in ['researcher_user_id', 'sub_editor_user_id'] %}
-              {% for user in assignment_users if (filter_field == 'researcher_user_id' and user.editorial_role == 'researcher') or (filter_field == 'sub_editor_user_id' and user.editorial_role in ['sub_editor','supervisor']) %}<option value="{{ user.id }}" {% if filters[filter_field] == user.id %}selected{% endif %}>{{ user.full_name or user.email }}</option>{% endfor %}
+              {% for user in assignment_users if (filter_field == 'researcher_user_id' and user.editorial_role == 'researcher') or (filter_field == 'sub_editor_user_id' and user.editorial_role in ['sub_editor','supervisor']) %}<label><input type="checkbox" name="{{ filter_field }}" value="{{ user.id }}" {% if user.id in filters[filter_field] %}checked{% endif %}><span>{{ user.full_name or user.email }}</span></label>{% endfor %}
             {% else %}
-              {% for value in options[filter_field] %}<option value="{{ value }}" {% if filters[filter_field] == value %}selected{% endif %}>{{ value|replace('_',' ')|title if filter_field == 'sport' else value }}</option>{% endfor %}
+              {% for value in options[filter_field] %}<label><input type="checkbox" name="{{ filter_field }}" value="{{ value }}" {% if value in filters[filter_field] %}checked{% endif %}><span>{{ value|replace('_',' ')|title if filter_field == 'sport' else value }}</span></label>{% endfor %}
             {% endif %}
-          </select>
-          <div><button class="sew-button sew-button--primary sew-button--small" type="submit">Apply</button>{% if filters[filter_field] %}<a class="sew-button sew-button--small" href="{{ filter_remove_urls[filter_field] }}">Clear</a>{% endif %}</div>
+          </fieldset>
+          <div><button class="sew-button sew-button--primary sew-button--small" type="submit">Apply</button>{% if filters[filter_field] %}<a class="sew-button sew-button--small" href="{{ filter_clear_urls[filter_field] }}">Clear column</a>{% endif %}</div>
         </form>
       </details>
       {% endif %}
@@ -73,3 +73,4 @@
   </table>
 </section>
 {% endblock %}
+{% block workspace_scripts %}<script src="{{ url_for('static', filename='js/sports-editorial-queue.js') }}" defer></script>{% endblock %}

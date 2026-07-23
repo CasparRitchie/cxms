@@ -257,6 +257,7 @@ html[data-sew-theme="light"] .sew-app-header .sew-primary-nav a{color:#b42318}
 
 /* Stage 2: sorting and existing single-value filters share each column heading. */
 .sew-queue-table thead{top:0}
+.sew-document-bar{top:0}
 .sew-column-headings th{padding:4px 5px;border-bottom:1px solid var(--sew-line);vertical-align:top}
 .sew-column-heading{display:flex;align-items:flex-start;gap:3px}
 .sew-column-heading>a{display:inline-flex;min-height:24px;align-items:center;padding:3px 1px}
@@ -288,7 +289,14 @@ html[data-sew-theme="light"] .sew-app-header .sew-primary-nav a{color:#b42318}
   text-transform:none;
 }
 .sew-column-filter form label{color:var(--sew-muted);font-size:9px;text-transform:uppercase}
-.sew-column-filter form select{height:26px;min-height:26px;padding:2px 22px 2px 4px;border-radius:1px}
+.sew-column-filter-search{height:26px;min-height:26px;padding:2px 5px!important;border-radius:1px!important}
+.sew-column-filter-options{display:grid;max-height:150px;gap:0;padding:0;border:1px solid var(--sew-line);overflow-y:auto}
+.sew-column-filter-options legend{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.sew-column-filter-options label{display:flex;align-items:center;gap:6px;padding:5px 6px;color:var(--sew-ink)!important;cursor:pointer;font-size:10px!important;text-transform:none!important}
+.sew-column-filter-options label+label{border-top:1px solid var(--sew-line)}
+.sew-column-filter-options label:hover{background:rgba(103,183,255,.1)}
+.sew-column-filter-options input[type="checkbox"]{width:auto;min-height:auto;margin:0;accent-color:var(--sew-blue)}
+.sew-column-filter-options label[hidden]{display:none}
 .sew-column-filter form>div{display:flex;gap:3px}
 html[data-sew-theme="light"] .sew-column-headings th.has-filter .sew-column-filter summary{color:#fff}
 html[data-sew-theme="light"] .sew-column-filter form{background:#fff;box-shadow:0 8px 18px rgba(15,23,42,.16)}

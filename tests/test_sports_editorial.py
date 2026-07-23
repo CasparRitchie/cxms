@@ -415,14 +415,27 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b'id="queue-column-filters"', response.data)
         self.assertIn(b'aria-label="Filter by Competition"', response.data)
         self.assertIn(b'aria-label="Filter by Status"', response.data)
-        self.assertIn(b'<details class="sew-column-filter">', response.data)
+        self.assertIn(b'<details class="sew-column-filter"', response.data)
         self.assertIn(b'<th class="has-filter">', response.data)
+        self.assertIn(b'type="checkbox" name="status" value="submitted" checked', response.data)
+        self.assertIn(b"Type to narrow values", response.data)
         self.assertIn(b"Showing filtered results:", response.data)
         self.assertIn(b"Status:</span> Submitted", response.data)
         self.assertIn(b"Competition:</span> World Cup", response.data)
         self.assertIn(b"Clear all filters", response.data)
         self.assertIn(b'name="sort" value="event_name"', response.data)
         self.assertIn(b'name="direction" value="asc"', response.data)
+
+    def test_queue_accepts_multiple_values_for_one_filter(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/queue?status=submitted&status=approved")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"560001", response.data)
+        self.assertIn(b"560002", response.data)
+        self.assertIn(b"560003", response.data)
+        self.assertIn(b"Status:</span> Submitted", response.data)
+        self.assertIn(b"Status:</span> Approved", response.data)
+        self.assertIn(b"status=submitted&amp;status=approved", response.data)
 
     def test_queue_explains_when_no_filters_are_active(self):
         response = self.client.get("/workspace/sports-editorial/queue")

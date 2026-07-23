@@ -394,20 +394,23 @@ def confirmation(submission_id):
 @blueprint.route("/queue")
 def queue():
     filter_fields = ("status", "client_name", "sport", "competition", "event_name", "gender", "location", "researcher_user_id", "sub_editor_user_id")
-    filters = {field: request.args.get(field, "").strip() for field in filter_fields}
-    status = filters["status"]
-    sport = filters["sport"]
+    filters = {
+        field: list(dict.fromkeys(value.strip() for value in request.args.getlist(field) if value.strip()))
+        for field in filter_fields
+    }
     sort = request.args.get("sort", "updated_at")
     direction = request.args.get("direction", "desc")
-    if status not in ("",) + VALID_STATUSES:
-        filters["status"] = ""
+    filters["status"] = [value for value in filters["status"] if value in VALID_STATUSES]
     sortable = {"amp_id", "client_name", "sport", "competition", "event_name", "gender", "location", "event_date", "publication_deadline", "researcher_deadline", "status", "researcher_name", "sub_editor_name", "updated_at", "last_modified_by"}
     if sort not in sortable:
         sort = "updated_at"
     if direction not in ("asc", "desc"):
         direction = "desc"
     all_submissions = repository.list_submissions()
-    submissions = [item for item in all_submissions if all(not value or str(item.get(field) or "") == value for field, value in filters.items())]
+    submissions = [
+        item for item in all_submissions
+        if all(not values or str(item.get(field) or "") in values for field, values in filters.items())
+    ]
     submissions.sort(key=lambda item: str(item.get(sort) or "").casefold(), reverse=direction == "desc")
     options = {field: sorted({str(item.get(field) or "") for item in all_submissions if item.get(field)}, key=str.casefold) for field in filter_fields if field != "status"}
     users = _assignment_users()
@@ -420,17 +423,29 @@ def queue():
     }
     active_filters = []
     for field in filter_fields:
-        value = filters[field]
-        if not value:
-            continue
-        display_value = STATUS_LABELS.get(value, value) if field == "status" else user_names.get(value, value)
-        remove_args = request.args.to_dict()
-        remove_args.pop(field, None)
-        active_filters.append({
-            "field": field, "label": filter_labels[field], "value": display_value,
-            "remove_url": url_for("sports_editorial_workspace.queue", **remove_args),
-        })
-    filter_remove_urls = {item["field"]: item["remove_url"] for item in active_filters}
+        for value in filters[field]:
+            display_value = STATUS_LABELS.get(value, value) if field == "status" else user_names.get(value, value)
+            remaining_values = [selected for selected in filters[field] if selected != value]
+            remove_args = request.args.to_dict(flat=False)
+            if remaining_values:
+                remove_args[field] = remaining_values
+            else:
+                remove_args.pop(field, None)
+            active_filters.append({
+                "field": field, "label": filter_labels[field], "value": display_value,
+                "remove_url": url_for("sports_editorial_workspace.queue", **remove_args),
+            })
+    filter_clear_urls = {}
+    for field in filter_fields:
+        clear_args = request.args.to_dict(flat=False)
+        clear_args.pop(field, None)
+        filter_clear_urls[field] = url_for("sports_editorial_workspace.queue", **clear_args)
+    sort_urls = {}
+    for field in sortable:
+        sort_args = request.args.to_dict(flat=False)
+        sort_args["sort"] = field
+        sort_args["direction"] = "desc" if sort == field and direction == "asc" else "asc"
+        sort_urls[field] = url_for("sports_editorial_workspace.queue", **sort_args)
     return render_template(
         "sports-editorial-workspace/queue.html",
         submissions=submissions,
@@ -440,7 +455,8 @@ def queue():
         statuses=VALID_STATUSES,
         active_filters=active_filters,
         filter_fields=filter_fields,
-        filter_remove_urls=filter_remove_urls,
+        filter_clear_urls=filter_clear_urls,
+        sort_urls=sort_urls,
     )
 
 
