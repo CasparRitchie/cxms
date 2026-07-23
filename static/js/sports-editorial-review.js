@@ -10,6 +10,7 @@
     const original = block.querySelector(".sew-original .sew-rendered-content");
     const normaliseText = (value) => value.replace(/\s+/g, " ").trim();
     const normaliseMarkup = (value) => value.replace(/\s+/g, " ").replace(/> </g, "><").trim();
+    const sessionStartMarkup = normaliseMarkup(editor.innerHTML);
     const tokenise = (value) => normaliseText(value).match(/\S+\s*/g) || [];
     const renderDiff = (before, after) => {
       const oldTokens = tokenise(before);
@@ -56,11 +57,11 @@
         badge.textContent = "Changed";
         block.querySelector("header")?.appendChild(badge);
       }
-      const originalMarkup = normaliseMarkup(original.innerHTML);
       const currentMarkup = normaliseMarkup(editor.innerHTML);
-      const changed = originalMarkup !== currentMarkup;
-      block.classList.toggle("has-changes", changed);
-      badge.hidden = !changed;
+      const changedThisSession = sessionStartMarkup !== currentMarkup;
+      const differsFromResearcher = normaliseMarkup(original.innerHTML) !== currentMarkup;
+      block.classList.toggle("has-changes", changedThisSession);
+      badge.hidden = !changedThisSession;
       let diff = block.querySelector("[data-change-diff]");
       if (!diff) {
         diff = document.createElement("div");
@@ -69,9 +70,9 @@
         diff.setAttribute("aria-live", "polite");
         original.closest(".sew-original")?.appendChild(diff);
       }
-      diff.hidden = !changed;
+      diff.hidden = !differsFromResearcher;
       diff.replaceChildren();
-      if (!changed) return;
+      if (!differsFromResearcher) return;
       const label = document.createElement("strong");
       label.textContent = "Exact wording changes: ";
       diff.appendChild(label);
@@ -193,6 +194,15 @@
     toggle.classList.toggle("sew-button--primary", !accepted);
     block.querySelectorAll("[data-review-format], [data-remove-entity], [data-entity-type], [data-entity-search]").forEach((control) => { control.disabled = accepted; });
     block.querySelectorAll("[data-entity-id] label input").forEach((control) => { control.readOnly = accepted; });
+    updateAcceptanceSummary();
+  };
+  const updateAcceptanceSummary = () => {
+    const statistics = [...document.querySelectorAll("[data-review-block][data-block-type='stat']")];
+    const accepted = statistics.filter((block) => block.dataset.accepted === "1").length;
+    const acceptedCount = document.querySelector("[data-accepted-count]");
+    const statCount = document.querySelector("[data-stat-count]");
+    if (acceptedCount) acceptedCount.textContent = String(accepted);
+    if (statCount) statCount.textContent = String(statistics.length);
   };
   document.addEventListener("click", (event) => {
     const toggle = event.target.closest("[data-toggle-accepted]");
@@ -206,6 +216,7 @@
     if (remove && window.confirm("Remove this block from the stat sheet?")) {
       remove.closest("[data-review-block]").remove();
       renumberReviewBlocks();
+      updateAcceptanceSummary();
     }
   });
   document.querySelector("[data-accept-all]")?.addEventListener("click", () => {
@@ -253,6 +264,7 @@
     initialiseReviewBlock(block);
     block.querySelectorAll("[data-entity-control]").forEach(initialiseEntityControl);
     renumberReviewBlocks();
+    updateAcceptanceSummary();
     block.querySelector("[data-review-editor]").focus();
   }));
   let draggedReviewBlock;
@@ -266,6 +278,21 @@
     }
   });
   reviewList?.addEventListener("dragend", renumberReviewBlocks);
-  document.querySelector("[data-review-form]")?.addEventListener("submit", renumberReviewBlocks);
+  const reviewForm = document.querySelector("[data-review-form]");
+  let formDirty = false;
+  reviewForm?.addEventListener("input", () => { formDirty = true; });
+  reviewForm?.addEventListener("change", () => { formDirty = true; });
+  reviewForm?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-toggle-accepted], [data-accept-all], [data-remove-review-block], [data-add-review-block], [data-remove-entity]")) formDirty = true;
+  });
+  reviewForm?.addEventListener("submit", () => {
+    formDirty = false;
+    renumberReviewBlocks();
+  });
+  document.querySelector("[data-close-review]")?.addEventListener("click", (event) => {
+    if (formDirty && !window.confirm("Close without saving your changes?")) event.preventDefault();
+  });
+  reviewList?.addEventListener("dragend", () => { formDirty = true; });
   renumberReviewBlocks();
+  updateAcceptanceSummary();
 })();

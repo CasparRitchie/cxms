@@ -388,6 +388,25 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'contenteditable="true"', response.data)
         self.assertIn(b'aria-label="Statistic wording"', response.data)
         self.assertIn(b"View original researcher wording", response.data)
+        self.assertIn(b"Save &amp; close", response.data)
+        self.assertIn(b'target="_blank"', response.data)
+        self.assertIn(b"data-accepted-count", response.data)
+
+    def test_save_and_close_returns_to_stat_sheet_queue(self):
+        self.set_sub_editor()
+        response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={
+            "status": "submitted", "fis_event_ids": "55596", "save_action": "close",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
+
+    def test_create_stat_sheet_action_is_on_sub_editor_queue(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(b"Create stat sheet", response.data)
+        self.set_role("researcher")
+        response = self.client.get("/workspace/sports-editorial/queue")
+        self.assertNotIn(b"Create stat sheet", response.data)
 
     def test_approval_requires_every_block_to_be_accepted(self):
         self.set_sub_editor()

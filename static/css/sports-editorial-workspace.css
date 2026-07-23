@@ -123,3 +123,14 @@ html[data-sew-theme="light"] .sew-app input:focus,html[data-sew-theme="light"] .
 html[data-sew-theme="light"] .sew-discovery,html[data-sew-theme="light"] .sew-discovery--trend,html[data-sew-theme="light"] .sew-discovery--group{border-left-color:#d9482b;background:linear-gradient(90deg,#fff0ed,#fff 38%)}
 html[data-sew-theme="light"] .sew-stat-card.is-accepted{border-left-color:#667085;background:#f2f4f7}
 html[data-sew-theme="light"] .sew-stat-card.is-accepted .sew-validation{color:#667085}
+
+/* Phase 1 sub-edit feedback: clearer states and quieter internal work areas. */
+.sew-page-heading--actions{display:flex;max-width:none;justify-content:space-between;align-items:end;gap:16px}
+.sew-page-heading--actions>div{max-width:760px}
+.sew-original .sew-rendered-content{user-select:text}
+.sew-unpublished--full{border-color:rgba(86,211,155,.5);background:linear-gradient(135deg,rgba(86,211,155,.15),var(--sew-card))}
+.sew-unpublished--full textarea{font-weight:400}
+.sew-stat-card.needs-review{background:linear-gradient(90deg,var(--sew-review-bg),rgba(255,200,87,.08) 55%,var(--sew-card))}
+html[data-sew-theme="light"] .sew-stat-card.needs-review{background:linear-gradient(90deg,#ffedb8,#fff8e8 58%,#fff)}
+html[data-sew-theme="light"] .sew-unpublished--full{border-color:#168a50;background:linear-gradient(135deg,#ddf8e9,#f6fffa)}
+@media(max-width:600px){.sew-page-heading--actions{align-items:stretch;flex-direction:column}.sew-page-heading--actions .sew-button{align-self:flex-start}}

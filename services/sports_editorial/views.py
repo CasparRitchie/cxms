@@ -457,6 +457,8 @@ def detail(submission_id):
         else:
             repository.update_review(submission_id, request.form, requested_status)
             flash("Review changes saved.", "success")
+            if request.form.get("save_action") == "close":
+                return redirect(url_for("sports_editorial_workspace.queue"))
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     refreshed = repository.get_submission(submission_id)
