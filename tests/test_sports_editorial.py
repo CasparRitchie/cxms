@@ -410,21 +410,26 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_queue_has_integrated_column_filters_and_active_filter_status(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/queue?status=submitted&competition=World+Cup&sort=event_name&direction=asc")
+        response = self.client.get("/workspace/sports-editorial/queue?status=submitted&competition=FIS+World+Cup&sort=event_name&direction=asc")
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b'id="queue-column-filters"', response.data)
         self.assertIn(b'aria-label="Filter by Competition"', response.data)
         self.assertIn(b'aria-label="Filter by Status"', response.data)
         self.assertIn(b'<details class="sew-column-filter"', response.data)
-        self.assertIn(b'<th class="has-filter">', response.data)
+        self.assertIn(b'class="sew-filter-icon"', response.data)
+        self.assertNotIn(b"&lt;&gt;</summary>", response.data)
+        self.assertIn(b'class="has-filter"', response.data)
         self.assertIn(b'type="checkbox" name="status" value="submitted" checked', response.data)
         self.assertIn(b"Type to narrow values", response.data)
-        self.assertIn(b"Showing filtered results:", response.data)
+        self.assertIn(b"Showing 1 of 3 stat sheets:", response.data)
         self.assertIn(b"Status:</span> Submitted", response.data)
-        self.assertIn(b"Competition:</span> World Cup", response.data)
+        self.assertIn(b"Competition:</span> FIS World Cup", response.data)
         self.assertIn(b"Clear all filters", response.data)
         self.assertIn(b'name="sort" value="event_name"', response.data)
         self.assertIn(b'name="direction" value="asc"', response.data)
+        self.assertIn(b'aria-sort="ascending"', response.data)
+        self.assertIn(b'aria-sort="none" class="has-filter"', response.data)
+        self.assertIn(b'aria-sort="none"', response.data)
 
     def test_queue_accepts_multiple_values_for_one_filter(self):
         self.set_sub_editor()
@@ -444,6 +449,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b"<th>Open</th>", response.data)
         self.assertIn(b'class="sew-queue-row"', response.data)
         self.assertIn(b'data-row-href="/workspace/sports-editorial/submissions/', response.data)
+        self.assertIn(b'aria-describedby="queue-interaction-help"', response.data)
         self.assertIn(b'aria-label="Filter by AMP ID"', response.data)
         self.assertIn(b'aria-label="Filter by Race Date"', response.data)
         self.assertIn(b'aria-label="Filter by FIS Event ID"', response.data)
@@ -451,7 +457,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_queue_explains_when_no_filters_are_active(self):
         response = self.client.get("/workspace/sports-editorial/queue")
-        self.assertIn(b"Showing all stat sheets", response.data)
+        self.assertIn(b"Showing all 3 stat sheets", response.data)
+        self.assertIn(b"the filter icon to choose values", response.data)
+        self.assertIn(b"Select empty row space to open the stat sheet", response.data)
+        self.assertIn(b'aria-sort="descending"', response.data)
 
     def test_approval_requires_every_block_to_be_accepted(self):
         self.set_sub_editor()

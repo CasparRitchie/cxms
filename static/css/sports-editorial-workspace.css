@@ -136,7 +136,7 @@ html[data-sew-theme="light"] .sew-unpublished--full{border-color:#168a50;backgro
 @media(max-width:600px){.sew-page-heading--actions{align-items:stretch;flex-direction:column}.sew-page-heading--actions .sew-button{align-self:flex-start}}
 
 /* Queue filters remain available in both the review panel and table headings. */
-.sew-queue-table thead{position:static;background:var(--sew-card)}
+.sew-queue-table thead{position:sticky;top:0;z-index:4;background:var(--sew-card)}
 .sew-column-headings th{padding-bottom:3px;border-bottom:0;background:var(--sew-card)}
 .sew-column-filters th{padding-top:2px;background:var(--sew-card)}
 .sew-column-filters select{min-width:88px;max-width:150px;height:24px;padding:2px 22px 2px 4px;border:1px solid var(--sew-line);border-radius:2px;background:#0d1421;color:var(--sew-ink);font:inherit;text-transform:none}
@@ -146,6 +146,8 @@ html[data-sew-theme="light"] .sew-unpublished--full{border-color:#168a50;backgro
 .sew-filter-chip span{color:var(--sew-muted);font-weight:700}.sew-filter-chip b{font-size:13px}.sew-filter-chip:hover{background:rgba(103,183,255,.22)}
 .sew-clear-filters{margin-left:auto;color:var(--sew-blue)}
 .sew-filter-status{margin:0 0 5px;padding:4px 1px}
+.sew-filter-status strong{color:var(--sew-ink)}
+.sew-queue-guidance{margin:-2px 0 7px;color:var(--sew-muted);font-size:12px}
 html[data-sew-theme="light"] .sew-column-filters select{background:#fff;color:#102033}
 html[data-sew-theme="light"] .sew-active-filters{background:#f0f6ff}
 @media(max-width:600px){.sew-clear-filters{width:100%;margin-left:0}}
@@ -275,6 +277,7 @@ html[data-sew-theme="light"] .sew-app-header .sew-primary-nav a{color:#b42318}
   list-style:none;
 }
 .sew-column-filter summary::-webkit-details-marker{display:none}
+.sew-filter-icon{width:13px;height:13px;fill:currentColor}
 .sew-column-filter summary:hover,.sew-column-filter[open] summary{border-color:var(--sew-blue);background:rgba(103,183,255,.12);color:var(--sew-blue)}
 .sew-column-headings th.has-filter .sew-column-filter summary{border-color:var(--sew-blue);background:var(--sew-blue);color:#071528}
 .sew-column-filter form{

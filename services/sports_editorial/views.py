@@ -490,6 +490,8 @@ def queue():
         filter_fields=filter_fields,
         filter_clear_urls=filter_clear_urls,
         sort_urls=sort_urls,
+        result_count=len(submissions),
+        total_count=len(all_submissions),
     )
 
 
