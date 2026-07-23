@@ -405,6 +405,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
 
+    def test_accepted_statistic_places_unlock_in_card_header(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Accepted \xc2\xb7 locked</span><button class="sew-button sew-button--danger sew-button--small" type="button" data-toggle-accepted', response.data)
+        self.assertNotIn(b'class="sew-review-actions"', response.data)
+
+    def test_unaccepted_statistic_places_accept_and_lock_in_card_header(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Needs review</span><button class="sew-button sew-button--primary sew-button--small" type="button" data-toggle-accepted', response.data)
+
     def test_create_stat_sheet_action_is_on_sub_editor_queue(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/queue")
