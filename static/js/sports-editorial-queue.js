@@ -1,4 +1,21 @@
 (function () {
+  const viewSwitcher = document.querySelector('[data-queue-view-switcher]');
+  if (viewSwitcher) {
+    const storageKey = 'cxms-sports-editorial-queue-view';
+    let preferredView = '';
+    try { preferredView = localStorage.getItem(storageKey) || ''; } catch (error) { preferredView = ''; }
+    const currentView = viewSwitcher.dataset.currentView;
+    if (currentView === 'standard' && preferredView === 'enhanced') {
+      window.location.replace(viewSwitcher.dataset.enhancedUrl);
+      return;
+    }
+    viewSwitcher.querySelectorAll('[data-queue-view]').forEach(function (link) {
+      link.addEventListener('click', function () {
+        try { localStorage.setItem(storageKey, link.dataset.queueView); } catch (error) { /* Preference remains session-only. */ }
+      });
+    });
+  }
+
   const filterControls = Array.from(document.querySelectorAll('.sew-filter-control'));
   filterControls.forEach(function (control) {
     const search = control.querySelector('[data-filter-search]');

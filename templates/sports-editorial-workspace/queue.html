@@ -32,10 +32,14 @@
   </details>
 {%- endmacro %}
 {% block workspace_content %}
-<div class="sew-page-heading"><h1>All stat sheets</h1><p>{% if workspace_role == 'researcher' %}Only stat sheets assigned to you are shown.{% else %}Open, select and allocate stat sheets from the main editorial list.{% endif %}</p></div>
+<div class="sew-queue-heading-row"><div class="sew-page-heading"><h1>All stat sheets</h1><p>{% if workspace_role == 'researcher' %}Only stat sheets assigned to you are shown.{% else %}Open, select and allocate stat sheets from the main editorial list.{% endif %}</p></div>
+  <nav class="sew-view-toggle" data-queue-view-switcher data-current-view="{{ queue_view }}" data-standard-url="{{ standard_view_url }}" data-enhanced-url="{{ enhanced_view_url }}" aria-label="Stat sheet queue view">
+    <a class="is-active" href="{{ standard_view_url }}" data-queue-view="standard" aria-current="page">Standard</a><a href="{{ enhanced_view_url }}" data-queue-view="enhanced">Enhanced</a>
+  </nav>
+</div>
 
 <details class="sew-queue-filter-panel" open>
-  <summary><span>Filters</span><b>{{ active_filters|length }} applied</b></summary>
+  <summary><span>Filters:</span> <b>{{ active_filters|length }} applied</b></summary>
   <form method="get" class="sew-queue-filter-form">
     <input type="hidden" name="sort" value="{{ sort_value }}">
     <div class="sew-queue-filter-grid">

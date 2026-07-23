@@ -1,5 +1,5 @@
 {% extends "sports-editorial-workspace/_workspace_base.html" %}
-{% block workspace_title %}Modern queue preview{% endblock %}
+{% block workspace_title %}Enhanced stat sheet view{% endblock %}
 {% macro sort_heading(label, field) -%}
   {% set state = namespace(direction='', position=0) %}
   {% for criterion in sort_criteria %}{% if criterion[0] == field %}{% set state.direction = criterion[1] %}{% set state.position = loop.index %}{% endif %}{% endfor %}
@@ -32,7 +32,11 @@
   </th>
 {%- endmacro %}
 {% block workspace_content %}
-<div class="sew-page-heading"><h1>Modern queue preview</h1><p>An unlinked comparison view retaining integrated column filtering and sorting, with explicit checkbox selection.</p></div>
+<div class="sew-queue-heading-row"><div class="sew-page-heading"><h1>All stat sheets</h1><p>Integrated column filtering and sorting with explicit checkbox selection.</p></div>
+  <nav class="sew-view-toggle" data-queue-view-switcher data-current-view="{{ queue_view }}" data-standard-url="{{ standard_view_url }}" data-enhanced-url="{{ enhanced_view_url }}" aria-label="Stat sheet queue view">
+    <a href="{{ standard_view_url }}" data-queue-view="standard">Standard</a><a class="is-active" href="{{ enhanced_view_url }}" data-queue-view="enhanced" aria-current="page">Enhanced</a>
+  </nav>
+</div>
 
 {% if active_filters %}<section class="sew-active-filters" aria-label="Active filters"><strong>Showing {{ result_count }} of {{ total_count }} stat sheets:</strong>{% for filter in active_filters %}<a class="sew-filter-chip" href="{{ filter.remove_url }}"><span>{{ filter.label }}:</span> {{ filter.value }} <b>×</b></a>{% endfor %}<a class="sew-clear-filters" href="{{ reset_filters_url }}">Clear all filters</a></section>{% endif %}
 

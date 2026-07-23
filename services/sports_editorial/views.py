@@ -492,6 +492,10 @@ def queue():
     clear_sort_args.pop("sort", None)
     clear_sort_args.pop("direction", None)
     clear_sort_url = url_for(queue_endpoint, **clear_sort_args)
+    view_args = request.args.to_dict(flat=False)
+    standard_view_url = url_for("sports_editorial_workspace.queue", **view_args)
+    enhanced_view_url = url_for("sports_editorial_workspace.modern_queue_preview", **view_args)
+    queue_view = "enhanced" if queue_endpoint.endswith("modern_queue_preview") else "standard"
     for item in submissions:
         item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"])
     return render_template(
@@ -510,6 +514,9 @@ def queue():
         sort_value=sort_value,
         clear_sort_url=clear_sort_url,
         reset_filters_url=reset_filters_url,
+        standard_view_url=standard_view_url,
+        enhanced_view_url=enhanced_view_url,
+        queue_view=queue_view,
         result_count=len(submissions),
         total_count=len(all_submissions),
     )

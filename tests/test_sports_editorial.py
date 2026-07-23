@@ -441,6 +441,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Type to narrow", response.data)
         self.assertIn(b"Apply filters", response.data)
         self.assertIn(b"Reset filters", response.data)
+        self.assertIn(b"<summary><span>Filters:</span> <b>2 applied</b></summary>", response.data)
         self.assertIn(b"Showing 1 of 3 stat sheets:", response.data)
         self.assertIn(b"Status:</span> Submitted", response.data)
         self.assertIn(b"Competition:</span> FIS World Cup", response.data)
@@ -492,15 +493,30 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'<b>1</b>', response.data)
         self.assertIn(b'<b>2</b>', response.data)
 
-    def test_unlinked_modern_queue_preview_retains_integrated_filters_and_checkbox_selection(self):
+    def test_queue_toggle_exposes_enhanced_view_with_integrated_filters_and_checkbox_selection(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/queue/modern-preview")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Modern queue preview", response.data)
+        self.assertIn(b"Enhanced stat sheet view", response.data)
         self.assertIn(b'aria-label="Filter by Competition"', response.data)
         self.assertIn(b'data-row-select', response.data)
         self.assertIn(b"Allocate researcher", response.data)
-        self.assertNotIn(b'href="/workspace/sports-editorial/queue/modern-preview"', self.client.get("/workspace/sports-editorial/queue").data)
+        self.assertIn(b'data-current-view="enhanced"', response.data)
+        standard = self.client.get("/workspace/sports-editorial/queue?status=submitted")
+        self.assertIn(b'data-current-view="standard"', standard.data)
+        self.assertIn(b'href="/workspace/sports-editorial/queue/modern-preview?status=submitted"', standard.data)
+        self.assertIn(b">Standard</a><a", standard.data)
+        self.assertIn(b">Enhanced</a>", standard.data)
+
+    def test_core_stat_sheet_data_is_open_collapsible_and_compact(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'<details class="sew-card sew-core-data sew-core-summary" open>', response.data)
+        self.assertIn(b"<strong>Core stat-sheet data</strong>", response.data)
+        self.assertIn(b'class="sew-core-summary__body"', response.data)
+        self.assertIn(b'<span>Title</span><input name="title"', response.data)
+        self.assertNotIn(b'type="date" name="event_date" value="None"', response.data)
 
     def test_sub_editor_can_bulk_allocate_and_unallocate_researchers(self):
         self.set_sub_editor()
