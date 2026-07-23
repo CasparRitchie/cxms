@@ -77,9 +77,9 @@
     <button class="sew-button sew-button--primary" type="button" data-open-allocation="sub_editor_user_id" disabled>Allocate sub-editor</button>
   </div>
 </section>
-<p class="sew-queue-guidance" id="queue-interaction-help">Click or drag to select rows. Shift-click selects a range; Ctrl-click or Command-click adds non-sequential rows. Use Open to enter a stat sheet.</p>
+<p class="sew-queue-guidance" id="queue-interaction-help">Click or drag to select rows. Shift-click selects a range; Ctrl-click or Command-click adds non-sequential rows. Use Open to update a stat sheet.</p>
 {% else %}
-<p class="sew-queue-guidance">Use Open to enter a stat sheet. Filters apply only when you select Apply filters.</p>
+<p class="sew-queue-guidance">Use Open to update a stat sheet. Filters apply only when you select Apply filters.</p>
 {% endif %}
 
 {% if sort_criteria|length > 1 %}<p class="sew-sort-summary">Sorted by {% for field, direction in sort_criteria %}{{ field|replace('_',' ')|title }} {{ 'ascending' if direction == 'asc' else 'descending' }}{% if not loop.last %}, then {% endif %}{% endfor %}. <a href="{{ clear_sort_url }}">Clear sorting</a></p>{% endif %}

@@ -597,11 +597,18 @@ def detail(submission_id):
                 invalid_entities = _invalid_review_entity_links(request.form, submission)
                 if invalid_entities:
                     valid, message = False, "Fix entity links without valid FIS IDs before approval: " + ", ".join(invalid_entities)
+        if valid and requested_status == "changes_requested" and not request.form.get("editor_notes", "").strip():
+            valid, message = False, "Add instructions explaining what the researcher needs to change."
         if not valid:
             flash(message, "error")
         else:
             repository.update_review(submission_id, request.form, requested_status)
-            flash("Review changes saved.", "success")
+            workflow_messages = {
+                "changes_requested": "Changes requested. The stat sheet is editable by the assigned researcher again.",
+                "approved": "Stat sheet approved. The FIS JSON is ready to review.",
+                "in_review": "Stat sheet is now in sub edit.",
+            }
+            flash(workflow_messages.get(requested_status, "Review changes saved."), "success")
             if request.form.get("save_action") == "close":
                 return redirect(url_for("sports_editorial_workspace.queue"))
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))

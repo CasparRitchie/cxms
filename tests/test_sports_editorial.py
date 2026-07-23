@@ -418,6 +418,49 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Needs review</span><button class="sew-button sew-button--primary sew-button--small" type="button" data-toggle-accepted', response.data)
 
+    def test_sub_editor_gets_explicit_review_actions_instead_of_status_dropdown(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Current stage: Submitted", response.data)
+        self.assertIn(b'value="in_review">Start sub-edit', response.data)
+        self.assertIn(b'value="changes_requested">Request changes', response.data)
+        self.assertIn(b'value="approved">Approve stat sheet', response.data)
+        self.assertNotIn(b"<span>Workflow status</span><select", response.data)
+
+    def test_request_changes_requires_feedback_and_reopens_researcher_editing(self):
+        self.set_sub_editor()
+        missing_feedback = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"status": "changes_requested", "fis_event_ids": "55596"},
+            follow_redirects=True,
+        )
+        self.assertIn(b"Add instructions explaining what the researcher needs to change", missing_feedback.data)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "submitted")
+
+        feedback = "Please replace the final statistic and confirm its source."
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"status": "changes_requested", "fis_event_ids": "55596", "editor_notes": feedback},
+            follow_redirects=True,
+        )
+        self.assertIn(b"Changes requested", response.data)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "changes_requested")
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["editor_notes"], feedback)
+        self.set_role("researcher")
+        researcher_view = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        self.assertIn(feedback.encode(), researcher_view.data)
+        self.assertIn(b"Continue research", researcher_view.data)
+
+    def test_approved_sheet_offers_fis_json_without_publish_action(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Approved and ready for JSON", response.data)
+        self.assertIn(b"Review FIS JSON", response.data)
+        self.assertIn(b"Return to sub-edit", response.data)
+        self.assertNotIn(b"Simulate publish", response.data)
+
     def test_create_stat_sheet_action_is_on_sub_editor_queue(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/queue")

@@ -547,3 +547,22 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
   .sew-core-summary .sew-core-grid>.sew-field,
   .sew-core-summary .sew-core-grid>div{grid-template-columns:1fr}
 }
+
+/* Explicit, role-led workflow decisions replace the raw status selector. */
+.sew-workflow-decision{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(280px,1.2fr);gap:8px;margin-top:6px;border-color:rgba(103,183,255,.45)}
+.sew-workflow-decision__intro{padding:7px;border:1px solid var(--sew-line);background:rgba(103,183,255,.07)}
+.sew-workflow-decision__intro h2{margin:3px 0}
+.sew-workflow-decision__intro p{margin:0;color:var(--sew-muted)}
+.sew-workflow-step{color:var(--sew-blue);font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.sew-workflow-feedback{padding:6px}
+.sew-workflow-feedback span{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.sew-workflow-feedback small{color:var(--sew-muted);font-weight:400}
+.sew-workflow-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:5px;padding-top:7px;border-top:1px solid var(--sew-line)}
+.sew-message--review-feedback{display:grid;grid-template-columns:max-content 1fr;align-items:start;gap:10px;border-color:var(--sew-amber);background:var(--sew-review-bg);color:var(--sew-ink)}
+.sew-message--review-feedback strong{color:var(--sew-review-ink)}
+
+@media(max-width:760px){
+  .sew-workflow-decision{grid-template-columns:1fr}
+  .sew-workflow-actions{grid-column:1}
+  .sew-message--review-feedback{grid-template-columns:1fr}
+}
