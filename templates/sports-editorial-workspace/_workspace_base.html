@@ -12,8 +12,8 @@
 {% set stat_sheets_active = endpoint != 'sports_editorial_workspace.stat_insights' %}
 <div class="sew-app">
   <header class="sew-toolbar sew-app-header">
-    <a class="sew-amp-brand" href="{{ url_for('sports_editorial_workspace.queue') }}" aria-label="AMP Media Sports Editorial — Stat Sheets">
-      <span class="sew-amp-brand__name">amp</span><span class="sew-amp-brand__waves" aria-hidden="true">)))</span><small>media</small>
+    <a class="sew-placeholder-brand" href="{{ url_for('sports_editorial_workspace.queue') }}" aria-label="Sports Editorial — Stat Sheets">
+      <span class="sew-placeholder-brand__name">Your logo</span><small>here</small>
     </a>
     <nav class="sew-primary-nav" aria-label="Sports editorial">
       <a href="{{ url_for('sports_editorial_workspace.queue') }}" {% if stat_sheets_active %}class="is-active" aria-current="page"{% endif %}>Stat Sheets</a>

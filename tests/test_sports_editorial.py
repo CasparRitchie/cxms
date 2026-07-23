@@ -421,6 +421,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_create_stat_sheet_action_is_on_sub_editor_queue(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(b"Your logo", response.data)
+        self.assertIn(b">here</small>", response.data)
+        self.assertNotIn(b"AMP Media Sports Editorial", response.data)
         self.assertIn(b"Create stat sheet", response.data)
         self.set_role("researcher")
         response = self.client.get("/workspace/sports-editorial/queue")

@@ -166,20 +166,19 @@ html[data-sew-theme="light"] .sew-active-filters{background:#f0f6ff}
   background:#fff;
   color:#172033;
 }
-.sew-amp-brand{
+.sew-placeholder-brand{
   display:grid;
-  grid-template-columns:auto auto;
-  width:max-content;
+  width:72px;
   align-self:center;
-  padding:3px 5px;
+  padding:4px 6px;
   border:1px solid #172033;
   color:#172033;
-  line-height:.8;
+  line-height:1;
+  text-align:center;
   text-decoration:none;
 }
-.sew-amp-brand__name{font-size:15px;font-weight:800;letter-spacing:-.08em}
-.sew-amp-brand__waves{font-size:12px;letter-spacing:-.25em}
-.sew-amp-brand small{grid-column:1/-1;margin-top:3px;text-align:center;font-size:6px;letter-spacing:.34em;line-height:1}
+.sew-placeholder-brand__name{font-size:10px;font-weight:800;letter-spacing:.01em}
+.sew-placeholder-brand small{margin-top:3px;font-size:7px;letter-spacing:.28em;text-transform:uppercase}
 .sew-primary-nav{display:flex;align-items:stretch;justify-content:center;gap:12px}
 .sew-app-header .sew-primary-nav a{
   display:flex;
