@@ -412,7 +412,25 @@ def queue():
     options = {field: sorted({str(item.get(field) or "") for item in all_submissions if item.get(field)}, key=str.casefold) for field in filter_fields if field != "status"}
     users = _assignment_users()
     filters.update({"sort": sort, "direction": direction})
-    return render_template("sports-editorial-workspace/queue.html", submissions=submissions, options=options, assignment_users=users, filters=filters, statuses=VALID_STATUSES)
+    user_names = {user["id"]: user.get("full_name") or user.get("email") for user in users}
+    filter_labels = {
+        "status": "Status", "client_name": "Client", "sport": "Sport", "competition": "Competition",
+        "event_name": "Event", "gender": "Gender", "location": "Location",
+        "researcher_user_id": "Researcher", "sub_editor_user_id": "Sub-editor",
+    }
+    active_filters = []
+    for field in filter_fields:
+        value = filters[field]
+        if not value:
+            continue
+        display_value = STATUS_LABELS.get(value, value) if field == "status" else user_names.get(value, value)
+        remove_args = request.args.to_dict()
+        remove_args.pop(field, None)
+        active_filters.append({
+            "field": field, "label": filter_labels[field], "value": display_value,
+            "remove_url": url_for("sports_editorial_workspace.queue", **remove_args),
+        })
+    return render_template("sports-editorial-workspace/queue.html", submissions=submissions, options=options, assignment_users=users, filters=filters, statuses=VALID_STATUSES, active_filters=active_filters)
 
 
 @blueprint.get("/entities/search")

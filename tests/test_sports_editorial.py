@@ -408,6 +408,24 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.get("/workspace/sports-editorial/queue")
         self.assertNotIn(b"Create stat sheet", response.data)
 
+    def test_queue_has_synchronised_column_filters_and_active_filter_status(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/queue?status=submitted&competition=World+Cup&sort=event_name&direction=asc")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'id="queue-column-filters"', response.data)
+        self.assertIn(b'aria-label="Filter by Competition"', response.data)
+        self.assertIn(b'aria-label="Filter by Status"', response.data)
+        self.assertIn(b"Showing filtered results:", response.data)
+        self.assertIn(b"Status:</span> Submitted", response.data)
+        self.assertIn(b"Competition:</span> World Cup", response.data)
+        self.assertIn(b"Clear all filters", response.data)
+        self.assertIn(b'name="sort" value="event_name"', response.data)
+        self.assertIn(b'name="direction" value="asc"', response.data)
+
+    def test_queue_explains_when_no_filters_are_active(self):
+        response = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(b"Showing all stat sheets", response.data)
+
     def test_approval_requires_every_block_to_be_accepted(self):
         self.set_sub_editor()
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "approved", "fis_event_ids": "55596"}, follow_redirects=True)

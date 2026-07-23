@@ -4,8 +4,21 @@
   {% set next_direction = 'desc' if filters.sort == field and filters.direction == 'asc' else 'asc' %}
   <a href="{{ url_for('sports_editorial_workspace.queue', **dict(request.args, sort=field, direction=next_direction)) }}">{{ label }}{% if filters.sort == field %} {{ '▲' if filters.direction == 'asc' else '▼' }}{% endif %}</a>
 {%- endmacro %}
+{% macro option_filter(field, label) -%}
+  <select name="{{ field }}" form="queue-column-filters" aria-label="Filter by {{ label }}" onchange="this.form.submit()">
+    <option value="">All</option>
+    {% for value in options[field] %}<option value="{{ value }}" {% if filters[field] == value %}selected{% endif %}>{{ value|replace('_',' ')|title if field == 'sport' else value }}</option>{% endfor %}
+  </select>
+{%- endmacro %}
+{% macro user_filter(field, label, roles) -%}
+  <select name="{{ field }}" form="queue-column-filters" aria-label="Filter by {{ label }}" onchange="this.form.submit()">
+    <option value="">All</option>
+    {% for user in assignment_users if user.editorial_role in roles %}<option value="{{ user.id }}" {% if filters[field] == user.id %}selected{% endif %}>{{ user.full_name or user.email }}</option>{% endfor %}
+  </select>
+{%- endmacro %}
 {% block workspace_content %}
 <div class="sew-page-heading sew-page-heading--actions"><div><p class="sew-kicker">{{ workspace_role|replace('_', ' ')|title }} workspace</p><h1>Stat sheets</h1><p>{% if workspace_role == 'researcher' %}Only stat sheets assigned to you are shown.{% else %}Open, assign and track all stat sheets in the workspace.{% endif %}</p></div>{% if workspace_role in ['sub_editor', 'supervisor'] %}<a class="sew-button sew-button--primary" href="{{ url_for('sports_editorial_workspace.submit') }}">Create stat sheet</a>{% endif %}</div>
+
 <form class="sew-filters sew-filters--queue" method="get">
   <label>Status<select name="status"><option value="">All statuses</option>{% for status in statuses %}<option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status_labels[status] }}</option>{% endfor %}</select></label>
   {% for field,label in [('client_name','Client'),('sport','Sport'),('competition','Competition'),('event_name','Event'),('gender','Gender'),('location','Location')] %}<label>{{ label }}<select name="{{ field }}"><option value="">All {{ label|lower }}</option>{% for value in options[field] %}<option value="{{ value }}" {% if filters[field] == value %}selected{% endif %}>{{ value|replace('_',' ')|title if field == 'sport' else value }}</option>{% endfor %}</select></label>{% endfor %}
@@ -14,5 +27,31 @@
   <input type="hidden" name="sort" value="{{ filters.sort }}"><input type="hidden" name="direction" value="{{ filters.direction }}">
   <div class="sew-actions"><button class="sew-button sew-button--primary" type="submit">Apply filters</button><a class="sew-button" href="{{ url_for('sports_editorial_workspace.queue') }}">Clear</a></div>
 </form>
-<section class="sew-card sew-table-card"><table class="sew-table sew-queue-table"><thead><tr><th>Open</th><th>{{ sort_heading('AMP ID','amp_id') }}</th><th>{{ sort_heading('Client','client_name') }}</th><th>{{ sort_heading('Sport','sport') }}</th><th>{{ sort_heading('Competition','competition') }}</th><th>{{ sort_heading('Event','event_name') }}</th><th>{{ sort_heading('Gender','gender') }}</th><th>{{ sort_heading('Location','location') }}</th><th>{{ sort_heading('Race Date','event_date') }}</th><th>FIS Event ID</th><th>{{ sort_heading('Publication Deadline','publication_deadline') }}</th><th>{{ sort_heading('Researcher Deadline','researcher_deadline') }}</th><th>{{ sort_heading('Status','status') }}</th><th>{{ sort_heading('Researcher','researcher_name') }}</th><th>{{ sort_heading('Sub-editor','sub_editor_name') }}</th><th>{{ sort_heading('Last Modified','updated_at') }}</th><th>{{ sort_heading('Last Modified By','last_modified_by') }}</th></tr></thead><tbody>{% for item in submissions %}<tr><td><a class="sew-button sew-button--small" href="{{ url_for('sports_editorial_workspace.detail', submission_id=item.id) }}">Open</a></td><td>{{ item.amp_id|default('—', true) }}</td><td>{{ item.client_name|default('FIS', true) }}</td><td>ALP</td><td>{{ item.competition|default('—', true) }}</td><td>{{ item.event_name|default('—', true) }}</td><td>{{ item.gender|default('—', true) }}</td><td>{{ item.location|default('—', true) }}</td><td>{{ item.event_date|default('—', true) }}</td><td>{{ item.fis_event_ids|default([])|join(', ') or '—' }}</td><td>{{ item.publication_deadline|default('—', true) }}</td><td>{{ item.researcher_deadline|default('—', true) }}</td><td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td><td>{{ item.researcher_name|default(item.author_name, true) }}</td><td>{{ item.sub_editor_name|default('Unassigned', true) }}</td><td>{{ item.updated_at[:10] }}</td><td>{{ item.last_modified_by|default(item.author_name, true) }}</td></tr>{% else %}<tr><td colspan="17" class="sew-empty">No stat sheets match these filters.</td></tr>{% endfor %}</tbody></table></section>
+
+{% if active_filters %}
+<section class="sew-active-filters" aria-label="Active filters">
+  <strong>Showing filtered results:</strong>
+  {% for filter in active_filters %}<a class="sew-filter-chip" href="{{ filter.remove_url }}" title="Remove {{ filter.label }} filter"><span>{{ filter.label }}:</span> {{ filter.value }} <b aria-hidden="true">×</b></a>{% endfor %}
+  <a class="sew-clear-filters" href="{{ url_for('sports_editorial_workspace.queue') }}">Clear all filters</a>
+</section>
+{% else %}
+<p class="sew-filter-status">Showing all stat sheets. Filters can be applied above or from the column headings.</p>
+{% endif %}
+
+<form id="queue-column-filters" method="get"><input type="hidden" name="sort" value="{{ filters.sort }}"><input type="hidden" name="direction" value="{{ filters.direction }}"></form>
+<section class="sew-card sew-table-card">
+  <table class="sew-table sew-queue-table">
+    <thead>
+      <tr class="sew-column-headings">
+        <th>Open</th><th>{{ sort_heading('AMP ID','amp_id') }}</th><th>{{ sort_heading('Client','client_name') }}</th><th>{{ sort_heading('Sport','sport') }}</th><th>{{ sort_heading('Competition','competition') }}</th><th>{{ sort_heading('Event','event_name') }}</th><th>{{ sort_heading('Gender','gender') }}</th><th>{{ sort_heading('Location','location') }}</th><th>{{ sort_heading('Race Date','event_date') }}</th><th>FIS Event ID</th><th>{{ sort_heading('Publication Deadline','publication_deadline') }}</th><th>{{ sort_heading('Researcher Deadline','researcher_deadline') }}</th><th>{{ sort_heading('Status','status') }}</th><th>{{ sort_heading('Researcher','researcher_name') }}</th><th>{{ sort_heading('Sub-editor','sub_editor_name') }}</th><th>{{ sort_heading('Last Modified','updated_at') }}</th><th>{{ sort_heading('Last Modified By','last_modified_by') }}</th>
+      </tr>
+      <tr class="sew-column-filters">
+        <th></th><th></th><th>{{ option_filter('client_name','Client') }}</th><th>{{ option_filter('sport','Sport') }}</th><th>{{ option_filter('competition','Competition') }}</th><th>{{ option_filter('event_name','Event') }}</th><th>{{ option_filter('gender','Gender') }}</th><th>{{ option_filter('location','Location') }}</th><th></th><th></th><th></th><th></th>
+        <th><select name="status" form="queue-column-filters" aria-label="Filter by Status" onchange="this.form.submit()"><option value="">All</option>{% for status in statuses %}<option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status_labels[status] }}</option>{% endfor %}</select></th>
+        <th>{{ user_filter('researcher_user_id','Researcher',['researcher']) }}</th><th>{{ user_filter('sub_editor_user_id','Sub-editor',['sub_editor','supervisor']) }}</th><th></th><th></th>
+      </tr>
+    </thead>
+    <tbody>{% for item in submissions %}<tr><td><a class="sew-button sew-button--small" href="{{ url_for('sports_editorial_workspace.detail', submission_id=item.id) }}">Open</a></td><td>{{ item.amp_id|default('—', true) }}</td><td>{{ item.client_name|default('FIS', true) }}</td><td>ALP</td><td>{{ item.competition|default('—', true) }}</td><td>{{ item.event_name|default('—', true) }}</td><td>{{ item.gender|default('—', true) }}</td><td>{{ item.location|default('—', true) }}</td><td>{{ item.event_date|default('—', true) }}</td><td>{{ item.fis_event_ids|default([])|join(', ') or '—' }}</td><td>{{ item.publication_deadline|default('—', true) }}</td><td>{{ item.researcher_deadline|default('—', true) }}</td><td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td><td>{{ item.researcher_name|default(item.author_name, true) }}</td><td>{{ item.sub_editor_name|default('Unassigned', true) }}</td><td>{{ item.updated_at[:10] }}</td><td>{{ item.last_modified_by|default(item.author_name, true) }}</td></tr>{% else %}<tr><td colspan="17" class="sew-empty">No stat sheets match these filters.</td></tr>{% endfor %}</tbody>
+  </table>
+</section>
 {% endblock %}
