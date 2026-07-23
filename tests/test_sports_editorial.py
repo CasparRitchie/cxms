@@ -408,13 +408,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.get("/workspace/sports-editorial/queue")
         self.assertNotIn(b"Create stat sheet", response.data)
 
-    def test_queue_has_synchronised_column_filters_and_active_filter_status(self):
+    def test_queue_has_integrated_column_filters_and_active_filter_status(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/queue?status=submitted&competition=World+Cup&sort=event_name&direction=asc")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'id="queue-column-filters"', response.data)
+        self.assertNotIn(b'id="queue-column-filters"', response.data)
         self.assertIn(b'aria-label="Filter by Competition"', response.data)
         self.assertIn(b'aria-label="Filter by Status"', response.data)
+        self.assertIn(b'<details class="sew-column-filter">', response.data)
+        self.assertIn(b'<th class="has-filter">', response.data)
         self.assertIn(b"Showing filtered results:", response.data)
         self.assertIn(b"Status:</span> Submitted", response.data)
         self.assertIn(b"Competition:</span> World Cup", response.data)

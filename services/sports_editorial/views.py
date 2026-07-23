@@ -430,7 +430,18 @@ def queue():
             "field": field, "label": filter_labels[field], "value": display_value,
             "remove_url": url_for("sports_editorial_workspace.queue", **remove_args),
         })
-    return render_template("sports-editorial-workspace/queue.html", submissions=submissions, options=options, assignment_users=users, filters=filters, statuses=VALID_STATUSES, active_filters=active_filters)
+    filter_remove_urls = {item["field"]: item["remove_url"] for item in active_filters}
+    return render_template(
+        "sports-editorial-workspace/queue.html",
+        submissions=submissions,
+        options=options,
+        assignment_users=users,
+        filters=filters,
+        statuses=VALID_STATUSES,
+        active_filters=active_filters,
+        filter_fields=filter_fields,
+        filter_remove_urls=filter_remove_urls,
+    )
 
 
 @blueprint.get("/entities/search")
