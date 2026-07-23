@@ -394,7 +394,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Save &amp; close", response.data)
         self.assertIn(b'target="_blank"', response.data)
         self.assertIn(b"data-accepted-count", response.data)
-        self.assertIn(b'class="sew-content-grid" data-review-list', response.data)
+        self.assertIn(b'class="sew-content-list" data-review-list', response.data)
+        self.assertIn(b'class="sew-card-header-actions"', response.data)
 
     def test_save_and_close_returns_to_stat_sheet_queue(self):
         self.set_sub_editor()

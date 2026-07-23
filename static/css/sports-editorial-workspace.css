@@ -327,24 +327,28 @@ html[data-sew-theme="light"] .sew-queue-table tbody tr:nth-child(odd) td{backgro
 html[data-sew-theme="light"] .sew-queue-table tbody tr:nth-child(even) td{background:#f2f4f7}
 html[data-sew-theme="light"] .sew-queue-table tbody tr:hover td{background:#e8f1ff}
 
-/* Stage 6: compact editorial grids use the available canvas without weakening content hierarchy. */
-.sew-content-grid,.sew-statistics-panel .sew-stats-builder{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:5px;
+/* Stage 6: full-width editorial cards with queue-like density and horizontal controls. */
+.sew-content-list{display:grid;gap:3px}
+.sew-content-list>.sew-stat-card{min-width:0;margin:0;border-radius:0;background:var(--sew-card);box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.sew-content-list>.sew-stat-card.needs-review{background:var(--sew-card)}
+.sew-content-list>.sew-stat-card.needs-review>header{background:var(--sew-review-bg)}
+.sew-content-list>.sew-stat-card.is-accepted>header{background:rgba(170,185,200,.1)}
+.sew-content-list>.sew-stat-card--section{padding:3px;background:var(--sew-card)}
+.sew-content-list>.sew-stat-card--section>header{background:rgba(255,200,87,.12)}
+.sew-content-list>.sew-stat-card>header{align-items:center;min-height:28px;padding:2px 4px;margin:-3px -3px 3px;border-bottom:1px solid var(--sew-line)}
+.sew-content-list>.sew-stat-card--section>header{margin:-3px -3px 3px}
+.sew-card-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.sew-card-header-actions .sew-button{min-height:22px;padding:2px 6px;font-size:10px;text-transform:none}
+.sew-card-header-actions .sew-change-badge{margin-left:0}
+.sew-content-list .sew-rich-editor{min-height:36px}
+.sew-content-list .sew-entity-autocomplete{
+  grid-template-columns:58px minmax(0,1fr) minmax(280px,.8fr);
   align-items:start;
 }
-.sew-content-grid>.sew-stat-card,.sew-statistics-panel .sew-stat-input{min-width:0;margin:0}
-.sew-content-grid>[data-block-type="section"],.sew-statistics-panel .sew-stat-input[data-type="section"],
-.sew-content-grid>.sew-empty{grid-column:1/-1}
-.sew-content-grid [data-block-type="stat"],
-.sew-statistics-panel .sew-stat-input[data-type="stat"]{border-color:var(--sew-line);box-shadow:0 1px 0 rgba(0,0,0,.08)}
-.sew-content-grid .sew-rich-editor,.sew-statistics-panel .sew-rich-editor{min-height:36px}
-.sew-content-grid .sew-entity-search-row,.sew-statistics-panel .sew-entity-search-row{
-  grid-template-columns:minmax(76px,90px) minmax(0,1fr);
-}
-@media(max-width:900px){
-  .sew-content-grid,.sew-statistics-panel .sew-stats-builder{grid-template-columns:1fr}
-  .sew-content-grid>[data-block-type="section"],.sew-statistics-panel .sew-stat-input[data-type="section"],
-  .sew-content-grid>.sew-empty{grid-column:auto}
+.sew-content-list .sew-selected-entities{grid-column:2}
+.sew-content-list .sew-entity-search-row{grid-column:3;grid-template-columns:90px minmax(0,1fr)}
+.sew-content-list .sew-review-actions{padding-top:3px;border-top:1px solid var(--sew-line)}
+@media(max-width:850px){
+  .sew-content-list .sew-entity-autocomplete{grid-template-columns:58px minmax(0,1fr)}
+  .sew-content-list .sew-entity-search-row{grid-column:2}
 }
