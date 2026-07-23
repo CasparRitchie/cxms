@@ -3,7 +3,7 @@
 {% block body_class %} sew-page{% endblock %}
 {% block head_extra %}
 <script>document.documentElement.dataset.sewTheme=localStorage.getItem('cxms-sports-editorial-theme')||'dark';</script>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial-workspace.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial-workspace.css', v='andrew-queue-2') }}">
 {% endblock %}
 {% block site_header %}{% endblock %}
 {% block site_footer %}{% endblock %}
@@ -12,11 +12,11 @@
 {% set stat_sheets_active = endpoint != 'sports_editorial_workspace.stat_insights' %}
 <div class="sew-app">
   <header class="sew-toolbar sew-app-header">
-    <a class="sew-placeholder-brand" href="{{ url_for('sports_editorial_workspace.queue') }}" aria-label="Sports Editorial — Stat Sheets">
+    <div class="sew-placeholder-brand" aria-label="Logo placeholder">
       <span class="sew-placeholder-brand__name">Your logo</span><small>here</small>
-    </a>
+    </div>
     <nav class="sew-primary-nav" aria-label="Sports editorial">
-      <a href="{{ url_for('sports_editorial_workspace.queue') }}" {% if stat_sheets_active %}class="is-active" aria-current="page"{% endif %}>Stat Sheets</a>
+      <a href="{{ url_for('sports_editorial_workspace.queue') }}" {% if stat_sheets_active %}class="is-active" aria-current="page"{% endif %}>All Stat Sheets</a>
       <a href="{{ url_for('sports_editorial_workspace.stat_insights') }}" {% if not stat_sheets_active %}class="is-active" aria-current="page"{% endif %}>Stat Insights</a>
     </nav>
     <div class="sew-header-actions">

@@ -429,60 +429,110 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.get("/workspace/sports-editorial/queue")
         self.assertNotIn(b"Create stat sheet", response.data)
 
-    def test_queue_has_integrated_column_filters_and_active_filter_status(self):
+    def test_queue_has_expanded_filter_banner_and_active_filter_status(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/queue?status=submitted&competition=FIS+World+Cup&sort=event_name&direction=asc")
+        response = self.client.get("/workspace/sports-editorial/queue?status=submitted&competition=FIS+World+Cup&sort=event_name:asc")
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(b'id="queue-column-filters"', response.data)
-        self.assertIn(b'aria-label="Filter by Competition"', response.data)
-        self.assertIn(b'aria-label="Filter by Status"', response.data)
+        self.assertIn(b'<details class="sew-queue-filter-panel" open>', response.data)
+        self.assertIn(b'data-filter-field="competition"', response.data)
+        self.assertIn(b'data-filter-field="status"', response.data)
         self.assertIn(b'class="sew-card sew-table-card sew-queue-table-card"', response.data)
-        self.assertIn(b'<details class="sew-column-filter"', response.data)
-        self.assertIn(b'class="sew-filter-icon"', response.data)
-        self.assertNotIn(b"&lt;&gt;</summary>", response.data)
-        self.assertIn(b'class="has-filter"', response.data)
         self.assertIn(b'type="checkbox" name="status" value="submitted" checked', response.data)
-        self.assertIn(b"Type to narrow values", response.data)
+        self.assertIn(b"Type to narrow", response.data)
+        self.assertIn(b"Apply filters", response.data)
+        self.assertIn(b"Reset filters", response.data)
         self.assertIn(b"Showing 1 of 3 stat sheets:", response.data)
         self.assertIn(b"Status:</span> Submitted", response.data)
         self.assertIn(b"Competition:</span> FIS World Cup", response.data)
         self.assertIn(b"Clear all filters", response.data)
-        self.assertIn(b'name="sort" value="event_name"', response.data)
-        self.assertIn(b'name="direction" value="asc"', response.data)
+        self.assertIn(b'name="sort" value="event_name:asc"', response.data)
         self.assertIn(b'aria-sort="ascending"', response.data)
-        self.assertIn(b'aria-sort="none" class="has-filter"', response.data)
         self.assertIn(b'aria-sort="none"', response.data)
 
     def test_queue_accepts_multiple_values_for_one_filter(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/queue?status=submitted&status=approved")
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(b'aria-label="Open stat sheet 560001"', response.data)
-        self.assertIn(b'aria-label="Open stat sheet 560002"', response.data)
-        self.assertIn(b'aria-label="Open stat sheet 560003"', response.data)
+        self.assertNotIn(b">560001</td>", response.data)
+        self.assertIn(b">560002</td>", response.data)
+        self.assertIn(b">560003</td>", response.data)
         self.assertIn(b"Status:</span> Submitted", response.data)
         self.assertIn(b"Status:</span> Approved", response.data)
         self.assertIn(b"status=submitted&amp;status=approved", response.data)
 
-    def test_queue_rows_open_sheets_and_cell_values_apply_filters(self):
+    def test_queue_uses_open_buttons_and_plain_selectable_rows(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/queue")
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(b"<th>Open</th>", response.data)
+        self.assertIn(b"<th>Open</th>", response.data)
         self.assertIn(b'class="sew-queue-row"', response.data)
-        self.assertIn(b'data-row-href="/workspace/sports-editorial/submissions/', response.data)
+        self.assertIn(b'class="sew-button sew-button--small sew-open-sheet"', response.data)
+        self.assertNotIn(b"data-row-href", response.data)
+        self.assertNotIn(b"class=\"sew-cell-filter\"", response.data)
+        self.assertIn(b'data-submission-id="demo-submission-kronplatz"', response.data)
         self.assertIn(b'aria-describedby="queue-interaction-help"', response.data)
-        self.assertIn(b'aria-label="Filter by AMP ID"', response.data)
-        self.assertIn(b'aria-label="Filter by Race Date"', response.data)
-        self.assertIn(b'aria-label="Filter by FIS Event ID"', response.data)
-        self.assertIn(b'href="/workspace/sports-editorial/queue?competition=FIS+World+Cup"', response.data)
+        self.assertIn(b"Client Event ID", response.data)
+        self.assertIn(b"Allocate researcher", response.data)
+        self.assertIn(b"Allocate sub-editor", response.data)
+        self.assertIn(b"Select all visible", response.data)
 
     def test_queue_explains_when_no_filters_are_active(self):
         response = self.client.get("/workspace/sports-editorial/queue")
         self.assertIn(b"Showing all 3 stat sheets", response.data)
-        self.assertIn(b"the filter icon to choose values", response.data)
-        self.assertIn(b"Select empty row space to open the stat sheet", response.data)
+        self.assertIn(b"Filters apply only when you select Apply filters", response.data)
+        self.assertNotIn(b"Allocate researcher", response.data)
         self.assertIn(b'aria-sort="descending"', response.data)
+
+    def test_queue_supports_cumulative_sorting(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/queue?sort=competition:asc,event_name:desc")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Sorted by Competition ascending, then Event Name descending", response.data)
+        self.assertIn(b"Clear sorting", response.data)
+        self.assertIn(b'<b>1</b>', response.data)
+        self.assertIn(b'<b>2</b>', response.data)
+
+    def test_unlinked_modern_queue_preview_retains_integrated_filters_and_checkbox_selection(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/queue/modern-preview")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Modern queue preview", response.data)
+        self.assertIn(b'aria-label="Filter by Competition"', response.data)
+        self.assertIn(b'data-row-select', response.data)
+        self.assertIn(b"Allocate researcher", response.data)
+        self.assertNotIn(b'href="/workspace/sports-editorial/queue/modern-preview"', self.client.get("/workspace/sports-editorial/queue").data)
+
+    def test_sub_editor_can_bulk_allocate_and_unallocate_researchers(self):
+        self.set_sub_editor()
+        selected = ["demo-submission-kronplatz", "demo-submission-submitted"]
+        response = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
+            "submission_id": selected,
+            "assignment_field": "researcher_user_id",
+            "assignment_action": "allocate",
+            "user_id": "demo-researcher-2",
+        })
+        self.assertEqual(response.status_code, 302)
+        for submission_id in selected:
+            self.assertEqual(repository.get_submission(submission_id)["researcher_user_id"], "demo-researcher-2")
+            self.assertEqual(repository.get_submission(submission_id)["researcher_name"], "Andrew Hendry")
+
+        response = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
+            "submission_id": selected,
+            "assignment_field": "researcher_user_id",
+            "assignment_action": "unallocate",
+        })
+        self.assertEqual(response.status_code, 302)
+        for submission_id in selected:
+            self.assertIsNone(repository.get_submission(submission_id)["researcher_user_id"])
+
+    def test_researcher_cannot_bulk_allocate_stat_sheets(self):
+        self.set_role("researcher")
+        response = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
+            "submission_id": "demo-submission-kronplatz",
+            "assignment_field": "sub_editor_user_id",
+            "assignment_action": "unallocate",
+        })
+        self.assertEqual(response.status_code, 403)
 
     def test_approval_requires_every_block_to_be_accepted(self):
         self.set_sub_editor()

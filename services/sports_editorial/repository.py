@@ -168,6 +168,23 @@ class DemoSportsEditorialRepository:
             item["updated_at"] = _now()
         return deepcopy(item)
 
+    def bulk_assign(self, submission_ids, assignment_field, user_id, user_name, actor_id, actor_name):
+        if assignment_field not in ("researcher_user_id", "sub_editor_user_id"):
+            raise ValueError("Unsupported assignment field.")
+        wanted = set(submission_ids)
+        with self._lock:
+            selected = [item for item in self._submissions if item["id"] in wanted]
+            if len(selected) != len(wanted):
+                raise ValueError("One or more selected stat sheets no longer exist.")
+            name_field = "researcher_name" if assignment_field == "researcher_user_id" else "sub_editor_name"
+            now = _now()
+            for item in selected:
+                item[assignment_field] = user_id
+                item[name_field] = user_name or "Unassigned"
+                item["updated_at"] = now
+                item["last_modified_by"] = actor_name
+        return len(selected)
+
     def list_entities(self, entity_type="", limit=None):
         items = [item for item in self._entities if not entity_type or item["entity_type"] == entity_type]
         items = sorted(items, key=lambda item: (item["entity_type"], item["name"]))
@@ -448,6 +465,28 @@ class SupabaseSportsEditorialRepository:
     def set_submission_status(self, submission_id, status):
         self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload={"status": status, "updated_at": _now()}, prefer="return=minimal")
         return self.get_submission(submission_id)
+
+    def bulk_assign(self, submission_ids, assignment_field, user_id, user_name, actor_id, actor_name):
+        if assignment_field not in ("researcher_user_id", "sub_editor_user_id"):
+            raise ValueError("Unsupported assignment field.")
+        ids = list(dict.fromkeys(submission_ids))
+        id_filter = f"in.({','.join(ids)})"
+        query = {"select": "id", "id": id_filter, "workspace_id": f"eq.{self._workspace()}"}
+        existing = self.client.request("sports_editorial_submissions", query=query)
+        if len(existing) != len(ids):
+            raise ValueError("One or more selected stat sheets no longer exist.")
+        changes = {
+            assignment_field: user_id,
+            "updated_at": _now(),
+            "last_modified_by_user_id": actor_id,
+            "last_modified_by_name": actor_name,
+        }
+        self.client.request(
+            "sports_editorial_submissions", "PATCH",
+            query={"id": id_filter, "workspace_id": f"eq.{self._workspace()}"},
+            payload=changes, prefer="return=minimal",
+        )
+        return len(ids)
 
     def list_entities(self, entity_type="", limit=None):
         query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "entity_type.asc,name.asc"}

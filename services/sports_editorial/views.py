@@ -391,8 +391,10 @@ def confirmation(submission_id):
     return render_template("sports-editorial-workspace/confirmation.html", submission=_submission_or_404(submission_id))
 
 
+@blueprint.route("/queue/modern-preview", endpoint="modern_queue_preview")
 @blueprint.route("/queue")
 def queue():
+    queue_endpoint = request.endpoint
     filter_fields = (
         "amp_id", "client_name", "sport", "competition", "event_name", "gender", "location",
         "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status",
@@ -402,14 +404,20 @@ def queue():
         field: list(dict.fromkeys(value.strip() for value in request.args.getlist(field) if value.strip()))
         for field in filter_fields
     }
-    sort = request.args.get("sort", "updated_at")
-    direction = request.args.get("direction", "desc")
     filters["status"] = [value for value in filters["status"] if value in VALID_STATUSES]
     sortable = {"amp_id", "client_name", "sport", "competition", "event_name", "gender", "location", "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status", "researcher_name", "sub_editor_name", "updated_at", "last_modified_by"}
-    if sort not in sortable:
-        sort = "updated_at"
-    if direction not in ("asc", "desc"):
-        direction = "desc"
+    raw_sort = request.args.get("sort", "")
+    legacy_direction = request.args.get("direction", "desc")
+    sort_criteria = []
+    for token in raw_sort.split(","):
+        field, separator, direction = token.strip().partition(":")
+        if not separator:
+            direction = legacy_direction
+        if field in sortable and direction in ("asc", "desc") and field not in {item[0] for item in sort_criteria}:
+            sort_criteria.append((field, direction))
+    if not sort_criteria:
+        sort_criteria = [("updated_at", "desc")]
+    sort_value = ",".join(f"{field}:{direction}" for field, direction in sort_criteria)
     all_submissions = repository.list_submissions()
 
     def item_filter_values(item, field):
@@ -422,7 +430,8 @@ def queue():
         dict(item) for item in all_submissions
         if all(not values or any(value in values for value in item_filter_values(item, field)) for field, values in filters.items())
     ]
-    submissions.sort(key=lambda item: str(item.get(sort) or "").casefold(), reverse=direction == "desc")
+    for field, direction in reversed(sort_criteria):
+        submissions.sort(key=lambda item: str(item.get(field) or "").casefold(), reverse=direction == "desc")
     options = {
         field: sorted(
             {value for item in all_submissions for value in item_filter_values(item, field) if value},
@@ -431,12 +440,11 @@ def queue():
         for field in filter_fields if field != "status"
     }
     users = _assignment_users()
-    filters.update({"sort": sort, "direction": direction})
     user_names = {user["id"]: user.get("full_name") or user.get("email") for user in users}
     filter_labels = {
         "amp_id": "AMP ID", "client_name": "Client", "sport": "Sport", "competition": "Competition",
         "event_name": "Event", "gender": "Gender", "location": "Location", "event_date": "Race date",
-        "fis_event_ids": "FIS event ID", "publication_deadline": "Publication deadline",
+        "fis_event_ids": "Client event ID", "publication_deadline": "Publication deadline",
         "researcher_deadline": "Researcher deadline", "status": "Status",
         "researcher_user_id": "Researcher", "sub_editor_user_id": "Sub-editor",
         "updated_at": "Last modified", "last_modified_by": "Last modified by",
@@ -453,34 +461,41 @@ def queue():
                 remove_args.pop(field, None)
             active_filters.append({
                 "field": field, "label": filter_labels[field], "value": display_value,
-                "remove_url": url_for("sports_editorial_workspace.queue", **remove_args),
+                "remove_url": url_for(queue_endpoint, **remove_args),
             })
-    filter_clear_urls = {}
-    for field in filter_fields:
-        clear_args = request.args.to_dict(flat=False)
-        clear_args.pop(field, None)
-        filter_clear_urls[field] = url_for("sports_editorial_workspace.queue", **clear_args)
+    visible_filter_fields = (
+        "status", "client_name", "sport", "competition", "event_name", "gender", "location",
+        "researcher_user_id", "sub_editor_user_id",
+    )
     sort_urls = {}
+    sort_add_urls = {}
     for field in sortable:
         sort_args = request.args.to_dict(flat=False)
-        sort_args["sort"] = field
-        sort_args["direction"] = "desc" if sort == field and direction == "asc" else "asc"
-        sort_urls[field] = url_for("sports_editorial_workspace.queue", **sort_args)
+        primary_direction = sort_criteria[0][1] if sort_criteria[0][0] == field else "desc"
+        sort_args["sort"] = f"{field}:{'desc' if primary_direction == 'asc' else 'asc'}"
+        sort_args.pop("direction", None)
+        sort_urls[field] = url_for(queue_endpoint, **sort_args)
+        existing = next((direction for sort_field, direction in sort_criteria if sort_field == field), None)
+        added = [
+            (sort_field, ("desc" if direction == "asc" else "asc") if sort_field == field else direction)
+            for sort_field, direction in sort_criteria
+        ]
+        if existing is None:
+            added.append((field, "asc"))
+        add_args = request.args.to_dict(flat=False)
+        add_args["sort"] = ",".join(f"{sort_field}:{direction}" for sort_field, direction in added)
+        add_args.pop("direction", None)
+        sort_add_urls[field] = url_for(queue_endpoint, **add_args)
+    reset_args = {"sort": sort_value}
+    reset_filters_url = url_for(queue_endpoint, **reset_args)
+    clear_sort_args = request.args.to_dict(flat=False)
+    clear_sort_args.pop("sort", None)
+    clear_sort_args.pop("direction", None)
+    clear_sort_url = url_for(queue_endpoint, **clear_sort_args)
     for item in submissions:
         item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"])
-        item["queue_filter_urls"] = {}
-        for field in filter_fields:
-            values = item_filter_values(item, field)
-            if not any(values):
-                continue
-            field_urls = []
-            for value in values:
-                filter_args = request.args.to_dict(flat=False)
-                filter_args[field] = [value]
-                field_urls.append({"value": value, "url": url_for("sports_editorial_workspace.queue", **filter_args)})
-            item["queue_filter_urls"][field] = field_urls
     return render_template(
-        "sports-editorial-workspace/queue.html",
+        "sports-editorial-workspace/queue-modern-preview.html" if queue_endpoint.endswith("modern_queue_preview") else "sports-editorial-workspace/queue.html",
         submissions=submissions,
         options=options,
         assignment_users=users,
@@ -488,11 +503,54 @@ def queue():
         statuses=VALID_STATUSES,
         active_filters=active_filters,
         filter_fields=filter_fields,
-        filter_clear_urls=filter_clear_urls,
+        visible_filter_fields=visible_filter_fields,
         sort_urls=sort_urls,
+        sort_add_urls=sort_add_urls,
+        sort_criteria=sort_criteria,
+        sort_value=sort_value,
+        clear_sort_url=clear_sort_url,
+        reset_filters_url=reset_filters_url,
         result_count=len(submissions),
         total_count=len(all_submissions),
     )
+
+
+@blueprint.post("/queue/bulk-assign")
+def bulk_assign_queue():
+    actor = require_editor()
+    submission_ids = list(dict.fromkeys(value for value in request.form.getlist("submission_id") if value))
+    assignment_field = request.form.get("assignment_field", "")
+    assignment_action = request.form.get("assignment_action", "allocate")
+    user_id = request.form.get("user_id", "") if assignment_action == "allocate" else ""
+    if not submission_ids:
+        abort(400, description="Select at least one stat sheet.")
+    required_roles = {
+        "researcher_user_id": {"researcher"},
+        "sub_editor_user_id": {"sub_editor", "supervisor"},
+    }
+    if assignment_field not in required_roles:
+        abort(400, description="Choose Researcher or Sub-editor allocation.")
+    user_name = ""
+    if user_id:
+        assigned_user = next((user for user in _assignment_users() if user.get("id") == user_id), None)
+        if not assigned_user or assigned_user.get("editorial_role") not in required_roles[assignment_field]:
+            abort(400, description="Choose a user with the correct editorial role.")
+        user_name = assigned_user.get("full_name") or assigned_user.get("email") or ""
+    elif assignment_action != "unallocate":
+        abort(400, description="Choose a user to allocate.")
+    try:
+        updated = repository.bulk_assign(
+            submission_ids, assignment_field, user_id or None, user_name,
+            actor.get("id"), actor.get("full_name") or actor.get("email") or "Workspace user",
+        )
+    except ValueError as exc:
+        abort(400, description=str(exc))
+    label = "researcher" if assignment_field == "researcher_user_id" else "sub-editor"
+    flash(f"{updated} stat sheet{'s' if updated != 1 else ''} {'unallocated' if not user_id else f'allocated to {user_name}'} as {label}.", "success")
+    destination = request.form.get("next", "")
+    if not destination.startswith("/workspace/sports-editorial/queue"):
+        destination = url_for("sports_editorial_workspace.queue")
+    return redirect(destination)
 
 
 @blueprint.get("/entities/search")
