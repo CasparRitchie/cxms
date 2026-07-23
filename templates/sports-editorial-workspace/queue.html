@@ -32,7 +32,7 @@
   </details>
 {%- endmacro %}
 {% block workspace_content %}
-<div class="sew-queue-heading-row"><div class="sew-page-heading"><h1>All stat sheets</h1><p>{% if workspace_role == 'researcher' %}Only stat sheets assigned to you are shown.{% else %}Open, select and allocate stat sheets from the main editorial list.{% endif %}</p></div>
+<div class="sew-queue-heading-row"><div class="sew-page-heading"><p>{% if workspace_role == 'researcher' %}Only stat sheets assigned to you are shown.{% else %} {% endif %}</p></div>
   <nav class="sew-view-toggle" data-queue-view-switcher data-current-view="{{ queue_view }}" data-standard-url="{{ standard_view_url }}" data-enhanced-url="{{ enhanced_view_url }}" aria-label="Stat sheet queue view">
     <a class="is-active" href="{{ standard_view_url }}" data-queue-view="standard" aria-current="page">Standard</a><a href="{{ enhanced_view_url }}" data-queue-view="enhanced">Enhanced</a>
   </nav>
@@ -69,12 +69,12 @@
 
 {% if workspace_role in ['sub_editor','supervisor'] %}
 <section class="sew-queue-selection-bar" aria-label="Stat sheet selection and allocation">
-  <strong><span data-selected-count>0</span> of {{ result_count }} visible stat sheets selected</strong>
   <div class="sew-actions">
     <button class="sew-button" type="button" data-select-all>Select all visible</button>
     <button class="sew-button" type="button" data-clear-selection disabled>Clear selection</button>
     <button class="sew-button sew-button--primary" type="button" data-open-allocation="researcher_user_id" disabled>Allocate researcher</button>
     <button class="sew-button sew-button--primary" type="button" data-open-allocation="sub_editor_user_id" disabled>Allocate sub-editor</button>
+    <strong><span data-selected-count>0</span> of {{ result_count }} sheets </strong>
   </div>
 </section>
 <p class="sew-queue-guidance" id="queue-interaction-help">Click or drag to select rows. Shift-click selects a range; Ctrl-click or Command-click adds non-sequential rows. Use Open to update a stat sheet.</p>

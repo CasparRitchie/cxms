@@ -566,3 +566,17 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
   .sew-workflow-actions{grid-column:1}
   .sew-message--review-feedback{grid-template-columns:1fr}
 }
+
+/* Strong foreground contrast for editorial content cards. */
+.sew-content-list>.sew-stat-card>header [data-review-label],
+.sew-content-list>.sew-stat-card>header .sew-drag{color:#e5ebf4}
+.sew-content-list>.sew-stat-card.is-accepted .sew-validation{color:#d4dce8}
+.sew-content-list .sew-rich-editor[contenteditable="false"]{color:#f1f5f9;opacity:1}
+.sew-content-list .sew-original summary{color:#d4dce8}
+html[data-sew-theme="light"] .sew-content-list>.sew-stat-card>header [data-review-label],
+html[data-sew-theme="light"] .sew-content-list>.sew-stat-card>header .sew-drag{color:#344054}
+html[data-sew-theme="light"] .sew-content-list>.sew-stat-card--section>header [data-review-label],
+html[data-sew-theme="light"] .sew-content-list>.sew-stat-card--section>header .sew-drag{color:#714b00}
+html[data-sew-theme="light"] .sew-content-list>.sew-stat-card.is-accepted .sew-validation{color:#475467}
+html[data-sew-theme="light"] .sew-content-list .sew-rich-editor[contenteditable="false"]{color:#344054}
+html[data-sew-theme="light"] .sew-content-list .sew-original summary{color:#475467}
