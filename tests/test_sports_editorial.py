@@ -202,6 +202,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         })
         submission_id = response.headers["Location"].rsplit("/", 1)[-1]
         self.set_role("researcher")
+        entry_page = self.client.get(f"/workspace/sports-editorial/submissions/{submission_id}/research")
+        self.assertEqual(entry_page.status_code, 200)
+        self.assertIn(b'class="sew-stats-builder" data-stats-list', entry_page.data)
         saved = self.client.post(f"/workspace/sports-editorial/submissions/{submission_id}/research", data={
             "event_date": "2026-10-13", "content_type": ["section", "stat"],
             "content_html": ["Race scenarios", "A researched statistic."],
@@ -391,6 +394,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Save &amp; close", response.data)
         self.assertIn(b'target="_blank"', response.data)
         self.assertIn(b"data-accepted-count", response.data)
+        self.assertIn(b'class="sew-content-grid" data-review-list', response.data)
 
     def test_save_and_close_returns_to_stat_sheet_queue(self):
         self.set_sub_editor()

@@ -326,3 +326,25 @@ html[data-sew-theme="light"] .sew-column-filter form{background:#fff;box-shadow:
 html[data-sew-theme="light"] .sew-queue-table tbody tr:nth-child(odd) td{background:#fff}
 html[data-sew-theme="light"] .sew-queue-table tbody tr:nth-child(even) td{background:#f2f4f7}
 html[data-sew-theme="light"] .sew-queue-table tbody tr:hover td{background:#e8f1ff}
+
+/* Stage 6: compact editorial grids use the available canvas without weakening content hierarchy. */
+.sew-content-grid,.sew-statistics-panel .sew-stats-builder{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:5px;
+  align-items:start;
+}
+.sew-content-grid>.sew-stat-card,.sew-statistics-panel .sew-stat-input{min-width:0;margin:0}
+.sew-content-grid>[data-block-type="section"],.sew-statistics-panel .sew-stat-input[data-type="section"],
+.sew-content-grid>.sew-empty{grid-column:1/-1}
+.sew-content-grid [data-block-type="stat"],
+.sew-statistics-panel .sew-stat-input[data-type="stat"]{border-color:var(--sew-line);box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.sew-content-grid .sew-rich-editor,.sew-statistics-panel .sew-rich-editor{min-height:36px}
+.sew-content-grid .sew-entity-search-row,.sew-statistics-panel .sew-entity-search-row{
+  grid-template-columns:minmax(76px,90px) minmax(0,1fr);
+}
+@media(max-width:900px){
+  .sew-content-grid,.sew-statistics-panel .sew-stats-builder{grid-template-columns:1fr}
+  .sew-content-grid>[data-block-type="section"],.sew-statistics-panel .sew-stat-input[data-type="section"],
+  .sew-content-grid>.sew-empty{grid-column:auto}
+}
