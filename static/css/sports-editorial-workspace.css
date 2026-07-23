@@ -300,3 +300,26 @@ html[data-sew-theme="light"] .sew-app-header .sew-primary-nav a{color:#b42318}
 .sew-column-filter form>div{display:flex;gap:3px}
 html[data-sew-theme="light"] .sew-column-headings th.has-filter .sew-column-filter summary{color:#fff}
 html[data-sew-theme="light"] .sew-column-filter form{background:#fff;box-shadow:0 8px 18px rgba(15,23,42,.16)}
+
+/* Stage 4: dense queue scanning, cell filtering and row-level navigation. */
+.sew-queue-table th:first-child,.sew-queue-table td:first-child{width:88px;min-width:88px}
+.sew-queue-table th:nth-child(2),.sew-queue-table td:nth-child(2){
+  position:sticky;
+  left:88px;
+  z-index:2;
+  min-width:58px;
+  background:var(--sew-card);
+  box-shadow:1px 0 var(--sew-line);
+}
+.sew-queue-table thead th:first-child,.sew-queue-table thead th:nth-child(2){z-index:6}
+.sew-queue-table tbody tr:nth-child(odd) td{background:var(--sew-card)}
+.sew-queue-table tbody tr:nth-child(even) td{background:#1a2434}
+.sew-queue-table tbody tr:hover td{background:#223047}
+.sew-queue-row{cursor:pointer}
+.sew-queue-row:focus-visible{outline:3px solid var(--sew-blue);outline-offset:-3px}
+.sew-cell-filter{color:inherit;text-decoration:none}
+.sew-cell-filter:hover,.sew-cell-filter:focus-visible{color:var(--sew-blue);text-decoration:underline;text-underline-offset:2px}
+.sew-cell-filter .sew-status{cursor:pointer}
+html[data-sew-theme="light"] .sew-queue-table tbody tr:nth-child(odd) td{background:#fff}
+html[data-sew-theme="light"] .sew-queue-table tbody tr:nth-child(even) td{background:#f2f4f7}
+html[data-sew-theme="light"] .sew-queue-table tbody tr:hover td{background:#e8f1ff}

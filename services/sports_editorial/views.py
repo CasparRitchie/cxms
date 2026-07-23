@@ -393,7 +393,11 @@ def confirmation(submission_id):
 
 @blueprint.route("/queue")
 def queue():
-    filter_fields = ("status", "client_name", "sport", "competition", "event_name", "gender", "location", "researcher_user_id", "sub_editor_user_id")
+    filter_fields = (
+        "amp_id", "client_name", "sport", "competition", "event_name", "gender", "location",
+        "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status",
+        "researcher_user_id", "sub_editor_user_id", "updated_at", "last_modified_by",
+    )
     filters = {
         field: list(dict.fromkeys(value.strip() for value in request.args.getlist(field) if value.strip()))
         for field in filter_fields
@@ -401,25 +405,41 @@ def queue():
     sort = request.args.get("sort", "updated_at")
     direction = request.args.get("direction", "desc")
     filters["status"] = [value for value in filters["status"] if value in VALID_STATUSES]
-    sortable = {"amp_id", "client_name", "sport", "competition", "event_name", "gender", "location", "event_date", "publication_deadline", "researcher_deadline", "status", "researcher_name", "sub_editor_name", "updated_at", "last_modified_by"}
+    sortable = {"amp_id", "client_name", "sport", "competition", "event_name", "gender", "location", "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status", "researcher_name", "sub_editor_name", "updated_at", "last_modified_by"}
     if sort not in sortable:
         sort = "updated_at"
     if direction not in ("asc", "desc"):
         direction = "desc"
     all_submissions = repository.list_submissions()
+
+    def item_filter_values(item, field):
+        value = item.get(field)
+        if field == "fis_event_ids":
+            return [str(event_id) for event_id in (value or [])]
+        return [str(value or "")]
+
     submissions = [
-        item for item in all_submissions
-        if all(not values or str(item.get(field) or "") in values for field, values in filters.items())
+        dict(item) for item in all_submissions
+        if all(not values or any(value in values for value in item_filter_values(item, field)) for field, values in filters.items())
     ]
     submissions.sort(key=lambda item: str(item.get(sort) or "").casefold(), reverse=direction == "desc")
-    options = {field: sorted({str(item.get(field) or "") for item in all_submissions if item.get(field)}, key=str.casefold) for field in filter_fields if field != "status"}
+    options = {
+        field: sorted(
+            {value for item in all_submissions for value in item_filter_values(item, field) if value},
+            key=str.casefold,
+        )
+        for field in filter_fields if field != "status"
+    }
     users = _assignment_users()
     filters.update({"sort": sort, "direction": direction})
     user_names = {user["id"]: user.get("full_name") or user.get("email") for user in users}
     filter_labels = {
-        "status": "Status", "client_name": "Client", "sport": "Sport", "competition": "Competition",
-        "event_name": "Event", "gender": "Gender", "location": "Location",
+        "amp_id": "AMP ID", "client_name": "Client", "sport": "Sport", "competition": "Competition",
+        "event_name": "Event", "gender": "Gender", "location": "Location", "event_date": "Race date",
+        "fis_event_ids": "FIS event ID", "publication_deadline": "Publication deadline",
+        "researcher_deadline": "Researcher deadline", "status": "Status",
         "researcher_user_id": "Researcher", "sub_editor_user_id": "Sub-editor",
+        "updated_at": "Last modified", "last_modified_by": "Last modified by",
     }
     active_filters = []
     for field in filter_fields:
@@ -446,6 +466,19 @@ def queue():
         sort_args["sort"] = field
         sort_args["direction"] = "desc" if sort == field and direction == "asc" else "asc"
         sort_urls[field] = url_for("sports_editorial_workspace.queue", **sort_args)
+    for item in submissions:
+        item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"])
+        item["queue_filter_urls"] = {}
+        for field in filter_fields:
+            values = item_filter_values(item, field)
+            if not any(values):
+                continue
+            field_urls = []
+            for value in values:
+                filter_args = request.args.to_dict(flat=False)
+                filter_args[field] = [value]
+                field_urls.append({"value": value, "url": url_for("sports_editorial_workspace.queue", **filter_args)})
+            item["queue_filter_urls"][field] = field_urls
     return render_template(
         "sports-editorial-workspace/queue.html",
         submissions=submissions,

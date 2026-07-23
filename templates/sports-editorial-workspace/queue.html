@@ -3,6 +3,10 @@
 {% macro sort_heading(label, field) -%}
   <a href="{{ sort_urls[field] }}">{{ label }}{% if filters.sort == field %} {{ '▲' if filters.direction == 'asc' else '▼' }}{% endif %}</a>
 {%- endmacro %}
+{% macro filter_cell(item, field, label) -%}
+  {% set links = item.queue_filter_urls.get(field, []) %}
+  {% if links %}<a class="sew-cell-filter" href="{{ links[0].url }}" title="Filter {{ field|replace('_', ' ') }} by {{ label }}">{{ label }}</a>{% else %}{{ label }}{% endif %}
+{%- endmacro %}
 {% macro column_heading(label, sort_field, filter_field='') -%}
   <th{% if filter_field and filters[filter_field] %} class="has-filter"{% endif %}>
     <div class="sew-column-heading">
@@ -50,26 +54,25 @@
   <table class="sew-table sew-queue-table">
     <thead>
       <tr class="sew-column-headings">
-        <th>Open</th>
-        {{ column_heading('AMP ID','amp_id') }}
+        {{ column_heading('AMP ID','amp_id','amp_id') }}
         {{ column_heading('Client','client_name','client_name') }}
         {{ column_heading('Sport','sport','sport') }}
         {{ column_heading('Competition','competition','competition') }}
         {{ column_heading('Event','event_name','event_name') }}
         {{ column_heading('Gender','gender','gender') }}
         {{ column_heading('Location','location','location') }}
-        {{ column_heading('Race Date','event_date') }}
-        <th>FIS Event ID</th>
-        {{ column_heading('Publication Deadline','publication_deadline') }}
-        {{ column_heading('Researcher Deadline','researcher_deadline') }}
+        {{ column_heading('Race Date','event_date','event_date') }}
+        {{ column_heading('FIS Event ID','fis_event_ids','fis_event_ids') }}
+        {{ column_heading('Publication Deadline','publication_deadline','publication_deadline') }}
+        {{ column_heading('Researcher Deadline','researcher_deadline','researcher_deadline') }}
         {{ column_heading('Status','status','status') }}
         {{ column_heading('Researcher','researcher_name','researcher_user_id') }}
         {{ column_heading('Sub-editor','sub_editor_name','sub_editor_user_id') }}
-        {{ column_heading('Last Modified','updated_at') }}
-        {{ column_heading('Last Modified By','last_modified_by') }}
+        {{ column_heading('Last Modified','updated_at','updated_at') }}
+        {{ column_heading('Last Modified By','last_modified_by','last_modified_by') }}
       </tr>
     </thead>
-    <tbody>{% for item in submissions %}<tr><td><a class="sew-button sew-button--small" href="{{ url_for('sports_editorial_workspace.detail', submission_id=item.id) }}">Open</a></td><td>{{ item.amp_id|default('—', true) }}</td><td>{{ item.client_name|default('FIS', true) }}</td><td>ALP</td><td>{{ item.competition|default('—', true) }}</td><td>{{ item.event_name|default('—', true) }}</td><td>{{ item.gender|default('—', true) }}</td><td>{{ item.location|default('—', true) }}</td><td>{{ item.event_date|default('—', true) }}</td><td>{{ item.fis_event_ids|default([])|join(', ') or '—' }}</td><td>{{ item.publication_deadline|default('—', true) }}</td><td>{{ item.researcher_deadline|default('—', true) }}</td><td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td><td>{{ item.researcher_name|default(item.author_name, true) }}</td><td>{{ item.sub_editor_name|default('Unassigned', true) }}</td><td>{{ item.updated_at[:10] }}</td><td>{{ item.last_modified_by|default(item.author_name, true) }}</td></tr>{% else %}<tr><td colspan="17" class="sew-empty">No stat sheets match these filters.</td></tr>{% endfor %}</tbody>
+    <tbody>{% for item in submissions %}<tr class="sew-queue-row" data-row-href="{{ item.queue_url }}" tabindex="0" aria-label="Open stat sheet {{ item.amp_id|default(item.title, true) }}"><td>{{ filter_cell(item, 'amp_id', item.amp_id|default('—', true)) }}</td><td>{{ filter_cell(item, 'client_name', item.client_name|default('FIS', true)) }}</td><td>{{ filter_cell(item, 'sport', 'ALP') }}</td><td>{{ filter_cell(item, 'competition', item.competition|default('—', true)) }}</td><td>{{ filter_cell(item, 'event_name', item.event_name|default('—', true)) }}</td><td>{{ filter_cell(item, 'gender', item.gender|default('—', true)) }}</td><td>{{ filter_cell(item, 'location', item.location|default('—', true)) }}</td><td>{{ filter_cell(item, 'event_date', item.event_date|default('—', true)) }}</td><td>{% set fis_links = item.queue_filter_urls.get('fis_event_ids', []) %}{% for link in fis_links %}<a class="sew-cell-filter" href="{{ link.url }}" title="Filter FIS event ID by {{ link.value }}">{{ link.value }}</a>{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}</td><td>{{ filter_cell(item, 'publication_deadline', item.publication_deadline|default('—', true)) }}</td><td>{{ filter_cell(item, 'researcher_deadline', item.researcher_deadline|default('—', true)) }}</td><td><a class="sew-cell-filter" href="{{ item.queue_filter_urls.status[0].url }}" title="Filter status by {{ status_labels[item.status] }}"><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></a></td><td>{{ filter_cell(item, 'researcher_user_id', item.researcher_name|default(item.author_name, true)) }}</td><td>{{ filter_cell(item, 'sub_editor_user_id', item.sub_editor_name|default('Unassigned', true)) }}</td><td>{{ filter_cell(item, 'updated_at', item.updated_at[:10]) }}</td><td>{{ filter_cell(item, 'last_modified_by', item.last_modified_by|default(item.author_name, true)) }}</td></tr>{% else %}<tr><td colspan="16" class="sew-empty">No stat sheets match these filters.</td></tr>{% endfor %}</tbody>
   </table>
 </section>
 {% endblock %}

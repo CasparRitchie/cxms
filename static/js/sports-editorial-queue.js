@@ -20,4 +20,23 @@
       });
     });
   });
+
+  document.querySelectorAll('.sew-queue-row[data-row-href]').forEach(function (row) {
+    function openRow() {
+      window.location.assign(row.dataset.rowHref);
+    }
+
+    row.addEventListener('click', function (event) {
+      if (event.target.closest('a, button, input, select, textarea, summary, label, details')) return;
+      if (window.getSelection && window.getSelection().toString()) return;
+      openRow();
+    });
+
+    row.addEventListener('keydown', function (event) {
+      if (event.target === row && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        openRow();
+      }
+    });
+  });
 }());

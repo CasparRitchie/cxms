@@ -430,12 +430,24 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/queue?status=submitted&status=approved")
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(b"560001", response.data)
-        self.assertIn(b"560002", response.data)
-        self.assertIn(b"560003", response.data)
+        self.assertNotIn(b'aria-label="Open stat sheet 560001"', response.data)
+        self.assertIn(b'aria-label="Open stat sheet 560002"', response.data)
+        self.assertIn(b'aria-label="Open stat sheet 560003"', response.data)
         self.assertIn(b"Status:</span> Submitted", response.data)
         self.assertIn(b"Status:</span> Approved", response.data)
         self.assertIn(b"status=submitted&amp;status=approved", response.data)
+
+    def test_queue_rows_open_sheets_and_cell_values_apply_filters(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/queue")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"<th>Open</th>", response.data)
+        self.assertIn(b'class="sew-queue-row"', response.data)
+        self.assertIn(b'data-row-href="/workspace/sports-editorial/submissions/', response.data)
+        self.assertIn(b'aria-label="Filter by AMP ID"', response.data)
+        self.assertIn(b'aria-label="Filter by Race Date"', response.data)
+        self.assertIn(b'aria-label="Filter by FIS Event ID"', response.data)
+        self.assertIn(b'href="/workspace/sports-editorial/queue?competition=FIS+World+Cup"', response.data)
 
     def test_queue_explains_when_no_filters_are_active(self):
         response = self.client.get("/workspace/sports-editorial/queue")
