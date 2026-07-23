@@ -20,11 +20,11 @@
     const blockId = crypto.randomUUID();
     const row = document.createElement("div");
     row.className = "sew-stat-input";
-    row.draggable = true;
+    row.draggable = false;
     row.dataset.contentBlock = "";
     row.dataset.type = type;
     const entityControl = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${blockId}" data-mention-prefix="entity_mention_${blockId}_"><span class="sew-cell-label">Entity links</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-search-row"><select data-entity-type><option value="athlete">Athlete</option><option value="country">Country</option><option value="event">Event</option><option value="competition">Competition</option></select><input type="search" data-entity-search placeholder="Find entity"><div class="sew-entity-results" data-entity-results hidden></div></div></div>` : "";
-    row.innerHTML = `<span class="sew-drag" title="Drag to reorder">⋮⋮</span><div><label><span data-block-label>${labels[type]}</span><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" data-editor data-placeholder="Enter ${labels[type].toLowerCase()}"></div><input type="hidden" name="content_id" value="${blockId}"><input type="hidden" name="content_type" value="${type}"><input type="hidden" name="content_html" data-content-input></label>${entityControl}</div><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button>`;
+    row.innerHTML = `<span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span><div><label><span data-block-label>${labels[type]}</span><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" data-editor data-placeholder="Enter ${labels[type].toLowerCase()}"></div><input type="hidden" name="content_id" value="${blockId}"><input type="hidden" name="content_type" value="${type}"><input type="hidden" name="content_html" data-content-input></label>${entityControl}</div><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button>`;
     return row;
   };
 
@@ -57,8 +57,13 @@
   document.querySelector(".sew-form").addEventListener("submit", renumber);
 
   let dragged;
-  list.addEventListener("dragstart", (event) => { dragged = event.target.closest("[data-content-block]"); });
+  list.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest(".sew-drag");
+    dragged = handle?.closest("[data-content-block]");
+    if (!dragged) event.preventDefault();
+  });
   list.addEventListener("dragover", (event) => {
+    if (!dragged) return;
     event.preventDefault();
     const target = event.target.closest("[data-content-block]");
     if (target && target !== dragged) {
@@ -66,6 +71,9 @@
       list.insertBefore(dragged, event.clientY < box.top + box.height / 2 ? target : target.nextSibling);
     }
   });
-  list.addEventListener("dragend", renumber);
+  list.addEventListener("dragend", () => {
+    dragged = null;
+    renumber();
+  });
   renumber();
 })();

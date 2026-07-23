@@ -253,11 +253,11 @@
     block.dataset.reviewBlock = "";
     block.dataset.blockType = type;
     block.dataset.accepted = "0";
-    block.draggable = true;
+    block.draggable = false;
     const entities = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${id}" data-mention-prefix="entity_mention_${id}_"><span class="sew-cell-label">Entity links</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-search-row"><select data-entity-type><option value="athlete">Athlete</option><option value="country">Country</option><option value="event">Event</option><option value="competition">Competition</option></select><input type="search" data-entity-search placeholder="Find entity"><div class="sew-entity-results" data-entity-results hidden></div></div></div>` : "";
     const acceptedInput = type === "stat" ? `<input type="hidden" name="accepted_${id}" value="0" data-accepted-input>` : "";
     const accept = type === "stat" ? `<button class="sew-button sew-button--primary sew-button--small" type="button" data-toggle-accepted>Accept and lock</button>` : "";
-    block.innerHTML = `<header><span><span class="sew-drag" title="Drag to reorder">⋮⋮</span> <span data-review-label></span></span><div class="sew-card-header-actions"><span class="sew-validation" data-review-status>${type === "section" ? "Sub-heading · editable" : "Needs review"}</span>${accept}<button class="sew-button sew-button--danger sew-button--small" type="button" data-remove-review-block>Remove</button></div></header><input type="hidden" name="content_id" value="${id}"><input type="hidden" name="content_type" value="${type}">${acceptedInput}<div class="sew-working-editor"><div class="sew-mini-toolbar"><button type="button" data-review-format="bold"><strong>B</strong></button><button type="button" data-review-format="italic"><em>I</em></button></div><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-label="${type === "section" ? "Sub-heading" : "Statistic"} wording" data-review-editor></div><textarea name="edited_text_${id}" hidden data-review-input data-content-input></textarea></div><details class="sew-original"><summary>View original researcher wording</summary><div class="sew-rendered-content"></div></details>${entities}`;
+    block.innerHTML = `<header><span><span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span> <span data-review-label></span></span><div class="sew-card-header-actions"><span class="sew-validation" data-review-status>${type === "section" ? "Sub-heading · editable" : "Needs review"}</span>${accept}<button class="sew-button sew-button--danger sew-button--small" type="button" data-remove-review-block>Remove</button></div></header><input type="hidden" name="content_id" value="${id}"><input type="hidden" name="content_type" value="${type}">${acceptedInput}<div class="sew-working-editor"><div class="sew-mini-toolbar"><button type="button" data-review-format="bold"><strong>B</strong></button><button type="button" data-review-format="italic"><em>I</em></button></div><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-label="${type === "section" ? "Sub-heading" : "Statistic"} wording" data-review-editor></div><textarea name="edited_text_${id}" hidden data-review-input data-content-input></textarea></div><details class="sew-original"><summary>View original researcher wording</summary><div class="sew-rendered-content"></div></details>${entities}`;
     return block;
   };
   document.querySelectorAll("[data-add-review-block]").forEach((button) => button.addEventListener("click", () => {
@@ -271,8 +271,13 @@
     block.querySelector("[data-review-editor]").focus();
   }));
   let draggedReviewBlock;
-  reviewList?.addEventListener("dragstart", (event) => { draggedReviewBlock = event.target.closest("[data-review-block]"); });
+  reviewList?.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest(".sew-drag");
+    draggedReviewBlock = handle?.closest("[data-review-block]");
+    if (!draggedReviewBlock) event.preventDefault();
+  });
   reviewList?.addEventListener("dragover", (event) => {
+    if (!draggedReviewBlock) return;
     event.preventDefault();
     const target = event.target.closest("[data-review-block]");
     if (target && target !== draggedReviewBlock) {
@@ -280,7 +285,10 @@
       reviewList.insertBefore(draggedReviewBlock, event.clientY < box.top + box.height / 2 ? target : target.nextSibling);
     }
   });
-  reviewList?.addEventListener("dragend", renumberReviewBlocks);
+  reviewList?.addEventListener("dragend", () => {
+    draggedReviewBlock = null;
+    renumberReviewBlocks();
+  });
   const reviewForm = document.querySelector("[data-review-form]");
   let formDirty = false;
   reviewForm?.addEventListener("input", () => { formDirty = true; });

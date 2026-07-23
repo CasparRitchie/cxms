@@ -418,6 +418,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Needs review</span><button class="sew-button sew-button--primary sew-button--small" type="button" data-toggle-accepted', response.data)
 
+    def test_only_drag_handles_are_draggable_so_original_wording_is_selectable(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b'data-review-block data-block-type="stat" data-accepted="0" draggable=', response.data)
+        self.assertIn(b'class="sew-drag" title="Drag to reorder" draggable="true"', response.data)
+        self.assertIn(b'class="sew-rendered-content"', response.data)
+
     def test_sub_editor_gets_explicit_review_actions_instead_of_status_dropdown(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")

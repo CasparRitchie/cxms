@@ -573,6 +573,8 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
 .sew-content-list>.sew-stat-card.is-accepted .sew-validation{color:#d4dce8}
 .sew-content-list .sew-rich-editor[contenteditable="false"]{color:#f1f5f9;opacity:1}
 .sew-content-list .sew-original summary{color:#d4dce8}
+.sew-content-list .sew-original .sew-rendered-content{cursor:text;user-select:text}
+.sew-content-list .sew-drag,.sew-stats-builder .sew-drag{user-select:none}
 html[data-sew-theme="light"] .sew-content-list>.sew-stat-card>header [data-review-label],
 html[data-sew-theme="light"] .sew-content-list>.sew-stat-card>header .sew-drag{color:#344054}
 html[data-sew-theme="light"] .sew-content-list>.sew-stat-card--section>header [data-review-label],
