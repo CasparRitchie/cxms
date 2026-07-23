@@ -5,25 +5,34 @@
 <script>document.documentElement.dataset.sewTheme=localStorage.getItem('cxms-sports-editorial-theme')||'dark';</script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial-workspace.css') }}">
 {% endblock %}
-{% block site_header %}
-<header class="site-header sew-site-header">
-  <div class="site-shell site-header__inner">
-    <a href="{{ url_for('index') }}" class="site-brand">CXMS home</a>
-    <button class="sew-theme-toggle" type="button" aria-label="Switch to light mode" aria-pressed="false">
-      <span class="sew-theme-toggle__icon" aria-hidden="true">☀</span>
-      <span class="sew-theme-toggle__label">Light</span>
-    </button>
-  </div>
-</header>
-{% endblock %}
+{% block site_header %}{% endblock %}
 {% block site_footer %}{% endblock %}
 {% block content %}
+{% set endpoint = request.endpoint|default('', true) %}
+{% set stat_sheets_active = endpoint != 'sports_editorial_workspace.stat_insights' %}
 <div class="sew-app">
-  <div class="sew-pilot-banner">Sports Editorial Pilot — workflow and schema subject to feedback.</div>
-  <header class="sew-toolbar">
-    <div><a class="sew-brand" href="{{ url_for('sports_editorial_workspace.queue') }}">Stat sheets</a><span class="sew-mode">{{ workspace_mode }}</span></div>
-    <nav aria-label="Workspace">{% if workspace_role in ['sub_editor', 'supervisor'] %}<a href="{{ url_for('sports_editorial_workspace.submit') }}">New stat sheet</a>{% endif %}<a href="{{ url_for('sports_editorial_workspace.stat_insights') }}">Stat insights</a>{% if workspace_auth_mode == 'workspace' and (workspace_role == 'supervisor' or workspace_account_role in ['owner', 'admin']) %}<a href="{{ url_for('sports_editorial_workspace.calendar') }}">Events</a><a href="{{ url_for('sports_editorial_workspace.athletes') }}">Athletes</a><a href="{{ url_for('sports_editorial_workspace.competitions') }}">Countries & competitions</a><a href="{{ url_for('sports_editorial_workspace.users') }}">Users</a>{% endif %}</nav>
-    {% if workspace_auth_mode == 'demo' %}<form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.switch_role') }}">
+  <header class="sew-toolbar sew-app-header">
+    <a class="sew-amp-brand" href="{{ url_for('sports_editorial_workspace.queue') }}" aria-label="AMP Media Sports Editorial — Stat Sheets">
+      <span class="sew-amp-brand__name">amp</span><span class="sew-amp-brand__waves" aria-hidden="true">)))</span><small>media</small>
+    </a>
+    <nav class="sew-primary-nav" aria-label="Sports editorial">
+      <a href="{{ url_for('sports_editorial_workspace.queue') }}" {% if stat_sheets_active %}class="is-active" aria-current="page"{% endif %}>Stat Sheets</a>
+      <a href="{{ url_for('sports_editorial_workspace.stat_insights') }}" {% if not stat_sheets_active %}class="is-active" aria-current="page"{% endif %}>Stat Insights</a>
+    </nav>
+    <div class="sew-header-actions">
+      {% if endpoint == 'sports_editorial_workspace.queue' and workspace_role in ['sub_editor', 'supervisor'] %}<a class="sew-button sew-button--primary sew-create-sheet" href="{{ url_for('sports_editorial_workspace.submit') }}"><span aria-hidden="true">＋</span> Create stat sheet</a>{% endif %}
+      {% if workspace_auth_mode == 'workspace' and (workspace_role == 'supervisor' or workspace_account_role in ['owner', 'admin']) %}
+      <details class="sew-header-menu">
+        <summary>Manage</summary>
+        <nav aria-label="Workspace administration">
+          <a href="{{ url_for('sports_editorial_workspace.calendar') }}">Events</a>
+          <a href="{{ url_for('sports_editorial_workspace.athletes') }}">Athletes</a>
+          <a href="{{ url_for('sports_editorial_workspace.competitions') }}">Countries & competitions</a>
+          <a href="{{ url_for('sports_editorial_workspace.users') }}">Users</a>
+        </nav>
+      </details>
+      {% endif %}
+      {% if workspace_auth_mode == 'demo' %}<form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.switch_role') }}">
       <input type="hidden" name="next" value="{{ request.path }}">
       <label for="role-switcher">Pilot view</label>
       <select id="role-switcher" name="role" onchange="this.form.submit()">
@@ -31,7 +40,12 @@
         <option value="sub_editor" {% if workspace_role == 'sub_editor' %}selected{% endif %}>Sub-editor</option>
         <option value="supervisor" {% if workspace_role == 'supervisor' %}selected{% endif %}>Supervisor</option>
       </select>
-    </form>{% else %}<form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.logout') }}"><span>{{ workspace_user }} · {{ workspace_role|replace('_', ' ')|title }}</span><button class="sew-button sew-button--small" type="submit">Sign out</button></form>{% endif %}
+      </form>{% else %}<form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.logout') }}"><span>{{ workspace_user }} · {{ workspace_role|replace('_', ' ')|title }}</span><button class="sew-button sew-button--small" type="submit">Sign out</button></form>{% endif %}
+      <button class="sew-theme-toggle" type="button" aria-label="Switch to light mode" aria-pressed="false">
+        <span class="sew-theme-toggle__icon" aria-hidden="true">☀</span>
+        <span class="sew-theme-toggle__label">Light</span>
+      </button>
+    </div>
   </header>
   {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="sew-messages">{% for category, message in messages %}<p class="sew-message sew-message--{{ category }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% endwith %}
   {% block workspace_content %}{% endblock %}

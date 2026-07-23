@@ -17,7 +17,7 @@
   </select>
 {%- endmacro %}
 {% block workspace_content %}
-<div class="sew-page-heading sew-page-heading--actions"><div><p class="sew-kicker">{{ workspace_role|replace('_', ' ')|title }} workspace</p><h1>Stat sheets</h1><p>{% if workspace_role == 'researcher' %}Only stat sheets assigned to you are shown.{% else %}Open, assign and track all stat sheets in the workspace.{% endif %}</p></div>{% if workspace_role in ['sub_editor', 'supervisor'] %}<a class="sew-button sew-button--primary" href="{{ url_for('sports_editorial_workspace.submit') }}">Create stat sheet</a>{% endif %}</div>
+<div class="sew-page-heading"><p class="sew-kicker">{{ workspace_role|replace('_', ' ')|title }} workspace</p><h1>Stat sheets</h1><p>{% if workspace_role == 'researcher' %}Only stat sheets assigned to you are shown.{% else %}Open, assign and track all stat sheets in the workspace.{% endif %}</p></div>
 
 <form class="sew-filters sew-filters--queue" method="get">
   <label>Status<select name="status"><option value="">All statuses</option>{% for status in statuses %}<option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status_labels[status] }}</option>{% endfor %}</select></label>

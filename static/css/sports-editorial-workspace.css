@@ -149,3 +149,108 @@ html[data-sew-theme="light"] .sew-unpublished--full{border-color:#168a50;backgro
 html[data-sew-theme="light"] .sew-column-filters select{background:#fff;color:#102033}
 html[data-sew-theme="light"] .sew-active-filters{background:#f0f6ff}
 @media(max-width:600px){.sew-clear-filters{width:100%;margin-left:0}}
+
+/* Stage 1: one AMP-inspired application header replaces the stacked site and workspace headers. */
+.sew-app-header{
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(78px,.7fr) auto minmax(280px,1fr);
+  min-height:54px;
+  gap:18px;
+  padding:9px 12px;
+  margin-bottom:8px;
+  border:1px solid #d7dce4;
+  border-radius:2px;
+  background:#fff;
+  color:#172033;
+}
+.sew-amp-brand{
+  display:grid;
+  grid-template-columns:auto auto;
+  width:max-content;
+  align-self:center;
+  padding:3px 5px;
+  border:1px solid #172033;
+  color:#172033;
+  line-height:.8;
+  text-decoration:none;
+}
+.sew-amp-brand__name{font-size:15px;font-weight:800;letter-spacing:-.08em}
+.sew-amp-brand__waves{font-size:12px;letter-spacing:-.25em}
+.sew-amp-brand small{grid-column:1/-1;margin-top:3px;text-align:center;font-size:6px;letter-spacing:.34em;line-height:1}
+.sew-primary-nav{display:flex;align-items:stretch;justify-content:center;gap:12px}
+.sew-app-header .sew-primary-nav a{
+  display:flex;
+  align-items:center;
+  padding:6px 8px;
+  border-bottom:2px solid transparent;
+  border-radius:0;
+  color:#b42318;
+  font-size:12px;
+  font-weight:600;
+  text-decoration:none;
+}
+.sew-app-header .sew-primary-nav a:hover{background:#fff0ed;color:#912018}
+.sew-app-header .sew-primary-nav a.is-active{border-bottom-color:currentColor}
+.sew-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0}
+.sew-create-sheet{white-space:nowrap}
+.sew-header-actions .sew-theme-toggle{
+  min-height:26px;
+  padding:3px 7px;
+  border-color:#526176;
+  border-radius:2px;
+  background:#fff;
+  color:#172033;
+  font-size:10px;
+}
+.sew-header-actions .sew-theme-toggle:hover{border-color:#315fcc;background:#e7edf8;color:#10234f}
+.sew-app-header .sew-role{gap:4px;color:#526174}
+.sew-app-header .sew-role label{color:#526174}
+.sew-app-header .sew-role select{border-color:#526176;background:#fff;color:#172033}
+.sew-header-menu{position:relative;color:#172033}
+.sew-header-menu summary{
+  min-height:26px;
+  padding:5px 8px;
+  border:1px solid #526176;
+  background:#fff;
+  color:#172033;
+  cursor:pointer;
+  font-weight:700;
+  list-style:none;
+}
+.sew-header-menu summary::-webkit-details-marker{display:none}
+.sew-header-menu summary:after{content:" ▾";color:#667085}
+.sew-header-menu[open] summary{border-color:#315fcc;background:#e7edf8}
+.sew-header-menu nav{
+  position:absolute;
+  z-index:50;
+  top:calc(100% + 3px);
+  right:0;
+  display:grid;
+  min-width:170px;
+  padding:4px;
+  border:1px solid #cbd5e1;
+  background:#fff;
+  box-shadow:0 8px 20px rgba(15,23,42,.16);
+}
+.sew-app-header .sew-header-menu nav a{
+  padding:7px 8px;
+  border-radius:1px;
+  color:#172033;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.sew-app-header .sew-header-menu nav a:hover{background:#eef2f7}
+html[data-sew-theme="light"] .sew-app-header{background:#fff;color:#172033}
+html[data-sew-theme="light"] .sew-app-header .sew-primary-nav a{color:#b42318}
+@media(max-width:900px){
+  .sew-app-header{grid-template-columns:auto 1fr;gap:6px 12px}
+  .sew-header-actions{min-width:0}
+  .sew-primary-nav{grid-column:1/-1;grid-row:2;justify-content:flex-start;border-top:1px solid #e4e7ec}
+}
+@media(max-width:600px){
+  .sew-app-header{grid-template-columns:auto 1fr}
+  .sew-header-actions{grid-column:1/-1;grid-row:3;justify-content:flex-start;flex-wrap:nowrap}
+  .sew-app-header .sew-role label,.sew-header-actions .sew-theme-toggle__label{display:none}
+  .sew-primary-nav a{flex:1;justify-content:center}
+}
