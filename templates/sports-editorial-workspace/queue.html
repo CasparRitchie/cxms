@@ -32,20 +32,20 @@
   </details>
 {%- endmacro %}
 {% block workspace_content %}
-<div class="sew-queue-heading-row"><div class="sew-page-heading"><p>{% if workspace_role == 'researcher' %}Only stat sheets assigned to you are shown.{% else %} {% endif %}</p></div>
+<div class="sew-queue-heading-row sew-queue-heading-row--compact">
   <nav class="sew-view-toggle" data-queue-view-switcher data-current-view="{{ queue_view }}" data-standard-url="{{ standard_view_url }}" data-enhanced-url="{{ enhanced_view_url }}" aria-label="Stat sheet queue view">
     <a class="is-active" href="{{ standard_view_url }}" data-queue-view="standard" aria-current="page">Standard</a><a href="{{ enhanced_view_url }}" data-queue-view="enhanced">Enhanced</a>
   </nav>
 </div>
 
-<details class="sew-queue-filter-panel" open>
-  <summary><span>Filters:</span> <b>{{ active_filters|length }} applied</b></summary>
+<section class="sew-queue-filter-panel sew-queue-filter-panel--always-open" aria-label="Filters">
   <form method="get" class="sew-queue-filter-form">
     <input type="hidden" name="sort" value="{{ sort_value }}">
     <div class="sew-queue-filter-grid">
       {{ filter_control('Status','status') }}
       {{ filter_control('Client','client_name') }}
       {{ filter_control('Sport','sport') }}
+      {{ filter_control('Season','season_code') }}
       {{ filter_control('Competition','competition') }}
       {{ filter_control('Event','event_name') }}
       {{ filter_control('Gender','gender') }}
@@ -55,17 +55,7 @@
     </div>
     <div class="sew-queue-filter-actions"><button class="sew-button sew-button--primary" type="submit">Apply filters</button><a class="sew-button" href="{{ reset_filters_url }}">Reset filters</a></div>
   </form>
-</details>
-
-{% if active_filters %}
-<section class="sew-active-filters" aria-label="Active filters">
-  <strong>Showing {{ result_count }} of {{ total_count }} stat sheets:</strong>
-  {% for filter in active_filters %}<a class="sew-filter-chip" href="{{ filter.remove_url }}" title="Remove {{ filter.label }} filter"><span>{{ filter.label }}:</span> {{ filter.value }} <b aria-hidden="true">×</b></a>{% endfor %}
-  <a class="sew-clear-filters" href="{{ reset_filters_url }}">Clear all filters</a>
 </section>
-{% else %}
-<p class="sew-filter-status"><strong>Showing all {{ total_count }} stat sheets.</strong></p>
-{% endif %}
 
 {% if workspace_role in ['sub_editor','supervisor'] %}
 <section class="sew-queue-selection-bar" aria-label="Stat sheet selection and allocation">
@@ -77,9 +67,6 @@
     <strong><span data-selected-count>0</span> of {{ result_count }} sheets </strong>
   </div>
 </section>
-<p class="sew-queue-guidance" id="queue-interaction-help">Click or drag to select rows. Shift-click selects a range; Ctrl-click or Command-click adds non-sequential rows. Use Open to update a stat sheet.</p>
-{% else %}
-<p class="sew-queue-guidance">Use Open to update a stat sheet. Filters apply only when you select Apply filters.</p>
 {% endif %}
 
 {% if sort_criteria|length > 1 %}<p class="sew-sort-summary">Sorted by {% for field, direction in sort_criteria %}{{ field|replace('_',' ')|title }} {{ 'ascending' if direction == 'asc' else 'descending' }}{% if not loop.last %}, then {% endif %}{% endfor %}. <a href="{{ clear_sort_url }}">Clear sorting</a></p>{% endif %}
@@ -95,6 +82,7 @@
       {{ column_heading('Event','event_name') }}
       {{ column_heading('Gender','gender') }}
       {{ column_heading('Location','location') }}
+      {{ column_heading('Season','season_code') }}
       {{ column_heading('Race Date','event_date') }}
       {{ column_heading('Client Event ID','fis_event_ids') }}
       {{ column_heading('Publication Deadline','publication_deadline') }}
@@ -105,10 +93,10 @@
       {{ column_heading('Last Modified','updated_at') }}
       {{ column_heading('Last Modified By','last_modified_by') }}
     </tr></thead>
-    <tbody>{% for item in submissions %}<tr class="sew-queue-row" data-submission-id="{{ item.id }}" {% if workspace_role in ['sub_editor','supervisor'] %}tabindex="0" aria-selected="false" aria-describedby="queue-interaction-help"{% endif %}>
+    <tbody>{% for item in submissions %}<tr class="sew-queue-row" data-submission-id="{{ item.id }}" {% if workspace_role in ['sub_editor','supervisor'] %}tabindex="0" aria-selected="false"{% endif %}>
       <td><a class="sew-button sew-button--small sew-open-sheet" href="{{ item.queue_url }}">Open</a></td>
-      <td>{{ item.amp_id|default('—', true) }}</td><td>{{ item.client_name|default('FIS', true) }}</td><td>ALP</td><td>{{ item.competition|default('—', true) }}</td><td>{{ item.event_name|default('—', true) }}</td><td>{{ item.gender|default('—', true) }}</td><td>{{ item.location|default('—', true) }}</td><td>{{ item.event_date|default('—', true) }}</td><td>{{ item.fis_event_ids|join(', ') or '—' }}</td><td>{{ item.publication_deadline|default('—', true) }}</td><td>{{ item.researcher_deadline|default('—', true) }}</td><td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td><td>{{ item.researcher_name|default(item.author_name, true) }}</td><td>{{ item.sub_editor_name|default('Unassigned', true) }}</td><td>{{ item.updated_at[:10] }}</td><td>{{ item.last_modified_by|default(item.author_name, true) }}</td>
-    </tr>{% else %}<tr><td colspan="17" class="sew-empty">No stat sheets match these filters.</td></tr>{% endfor %}</tbody>
+      <td>{{ item.amp_id|default('—', true) }}</td><td>{{ item.client_name|default('FIS', true) }}</td><td>ALP</td><td>{{ item.competition|default('—', true) }}</td><td>{{ item.event_name|default('—', true) }}</td><td>{{ item.gender|default('—', true) }}</td><td>{{ item.location|default('—', true) }}</td><td>{{ item.season_code|default('—', true) }}</td><td>{{ item.event_date|default('—', true) }}</td><td>{{ item.fis_event_ids|join(', ') or '—' }}</td><td>{{ item.publication_deadline|default('—', true) }}</td><td>{{ item.researcher_deadline|default('—', true) }}</td><td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td><td>{{ item.researcher_name|default(item.author_name, true) }}</td><td>{{ item.sub_editor_name|default('Unassigned', true) }}</td><td>{{ item.updated_at[:10] }}</td><td>{{ item.last_modified_by|default(item.author_name, true) }}</td>
+    </tr>{% else %}<tr><td colspan="18" class="sew-empty">No stat sheets match these filters.</td></tr>{% endfor %}</tbody>
   </table>
 </section>
 

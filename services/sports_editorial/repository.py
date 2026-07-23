@@ -62,7 +62,7 @@ class DemoSportsEditorialRepository:
             "id": str(uuid4()), "title": data["title"].strip(), "sport": data.get("sport", "").strip() or "alpine_skiing",
             "competition": data.get("competition", "").strip(), "event_name": data.get("event_name", "").strip(),
             "gender": data.get("gender", "").strip().upper(), "location": data.get("location", "").strip(),
-            "event_date": data.get("event_date", "").strip(), "fis_event_ids": data.get("fis_event_ids", []),
+            "season_code": data.get("season_code"), "event_date": data.get("event_date", "").strip(), "fis_event_ids": data.get("fis_event_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(),
             "author_email": data.get("author_email", "").strip(), "status": status, "editor_notes": "", "fis_submission_notes": "",
             "amp_id": data.get("amp_id", "").strip(), "client_name": data.get("client_name", "FIS").strip(),
@@ -113,9 +113,11 @@ class DemoSportsEditorialRepository:
             item["editor_notes"] = form_data.get("editor_notes", "").strip()
             item["fis_submission_notes"] = form_data.get("fis_submission_notes", "").strip()
             item["fis_event_ids"] = _event_ids_from_form(form_data)
-            for field in ("title", "amp_id", "client_name", "competition", "event_name", "gender", "location", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "researcher_name", "sub_editor_user_id", "sub_editor_name", "working_notes", "unused_stats"):
+            for field in ("title", "amp_id", "client_name", "competition", "event_name", "gender", "location", "season_code", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "researcher_name", "sub_editor_user_id", "sub_editor_name", "working_notes", "unused_stats"):
                 if field in form_data:
                     item[field] = form_data.get(field, "").strip() or None
+            if item.get("season_code"):
+                item["season_code"] = int(item["season_code"])
             demo_names = {"demo-user": "Jamie Laurent", "demo-researcher-2": "Andrew Hendry", "demo-sub-editor": "Nick L.", "demo-supervisor": "Supervisor Demo"}
             item["researcher_name"] = demo_names.get(item.get("researcher_user_id"), "Unassigned")
             item["sub_editor_name"] = demo_names.get(item.get("sub_editor_user_id"), "Unassigned")
@@ -347,7 +349,7 @@ class SupabaseSportsEditorialRepository:
             "workspace_id": self._workspace(), "author_user_id": user.get("id"), "title": data["title"].strip(),
             "sport": "alpine_skiing", "competition": data.get("competition", "").strip(), "event_name": data.get("event_name", "").strip(),
             "gender": data.get("gender", "").strip().upper() or None, "location": data.get("location", "").strip(),
-            "event_date": data.get("event_date") or None, "fis_event_ids": data.get("fis_event_ids", []),
+            "season_code": data.get("season_code"), "event_date": data.get("event_date") or None, "fis_event_ids": data.get("fis_event_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(), "author_email": data.get("author_email", "").strip(),
             "status": status, "editor_notes": "", "fis_submission_notes": "", "submitted_at": now if status == "submitted" else None,
             "amp_id": data.get("amp_id") or None, "client_name": data.get("client_name") or "FIS",
@@ -446,9 +448,11 @@ class SupabaseSportsEditorialRepository:
                 } for value in selected], prefer="return=minimal")
         event_ids = _event_ids_from_form(form_data)
         changes = {"status": requested_status, "editor_notes": form_data.get("editor_notes", "").strip(), "fis_submission_notes": form_data.get("fis_submission_notes", "").strip(), "fis_event_ids": event_ids, "updated_at": _now(), "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
-        for field in ("title", "amp_id", "client_name", "competition", "event_name", "gender", "location", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "sub_editor_user_id", "working_notes", "unused_stats"):
+        for field in ("title", "amp_id", "client_name", "competition", "event_name", "gender", "location", "season_code", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "sub_editor_user_id", "working_notes", "unused_stats"):
             if field in form_data:
                 changes[field] = form_data.get(field) or None
+        if changes.get("season_code"):
+            changes["season_code"] = int(changes["season_code"])
         if requested_status == "approved" and not item.get("approved_at"):
             changes["approved_at"] = changes["updated_at"]
         self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload=changes, prefer="return=minimal")

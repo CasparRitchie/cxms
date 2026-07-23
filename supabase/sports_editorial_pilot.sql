@@ -24,6 +24,7 @@ create table if not exists public.sports_editorial_submissions (
   event_name text,
   gender text check (gender in ('W', 'M', 'X')),
   location text,
+  season_code integer,
   event_date date,
   fis_event_ids bigint[] not null default '{}',
   fis_external_id text not null,

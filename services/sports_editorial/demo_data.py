@@ -58,6 +58,7 @@ def fresh_demo_data():
     for submission in submissions:
         submission.setdefault("amp_id", {"demo-submission-kronplatz": "560001", "demo-submission-submitted": "560002", "demo-submission-approved": "560003"}.get(submission["id"], ""))
         submission.setdefault("client_name", "FIS")
+        submission.setdefault("season_code", 2026)
         submission.setdefault("researcher_user_id", "demo-user")
         submission.setdefault("researcher_name", "Jamie Laurent")
         submission.setdefault("sub_editor_user_id", "demo-sub-editor")

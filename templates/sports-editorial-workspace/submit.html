@@ -12,6 +12,7 @@
     <label class="sew-field"><span>Event</span><input name="event_name" value="{{ (values.get('event_name') or [''])[0] }}" placeholder="Giant Slalom"></label>
     <label class="sew-field"><span>Gender</span><select name="gender"><option value="">Select</option>{% for code, label in [('W','Women'),('M','Men'),('X','Mixed / open')] %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></label>
     <label class="sew-field"><span>Location</span><input name="location" value="{{ (values.get('location') or [''])[0] }}" placeholder="Sölden"></label>
+    <label class="sew-field"><span>Season ending year</span><input type="number" name="season_code" min="2000" max="2100" inputmode="numeric" value="{{ (values.get('season_code') or [''])[0] }}" placeholder="2027"><small>For example, enter 2027 for the 2026/27 season. Leave blank to use the selected FIS event.</small></label>
     <label class="sew-field"><span>Race date</span><input type="date" name="event_date" value="{{ (values.get('event_date') or [''])[0] }}"></label>
     <label class="sew-field"><span>FIS Calendar Event ID</span><input name="fis_event_ids" list="fis-calendar-events" inputmode="numeric" value="{{ (values.get('fis_event_ids') or [''])[0] }}"></label>
     <datalist id="fis-calendar-events">{% for event in calendar_events %}<option value="{{ event.canonical_id }}">{{ event.name }}</option>{% endfor %}</datalist>

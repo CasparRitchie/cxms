@@ -509,6 +509,21 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
 .sew-view-toggle a:hover{background:rgba(103,183,255,.1);color:var(--sew-ink)}
 .sew-view-toggle a.is-active{background:#293548;color:#fff}
 
+/* Andrew-aligned standard queue: permanently visible filters and softer work bars. */
+.sew-queue-heading-row--compact{justify-content:flex-end;margin-bottom:5px}
+.sew-queue-filter-panel--always-open{display:block;margin:0 0 6px;padding:7px;border:1px solid var(--sew-line);background:var(--sew-card)}
+.sew-queue-filter-panel--always-open .sew-queue-filter-grid{grid-template-columns:repeat(5,minmax(130px,1fr))}
+.sew-filter-control.has-selection>summary{border-color:var(--sew-blue);box-shadow:inset 3px 0 0 var(--sew-blue)}
+.sew-queue-selection-bar,
+.sew-queue-table .sew-column-headings>th,
+.sew-view-toggle a.is-active,
+.sew-core-summary>summary{background:#344054}
+.sew-open-sheet{border-color:#0057b8;background:#0057b8;color:#fff}
+.sew-open-sheet:hover,.sew-open-sheet:focus-visible{border-color:#00458f;background:#00458f;color:#fff}
+html:not([data-sew-theme="light"]) .sew-open-sheet{border-color:#67b7ff;background:#67b7ff;color:#101828}
+@media(max-width:1100px){.sew-queue-filter-panel--always-open .sew-queue-filter-grid{grid-template-columns:repeat(3,minmax(140px,1fr))}}
+@media(max-width:650px){.sew-queue-filter-panel--always-open .sew-queue-filter-grid{grid-template-columns:1fr}}
+
 .sew-core-summary{padding:0}
 .sew-core-summary>summary{
   display:flex;

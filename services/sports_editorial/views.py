@@ -42,6 +42,25 @@ def _invalid_event_id_tokens(value):
     return [part for part in re.split(r"[\s,]+", value.strip()) if part and (not part.isdigit() or int(part) <= 0)]
 
 
+def _season_code(raw_value, event_ids, event_date):
+    raw_value = str(raw_value or "").strip()
+    if raw_value:
+        return int(raw_value) if raw_value.isdigit() and 2000 <= int(raw_value) <= 2100 else None
+    requested = {str(event_id) for event_id in event_ids}
+    seasons = {
+        int(event.get("metadata", {}).get("season_code"))
+        for event in _calendar_events()
+        if str(event.get("canonical_id")) in requested
+        and str(event.get("metadata", {}).get("season_code") or "").isdigit()
+    }
+    if len(seasons) == 1:
+        return seasons.pop()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", event_date or ""):
+        year, month = (int(part) for part in event_date.split("-")[:2])
+        return year + 1 if month >= 7 else year
+    return None
+
+
 def _invalid_review_entity_links(form_data, submission):
     block_ids = form_data.getlist("content_id") or [block["id"] for block in submission.get("stats", [])]
     requested = list(dict.fromkeys(value for block_id in block_ids for value in form_data.getlist(f"entity_ids_{block_id}")))
@@ -358,10 +377,11 @@ def submit():
         action = request.form.get("action", "draft")
         status = "submitted" if action == "submit" else "draft"
         raw_event_ids = " ".join(request.form.getlist("fis_event_ids"))
+        event_ids = _event_ids_from_form(raw_event_ids)
         data = {
             "title": request.form.get("title", ""), "sport": "alpine_skiing",
             "competition": request.form.get("competition", ""), "event_name": request.form.get("event_name", ""),
-            "gender": request.form.get("gender", ""), "location": request.form.get("location", ""), "fis_event_ids": _event_ids_from_form(raw_event_ids),
+            "gender": request.form.get("gender", ""), "location": request.form.get("location", ""), "fis_event_ids": event_ids,
             "event_date": request.form.get("event_date", ""), "author_name": (current_user() or {}).get("full_name") or (current_user() or {}).get("email") or "Workspace user",
             "author_email": (current_user() or {}).get("email", ""), "content": [
                 {"content_type": content_type, "content_html": sanitise_rich_text(content_html)}
@@ -372,12 +392,15 @@ def submit():
             "researcher_user_id": request.form.get("researcher_user_id", ""), "researcher_name": request.form.get("researcher_name", ""),
             "sub_editor_user_id": request.form.get("sub_editor_user_id", ""), "sub_editor_name": request.form.get("sub_editor_name", ""),
         }
+        data["season_code"] = _season_code(request.form.get("season_code"), event_ids, data["event_date"])
         users_by_id = {item["id"]: item for item in _assignment_users()}
         data["researcher_name"] = users_by_id.get(data["researcher_user_id"], {}).get("full_name", "")
         data["sub_editor_name"] = users_by_id.get(data["sub_editor_user_id"], {}).get("full_name", "")
         errors = [] if data["title"].strip() else ["Add a title for this stat sheet."]
         if _invalid_event_id_tokens(raw_event_ids):
             errors.append("FIS calendar event IDs must contain digits only, for example 123456.")
+        if request.form.get("season_code", "").strip() and data["season_code"] is None:
+            errors.append("Season must be the four-digit year in which the season ends, for example 2027.")
         if not errors:
             submission = repository.create_submission(data, status)
             return redirect(url_for("sports_editorial_workspace.confirmation", submission_id=submission["id"]))
@@ -397,7 +420,7 @@ def queue():
     queue_endpoint = request.endpoint
     filter_fields = (
         "amp_id", "client_name", "sport", "competition", "event_name", "gender", "location",
-        "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status",
+        "season_code", "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status",
         "researcher_user_id", "sub_editor_user_id", "updated_at", "last_modified_by",
     )
     filters = {
@@ -405,7 +428,7 @@ def queue():
         for field in filter_fields
     }
     filters["status"] = [value for value in filters["status"] if value in VALID_STATUSES]
-    sortable = {"amp_id", "client_name", "sport", "competition", "event_name", "gender", "location", "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status", "researcher_name", "sub_editor_name", "updated_at", "last_modified_by"}
+    sortable = {"amp_id", "client_name", "sport", "competition", "event_name", "gender", "location", "season_code", "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status", "researcher_name", "sub_editor_name", "updated_at", "last_modified_by"}
     raw_sort = request.args.get("sort", "")
     legacy_direction = request.args.get("direction", "desc")
     sort_criteria = []
@@ -443,7 +466,7 @@ def queue():
     user_names = {user["id"]: user.get("full_name") or user.get("email") for user in users}
     filter_labels = {
         "amp_id": "AMP ID", "client_name": "Client", "sport": "Sport", "competition": "Competition",
-        "event_name": "Event", "gender": "Gender", "location": "Location", "event_date": "Race date",
+        "event_name": "Event", "gender": "Gender", "location": "Location", "season_code": "Season", "event_date": "Race date",
         "fis_event_ids": "Client event ID", "publication_deadline": "Publication deadline",
         "researcher_deadline": "Researcher deadline", "status": "Status",
         "researcher_user_id": "Researcher", "sub_editor_user_id": "Sub-editor",
@@ -464,7 +487,7 @@ def queue():
                 "remove_url": url_for(queue_endpoint, **remove_args),
             })
     visible_filter_fields = (
-        "status", "client_name", "sport", "competition", "event_name", "gender", "location",
+        "status", "client_name", "sport", "season_code", "competition", "event_name", "gender", "location",
         "researcher_user_id", "sub_editor_user_id",
     )
     sort_urls = {}
@@ -586,6 +609,8 @@ def detail(submission_id):
         valid, message = validate_status_transition(submission["status"], requested_status)
         if _invalid_event_id_tokens(raw_event_ids):
             valid, message = False, "FIS calendar event IDs must contain digits only, for example 123456."
+        elif request.form.get("season_code", "").strip() and _season_code(request.form.get("season_code"), event_ids, request.form.get("event_date")) is None:
+            valid, message = False, "Season must be the four-digit year in which the season ends, for example 2027."
         elif requested_status in ("approved", "exported") and not event_ids:
             valid, message = False, "Select at least one FIS calendar event before approval."
         elif requested_status in ("approved", "exported"):

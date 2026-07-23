@@ -213,6 +213,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(saved.status_code, 302)
         sheet = repository.get_submission(submission_id)
         self.assertEqual(sheet["status"], "submitted")
+        self.assertEqual(sheet["season_code"], 2026)
         self.assertEqual(sheet["event_date"], "2026-10-13")
         self.assertEqual([block["content_type"] for block in sheet["stats"]], ["section", "stat"])
         self.assertEqual(self.client.get(f"/workspace/sports-editorial/submissions/{submission_id}/research").status_code, 403)
@@ -480,11 +481,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.get("/workspace/sports-editorial/queue")
         self.assertNotIn(b"Create stat sheet", response.data)
 
-    def test_queue_has_expanded_filter_banner_and_active_filter_status(self):
+    def test_queue_has_permanently_visible_filters_without_redundant_status_banner(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/queue?status=submitted&competition=FIS+World+Cup&sort=event_name:asc")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'<details class="sew-queue-filter-panel" open>', response.data)
+        self.assertIn(b'<section class="sew-queue-filter-panel sew-queue-filter-panel--always-open"', response.data)
         self.assertIn(b'data-filter-field="competition"', response.data)
         self.assertIn(b'data-filter-field="status"', response.data)
         self.assertIn(b'class="sew-card sew-table-card sew-queue-table-card"', response.data)
@@ -492,11 +493,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Type to narrow", response.data)
         self.assertIn(b"Apply filters", response.data)
         self.assertIn(b"Reset filters", response.data)
-        self.assertIn(b"<summary><span>Filters:</span> <b>2 applied</b></summary>", response.data)
-        self.assertIn(b"Showing 1 of 3 stat sheets:", response.data)
-        self.assertIn(b"Status:</span> Submitted", response.data)
-        self.assertIn(b"Competition:</span> FIS World Cup", response.data)
-        self.assertIn(b"Clear all filters", response.data)
+        self.assertIn(b"<summary><span>Status</span><b>1 selected</b></summary>", response.data)
+        self.assertIn(b"<summary><span>Competition</span><b>1 selected</b></summary>", response.data)
+        self.assertIn(b'data-filter-field="season_code"', response.data)
+        self.assertNotIn(b"Showing 1 of 3 stat sheets:", response.data)
+        self.assertNotIn(b"Clear all filters", response.data)
         self.assertIn(b'name="sort" value="event_name:asc"', response.data)
         self.assertIn(b'aria-sort="ascending"', response.data)
         self.assertIn(b'aria-sort="none"', response.data)
@@ -508,8 +509,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b">560001</td>", response.data)
         self.assertIn(b">560002</td>", response.data)
         self.assertIn(b">560003</td>", response.data)
-        self.assertIn(b"Status:</span> Submitted", response.data)
-        self.assertIn(b"Status:</span> Approved", response.data)
+        self.assertIn(b"<summary><span>Status</span><b>2 selected</b></summary>", response.data)
+        self.assertIn(b'value="submitted" checked', response.data)
+        self.assertIn(b'value="approved" checked', response.data)
         self.assertIn(b"status=submitted&amp;status=approved", response.data)
 
     def test_queue_uses_open_buttons_and_plain_selectable_rows(self):
@@ -522,16 +524,17 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b"data-row-href", response.data)
         self.assertNotIn(b"class=\"sew-cell-filter\"", response.data)
         self.assertIn(b'data-submission-id="demo-submission-kronplatz"', response.data)
-        self.assertIn(b'aria-describedby="queue-interaction-help"', response.data)
+        self.assertNotIn(b'aria-describedby="queue-interaction-help"', response.data)
         self.assertIn(b"Client Event ID", response.data)
         self.assertIn(b"Allocate researcher", response.data)
         self.assertIn(b"Allocate sub-editor", response.data)
         self.assertIn(b"Select all visible", response.data)
 
-    def test_queue_explains_when_no_filters_are_active(self):
+    def test_researcher_queue_keeps_filters_visible_without_selection_controls(self):
         response = self.client.get("/workspace/sports-editorial/queue")
-        self.assertIn(b"Showing all 3 stat sheets", response.data)
-        self.assertIn(b"Filters apply only when you select Apply filters", response.data)
+        self.assertIn(b'sew-queue-filter-panel--always-open', response.data)
+        self.assertIn(b'data-filter-field="season_code"', response.data)
+        self.assertNotIn(b"Showing all 3 stat sheets", response.data)
         self.assertNotIn(b"Allocate researcher", response.data)
         self.assertIn(b'aria-sort="descending"', response.data)
 
