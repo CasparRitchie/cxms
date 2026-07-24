@@ -17,6 +17,8 @@ from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import repository
 from services.sports_editorial.stat_insights import build_editorial_discoveries, build_perspective_insights, build_stat_insights, demo_result_rows, group_editorial_discoveries
 from services.sports_editorial.validation import validate_status_transition, validate_submission
+from services.sports_editorial.creation import parse_display_date
+from services.sports_editorial import views as sports_editorial_views
 
 
 class SportsEditorialPilotTests(unittest.TestCase):
@@ -32,6 +34,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def set_role(self, role):
         with self.client.session_transaction() as session:
             session["sports_editorial_role"] = role
+
+    def valid_creation(self, **overrides):
+        data = {
+            "title": "Creation test", "sport": "alpine_skiing", "competition": "FIS World Cup",
+            "event_name": "Giant Slalom", "season_code": "2026", "calendar_event_id": "55596",
+            "fis_event_ids": "55596", "content_type": "", "content_html": "", "action": "draft",
+        }
+        data.update(overrides)
+        return data
 
     def test_submission_validation(self):
         errors = validate_submission({"title": "", "content": [{"content_type": "stat", "content_html": ""}]}, submitting=True)
@@ -183,7 +194,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_researcher_cannot_create_or_open_unassigned_sheet(self):
         self.set_sub_editor()
         response = self.client.post("/workspace/sports-editorial/submit", data={
-            "title": "Unassigned researcher test", "event_name": "Slalom", "gender": "W",
+            **self.valid_creation(title="Unassigned researcher test", event_name="Slalom"),
+            "gender": "W",
             "researcher_user_id": "demo-researcher-2", "content_type": "", "content_html": "",
             "action": "draft",
         })
@@ -196,8 +208,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_researcher_edits_assigned_in_progress_sheet_then_is_locked(self):
         self.set_sub_editor()
         response = self.client.post("/workspace/sports-editorial/submit", data={
-            "title": "Assigned sheet", "event_name": "Downhill", "gender": "M", "event_date": "2026-10-12",
-            "fis_event_ids": "55596", "researcher_user_id": "demo-user", "sub_editor_user_id": "demo-sub-editor",
+            **self.valid_creation(title="Assigned sheet", event_name="Downhill"),
+            "gender": "M", "event_date": "12-Oct-2026",
+            "researcher_user_id": "demo-user", "sub_editor_user_id": "demo-sub-editor",
             "content_type": "", "content_html": "", "action": "draft",
         })
         submission_id = response.headers["Location"].rsplit("/", 1)[-1]
@@ -225,12 +238,97 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.set_role("supervisor")
         self.assertEqual(self.client.get("/workspace/sports-editorial/submit").status_code, 200)
 
+    def test_fresh_creation_form_is_blank_and_has_no_suggestions(self):
+        self.set_sub_editor()
+        page = self.client.get("/workspace/sports-editorial/submit")
+        self.assertEqual(page.status_code, 200)
+        self.assertNotIn(b"Controlled creation", page.data)
+        self.assertNotIn(b"placeholder=", page.data)
+        self.assertNotIn(b'name="client_name" value="FIS" checked', page.data)
+        self.assertIn(b'name="title" required value=""', page.data)
+        self.assertIn(b'name="season_code" required', page.data)
+        self.assertIn(b'name="fis_event_ids" value="" readonly', page.data)
+
+    def test_creation_required_fields_reject_blank_and_whitespace(self):
+        self.set_sub_editor()
+        response = self.client.post("/workspace/sports-editorial/submit", data={
+            "title": " ", "sport": " ", "competition": " ", "season_code": " ",
+        }, follow_redirects=True)
+        for message in (b"Title is required", b"Sport is required", b"Competition is required", b"Season must be a four-digit year"):
+            self.assertIn(message, response.data)
+        self.assertEqual(len(repository.list_submissions()), 3)
+
+    def test_creation_rejects_invalid_choice_combinations(self):
+        self.set_sub_editor()
+        for changes in (
+            {"sport": "ski_jumping"},
+            {"competition": "Invented Cup"},
+            {"event_name": "Ski Cross"},
+        ):
+            with self.subTest(changes=changes):
+                response = self.client.post("/workspace/sports-editorial/submit", data=self.valid_creation(**changes), follow_redirects=True)
+                self.assertIn(b"Select", response.data)
+                self.assertEqual(len(repository.list_submissions()), 3)
+
+    def test_valid_alpine_world_cup_creation_redirects_and_allocates_amp_id(self):
+        self.set_sub_editor()
+        response = self.client.post("/workspace/sports-editorial/submit", data=self.valid_creation())
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/confirmation/", response.headers["Location"])
+        created = repository.list_submissions()[0]
+        self.assertEqual(created["competition"], "FIS World Cup")
+        self.assertEqual(created["event_name"], "Giant Slalom")
+        self.assertEqual(created["amp_id"], "560004")
+
+    def test_creation_dates_are_strict_and_persist_as_iso(self):
+        self.assertEqual(parse_display_date("01-aUg-2026", "Race Date"), ("2026-08-01", None))
+        for invalid in ("01/08/2026", "31-Feb-2026", "2026-08-01"):
+            self.assertIsNotNone(parse_display_date(invalid, "Race Date")[1])
+        self.set_sub_editor()
+        bad = self.client.post("/workspace/sports-editorial/submit", data=self.valid_creation(event_date="01/08/2026"), follow_redirects=True)
+        self.assertIn(b"Race Date", bad.data)
+        self.assertIn(b'value="01/08/2026"', bad.data)
+        good = self.client.post("/workspace/sports-editorial/submit", data=self.valid_creation(
+            event_date="03-Aug-2026", researcher_deadline="31-Jul-2026", publication_deadline="01-Aug-2026",
+        ))
+        self.assertEqual(good.status_code, 302)
+        created = repository.list_submissions()[0]
+        self.assertEqual((created["event_date"], created["researcher_deadline"], created["publication_deadline"]),
+                         ("2026-08-03", "2026-07-31", "2026-08-01"))
+
+    def test_creation_resolves_canonical_location_and_rejects_forgery(self):
+        self.set_sub_editor()
+        response = self.client.post("/workspace/sports-editorial/submit", data=self.valid_creation(
+            location="Forged", fis_event_ids="99999",
+        ))
+        self.assertEqual(response.status_code, 302)
+        created = repository.list_submissions()[0]
+        self.assertEqual(created["location"], "Kronplatz")
+        self.assertEqual(created["fis_event_ids"], [55596])
+        unknown = self.client.post("/workspace/sports-editorial/submit", data=self.valid_creation(
+            calendar_event_id="99999", fis_event_ids="99999",
+        ), follow_redirects=True)
+        self.assertIn(b"known Client Event ID", unknown.data)
+
+    def test_creation_rejects_amp_id_override(self):
+        self.set_sub_editor()
+        response = self.client.post("/workspace/sports-editorial/submit", data=self.valid_creation(amp_id="999999"), follow_redirects=True)
+        self.assertIn(b"cannot be supplied", response.data)
+        self.assertEqual(len(repository.list_submissions()), 3)
+
+    def test_demo_test_users_do_not_leak_into_authenticated_mode(self):
+        demo_names = {user["full_name"] for user in sports_editorial_views._assignment_users()}
+        self.assertTrue({"Test User 1", "Test User 2"} <= demo_names)
+        with patch.object(sports_editorial_views, "auth_configuration", return_value={"mode": "workspace"}), \
+             patch.object(sports_editorial_views, "current_user", return_value={"workspace_id": "workspace"}), \
+             patch.object(sports_editorial_views, "list_workspace_users", return_value=[]):
+            self.assertEqual(sports_editorial_views._assignment_users(), [])
+
     def test_create_review_approve_and_download_workflow(self):
         self.set_sub_editor()
         response = self.client.post("/workspace/sports-editorial/submit", data={
-            "title": "Tomorrow demo pack", "sport": "alpine_skiing", "competition": "FIS Demo Cup",
-            "event_name": "Demo downhill", "gender": "W", "location": "Kronplatz", "event_date": "2026-12-12",
-            "fis_event_ids": "55596",
+            **self.valid_creation(title="Tomorrow demo pack", event_name="Downhill"),
+            "gender": "W", "event_date": "12-Dec-2026",
             "content_type": ["section", "stat", "stat"], "content_html": ["Previous race", "<strong>First</strong> demonstration fact.", "Second demonstration fact."],
             "action": "submit",
         })

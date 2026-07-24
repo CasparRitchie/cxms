@@ -65,7 +65,7 @@ class DemoSportsEditorialRepository:
             "season_code": data.get("season_code"), "event_date": data.get("event_date", "").strip(), "fis_event_ids": data.get("fis_event_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(),
             "author_email": data.get("author_email", "").strip(), "status": status, "editor_notes": "", "fis_submission_notes": "",
-            "amp_id": data.get("amp_id", "").strip(), "client_name": data.get("client_name", "FIS").strip(),
+            "amp_id": "", "client_name": data.get("client_name", "").strip(),
             "publication_deadline": data.get("publication_deadline", ""), "researcher_deadline": data.get("researcher_deadline", ""),
             "researcher_user_id": data.get("researcher_user_id") or None, "researcher_name": data.get("researcher_name", ""),
             "sub_editor_user_id": data.get("sub_editor_user_id") or None, "sub_editor_name": data.get("sub_editor_name", ""),
@@ -74,6 +74,13 @@ class DemoSportsEditorialRepository:
             "stats": [{"id": str(uuid4()), "sort_order": index, "content_type": block["content_type"], "stat_text": sanitise_rich_text(block["content_html"]), "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "entity_ids": [], "entity_mentions": {}, "tags": []} for index, block in enumerate(data["content"]) if block["content_type"] in VALID_CONTENT_TYPES and block["content_html"].strip()],
         }
         with self._lock:
+            # Demo allocation mirrors the production sequence without pretending
+            # to provide cross-process production guarantees.
+            allocated = [int(row["amp_id"]) for row in self._submissions if str(row.get("amp_id") or "").isdigit()]
+            next_amp_id = max([560000, *allocated]) + 1
+            if next_amp_id > 999999:
+                raise RuntimeError("The six-digit AMP ID range is exhausted.")
+            item["amp_id"] = str(next_amp_id)
             self._submissions.append(item)
         return deepcopy(item)
 
@@ -352,7 +359,8 @@ class SupabaseSportsEditorialRepository:
             "season_code": data.get("season_code"), "event_date": data.get("event_date") or None, "fis_event_ids": data.get("fis_event_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(), "author_email": data.get("author_email", "").strip(),
             "status": status, "editor_notes": "", "fis_submission_notes": "", "submitted_at": now if status == "submitted" else None,
-            "amp_id": data.get("amp_id") or None, "client_name": data.get("client_name") or "FIS",
+            # AMP ID is assigned atomically by the database default.
+            "client_name": data.get("client_name", ""),
             "publication_deadline": data.get("publication_deadline") or None, "researcher_deadline": data.get("researcher_deadline") or None,
             "researcher_user_id": data.get("researcher_user_id") or None, "sub_editor_user_id": data.get("sub_editor_user_id") or None,
             "working_notes": "", "unused_stats": "", "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email"),

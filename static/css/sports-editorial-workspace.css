@@ -597,3 +597,15 @@ html[data-sew-theme="light"] .sew-content-list>.sew-stat-card--section>header .s
 html[data-sew-theme="light"] .sew-content-list>.sew-stat-card.is-accepted .sew-validation{color:#475467}
 html[data-sew-theme="light"] .sew-content-list .sew-rich-editor[contenteditable="false"]{color:#344054}
 html[data-sew-theme="light"] .sew-content-list .sew-original summary{color:#475467}
+
+/* Creation is grouped into four semantic columns; it collapses to two and one. */
+.sew-creation-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.sew-creation-column{display:grid;align-content:start}
+.sew-creation-column>.sew-field{min-width:0}
+.sew-client-field{margin:0;border-right:1px solid var(--sew-line);border-bottom:1px solid var(--sew-line);border-left:0;border-top:0}
+.sew-client-field legend{padding:0}
+.sew-client-field label{display:flex;align-items:center;gap:6px;font-weight:400}
+.sew-client-field input{width:auto;min-height:auto}
+.sew-creation-form input[readonly]{cursor:not-allowed;background:rgba(127,137,153,.14)}
+@media(max-width:850px){.sew-creation-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.sew-creation-grid{grid-template-columns:1fr}}
