@@ -6,7 +6,7 @@ from io import BytesIO
 from flask import Blueprint, abort, flash, jsonify, make_response, redirect, render_template, request, send_file, session, url_for
 
 from .json_export import build_pilot_export
-from .formatting import sanitise_rich_text
+from .formatting import render_entity_links, render_entity_tags, sanitise_rich_text
 from .fis_client import FisApiError, fis_configuration, get_fis_client
 from .fis_export import FisPayloadValidationError, build_fis_payload
 from .repository import repository
@@ -23,6 +23,7 @@ from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
     parse_display_date, resolve_calendar_event, validate_choice_combination,
 )
+from .edit_locks import lock_timeout_seconds, parse_timestamp
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
@@ -254,6 +255,38 @@ def _flash_fis_error(exc):
         flash(f"FIS currently has version {exc.details['currentVersion']}. Reload, review the latest sheet and try again.", "error")
     if exc.details.get("retryAfter"):
         flash(f"FIS has rate-limited requests. Try again after {exc.details['retryAfter']} seconds.", "error")
+
+
+def _lock_display(lock):
+    if not lock:
+        return None
+    result = dict(lock)
+    for field in ("acquired_at", "last_active_at", "expires_at"):
+        value = parse_timestamp(result.get(field))
+        result[f"{field}_display"] = value.strftime("%d %b %Y, %H:%M UTC") if value else "—"
+    return result
+
+
+def _remember_lock(submission_id, lock):
+    if not lock or lock.get("owner_id") != (current_user() or {}).get("id"):
+        return
+    held = dict(session.get("sports_editorial_edit_locks") or {})
+    held[submission_id] = {"token": lock["token"], "version": lock["version"]}
+    session["sports_editorial_edit_locks"] = held
+
+
+def _require_owned_lock(submission_id):
+    user = current_user() or {}
+    remembered = (session.get("sports_editorial_edit_locks") or {}).get(submission_id, {})
+    token = request.form.get("lock_token") or remembered.get("token", "")
+    version = request.form.get("lock_version") or remembered.get("version", "")
+    if not token and not repository.get_edit_lock(submission_id):
+        _submission, lock = repository.acquire_edit_lock(submission_id, user)
+        _remember_lock(submission_id, lock)
+        token, version = lock.get("token", ""), lock.get("version", "")
+    if not repository.verify_edit_lock(submission_id, user.get("id"), token, version):
+        abort(409, description="Your editing lock has expired or been replaced. Your changes were not saved.")
+    return user, token
 
 
 @blueprint.route("")
@@ -643,13 +676,19 @@ def search_entities():
     entity_type = request.args.get("type", "").strip()
     if entity_type and entity_type not in VALID_ENTITY_TYPES:
         return jsonify({"ok": False, "error": "Unknown entity type."}), 400
+    try:
+        offset = max(0, int(request.args.get("offset", "0")))
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid result offset."}), 400
+    limit = 10
     if len(query) < 2:
-        return jsonify({"ok": True, "results": []})
-    results = repository.search_entities(query, entity_type=entity_type)
+        return jsonify({"ok": True, "results": [], "has_more": False, "next_offset": 0})
+    matches = repository.search_entities(query, entity_type=entity_type, limit=limit + 1, offset=offset)
+    results, has_more = matches[:limit], len(matches) > limit
     return jsonify({"ok": True, "provider": "local_pilot", "results": [
         {"id": item["id"], "type": item["entity_type"], "name": item["name"], "canonical_id": item.get("canonical_id"), "canonical_url": item.get("canonical_url"), "country_code": item.get("country_code")}
         for item in results
-    ]})
+    ], "has_more": has_more, "next_offset": offset + len(results)})
 
 
 @blueprint.route("/submissions/<submission_id>", methods=["GET", "POST"])
@@ -657,6 +696,7 @@ def detail(submission_id):
     submission = _submission_or_404(submission_id)
     if request.method == "POST":
         _require_sub_editor()
+        user, lock_token = _require_owned_lock(submission_id)
         requested_status = request.form.get("status", submission["status"])
         raw_event_ids = " ".join(request.form.getlist("fis_event_ids"))
         event_ids = _event_ids_from_form(raw_event_ids)
@@ -682,6 +722,8 @@ def detail(submission_id):
             flash(message, "error")
         else:
             repository.update_review(submission_id, request.form, requested_status)
+            if requested_status in ("changes_requested", "approved", "exported"):
+                repository.release_edit_lock(submission_id, user["id"], lock_token)
             workflow_messages = {
                 "changes_requested": "Changes requested. The stat sheet is editable by the assigned researcher again.",
                 "approved": "Stat sheet approved. The FIS JSON is ready to review.",
@@ -692,9 +734,14 @@ def detail(submission_id):
                 return redirect(url_for("sports_editorial_workspace.queue"))
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
-    refreshed = repository.get_submission(submission_id)
     role = (current_user() or {}).get("role", "researcher")
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=_entities_by_id(refreshed), statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=role in ("sub_editor", "supervisor"), can_edit_research=role in ("researcher", "sub_editor", "supervisor") and refreshed["status"] in ("draft", "changes_requested"))
+    editable_role = role in ("sub_editor", "supervisor")
+    refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and submission["status"] != "exported" else (repository.get_submission(submission_id), repository.get_edit_lock(submission_id))
+    owns_lock = bool(edit_lock and edit_lock["owner_id"] == (current_user() or {}).get("id"))
+    if owns_lock:
+        _remember_lock(submission_id, edit_lock)
+    entity_map = _entities_by_id(refreshed)
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=editable_role and owns_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor") and refreshed["status"] in ("draft", "changes_requested"), edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds())
 
 
 @blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])
@@ -705,17 +752,48 @@ def research(submission_id):
     submission = _submission_or_404(submission_id)
     if submission["status"] not in ("draft", "changes_requested"):
         abort(403, description="This stat sheet is locked while it is in sub edit or publication.")
+    submission, edit_lock = repository.acquire_edit_lock(submission_id, user)
+    owns_lock = bool(edit_lock and edit_lock["owner_id"] == user.get("id"))
+    if owns_lock:
+        _remember_lock(submission_id, edit_lock)
     if request.method == "POST":
+        user, lock_token = _require_owned_lock(submission_id)
         action = request.form.get("action", "draft")
         content = [{"content_type": kind, "content_html": sanitise_rich_text(value)} for kind, value in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))]
         errors = validate_submission({"title": submission["title"], "sport": submission["sport"], "fis_event_ids": submission.get("fis_event_ids", []), "content": content}, submitting=action == "submit")
         if not errors:
             repository.update_research(submission_id, request.form, submit=action == "submit")
+            if action == "submit":
+                repository.release_edit_lock(submission_id, user["id"], lock_token)
             flash("Stat sheet submitted for sub edit." if action == "submit" else "Research saved.", "success")
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
         for error in errors:
             flash(error, "error")
-    return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=_entities_by_id(submission))
+    entity_map = _entities_by_id(submission)
+    return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds())
+
+
+@blueprint.post("/submissions/<submission_id>/edit-lock/heartbeat")
+def edit_lock_heartbeat(submission_id):
+    user = current_user() or {}
+    payload = request.get_json(silent=True) or {}
+    lock = repository.heartbeat_edit_lock(submission_id, user.get("id"), payload.get("lock_token"))
+    if not lock:
+        return jsonify({"ok": False, "error": "The editing lock has expired or been replaced."}), 409
+    return jsonify({"ok": True, "lock": _lock_display(lock)})
+
+
+@blueprint.post("/submissions/<submission_id>/force-unlock")
+def force_unlock(submission_id):
+    user = current_user() or {}
+    if user.get("role") != "supervisor":
+        abort(403, description="Supervisor access is required.")
+    _submission_or_404(submission_id)
+    repository.release_edit_lock(submission_id, force=True)
+    _submission, lock = repository.acquire_edit_lock(submission_id, user)
+    _remember_lock(submission_id, lock)
+    flash("Previous editing lock invalidated. You now hold the editing lock.", "success")
+    return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
 
 
 @blueprint.get("/submissions/<submission_id>/fis-preview")
@@ -733,7 +811,8 @@ def fis_preview(submission_id):
 @blueprint.get("/submissions/<submission_id>/publication-preview")
 def publication_preview(submission_id):
     submission = _submission_or_404(submission_id)
-    return render_template("sports-editorial-workspace/publication-preview.html", submission=submission, entities_by_id=_entities_by_id(submission))
+    entity_map = _entities_by_id(submission)
+    return render_template("sports-editorial-workspace/publication-preview.html", submission=submission, entities_by_id=entity_map, render_entity_links=render_entity_links)
 
 
 @blueprint.post("/submissions/<submission_id>/fis-publish")

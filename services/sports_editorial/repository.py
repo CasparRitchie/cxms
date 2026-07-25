@@ -11,6 +11,7 @@ from .formatting import sanitise_rich_text
 from .identifiers import build_fis_external_id
 from .supabase_rest import SupabaseRestClient
 from .validation import VALID_CONTENT_TYPES
+from .edit_locks import lock_is_active, lock_timeout_seconds, public_lock
 
 
 def _now():
@@ -83,6 +84,54 @@ class DemoSportsEditorialRepository:
             item["amp_id"] = str(next_amp_id)
             self._submissions.append(item)
         return deepcopy(item)
+
+    def acquire_edit_lock(self, submission_id, user):
+        with self._lock:
+            item = next((row for row in self._submissions if row["id"] == submission_id), None)
+            if not item:
+                return None, None
+            active = public_lock(item)
+            if active and active["owner_id"] != user["id"]:
+                return deepcopy(item), active
+            same_owner = active and active["owner_id"] == user["id"]
+            now = _now()
+            if not same_owner:
+                item["lock_token"] = str(uuid4())
+                item["lock_acquired_at"] = now
+                item["lock_version"] = int(item.get("lock_version") or 0) + 1
+            item["lock_user_id"] = user["id"]
+            item["lock_user_name"] = user.get("full_name") or user.get("email") or "Workspace user"
+            item["lock_last_active_at"] = now
+            return deepcopy(item), public_lock(item)
+
+    def heartbeat_edit_lock(self, submission_id, user_id, token):
+        with self._lock:
+            item = next((row for row in self._submissions if row["id"] == submission_id), None)
+            if not item or not lock_is_active(item) or item.get("lock_user_id") != user_id or item.get("lock_token") != token:
+                return None
+            item["lock_last_active_at"] = _now()
+            return public_lock(item)
+
+    def verify_edit_lock(self, submission_id, user_id, token, version):
+        item = next((row for row in self._submissions if row["id"] == submission_id), None)
+        return bool(item and lock_is_active(item) and item.get("lock_user_id") == user_id
+                    and item.get("lock_token") == token and int(item.get("lock_version") or 0) == int(version or -1))
+
+    def release_edit_lock(self, submission_id, user_id=None, token=None, force=False):
+        with self._lock:
+            item = next((row for row in self._submissions if row["id"] == submission_id), None)
+            if not item:
+                return False
+            if not force and (item.get("lock_user_id") != user_id or item.get("lock_token") != token):
+                return False
+            for field in ("lock_user_id", "lock_user_name", "lock_token", "lock_acquired_at", "lock_last_active_at"):
+                item[field] = None
+            item["lock_version"] = int(item.get("lock_version") or 0) + 1
+            return True
+
+    def get_edit_lock(self, submission_id):
+        item = next((row for row in self._submissions if row["id"] == submission_id), None)
+        return public_lock(item)
 
     def update_research(self, submission_id, form_data, submit=False):
         from .auth import current_user
@@ -203,14 +252,19 @@ class DemoSportsEditorialRepository:
         wanted = set(entity_ids)
         return deepcopy([item for item in self._entities if item["id"] in wanted])
 
-    def search_entities(self, query, entity_type="", limit=10):
+    def search_entities(self, query, entity_type="", limit=10, offset=0):
         needle = query.casefold().strip()
         matches = [
             entity for entity in self._entities
             if (not entity_type or entity["entity_type"] == entity_type)
             and (needle in entity["name"].casefold() or needle in entity.get("canonical_id", "").casefold())
         ]
-        return deepcopy(sorted(matches, key=lambda item: (not item["name"].casefold().startswith(needle), item["name"]))[:limit])
+        ranked = sorted(matches, key=lambda item: (
+            item["name"].casefold() != needle,
+            not item["name"].casefold().startswith(needle),
+            item["name"].casefold(),
+        ))
+        return deepcopy(ranked[offset:offset + limit])
 
     def add_entity(self, data):
         entity = {"id": str(uuid4()), "entity_type": data["entity_type"], "name": data["name"].strip(), "canonical_id": data.get("canonical_id", "").strip(), "canonical_url": data.get("canonical_url", "").strip(), "country_code": data.get("country_code", "").strip().upper()}
@@ -371,6 +425,44 @@ class SupabaseSportsEditorialRepository:
             self.client.request("sports_editorial_stats", "POST", payload=blocks, prefer="return=minimal")
         return self.get_submission(created["id"])
 
+    def acquire_edit_lock(self, submission_id, user):
+        rows = self.client.request("rpc/sports_editorial_acquire_edit_lock", "POST", payload={
+            "p_workspace_id": self._workspace(), "p_submission_id": submission_id,
+            "p_user_id": user["id"], "p_user_name": user.get("full_name") or user.get("email") or "Workspace user",
+            "p_timeout_seconds": lock_timeout_seconds(),
+        })
+        item = self._hydrate(rows)[0] if rows else self.get_submission(submission_id)
+        return item, public_lock(item)
+
+    def heartbeat_edit_lock(self, submission_id, user_id, token):
+        rows = self.client.request("rpc/sports_editorial_heartbeat_edit_lock", "POST", payload={
+            "p_workspace_id": self._workspace(), "p_submission_id": submission_id,
+            "p_user_id": user_id, "p_lock_token": token, "p_timeout_seconds": lock_timeout_seconds(),
+        })
+        return public_lock(rows[0]) if rows else None
+
+    def verify_edit_lock(self, submission_id, user_id, token, version):
+        item = self.get_submission(submission_id)
+        return bool(item and lock_is_active(item) and item.get("lock_user_id") == user_id
+                    and str(item.get("lock_token")) == str(token)
+                    and int(item.get("lock_version") or 0) == int(version or -1))
+
+    def release_edit_lock(self, submission_id, user_id=None, token=None, force=False):
+        if force:
+            rows = self.client.request("rpc/sports_editorial_force_unlock", "POST", payload={
+                "p_workspace_id": self._workspace(), "p_submission_id": submission_id,
+            })
+            return bool(rows)
+        query = {"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}",
+                 "lock_user_id": f"eq.{user_id}", "lock_token": f"eq.{token}"}
+        payload = {"lock_user_id": None, "lock_user_name": None, "lock_token": None,
+                   "lock_acquired_at": None, "lock_last_active_at": None}
+        rows = self.client.request("sports_editorial_submissions", "PATCH", query=query, payload=payload, prefer="return=representation")
+        return bool(rows)
+
+    def get_edit_lock(self, submission_id):
+        return public_lock(self.get_submission(submission_id))
+
     def update_research(self, submission_id, form_data, submit=False):
         from .auth import current_user
         user = current_user() or {}
@@ -514,13 +606,13 @@ class SupabaseSportsEditorialRepository:
             return []
         return self.client.request("sports_editorial_entities", query={"select": "*", "workspace_id": f"eq.{self._workspace()}", "id": f"in.({','.join(ids)})"})
 
-    def search_entities(self, query, entity_type="", limit=10):
-        params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "name": f"ilike.*{query}*", "limit": str(limit), "order": "name.asc"}
+    def search_entities(self, query, entity_type="", limit=10, offset=0):
+        params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "name": f"ilike.*{query}*", "limit": str(limit), "offset": str(offset), "order": "name.asc"}
         if entity_type:
             params["entity_type"] = f"eq.{entity_type}"
         matches = self.client.request("sports_editorial_entities", query=params)
         if len(matches) < limit:
-            code_params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "canonical_id": f"ilike.*{query}*", "limit": str(limit - len(matches)), "order": "name.asc"}
+            code_params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "canonical_id": f"ilike.*{query}*", "limit": str(limit - len(matches)), "offset": str(max(0, offset - len(matches))), "order": "name.asc"}
             if entity_type:
                 code_params["entity_type"] = f"eq.{entity_type}"
             seen = {item["id"] for item in matches}

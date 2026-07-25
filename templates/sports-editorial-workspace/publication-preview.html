@@ -5,7 +5,7 @@
 <article class="sew-publish-preview">
   <h1>{{ submission.title }}</h1>
   {% for block in submission.stats|sort(attribute='sort_order') %}{% set wording = block.edited_text or block.stat_text %}
-    {% if block.content_type in ['section','heading'] %}<h2>{{ wording|safe }}</h2>{% else %}<div class="sew-preview-stat">{{ wording|safe }}</div>{% endif %}
+    {% if block.content_type in ['section','heading'] %}<h2>{{ wording|safe }}</h2>{% else %}<div class="sew-preview-stat">{{ render_entity_links(wording, block, entities_by_id)|safe }}</div>{% endif %}
   {% endfor %}
 </article>
 {% endblock %}

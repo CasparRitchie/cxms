@@ -57,17 +57,17 @@
   </form>
 </section>
 
-{% if workspace_role in ['sub_editor','supervisor'] %}
 <section class="sew-queue-selection-bar" aria-label="Stat sheet selection and allocation">
   <div class="sew-actions">
     <button class="sew-button" type="button" data-select-all>Select all visible</button>
     <button class="sew-button" type="button" data-clear-selection disabled>Clear selection</button>
+    {% if workspace_role in ['sub_editor','supervisor'] %}
     <button class="sew-button sew-button--primary" type="button" data-open-allocation="researcher_user_id" disabled>Allocate researcher</button>
     <button class="sew-button sew-button--primary" type="button" data-open-allocation="sub_editor_user_id" disabled>Allocate sub-editor</button>
+    {% endif %}
     <strong><span data-selected-count>0</span> of {{ result_count }} sheets </strong>
   </div>
 </section>
-{% endif %}
 
 {% if sort_criteria|length > 1 %}<p class="sew-sort-summary">Sorted by {% for field, direction in sort_criteria %}{{ field|replace('_',' ')|title }} {{ 'ascending' if direction == 'asc' else 'descending' }}{% if not loop.last %}, then {% endif %}{% endfor %}. <a href="{{ clear_sort_url }}">Clear sorting</a></p>{% endif %}
 
@@ -93,8 +93,8 @@
       {{ column_heading('Last Modified','updated_at') }}
       {{ column_heading('Last Modified By','last_modified_by') }}
     </tr></thead>
-    <tbody>{% for item in submissions %}<tr class="sew-queue-row" data-submission-id="{{ item.id }}" {% if workspace_role in ['sub_editor','supervisor'] %}tabindex="0" aria-selected="false"{% endif %}>
-      <td><a class="sew-button sew-button--small sew-open-sheet" href="{{ item.queue_url }}">Open</a></td>
+    <tbody>{% for item in submissions %}<tr class="sew-queue-row" data-submission-id="{{ item.id }}" tabindex="0" aria-selected="false">
+      <td><label class="sew-row-select"><input type="checkbox" data-row-select aria-label="Select {{ item.title }}"></label> <a class="sew-button sew-button--primary sew-button--small sew-open-sheet" href="{{ item.queue_url }}">Open</a></td>
       <td>{{ item.amp_id|default('—', true) }}</td><td>{{ item.client_name|default('FIS', true) }}</td><td>ALP</td><td>{{ item.competition|default('—', true) }}</td><td>{{ item.event_name|default('—', true) }}</td><td>{{ item.gender|default('—', true) }}</td><td>{{ item.location|default('—', true) }}</td><td>{{ item.season_code|default('—', true) }}</td><td>{{ item.event_date|default('—', true) }}</td><td>{{ item.fis_event_ids|join(', ') or '—' }}</td><td>{{ item.publication_deadline|default('—', true) }}</td><td>{{ item.researcher_deadline|default('—', true) }}</td><td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td><td>{{ item.researcher_name|default(item.author_name, true) }}</td><td>{{ item.sub_editor_name|default('Unassigned', true) }}</td><td>{{ item.updated_at[:10] }}</td><td>{{ item.last_modified_by|default(item.author_name, true) }}</td>
     </tr>{% else %}<tr><td colspan="18" class="sew-empty">No stat sheets match these filters.</td></tr>{% endfor %}</tbody>
   </table>

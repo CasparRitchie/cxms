@@ -1,0 +1,12 @@
+{% if edit_lock and not owns_lock %}
+<section class="sew-lock-warning" role="alert">
+  <strong>This sheet is locked by {{ edit_lock.owner_name }}.</strong>
+  Lock acquired: {{ edit_lock.acquired_at_display }}. Last active: {{ edit_lock.last_active_at_display }}.
+  You are viewing the read-only version.
+  {% if workspace_role == 'supervisor' %}
+  <form method="post" action="{{ url_for('sports_editorial_workspace.force_unlock', submission_id=submission.id) }}" data-confirm="Force unlock this sheet and take over editing? Unsaved changes in the other user’s browser will not be saved.">
+    <button class="sew-button sew-button--danger" type="submit">Force unlock and take over</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}

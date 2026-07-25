@@ -518,9 +518,8 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
 .sew-queue-table .sew-column-headings>th,
 .sew-view-toggle a.is-active,
 .sew-core-summary>summary{background:#344054}
-.sew-open-sheet{border-color:#0057b8;background:#0057b8;color:#fff}
-.sew-open-sheet:hover,.sew-open-sheet:focus-visible{border-color:#00458f;background:#00458f;color:#fff}
-html:not([data-sew-theme="light"]) .sew-open-sheet{border-color:#67b7ff;background:#67b7ff;color:#101828}
+.sew-open-sheet:active{transform:translateY(1px)}
+.sew-row-select{display:inline-flex;vertical-align:middle}.sew-row-select input{width:auto;min-height:auto}
 @media(max-width:1100px){.sew-queue-filter-panel--always-open .sew-queue-filter-grid{grid-template-columns:repeat(3,minmax(140px,1fr))}}
 @media(max-width:650px){.sew-queue-filter-panel--always-open .sew-queue-filter-grid{grid-template-columns:1fr}}
 
@@ -597,6 +596,36 @@ html[data-sew-theme="light"] .sew-content-list>.sew-stat-card--section>header .s
 html[data-sew-theme="light"] .sew-content-list>.sew-stat-card.is-accepted .sew-validation{color:#475467}
 html[data-sew-theme="light"] .sew-content-list .sew-rich-editor[contenteditable="false"]{color:#344054}
 html[data-sew-theme="light"] .sew-content-list .sew-original summary{color:#475467}
+
+/* Dense editing surfaces and checkout state. */
+.sew-core-summary .sew-core-grid>div,.sew-core-data .sew-core-grid>div{min-width:0;min-height:30px;padding:3px 5px;overflow-wrap:anywhere}
+.sew-core-data .sew-core-grid>div,.sew-core-data .sew-core-grid>.sew-field{display:grid;grid-template-columns:max-content minmax(0,1fr);align-items:center;gap:4px}
+.sew-core-data .sew-core-grid>div>span,.sew-core-data .sew-core-grid>.sew-field>span{display:inline;margin:0;white-space:nowrap}
+.sew-core-data .sew-core-grid>div>strong{display:inline;min-width:0;margin:0;overflow:hidden;text-overflow:ellipsis}
+.sew-lock-fieldset{display:contents}
+.sew-lock-warning{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 7px;padding:8px;border:2px solid var(--sew-error);background:rgba(248,113,113,.16);color:var(--sew-ink)}
+.sew-lock-warning form{margin-left:auto}.sew-lock-expiry-warning{padding:6px 8px;border:1px solid var(--sew-review);background:var(--sew-review-bg);color:var(--sew-ink)}
+.sew-stat-input>div>label,.sew-stat-input>label{display:grid;grid-template-columns:84px minmax(0,1fr);align-items:start;gap:5px}
+.sew-stat-input [data-block-label]{padding-top:5px;font-weight:800}
+.sew-stat-input>div>label .sew-rich-editor,.sew-stat-input>label .sew-rich-editor{grid-column:2}
+.sew-content-editor-row{display:grid;grid-template-columns:88px minmax(0,1fr);align-items:start;gap:6px}
+.sew-content-block-label{display:flex;align-items:center;gap:4px;min-width:0;padding-top:5px;color:#e5ebf4;font-weight:800}
+.sew-content-block-label [data-review-label]{overflow-wrap:anywhere}
+.sew-content-editor-body{min-width:0}
+.sew-stat-card>header{justify-content:flex-end}
+html[data-sew-theme="light"] .sew-content-block-label{color:#344054}
+html[data-sew-theme="light"] .sew-stat-card--section .sew-content-block-label{color:#714b00}
+.sew-entity-text-link,.sew-entity-text-tag{border-bottom:1px solid currentColor;color:var(--sew-blue);font-weight:700;text-decoration:none}
+.sew-entity-text-link:hover,.sew-entity-text-link:focus-visible,.sew-entity-text-tag:focus-visible{outline:2px solid var(--sew-blue);outline-offset:2px;text-decoration:underline}
+html[data-sew-theme="light"] .sew-entity-text-link,html[data-sew-theme="light"] .sew-entity-text-tag{color:#244fb3}
+@media(max-width:560px){
+  .sew-core-data .sew-core-grid>div,.sew-core-data .sew-core-grid>.sew-field{grid-template-columns:1fr}
+  .sew-stat-input>div>label,.sew-stat-input>label{grid-template-columns:1fr}
+  .sew-stat-input>div>label .sew-rich-editor,.sew-stat-input>label .sew-rich-editor{grid-column:1}
+  .sew-stat-input [data-block-label]{padding-top:0}
+  .sew-content-editor-row{grid-template-columns:1fr}
+  .sew-content-block-label{padding-top:0}
+}
 
 /* Creation is grouped into four semantic columns; it collapses to two and one. */
 .sew-creation-grid{grid-template-columns:repeat(4,minmax(0,1fr))}

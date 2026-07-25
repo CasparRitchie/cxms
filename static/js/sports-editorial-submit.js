@@ -5,7 +5,9 @@
 
   const labels = { stat: "Statistic", section: "Sub-heading", heading: "Sub-heading" };
   const syncBlock = (row) => {
-    row.querySelector("[data-content-input]").value = row.querySelector("[data-editor]").innerHTML;
+    const clone = row.querySelector("[data-editor]").cloneNode(true);
+    clone.querySelectorAll("[data-entity-ref]").forEach((tag) => tag.replaceWith(document.createTextNode(tag.textContent)));
+    row.querySelector("[data-content-input]").value = clone.innerHTML;
   };
   const renumber = () => {
     const counts = { stat: 0, section: 0, heading: 0 };
@@ -54,7 +56,23 @@
     document.execCommand(button.dataset.format, false);
     syncBlock(activeEditor.closest("[data-content-block]"));
   }));
-  document.querySelector(".sew-form").addEventListener("submit", renumber);
+  const form = document.querySelector(".sew-form");
+  let explicitSubmission = false;
+  form.addEventListener("click", (event) => {
+    if (event.target.closest("button[type='submit']")) explicitSubmission = true;
+  });
+  form.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.target.matches("textarea, [contenteditable='true'], [data-entity-search], button[type='submit'], select")) return;
+    event.preventDefault();
+  });
+  form.addEventListener("submit", (event) => {
+    if (!explicitSubmission) {
+      event.preventDefault();
+      return;
+    }
+    renumber();
+    form.querySelectorAll("button[type='submit']").forEach((button) => { button.disabled = true; });
+  });
 
   let dragged;
   list.addEventListener("dragstart", (event) => {

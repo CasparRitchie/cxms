@@ -10,7 +10,12 @@
     const original = block.querySelector(".sew-original .sew-rendered-content");
     const normaliseText = (value) => value.replace(/\s+/g, " ").trim();
     const normaliseMarkup = (value) => value.replace(/\s+/g, " ").replace(/> </g, "><").trim();
-    const sessionStartMarkup = normaliseMarkup(editor.innerHTML);
+    const editorMarkup = () => {
+      const clone = editor.cloneNode(true);
+      clone.querySelectorAll("[data-entity-ref]").forEach((tag) => tag.replaceWith(document.createTextNode(tag.textContent)));
+      return clone.innerHTML;
+    };
+    const sessionStartMarkup = normaliseMarkup(editorMarkup());
     const tokenise = (value) => normaliseText(value).match(/\S+\s*/g) || [];
     const renderDiff = (before, after) => {
       const oldTokens = tokenise(before);
@@ -59,7 +64,7 @@
         if (headerActions) headerActions.insertBefore(badge, headerActions.querySelector("[data-remove-review-block]"));
         else block.querySelector("header")?.appendChild(badge);
       }
-      const currentMarkup = normaliseMarkup(editor.innerHTML);
+      const currentMarkup = normaliseMarkup(editorMarkup());
       const changedThisSession = sessionStartMarkup !== currentMarkup;
       const differsFromResearcher = normaliseMarkup(original.innerHTML) !== currentMarkup;
       block.classList.toggle("has-changes", changedThisSession);
@@ -84,7 +89,7 @@
         diff.appendChild(renderDiff(original.textContent, editor.textContent));
       }
     };
-    const sync = () => { input.value = editor.innerHTML; updateChangedState(); };
+    const sync = () => { input.value = editorMarkup(); updateChangedState(); };
     editor.addEventListener("input", sync);
     editor.addEventListener("paste", (event) => {
       event.preventDefault();
@@ -109,6 +114,72 @@
     const results = control.querySelector("[data-entity-results]");
     const selected = control.querySelector("[data-selected-entities]");
     let timer;
+    let controller;
+    let nextOffset = 0;
+    let activeIndex = -1;
+
+    const entityButtons = () => [...results.querySelectorAll("[data-entity-result]")];
+    const setActive = (index) => {
+      const buttons = entityButtons();
+      buttons.forEach((button) => {
+        button.setAttribute("aria-selected", "false");
+        button.tabIndex = -1;
+      });
+      if (!buttons.length) { activeIndex = -1; return; }
+      activeIndex = Math.max(0, Math.min(index, buttons.length - 1));
+      buttons[activeIndex].setAttribute("aria-selected", "true");
+      buttons[activeIndex].tabIndex = 0;
+      buttons[activeIndex].focus();
+    };
+
+    const editorForControl = () => control.closest("[data-review-block], [data-content-block]")
+      ?.querySelector("[data-review-editor], [data-editor]");
+    const unwrapMentionTags = (editor) => {
+      editor.querySelectorAll("[data-entity-ref]").forEach((tag) => {
+        tag.replaceWith(document.createTextNode(tag.textContent));
+      });
+      editor.normalize();
+    };
+    const findMentionTextNode = (editor, words) => {
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const index = node.data.indexOf(words);
+        if (index >= 0) return {node, index};
+      }
+      return null;
+    };
+    const applyMentionTags = () => {
+      const editor = editorForControl();
+      if (!editor) return;
+      unwrapMentionTags(editor);
+      selected.querySelectorAll("[data-entity-id]").forEach((chip) => {
+        const words = chip.querySelector("label input")?.value.trim();
+        if (!words) return;
+        const match = findMentionTextNode(editor, words);
+        if (!match) return;
+        const remainder = match.node.splitText(match.index);
+        const after = remainder.splitText(words.length);
+        const tag = document.createElement("span");
+        tag.className = "sew-entity-text-tag";
+        tag.dataset.entityRef = chip.dataset.entityId;
+        tag.setAttribute("role", "link");
+        tag.tabIndex = 0;
+        tag.textContent = remainder.data;
+        remainder.replaceWith(tag);
+        after.parentNode?.normalize();
+      });
+    };
+    const validateMentionTags = () => {
+      const block = control.closest("[data-review-block], [data-content-block]");
+      const editor = block?.querySelector("[data-review-editor], [data-editor]");
+      if (!editor) return;
+      selected.querySelectorAll("[data-entity-id]").forEach((chip) => {
+        const mention = chip.querySelector("label input");
+        if (mention?.value && !editor.innerText.includes(mention.value)) mention.value = "";
+      });
+      applyMentionTags();
+    };
 
     const addEntity = (entity) => {
       if (selected.querySelector(`[data-entity-id="${entity.id}"]`)) return;
@@ -142,33 +213,88 @@
       mentionLabel.appendChild(mention);
       chip.append(entityType, mentionLabel, remove, input);
       selected.appendChild(chip);
+      mention.addEventListener("change", applyMentionTags);
       search.value = "";
       results.hidden = true;
+      applyMentionTags();
     };
-    const runSearch = async () => {
+    const appendResult = (entity) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.entityResult = "";
+      button.setAttribute("role", "option");
+      button.setAttribute("aria-selected", "false");
+      button.tabIndex = -1;
+      button.textContent = `${entity.name}${entity.country_code ? ` · ${entity.country_code}` : ""}${entity.canonical_id ? ` · ${entity.canonical_id}` : ""}`;
+      button.addEventListener("click", () => addEntity(entity));
+      results.appendChild(button);
+    };
+    const runSearch = async (append = false) => {
       const query = search.value.trim();
       if (query.length < 2) { results.hidden = true; return; }
-      results.innerHTML = '<span class="sew-entity-loading">Searching…</span>';
-      results.hidden = false;
-      try {
-        const response = await fetch(`/workspace/sports-editorial/entities/search?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type.value)}`);
-        const payload = await response.json();
+      if (!append) {
+        nextOffset = 0;
         results.innerHTML = "";
-        if (!payload.results.length) results.innerHTML = '<span class="sew-entity-loading">No matches. Add it below.</span>';
-        payload.results.forEach((entity) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.textContent = `${entity.name}${entity.country_code ? ` · ${entity.country_code}` : ""}${entity.canonical_id ? ` · ${entity.canonical_id}` : ""}`;
-          button.addEventListener("click", () => addEntity(entity));
-          results.appendChild(button);
-        });
-      } catch (_error) {
+      } else {
+        results.querySelector("[data-show-more]")?.remove();
+        results.querySelector("[data-no-more]")?.remove();
+      }
+      const loading = document.createElement("span");
+      loading.className = "sew-entity-loading";
+      loading.textContent = append ? "Loading more…" : "Searching…";
+      results.appendChild(loading);
+      results.hidden = false;
+      controller?.abort();
+      controller = new AbortController();
+      try {
+        const response = await fetch(`/workspace/sports-editorial/entities/search?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type.value)}&offset=${nextOffset}`, {signal: controller.signal});
+        const payload = await response.json();
+        loading.remove();
+        if (!append && !payload.results.length) results.innerHTML = '<span class="sew-entity-loading">No matches.</span>';
+        payload.results.forEach(appendResult);
+        nextOffset = payload.next_offset;
+        if (payload.has_more) {
+          const more = document.createElement("button");
+          more.type = "button";
+          more.dataset.showMore = "";
+          more.textContent = "Show more";
+          more.addEventListener("click", () => runSearch(true));
+          results.appendChild(more);
+        } else if (append && payload.results.length) {
+          const end = document.createElement("span");
+          end.className = "sew-entity-loading";
+          end.dataset.noMore = "";
+          end.textContent = "No more results.";
+          results.appendChild(end);
+        }
+      } catch (error) {
+        if (error.name === "AbortError") return;
         results.innerHTML = '<span class="sew-entity-loading">Search is temporarily unavailable.</span>';
       }
     };
-    search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(runSearch, 250); });
-    type.addEventListener("change", runSearch);
-    selected.addEventListener("click", (event) => { if (event.target.matches("[data-remove-entity]")) event.target.closest("[data-entity-id]").remove(); });
+    search.setAttribute("aria-controls", search.getAttribute("aria-controls") || `entity-results-${crypto.randomUUID()}`);
+    results.id = search.getAttribute("aria-controls");
+    results.setAttribute("role", "listbox");
+    search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => runSearch(false), 250); });
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown" && entityButtons().length) { event.preventDefault(); setActive(activeIndex + 1); }
+      else if (event.key === "ArrowUp" && entityButtons().length) { event.preventDefault(); setActive(activeIndex <= 0 ? entityButtons().length - 1 : activeIndex - 1); }
+      else if (event.key === "Enter") {
+        event.preventDefault();
+        if (activeIndex >= 0 && entityButtons()[activeIndex]) entityButtons()[activeIndex].click();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        results.hidden = true;
+      }
+    });
+    type.addEventListener("change", () => runSearch(false));
+    selected.addEventListener("click", (event) => {
+      if (!event.target.matches("[data-remove-entity]")) return;
+      event.target.closest("[data-entity-id]").remove();
+      applyMentionTags();
+    });
+    editorForControl()?.addEventListener("input", validateMentionTags);
+    selected.querySelectorAll("label input").forEach((input) => input.addEventListener("change", applyMentionTags));
   };
   document.querySelectorAll("[data-entity-control]").forEach(initialiseEntityControl);
   new MutationObserver((mutations) => mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
@@ -257,7 +383,7 @@
     const entities = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${id}" data-mention-prefix="entity_mention_${id}_"><span class="sew-cell-label">Entity links</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-search-row"><select data-entity-type><option value="athlete">Athlete</option><option value="country">Country</option><option value="event">Event</option><option value="competition">Competition</option></select><input type="search" data-entity-search placeholder="Find entity"><div class="sew-entity-results" data-entity-results hidden></div></div></div>` : "";
     const acceptedInput = type === "stat" ? `<input type="hidden" name="accepted_${id}" value="0" data-accepted-input>` : "";
     const accept = type === "stat" ? `<button class="sew-button sew-button--primary sew-button--small" type="button" data-toggle-accepted>Accept and lock</button>` : "";
-    block.innerHTML = `<header><span><span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span> <span data-review-label></span></span><div class="sew-card-header-actions"><span class="sew-validation" data-review-status>${type === "section" ? "Sub-heading · editable" : "Needs review"}</span>${accept}<button class="sew-button sew-button--danger sew-button--small" type="button" data-remove-review-block>Remove</button></div></header><input type="hidden" name="content_id" value="${id}"><input type="hidden" name="content_type" value="${type}">${acceptedInput}<div class="sew-working-editor"><div class="sew-mini-toolbar"><button type="button" data-review-format="bold"><strong>B</strong></button><button type="button" data-review-format="italic"><em>I</em></button></div><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-label="${type === "section" ? "Sub-heading" : "Statistic"} wording" data-review-editor></div><textarea name="edited_text_${id}" hidden data-review-input data-content-input></textarea></div><details class="sew-original"><summary>View original researcher wording</summary><div class="sew-rendered-content"></div></details>${entities}`;
+    block.innerHTML = `<header><div class="sew-card-header-actions"><span class="sew-validation" data-review-status>${type === "section" ? "Sub-heading · editable" : "Needs review"}</span>${accept}<button class="sew-button sew-button--danger sew-button--small" type="button" data-remove-review-block>Remove</button></div></header><input type="hidden" name="content_id" value="${id}"><input type="hidden" name="content_type" value="${type}">${acceptedInput}<div class="sew-content-editor-row"><div class="sew-content-block-label"><span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span><span data-review-label></span></div><div class="sew-content-editor-body"><div class="sew-working-editor"><div class="sew-mini-toolbar"><button type="button" data-review-format="bold"><strong>B</strong></button><button type="button" data-review-format="italic"><em>I</em></button></div><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-label="${type === "section" ? "Sub-heading" : "Statistic"} wording" data-review-editor></div><textarea name="edited_text_${id}" hidden data-review-input data-content-input></textarea></div><details class="sew-original"><summary>View original researcher wording</summary><div class="sew-rendered-content"></div></details>${entities}</div></div>`;
     return block;
   };
   document.querySelectorAll("[data-add-review-block]").forEach((button) => button.addEventListener("click", () => {
@@ -291,14 +417,28 @@
   });
   const reviewForm = document.querySelector("[data-review-form]");
   let formDirty = false;
+  let formSubmitting = false;
   reviewForm?.addEventListener("input", () => { formDirty = true; });
   reviewForm?.addEventListener("change", () => { formDirty = true; });
   reviewForm?.addEventListener("click", (event) => {
     if (event.target.closest("[data-toggle-accepted], [data-accept-all], [data-remove-review-block], [data-add-review-block], [data-remove-entity]")) formDirty = true;
   });
-  reviewForm?.addEventListener("submit", () => {
+  reviewForm?.addEventListener("submit", (event) => {
+    if (!event.submitter || formSubmitting) {
+      event.preventDefault();
+      return;
+    }
+    formSubmitting = true;
     formDirty = false;
     renumberReviewBlocks();
+    reviewForm.querySelectorAll("button[type='submit']").forEach((button) => {
+      if (button !== event.submitter) button.disabled = true;
+    });
+    event.submitter.setAttribute("aria-disabled", "true");
+  });
+  reviewForm?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.target.matches("textarea, [contenteditable='true'], [data-entity-search], button[type='submit']")) return;
+    event.preventDefault();
   });
   document.querySelector("[data-close-review]")?.addEventListener("click", (event) => {
     if (formDirty && !window.confirm("Close without saving your changes?")) event.preventDefault();

@@ -1,6 +1,8 @@
 import json
 import os
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from app import app
@@ -19,6 +21,7 @@ from services.sports_editorial.stat_insights import build_editorial_discoveries,
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 from services.sports_editorial.creation import parse_display_date
 from services.sports_editorial import views as sports_editorial_views
+from services.sports_editorial.formatting import render_entity_links
 
 
 class SportsEditorialPilotTests(unittest.TestCase):
@@ -618,7 +621,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"<th>Open</th>", response.data)
         self.assertIn(b'class="sew-queue-row"', response.data)
-        self.assertIn(b'class="sew-button sew-button--small sew-open-sheet"', response.data)
+        self.assertIn(b'class="sew-button sew-button--primary sew-button--small sew-open-sheet"', response.data)
         self.assertNotIn(b"data-row-href", response.data)
         self.assertNotIn(b"class=\"sew-cell-filter\"", response.data)
         self.assertIn(b'data-submission-id="demo-submission-kronplatz"', response.data)
@@ -769,6 +772,89 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Visual preview only", response.data)
         self.assertNotIn(b"Working Notes", response.data)
+
+    def test_edit_lock_acquisition_is_atomic_and_owner_can_reopen(self):
+        users = [
+            {"id": "editor-a", "full_name": "Editor A"},
+            {"id": "editor-b", "full_name": "Editor B"},
+        ]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda user: repository.acquire_edit_lock("demo-submission-submitted", user), users))
+        owners = [lock["owner_id"] for _sheet, lock in results]
+        self.assertEqual(len(set(owners)), 1)
+        owner = next(user for user in users if user["id"] == owners[0])
+        _sheet, reopened = repository.acquire_edit_lock("demo-submission-submitted", owner)
+        self.assertEqual(reopened["token"], results[owners.index(owner["id"])][1]["token"])
+
+    def test_edit_lock_expires_and_heartbeat_renews(self):
+        user = {"id": "editor-a", "full_name": "Editor A"}
+        with patch.dict(os.environ, {"SPORTS_EDITORIAL_EDIT_LOCK_TIMEOUT_SECONDS": "60"}):
+            _sheet, lock = repository.acquire_edit_lock("demo-submission-submitted", user)
+            renewed = repository.heartbeat_edit_lock("demo-submission-submitted", user["id"], lock["token"])
+            self.assertIsNotNone(renewed)
+            item = next(row for row in repository._submissions if row["id"] == "demo-submission-submitted")
+            item["lock_last_active_at"] = (datetime.now(timezone.utc) - timedelta(seconds=61)).isoformat()
+            self.assertIsNone(repository.get_edit_lock("demo-submission-submitted"))
+            _sheet, replacement = repository.acquire_edit_lock("demo-submission-submitted", {"id": "editor-b", "full_name": "Editor B"})
+            self.assertEqual(replacement["owner_id"], "editor-b")
+            self.assertNotEqual(replacement["token"], lock["token"])
+
+    def test_locked_sheet_is_read_only_and_force_unlock_is_supervisor_only(self):
+        repository.acquire_edit_lock("demo-submission-submitted", {"id": "other-editor", "full_name": "Other Editor"})
+        self.set_sub_editor()
+        page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        self.assertIn(b"This sheet is locked by Other Editor", page.data)
+        self.assertIn(b"read-only version", page.data)
+        denied = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted/force-unlock")
+        self.assertEqual(denied.status_code, 403)
+        self.set_role("supervisor")
+        allowed = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted/force-unlock")
+        self.assertEqual(allowed.status_code, 302)
+        self.assertEqual(repository.get_edit_lock("demo-submission-submitted")["owner_id"], "demo-user")
+
+    def test_stale_lock_token_cannot_save_after_takeover(self):
+        self.set_sub_editor()
+        page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        self.assertEqual(page.status_code, 200)
+        old = repository.get_edit_lock("demo-submission-submitted")
+        repository.release_edit_lock("demo-submission-submitted", force=True)
+        repository.acquire_edit_lock("demo-submission-submitted", {"id": "supervisor-user", "full_name": "Supervisor"})
+        response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={
+            "lock_token": old["token"], "lock_version": old["version"], "status": "submitted",
+        })
+        self.assertEqual(response.status_code, 409)
+
+    def test_researcher_queue_has_counts_selection_and_publication_preview(self):
+        response = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(b'<span data-selected-count>0</span> of 3 sheets', response.data)
+        self.assertIn(b"data-row-select", response.data)
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        preview_link = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        self.assertIn(b"Publication preview", preview_link.data)
+        preview = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/publication-preview")
+        self.assertEqual(preview.status_code, 200)
+
+    def test_entity_search_paginates_and_reports_more(self):
+        for index in range(15):
+            repository.add_entity({"entity_type": "athlete", "name": f"Laura Test {index:02d}", "canonical_id": str(700000 + index)})
+        first = self.client.get("/workspace/sports-editorial/entities/search?q=Laura&type=athlete").get_json()
+        self.assertEqual(len(first["results"]), 10)
+        self.assertTrue(first["has_more"])
+        second = self.client.get(f"/workspace/sports-editorial/entities/search?q=Laura&type=athlete&offset={first['next_offset']}").get_json()
+        self.assertEqual(len(second["results"]), 5)
+        self.assertFalse(second["has_more"])
+
+    def test_entity_link_rendering_is_safe_and_degrades_without_url(self):
+        block = {"entity_ids": ["safe", "plain"], "entity_mentions": {"safe": "Laura", "plain": "Pirovano"}}
+        entities = {
+            "safe": {"canonical_url": "https://example.test/athletes/1"},
+            "plain": {"canonical_url": "javascript:alert(1)"},
+        }
+        rendered = render_entity_links("<strong>Laura Pirovano</strong><script>bad()</script>", block, entities)
+        self.assertIn('href="https://example.test/athletes/1"', rendered)
+        self.assertIn("Pirovano", rendered)
+        self.assertNotIn("javascript:", rendered)
+        self.assertNotIn("<script>", rendered)
 
     def test_fis_calendar_parser_deduplicates_event_links(self):
         html = '''

@@ -40,23 +40,21 @@
 
 {% if active_filters %}<section class="sew-active-filters" aria-label="Active filters"><strong>Showing {{ result_count }} of {{ total_count }} stat sheets:</strong>{% for filter in active_filters %}<a class="sew-filter-chip" href="{{ filter.remove_url }}"><span>{{ filter.label }}:</span> {{ filter.value }} <b>×</b></a>{% endfor %}<a class="sew-clear-filters" href="{{ reset_filters_url }}">Clear all filters</a></section>{% endif %}
 
-{% if workspace_role in ['sub_editor','supervisor'] %}
 <section class="sew-queue-selection-bar" aria-label="Stat sheet selection and allocation">
   <strong><span data-selected-count>0</span> of {{ result_count }} visible stat sheets selected</strong>
-  <div class="sew-actions"><button class="sew-button" type="button" data-select-all>Select all visible</button><button class="sew-button" type="button" data-clear-selection disabled>Clear selection</button><button class="sew-button sew-button--primary" type="button" data-open-allocation="researcher_user_id" disabled>Allocate researcher</button><button class="sew-button sew-button--primary" type="button" data-open-allocation="sub_editor_user_id" disabled>Allocate sub-editor</button></div>
+  <div class="sew-actions"><button class="sew-button" type="button" data-select-all>Select all visible</button><button class="sew-button" type="button" data-clear-selection disabled>Clear selection</button>{% if workspace_role in ['sub_editor','supervisor'] %}<button class="sew-button sew-button--primary" type="button" data-open-allocation="researcher_user_id" disabled>Allocate researcher</button><button class="sew-button sew-button--primary" type="button" data-open-allocation="sub_editor_user_id" disabled>Allocate sub-editor</button>{% endif %}</div>
 </section>
-{% endif %}
 
 <section class="sew-card sew-table-card sew-queue-table-card sew-modern-queue-preview">
   <table class="sew-table sew-queue-table">
     <thead><tr class="sew-column-headings">
-      {% if workspace_role in ['sub_editor','supervisor'] %}<th class="sew-select-column"><span class="sew-visually-hidden">Select</span></th>{% endif %}
+      <th class="sew-select-column"><span class="sew-visually-hidden">Select</span></th>
       <th>Open</th>
       {{ integrated_heading('AMP ID','amp_id','amp_id') }}{{ integrated_heading('Client','client_name','client_name') }}{{ integrated_heading('Sport','sport','sport') }}{{ integrated_heading('Competition','competition','competition') }}{{ integrated_heading('Event','event_name','event_name') }}{{ integrated_heading('Gender','gender','gender') }}{{ integrated_heading('Location','location','location') }}{{ integrated_heading('Season','season_code','season_code') }}{{ integrated_heading('Race Date','event_date','event_date') }}{{ integrated_heading('Client Event ID','fis_event_ids','fis_event_ids') }}{{ integrated_heading('Publication Deadline','publication_deadline','publication_deadline') }}{{ integrated_heading('Researcher Deadline','researcher_deadline','researcher_deadline') }}{{ integrated_heading('Status','status','status') }}{{ integrated_heading('Researcher','researcher_name','researcher_user_id') }}{{ integrated_heading('Sub-editor','sub_editor_name','sub_editor_user_id') }}{{ integrated_heading('Last Modified','updated_at','updated_at') }}{{ integrated_heading('Last Modified By','last_modified_by','last_modified_by') }}
     </tr></thead>
-    <tbody>{% for item in submissions %}<tr class="sew-queue-row" data-submission-id="{{ item.id }}" {% if workspace_role in ['sub_editor','supervisor'] %}tabindex="0" aria-selected="false"{% endif %}>
-      {% if workspace_role in ['sub_editor','supervisor'] %}<td class="sew-select-column"><input type="checkbox" data-row-select aria-label="Select stat sheet {{ item.amp_id }}"></td>{% endif %}
-      <td><a class="sew-button sew-button--small" href="{{ item.queue_url }}">Open</a></td>
+    <tbody>{% for item in submissions %}<tr class="sew-queue-row" data-submission-id="{{ item.id }}" tabindex="0" aria-selected="false">
+      <td class="sew-select-column"><input type="checkbox" data-row-select aria-label="Select stat sheet {{ item.amp_id }}"></td>
+      <td><a class="sew-button sew-button--primary sew-button--small sew-open-sheet" href="{{ item.queue_url }}">Open</a></td>
       <td>{{ item.amp_id|default('—',true) }}</td><td>{{ item.client_name|default('FIS',true) }}</td><td>ALP</td><td>{{ item.competition|default('—',true) }}</td><td>{{ item.event_name|default('—',true) }}</td><td>{{ item.gender|default('—',true) }}</td><td>{{ item.location|default('—',true) }}</td><td>{{ item.season_code|default('—',true) }}</td><td>{{ item.event_date|default('—',true) }}</td><td>{{ item.fis_event_ids|join(', ') or '—' }}</td><td>{{ item.publication_deadline|default('—',true) }}</td><td>{{ item.researcher_deadline|default('—',true) }}</td><td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td><td>{{ item.researcher_name|default(item.author_name,true) }}</td><td>{{ item.sub_editor_name|default('Unassigned',true) }}</td><td>{{ item.updated_at[:10] }}</td><td>{{ item.last_modified_by|default(item.author_name,true) }}</td>
     </tr>{% else %}<tr><td colspan="19" class="sew-empty">No stat sheets match these filters.</td></tr>{% endfor %}</tbody>
   </table>
