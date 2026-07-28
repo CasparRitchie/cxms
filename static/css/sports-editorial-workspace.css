@@ -55,10 +55,10 @@ html[data-sew-theme="light"] .sew-document-bar{background:rgba(255,255,255,.97)}
   --sew-review-bg:#332508;
   --sew-change:#c4b5fd;
   --sew-change-bg:#251b3f;
-  --sew-opportunity:#ff8066;
+  --sew-opportunity:#F472B6;
   --sew-opportunity-bg:#3b1d1a;
   --sew-neutral:#aab9c8;
-  --sew-error:#ff8a80;
+  --sew-error:#F472B6;
 }
 .sew-page{background:#08131f}
 .sew-toolbar{background:#111f2e}
@@ -96,7 +96,7 @@ html[data-sew-theme="light"]{
   --cxms-muted:#526174;
 }
 html[data-sew-theme="light"] .sew-page{background:#f4f7fa}
-html[data-sew-theme="light"] .sew-app{--sew-ink:#102033;--sew-muted:#526174;--sew-line:#cbd5e1;--sew-card:#fff;--sew-blue:#0057b8;--sew-green:#16794b;--sew-review:#a15c00;--sew-review-bg:#fff4d6;--sew-change:#6941c6;--sew-change-bg:#f4f0ff;--sew-opportunity:#d9482b;--sew-opportunity-bg:#fff0ed;--sew-neutral:#667085;--sew-error:#b42318}
+html[data-sew-theme="light"] .sew-app{--sew-ink:#102033;--sew-muted:#526174;--sew-line:#cbd5e1;--sew-card:#fff;--sew-blue:#0057b8;--sew-green:#16794b;--sew-review:#a15c00;--sew-review-bg:#fff4d6;--sew-change:#6941c6;--sew-change-bg:#f4f0ff;--sew-opportunity:#B4236B;--sew-opportunity-bg:#fff0ed;--sew-neutral:#667085;--sew-error:#b42318}
 html[data-sew-theme="light"] .sew-toolbar{background:#fff}
 html[data-sew-theme="light"] .sew-document-title{border-color:#168a50;background:linear-gradient(135deg,#ddf8e9,#e8f1ff)}
 html[data-sew-theme="light"] .sew-stat-card.needs-review{border-left-color:#d97706;background:linear-gradient(90deg,#fff4d6,#fff 28%)}
@@ -120,7 +120,7 @@ html[data-sew-theme="light"] .sew-status--approved,html[data-sew-theme="light"] 
 html[data-sew-theme="light"] .sew-status--changes_requested{background:#fee4e2;color:#7a1a12}
 html[data-sew-theme="light"] .sew-stat-card--section .sew-validation{color:#16794b}
 html[data-sew-theme="light"] .sew-app input:focus,html[data-sew-theme="light"] .sew-app textarea:focus,html[data-sew-theme="light"] .sew-app select:focus,html[data-sew-theme="light"] .sew-rich-editor:focus{border-color:#0057b8;outline-color:rgba(0,87,184,.24)}
-html[data-sew-theme="light"] .sew-discovery,html[data-sew-theme="light"] .sew-discovery--trend,html[data-sew-theme="light"] .sew-discovery--group{border-left-color:#d9482b;background:linear-gradient(90deg,#fff0ed,#fff 38%)}
+html[data-sew-theme="light"] .sew-discovery,html[data-sew-theme="light"] .sew-discovery--trend,html[data-sew-theme="light"] .sew-discovery--group{border-left-color:#B4236B;background:linear-gradient(90deg,#fff0ed,#fff 38%)}
 html[data-sew-theme="light"] .sew-stat-card.is-accepted{border-left-color:#667085;background:#f2f4f7}
 html[data-sew-theme="light"] .sew-stat-card.is-accepted .sew-validation{color:#667085}
 
