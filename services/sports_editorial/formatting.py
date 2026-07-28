@@ -115,7 +115,7 @@ class _EntityOccurrenceRenderer(HTMLParser):
                 )
             else:
                 self.parts.append(
-                    f'<span class="sew-entity-text-tag" tabindex="0" role="link" '
+                    f'<span class="sew-entity-text-tag" '
                     f'data-entity-ref="{item["id"]}">{mention}</span>'
                 )
             cursor = match.end()

@@ -166,8 +166,6 @@
           const tag = document.createElement("span");
           tag.className = "sew-entity-text-tag";
           tag.dataset.entityRef = chip.dataset.entityId;
-          tag.setAttribute("role", "link");
-          tag.tabIndex = 0;
           tag.textContent = remainder.data;
           remainder.replaceWith(tag);
           after.parentNode?.normalize();
@@ -176,14 +174,25 @@
       });
     };
     const validateMentionTags = () => {
-      const block = control.closest("[data-review-block], [data-content-block]");
-      const editor = block?.querySelector("[data-review-editor], [data-editor]");
-      if (!editor) return;
       selected.querySelectorAll("[data-entity-id]").forEach((chip) => {
         const mention = chip.querySelector("label input");
-        if (mention?.value && !editor.innerText.includes(mention.value)) mention.value = "";
+        if (!mention?.value || editor.innerText.includes(mention.value)) return;
+        mention.value = "";
+        editor.querySelectorAll(`[data-entity-ref="${CSS.escape(chip.dataset.entityId)}"]`).forEach((tag) => {
+          tag.replaceWith(document.createTextNode(tag.textContent));
+        });
+        editor.normalize();
       });
-      applyMentionTags();
+    };
+    const placeCaretAfterEntity = (entityId) => {
+      const tag = editor.querySelector(`[data-entity-ref="${CSS.escape(entityId)}"]`);
+      if (!tag) return;
+      const selection = window.getSelection();
+      const caret = document.createRange();
+      caret.setStartAfter(tag);
+      caret.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(caret);
     };
 
     const currentQuery = () => {
@@ -197,7 +206,10 @@
       if (selection.anchorNode?.nodeType !== Node.TEXT_NODE) return null;
       const before = selection.anchorNode.data.slice(0, selection.anchorOffset);
       const match = before.match(/[\p{L}\p{M}'’.-]{2,}$/u);
-      if (!match) return null;
+      // Keep ordinary prose unobstructed: automatic inline lookup is for
+      // capitalised entity wording. Users can still select any exact wording
+      // (including lower-case text) to request an entity match explicitly.
+      if (!match || !/^\p{Lu}/u.test(match[0])) return null;
       const wordRange = document.createRange();
       wordRange.setStart(selection.anchorNode, selection.anchorOffset - match[0].length);
       wordRange.setEnd(selection.anchorNode, selection.anchorOffset);
@@ -249,6 +261,7 @@
       results.hidden = true;
       editor.removeAttribute("aria-activedescendant");
       applyMentionTags();
+      placeCaretAfterEntity(entity.id);
       suppressNextSearch = true;
       editor.dispatchEvent(new Event("input", {bubbles: true}));
       editor.focus();
@@ -335,6 +348,10 @@
         return;
       }
       scheduleSearch();
+    });
+    editor.addEventListener("blur", (event) => {
+      if (event.relatedTarget && results.contains(event.relatedTarget)) return;
+      applyMentionTags();
     });
     editor.addEventListener("mouseup", scheduleSearch);
     editor.addEventListener("keyup", (event) => {
