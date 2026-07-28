@@ -7,11 +7,15 @@
   const releaseUrl = form.dataset.lockReleaseUrl;
   const closeUrl = form.dataset.closeUrl;
   const closeDialog = form.querySelector("[data-close-dialog]");
+  const timeoutMs = Number(form.dataset.lockTimeout || 900) * 1000;
   let lastHeartbeat = 0;
+  let lastActivity = 0;
+  let expiresAt = Date.now() + timeoutMs;
   let lost = false;
   let dirty = false;
   let submitting = false;
   let releaseRequested = false;
+  let expiryWarning;
 
   const setReadOnly = (message) => {
     if (lost) return;
@@ -37,7 +41,13 @@
         body: JSON.stringify({lock_token: token}),
       });
       const payload = await response.json();
-      if (!response.ok) setReadOnly(payload.error || "Your editing lock is no longer valid.");
+      if (!response.ok) {
+        setReadOnly(payload.error || "Your editing lock is no longer valid.");
+        return;
+      }
+      expiresAt = Date.parse(payload.lock.expires_at) || Date.now() + timeoutMs;
+      expiryWarning?.remove();
+      expiryWarning = null;
     } catch (_error) {
       // Connectivity may recover; save and release remain server-authoritative.
     }
@@ -62,18 +72,27 @@
   const markDirty = (event) => {
     if (event.target.closest("[data-close-dialog]")) return;
     dirty = true;
+    lastActivity = Date.now();
     heartbeat();
   };
   form.addEventListener("input", markDirty);
   form.addEventListener("change", markDirty);
+  form.addEventListener("pointerdown", () => {
+    lastActivity = Date.now();
+    heartbeat();
+  });
   form.addEventListener("click", (event) => {
     if (event.target.closest("[data-toggle-accepted], [data-accept-all], [data-remove-review-block], [data-add-review-block], [data-remove-stat], [data-add-block], [data-remove-entity]")) {
       dirty = true;
+      lastActivity = Date.now();
       heartbeat();
     }
   });
   form.addEventListener("keydown", (event) => {
-    if (event.key !== "Tab") heartbeat();
+    if (event.key !== "Tab") {
+      lastActivity = Date.now();
+      heartbeat();
+    }
   });
   form.addEventListener("submit", () => {
     submitting = true;
@@ -140,5 +159,19 @@
     });
   });
 
-  setInterval(heartbeat, 60000);
+  setInterval(() => {
+    const now = Date.now();
+    if (lastActivity && now - lastActivity <= 65000) heartbeat();
+    const remaining = expiresAt - now;
+    if (remaining <= 0) {
+      const timeoutMinutes = Math.round(timeoutMs / 60000);
+      setReadOnly(`Your editing lock has expired after ${timeoutMinutes} minutes of inactivity.`);
+    } else if (remaining <= 120000 && !expiryWarning) {
+      expiryWarning = document.createElement("p");
+      expiryWarning.className = "sew-lock-expiry-warning";
+      expiryWarning.setAttribute("role", "status");
+      expiryWarning.textContent = "Your editing lock will expire soon. Interact with the sheet to keep editing.";
+      form.before(expiryWarning);
+    }
+  }, 30000);
 })();

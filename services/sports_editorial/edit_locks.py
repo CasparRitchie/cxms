@@ -1,13 +1,16 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import os
+
+
+DEFAULT_TIMEOUT_SECONDS = 15 * 60
 
 
 def lock_timeout_seconds():
-    """Compatibility value for older clients and the existing RPC signature.
-
-    Locks no longer expire automatically. A lock is released explicitly when
-    editing ends, or by a Supervisor force-unlock after an abandoned session.
-    """
-    return 0
+    try:
+        value = int(os.getenv("SPORTS_EDITORIAL_EDIT_LOCK_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS))
+    except ValueError:
+        value = DEFAULT_TIMEOUT_SECONDS
+    return max(60, value)
 
 
 def utc_now():
@@ -21,12 +24,15 @@ def parse_timestamp(value):
 
 
 def lock_is_active(lock, now=None):
-    return bool(lock and lock.get("lock_user_id") and lock.get("lock_token"))
+    if not lock or not lock.get("lock_user_id") or not lock.get("lock_token") or not lock.get("lock_last_active_at"):
+        return False
+    return parse_timestamp(lock["lock_last_active_at"]) + timedelta(seconds=lock_timeout_seconds()) > (now or utc_now())
 
 
 def public_lock(lock, now=None):
     if not lock_is_active(lock, now=now):
         return None
+    last_active = parse_timestamp(lock["lock_last_active_at"])
     return {
         "owner_id": lock.get("lock_user_id"),
         "owner_name": lock.get("lock_user_name") or "Another user",
@@ -34,6 +40,6 @@ def public_lock(lock, now=None):
         "version": int(lock.get("lock_version") or 0),
         "acquired_at": lock.get("lock_acquired_at"),
         "last_active_at": lock.get("lock_last_active_at"),
-        "expires_at": None,
-        "timeout_seconds": None,
+        "expires_at": (last_active + timedelta(seconds=lock_timeout_seconds())).isoformat(),
+        "timeout_seconds": lock_timeout_seconds(),
     }

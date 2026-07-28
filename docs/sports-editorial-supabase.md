@@ -8,6 +8,15 @@ Open Supabase SQL Editor and run [`supabase/sports_editorial_pilot.sql`](../supa
 
 If you ran an earlier version of the file, run it again. The statements are repeatable and the latest version adds the server-only user-provisioning function.
 
+Before deploying the document-editing workflow, also run
+[`supabase/sports_editorial_edit_locks.sql`](../supabase/sports_editorial_edit_locks.sql).
+The application and database function must be deployed together because the
+heartbeat uses the configured inactivity timeout. The default is 15 minutes
+and can be changed with `SPORTS_EDITORIAL_EDIT_LOCK_TIMEOUT_SECONDS`.
+
+Run [`supabase/sports_editorial_audit.sql`](../supabase/sports_editorial_audit.sql)
+as well if supervisor force-unlock and publication audit events are enabled.
+
 The script enables row-level security and deliberately creates no anonymous browser policies. Flask performs all database work server-side with the service-role key and scopes reads/writes to the signed-in workspace.
 
 ## 2. Grant an existing NPS Me user access

@@ -785,16 +785,26 @@ class SportsEditorialPilotTests(unittest.TestCase):
         _sheet, reopened = repository.acquire_edit_lock("demo-submission-submitted", owner)
         self.assertEqual(reopened["token"], results[owners.index(owner["id"])][1]["token"])
 
-    def test_edit_lock_does_not_expire_and_heartbeat_updates_activity(self):
+    def test_edit_lock_expires_after_inactivity_and_heartbeat_renews(self):
         user = {"id": "editor-a", "full_name": "Editor A"}
-        _sheet, lock = repository.acquire_edit_lock("demo-submission-submitted", user)
-        renewed = repository.heartbeat_edit_lock("demo-submission-submitted", user["id"], lock["token"])
-        self.assertIsNotNone(renewed)
-        item = next(row for row in repository._submissions if row["id"] == "demo-submission-submitted")
-        item["lock_last_active_at"] = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-        self.assertEqual(repository.get_edit_lock("demo-submission-submitted")["owner_id"], "editor-a")
-        _sheet, blocked = repository.acquire_edit_lock("demo-submission-submitted", {"id": "editor-b", "full_name": "Editor B"})
-        self.assertEqual(blocked["owner_id"], "editor-a")
+        with patch.dict(os.environ, {"SPORTS_EDITORIAL_EDIT_LOCK_TIMEOUT_SECONDS": "60"}):
+            _sheet, lock = repository.acquire_edit_lock("demo-submission-submitted", user)
+            renewed = repository.heartbeat_edit_lock("demo-submission-submitted", user["id"], lock["token"])
+            self.assertIsNotNone(renewed)
+            item = next(row for row in repository._submissions if row["id"] == "demo-submission-submitted")
+            item["lock_last_active_at"] = (datetime.now(timezone.utc) - timedelta(seconds=61)).isoformat()
+            self.assertIsNone(repository.get_edit_lock("demo-submission-submitted"))
+            _sheet, replacement = repository.acquire_edit_lock(
+                "demo-submission-submitted", {"id": "editor-b", "full_name": "Editor B"}
+            )
+            self.assertEqual(replacement["owner_id"], "editor-b")
+            self.assertNotEqual(replacement["token"], lock["token"])
+
+    def test_edit_lock_form_uses_default_fifteen_minute_timeout(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'data-lock-timeout="900"', response.data)
 
     def test_locked_sheet_is_read_only_and_force_unlock_is_supervisor_only(self):
         repository.acquire_edit_lock("demo-submission-submitted", {"id": "other-editor", "full_name": "Other Editor"})
