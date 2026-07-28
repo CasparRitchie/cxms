@@ -61,7 +61,7 @@ def _marked_text(text, block, entities_by_id, errors):
     markers = {}
     for index, (display_text, marker) in enumerate(sorted(replacements, key=lambda item: len(item[0]), reverse=True)):
         placeholder = f"\x00FIS{index}\x00"
-        text = text.replace(display_text, placeholder)
+        text = text.replace(display_text, placeholder, 1)
         markers[placeholder] = marker
     for placeholder, marker in markers.items():
         text = text.replace(placeholder, marker)

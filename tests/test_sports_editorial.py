@@ -408,11 +408,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
         submission = {
             "id": "sheet-1", "title": "Linked sheet", "sport": "alpine_skiing", "gender": "W",
             "fis_event_ids": [62716], "editor_notes": "Internal only", "fis_submission_notes": "V2 corrects a result.",
-            "stats": [{"id": "stat-1", "sort_order": 0, "stat_text": "Camille Rast won.", "entity_ids": ["a"], "entity_mentions": {"a": "Camille Rast"}}],
+            "stats": [{"id": "stat-1", "sort_order": 0, "stat_text": "Camille Rast won. Camille Rast celebrated.", "entity_ids": ["a"], "entity_mentions": {"a": "Camille Rast"}}],
         }
         entities = {"a": {"entity_type": "athlete", "canonical_id": "516562", "name": "Camille Rast"}}
         payload = build_fis_payload(submission, entities)
-        self.assertEqual(payload["sections"][0]["items"][0]["text"], "{{athlete:516562|Camille Rast}} won.")
+        self.assertEqual(
+            payload["sections"][0]["items"][0]["text"],
+            "{{athlete:516562|Camille Rast}} won. Camille Rast celebrated.",
+        )
         self.assertNotIn("notes", payload)
         self.assertNotIn("Internal only", json.dumps(payload))
 
@@ -800,11 +803,24 @@ class SportsEditorialPilotTests(unittest.TestCase):
             self.assertEqual(replacement["owner_id"], "editor-b")
             self.assertNotEqual(replacement["token"], lock["token"])
 
-    def test_edit_lock_form_uses_default_fifteen_minute_timeout(self):
+    def test_edit_lock_form_uses_default_sixty_minute_timeout(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'data-lock-timeout="900"', response.data)
+        self.assertIn(b'data-lock-timeout="3600"', response.data)
+
+    def test_researcher_can_reacquire_an_expired_lock_from_saved_sheet(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        _sheet, original = repository.acquire_edit_lock(
+            "demo-submission-kronplatz", {"id": "demo-user", "full_name": "Jamie Laurent"}
+        )
+        item = next(row for row in repository._submissions if row["id"] == "demo-submission-kronplatz")
+        item["lock_last_active_at"] = (datetime.now(timezone.utc) - timedelta(seconds=3601)).isoformat()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        replacement = repository.get_edit_lock("demo-submission-kronplatz")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(replacement["owner_id"], "demo-user")
+        self.assertNotEqual(replacement["token"], original["token"])
 
     def test_locked_sheet_is_read_only_and_force_unlock_is_supervisor_only(self):
         repository.acquire_edit_lock("demo-submission-submitted", {"id": "other-editor", "full_name": "Other Editor"})
@@ -863,7 +879,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn("javascript:", rendered)
         self.assertNotIn("<script>", rendered)
 
-    def test_entity_linking_decorates_every_exact_full_name_occurrence(self):
+    def test_entity_linking_decorates_only_first_exact_occurrence(self):
         block = {"entity_ids": ["rast"], "entity_mentions": {"rast": "Camille Rast"}}
         entities = {"rast": {"canonical_url": "https://example.test/athletes/rast"}}
         rendered = render_entity_links(
@@ -871,7 +887,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
             block,
             entities,
         )
-        self.assertEqual(rendered.count('data-entity-ref="rast"'), 2)
+        self.assertEqual(rendered.count('data-entity-ref="rast"'), 1)
+        self.assertIn("<strong>Camille Rast</strong> won again", rendered)
         self.assertIn("Rast led early", rendered)
 
     def test_read_only_open_does_not_lock_and_edit_open_changes_stage(self):

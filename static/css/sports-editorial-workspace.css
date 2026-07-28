@@ -358,17 +358,9 @@ html[data-sew-theme="light"] .sew-queue-table tbody tr:hover td{background:#e8f1
 .sew-card-header-actions .sew-button{min-height:22px;padding:2px 6px;font-size:10px;text-transform:none}
 .sew-card-header-actions .sew-change-badge{margin-left:0}
 .sew-content-list .sew-rich-editor{min-height:36px}
-.sew-content-list .sew-entity-autocomplete{
-  grid-template-columns:58px minmax(0,1fr) minmax(280px,.8fr);
-  align-items:start;
-}
+.sew-content-list .sew-entity-autocomplete{grid-template-columns:58px minmax(0,1fr);align-items:start}
 .sew-content-list .sew-selected-entities{grid-column:2}
-.sew-content-list .sew-entity-search-row{grid-column:3;grid-template-columns:90px minmax(0,1fr)}
 .sew-content-list .sew-review-actions{padding-top:3px;border-top:1px solid var(--sew-line)}
-@media(max-width:850px){
-  .sew-content-list .sew-entity-autocomplete{grid-template-columns:58px minmax(0,1fr)}
-  .sew-content-list .sew-entity-search-row{grid-column:2}
-}
 
 /* Andrew review: traditional spreadsheet queue with explicit filters and selection. */
 .sew-app-header .sew-primary-nav a{color:#344054}
@@ -594,6 +586,7 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
   transition:opacity .12s,transform .12s;
 }
 .sew-working-editor:focus-within .sew-mini-toolbar{opacity:1;pointer-events:auto;transform:none}
+.sew-working-editor>.sew-entity-results{top:100%;left:29px;right:0;max-height:240px;overflow-y:auto}
 .sew-mini-toolbar button{min-width:25px;min-height:23px;border:0;border-radius:3px;background:#edf1f7;color:#1b2230;cursor:pointer}
 .sew-mini-toolbar button:hover,.sew-mini-toolbar button:focus-visible{background:#dce6f8;outline:2px solid #5377c5}
 .sew-mini-toolbar button:disabled{opacity:.4;cursor:not-allowed}
@@ -615,8 +608,6 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
   pointer-events:none;
   transition:max-height .18s,opacity .15s,margin .18s,padding .18s;
 }
-.sew-document-editor .sew-stat-input:focus-within .sew-entity-autocomplete,
-.sew-document-editor .sew-stat-card:focus-within .sew-entity-autocomplete,
 .sew-document-editor .sew-entity-autocomplete:has([data-entity-id]){
   max-height:240px;
   margin-top:2px;
@@ -626,8 +617,6 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
   overflow:visible;
   pointer-events:auto;
 }
-.sew-publication-canvas .sew-entity-search-row input,
-.sew-publication-canvas .sew-entity-search-row select{background:#fff;color:#1b2230}
 .sew-publication-canvas .sew-unpublished{
   margin-top:26px;
   padding:14px;
@@ -636,7 +625,8 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
 }
 .sew-publication-canvas .sew-unpublished h2{color:#344054}
 .sew-date-control{display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:4px}
-.sew-date-control input[type="date"]{min-width:42px;padding:3px;color-scheme:light}
+.sew-date-control input[type="text"]{width:auto;min-width:0}
+.sew-date-control input[type="date"]{width:42px;min-width:42px;padding:3px;color-scheme:light}
 .sew-close-dialog{width:min(520px,calc(100vw - 28px));padding:20px;border:1px solid #cbd3df;background:#fff;color:#1b2230}
 .sew-close-dialog::backdrop{background:rgba(5,18,38,.66)}
 .sew-close-dialog h2{margin-top:0}

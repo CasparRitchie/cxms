@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import os
 
 
-DEFAULT_TIMEOUT_SECONDS = 15 * 60
+DEFAULT_TIMEOUT_SECONDS = 60 * 60
 
 
 def lock_timeout_seconds():

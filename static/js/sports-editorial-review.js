@@ -109,14 +109,18 @@
   const initialiseEntityControl = (control) => {
     if (control.dataset.entityInitialised) return;
     control.dataset.entityInitialised = "true";
-    const search = control.querySelector("[data-entity-search]");
-    const type = control.querySelector("[data-entity-type]");
     const results = control.querySelector("[data-entity-results]");
     const selected = control.querySelector("[data-selected-entities]");
+    const editor = control.closest("[data-review-block], [data-content-block]")
+      ?.querySelector("[data-review-editor], [data-editor]");
+    if (!editor || !results || !selected) return;
+    editor.closest(".sew-working-editor")?.appendChild(results);
     let timer;
     let controller;
     let nextOffset = 0;
     let activeIndex = -1;
+    let queryContext = null;
+    let suppressNextSearch = false;
 
     const entityButtons = () => [...results.querySelectorAll("[data-entity-result]")];
     const setActive = (index) => {
@@ -129,11 +133,9 @@
       activeIndex = Math.max(0, Math.min(index, buttons.length - 1));
       buttons[activeIndex].setAttribute("aria-selected", "true");
       buttons[activeIndex].tabIndex = 0;
-      buttons[activeIndex].focus();
+      editor.setAttribute("aria-activedescendant", buttons[activeIndex].id);
     };
 
-    const editorForControl = () => control.closest("[data-review-block], [data-content-block]")
-      ?.querySelector("[data-review-editor], [data-editor]");
     const unwrapMentionTags = (editor) => {
       editor.querySelectorAll("[data-entity-ref]").forEach((tag) => {
         tag.replaceWith(document.createTextNode(tag.textContent));
@@ -141,7 +143,6 @@
       editor.normalize();
     };
     const applyMentionTags = () => {
-      const editor = editorForControl();
       if (!editor) return;
       unwrapMentionTags(editor);
       const chips = [...selected.querySelectorAll("[data-entity-id]")].sort((left, right) => {
@@ -156,17 +157,11 @@
           acceptNode: (node) => node.parentElement?.closest("[data-entity-ref]")
             ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
         });
-        const matches = [];
         let node;
         while ((node = walker.nextNode())) {
-          let index = node.data.indexOf(words);
-          while (index >= 0) {
-            matches.push({node, index});
-            index = node.data.indexOf(words, index + words.length);
-          }
-        }
-        matches.reverse().forEach((match) => {
-          const remainder = match.node.splitText(match.index);
+          const index = node.data.indexOf(words);
+          if (index < 0) continue;
+          const remainder = node.splitText(index);
           const after = remainder.splitText(words.length);
           const tag = document.createElement("span");
           tag.className = "sew-entity-text-tag";
@@ -176,7 +171,8 @@
           tag.textContent = remainder.data;
           remainder.replaceWith(tag);
           after.parentNode?.normalize();
-        });
+          break;
+        }
       });
     };
     const validateMentionTags = () => {
@@ -190,8 +186,41 @@
       applyMentionTags();
     };
 
+    const currentQuery = () => {
+      const selection = window.getSelection();
+      if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return null;
+      const range = selection.getRangeAt(0);
+      if (!range.collapsed) {
+        const text = range.toString().trim();
+        return text.length >= 2 && text.length <= 80 ? {text, range: range.cloneRange(), replace: false} : null;
+      }
+      if (selection.anchorNode?.nodeType !== Node.TEXT_NODE) return null;
+      const before = selection.anchorNode.data.slice(0, selection.anchorOffset);
+      const match = before.match(/[\p{L}\p{M}'’.-]{2,}$/u);
+      if (!match) return null;
+      const wordRange = document.createRange();
+      wordRange.setStart(selection.anchorNode, selection.anchorOffset - match[0].length);
+      wordRange.setEnd(selection.anchorNode, selection.anchorOffset);
+      return {text: match[0], range: wordRange, replace: true};
+    };
+    const replaceQueryWithEntityName = (entity) => {
+      if (!queryContext?.replace || !queryContext.range) return queryContext?.text || entity.name;
+      const range = queryContext.range;
+      if (!editor.contains(range.commonAncestorContainer)) return entity.name;
+      range.deleteContents();
+      const text = document.createTextNode(entity.name);
+      range.insertNode(text);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      const caret = document.createRange();
+      caret.setStartAfter(text);
+      caret.collapse(true);
+      selection.addRange(caret);
+      return entity.name;
+    };
     const addEntity = (entity) => {
       if (selected.querySelector(`[data-entity-id="${entity.id}"]`)) return;
+      const mentionText = replaceQueryWithEntityName(entity);
       const chip = document.createElement("span");
       chip.className = "sew-entity-chip";
       chip.dataset.entityId = entity.id;
@@ -210,25 +239,23 @@
       input.name = control.dataset.fieldName;
       input.value = entity.id;
       const mentionLabel = document.createElement("label");
-      mentionLabel.append(document.createTextNode("Words to link "));
       const mention = document.createElement("input");
+      mention.type = "hidden";
       mention.name = `${control.dataset.mentionPrefix}${entity.id}`;
-      mention.placeholder = "Attachment only";
-      const reviewBlock = control.closest("[data-review-block], [data-content-block]");
-      const editor = reviewBlock?.querySelector("[data-review-editor], [data-editor]");
-      const original = reviewBlock?.querySelector(".sew-rendered-content");
-      const publicationText = editor?.innerText || original?.innerText || "";
-      mention.value = publicationText.includes(entity.name) ? entity.name : "";
+      mention.value = mentionText;
       mentionLabel.appendChild(mention);
       chip.append(entityType, mentionLabel, remove, input);
       selected.appendChild(chip);
-      mention.addEventListener("change", applyMentionTags);
-      search.value = "";
       results.hidden = true;
+      editor.removeAttribute("aria-activedescendant");
       applyMentionTags();
+      suppressNextSearch = true;
+      editor.dispatchEvent(new Event("input", {bubbles: true}));
+      editor.focus();
     };
     const appendResult = (entity) => {
       const button = document.createElement("button");
+      button.id = `entity-result-${crypto.randomUUID()}`;
       button.type = "button";
       button.dataset.entityResult = "";
       button.setAttribute("role", "option");
@@ -239,12 +266,14 @@
       button.addEventListener("click", () => addEntity(entity));
       results.appendChild(button);
     };
-    const runSearch = async (append = false) => {
-      const query = search.value.trim();
+    const runSearch = async (append = false, context = queryContext) => {
+      const query = context?.text.trim() || "";
       if (query.length < 2) { results.hidden = true; return; }
       if (!append) {
+        queryContext = context;
         nextOffset = 0;
         results.innerHTML = "";
+        activeIndex = -1;
       } else {
         results.querySelector("[data-show-more]")?.remove();
         results.querySelector("[data-no-more]")?.remove();
@@ -257,7 +286,7 @@
       controller?.abort();
       controller = new AbortController();
       try {
-        const response = await fetch(`/workspace/sports-editorial/entities/search?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type.value)}&offset=${nextOffset}`, {signal: controller.signal});
+        const response = await fetch(`/workspace/sports-editorial/entities/search?q=${encodeURIComponent(query)}&offset=${nextOffset}`, {signal: controller.signal});
         const payload = await response.json();
         loading.remove();
         if (!append && !payload.results.length) results.innerHTML = '<span class="sew-entity-loading">No matches.</span>';
@@ -268,7 +297,7 @@
           more.type = "button";
           more.dataset.showMore = "";
           more.textContent = "Show more";
-          more.addEventListener("click", () => runSearch(true));
+          more.addEventListener("click", () => runSearch(true, queryContext));
           results.appendChild(more);
         } else if (append && payload.results.length) {
           const end = document.createElement("span");
@@ -282,11 +311,36 @@
         results.innerHTML = '<span class="sew-entity-loading">Search is temporarily unavailable.</span>';
       }
     };
-    search.setAttribute("aria-controls", search.getAttribute("aria-controls") || `entity-results-${crypto.randomUUID()}`);
-    results.id = search.getAttribute("aria-controls");
+    const scheduleSearch = () => {
+      clearTimeout(timer);
+      if (!editor.isContentEditable) {
+        results.hidden = true;
+        return;
+      }
+      const context = currentQuery();
+      if (!context) {
+        results.hidden = true;
+        return;
+      }
+      timer = setTimeout(() => runSearch(false, context), 250);
+    };
+    results.id = results.id || `entity-results-${crypto.randomUUID()}`;
     results.setAttribute("role", "listbox");
-    search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => runSearch(false), 250); });
-    search.addEventListener("keydown", (event) => {
+    editor.setAttribute("aria-autocomplete", "list");
+    editor.setAttribute("aria-controls", results.id);
+    editor.addEventListener("input", () => {
+      validateMentionTags();
+      if (suppressNextSearch) {
+        suppressNextSearch = false;
+        return;
+      }
+      scheduleSearch();
+    });
+    editor.addEventListener("mouseup", scheduleSearch);
+    editor.addEventListener("keyup", (event) => {
+      if (!["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(event.key)) scheduleSearch();
+    });
+    editor.addEventListener("keydown", (event) => {
       if (event.key === "ArrowDown" && entityButtons().length) { event.preventDefault(); setActive(activeIndex + 1); }
       else if (event.key === "ArrowUp" && entityButtons().length) { event.preventDefault(); setActive(activeIndex <= 0 ? entityButtons().length - 1 : activeIndex - 1); }
       else if (event.key === "Enter") {
@@ -295,16 +349,14 @@
       } else if (event.key === "Escape") {
         event.preventDefault();
         results.hidden = true;
+        editor.removeAttribute("aria-activedescendant");
       }
     });
-    type.addEventListener("change", () => runSearch(false));
     selected.addEventListener("click", (event) => {
       if (!event.target.matches("[data-remove-entity]")) return;
       event.target.closest("[data-entity-id]").remove();
       applyMentionTags();
     });
-    editorForControl()?.addEventListener("input", validateMentionTags);
-    selected.querySelectorAll("label input").forEach((input) => input.addEventListener("change", applyMentionTags));
   };
   document.querySelectorAll("[data-entity-control]").forEach(initialiseEntityControl);
   new MutationObserver((mutations) => mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
@@ -390,7 +442,7 @@
     block.dataset.blockType = type;
     block.dataset.accepted = "0";
     block.draggable = false;
-    const entities = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${id}" data-mention-prefix="entity_mention_${id}_"><span class="sew-cell-label">Link text</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-search-row"><select data-entity-type><option value="athlete">Athlete</option><option value="country">Country</option><option value="event">Event</option><option value="competition">Competition</option></select><input type="search" data-entity-search placeholder="Type athlete, country or competition"><div class="sew-entity-results" data-entity-results hidden></div></div></div>` : "";
+    const entities = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${id}" data-mention-prefix="entity_mention_${id}_"><span class="sew-cell-label">Linked</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-results" data-entity-results hidden></div></div>` : "";
     const acceptedInput = type === "stat" ? `<input type="hidden" name="accepted_${id}" value="0" data-accepted-input>` : "";
     const accept = type === "stat" ? `<button class="sew-button sew-button--primary sew-button--small" type="button" data-toggle-accepted>Accept and lock</button>` : "";
     block.innerHTML = `<header><div class="sew-card-header-actions"><span class="sew-validation" data-review-status>${type === "section" ? "Sub-heading · editable" : "Needs review"}</span>${accept}<button class="sew-button sew-button--danger sew-button--small" type="button" data-remove-review-block>Remove</button></div></header><input type="hidden" name="content_id" value="${id}"><input type="hidden" name="content_type" value="${type}">${acceptedInput}<div class="sew-content-editor-row"><div class="sew-content-block-label"><span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span><span data-review-label></span></div><div class="sew-content-editor-body"><div class="sew-working-editor"><div class="sew-mini-toolbar"><button type="button" data-review-format="bold"><strong>B</strong></button><button type="button" data-review-format="italic"><em>I</em></button></div><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-label="${type === "section" ? "Sub-heading" : "Statistic"} wording" data-review-editor></div><textarea name="edited_text_${id}" hidden data-review-input data-content-input></textarea></div><details class="sew-original"><summary>View original researcher wording</summary><div class="sew-rendered-content"></div></details>${entities}</div></div>`;

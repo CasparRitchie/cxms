@@ -7,7 +7,8 @@
   const releaseUrl = form.dataset.lockReleaseUrl;
   const closeUrl = form.dataset.closeUrl;
   const closeDialog = form.querySelector("[data-close-dialog]");
-  const timeoutMs = Number(form.dataset.lockTimeout || 900) * 1000;
+  const timeoutMs = Number(form.dataset.lockTimeout || 3600) * 1000;
+  const warningAfterMs = 45 * 60 * 1000;
   let lastHeartbeat = 0;
   let lastActivity = 0;
   let expiresAt = Date.now() + timeoutMs;
@@ -27,7 +28,14 @@
     const alert = document.createElement("section");
     alert.className = "sew-lock-warning";
     alert.setAttribute("role", "alert");
-    alert.textContent = `${message} Your unsaved text remains visible in this browser but cannot overwrite the current saved version.`;
+    alert.append(document.createTextNode(
+      `${message} Your unsaved text remains visible in this browser but cannot overwrite the current saved version. `
+    ));
+    const reload = document.createElement("a");
+    reload.className = "sew-button sew-button--primary";
+    reload.href = window.location.href;
+    reload.textContent = "Reload saved sheet and continue";
+    alert.appendChild(reload);
     form.before(alert);
   };
 
@@ -166,11 +174,11 @@
     if (remaining <= 0) {
       const timeoutMinutes = Math.round(timeoutMs / 60000);
       setReadOnly(`Your editing lock has expired after ${timeoutMinutes} minutes of inactivity.`);
-    } else if (remaining <= 120000 && !expiryWarning) {
+    } else if (remaining <= timeoutMs - warningAfterMs && !expiryWarning) {
       expiryWarning = document.createElement("p");
       expiryWarning.className = "sew-lock-expiry-warning";
       expiryWarning.setAttribute("role", "status");
-      expiryWarning.textContent = "Your editing lock will expire soon. Interact with the sheet to keep editing.";
+      expiryWarning.textContent = `You have been inactive for 45 minutes. Interact with the sheet to keep editing; otherwise the lock will be released after ${Math.round(timeoutMs / 60000)} minutes.`;
       form.before(expiryWarning);
     }
   }, 30000);

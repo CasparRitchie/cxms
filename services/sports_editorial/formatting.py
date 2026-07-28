@@ -72,6 +72,7 @@ class _EntityOccurrenceRenderer(HTMLParser):
         self.parts = []
         self.replacements = sorted(replacements, key=lambda item: len(item["mention"]), reverse=True)
         self.published = published
+        self.linked_entity_ids = set()
 
     def handle_starttag(self, tag, attrs):
         if tag in ALLOWED_TAGS:
@@ -91,13 +92,22 @@ class _EntityOccurrenceRenderer(HTMLParser):
         if not data or not self.replacements:
             self.parts.append(escape(data))
             return
-        pattern = re.compile("|".join(re.escape(item["mention"]) for item in self.replacements))
+        available = [item for item in self.replacements if item["id"] not in self.linked_entity_ids]
+        if not available:
+            self.parts.append(escape(data))
+            return
+        pattern = re.compile("|".join(re.escape(item["mention"]) for item in available))
         by_mention = {item["mention"]: item for item in self.replacements}
         cursor = 0
         for match in pattern.finditer(data):
             self.parts.append(escape(data[cursor:match.start()]))
             item = by_mention[match.group(0)]
             mention = escape(match.group(0))
+            if item["id"] in self.linked_entity_ids:
+                self.parts.append(mention)
+                cursor = match.end()
+                continue
+            self.linked_entity_ids.add(item["id"])
             if self.published:
                 self.parts.append(
                     f'<a class="sew-entity-text-link" href="{item["href"]}" target="_blank" '
@@ -132,7 +142,7 @@ def _render_entity_occurrences(value, block, entities_by_id, published):
 
 
 def render_entity_links(value, block, entities_by_id):
-    """Link every exact confirmed occurrence while preserving safe formatting."""
+    """Link the first exact confirmed occurrence while preserving safe formatting."""
     return _render_entity_occurrences(value, block, entities_by_id, published=True)
 
 

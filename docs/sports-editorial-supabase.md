@@ -11,7 +11,8 @@ If you ran an earlier version of the file, run it again. The statements are repe
 Before deploying the document-editing workflow, also run
 [`supabase/sports_editorial_edit_locks.sql`](../supabase/sports_editorial_edit_locks.sql).
 The application and database function must be deployed together because the
-heartbeat uses the configured inactivity timeout. The default is 15 minutes
+heartbeat uses the configured inactivity timeout. The default is 60 minutes,
+with an editor warning after 45 minutes of inactivity,
 and can be changed with `SPORTS_EDITORIAL_EDIT_LOCK_TIMEOUT_SECONDS`.
 
 Run [`supabase/sports_editorial_audit.sql`](../supabase/sports_editorial_audit.sql)
