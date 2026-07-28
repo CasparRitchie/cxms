@@ -765,6 +765,7 @@ html[data-sew-theme="light"] .sew-stat-card--section .sew-content-block-label{co
 .sew-entity-text-link,.sew-entity-text-tag{border-bottom:1px solid currentColor;color:var(--sew-blue);font-weight:700;text-decoration:none}
 .sew-entity-text-link:hover,.sew-entity-text-link:focus-visible,.sew-entity-text-tag:focus-visible{outline:2px solid var(--sew-blue);outline-offset:2px;text-decoration:underline}
 html[data-sew-theme="light"] .sew-entity-text-link,html[data-sew-theme="light"] .sew-entity-text-tag{color:#244fb3}
+::highlight(sew-entity-links){background:rgba(135,168,255,.24);color:inherit;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
 @media(max-width:560px){
   .sew-core-data .sew-core-grid>div,.sew-core-data .sew-core-grid>.sew-field{grid-template-columns:1fr}
   .sew-stat-input>div>label,.sew-stat-input>label{grid-template-columns:1fr}

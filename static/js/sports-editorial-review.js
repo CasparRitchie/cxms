@@ -1,4 +1,11 @@
 (() => {
+  const editableEntityHighlightRanges = new Map();
+  const renderEditableEntityHighlights = () => {
+    if (!window.CSS?.highlights || typeof window.Highlight !== "function") return;
+    const ranges = [...editableEntityHighlightRanges.values()].flat();
+    CSS.highlights.set("sew-entity-links", new Highlight(...ranges));
+  };
+
   const initialiseReviewBlock = (block) => {
     if (block.dataset.reviewInitialised) return;
     block.dataset.reviewInitialised = "true";
@@ -121,6 +128,7 @@
     let activeIndex = -1;
     let queryContext = null;
     let suppressNextSearch = false;
+    const highlightKey = crypto.randomUUID();
 
     const entityButtons = () => [...results.querySelectorAll("[data-entity-result]")];
     const setActive = (index) => {
@@ -142,9 +150,8 @@
       });
       editor.normalize();
     };
-    const applyMentionTags = () => {
-      if (!editor) return;
-      unwrapMentionTags(editor);
+    const refreshMentionHighlights = () => {
+      const ranges = [];
       const chips = [...selected.querySelectorAll("[data-entity-id]")].sort((left, right) => {
         const leftWords = left.querySelector("label input")?.value.trim() || "";
         const rightWords = right.querySelector("label input")?.value.trim() || "";
@@ -161,38 +168,23 @@
         while ((node = walker.nextNode())) {
           const index = node.data.indexOf(words);
           if (index < 0) continue;
-          const remainder = node.splitText(index);
-          const after = remainder.splitText(words.length);
-          const tag = document.createElement("span");
-          tag.className = "sew-entity-text-tag";
-          tag.dataset.entityRef = chip.dataset.entityId;
-          tag.textContent = remainder.data;
-          remainder.replaceWith(tag);
-          after.parentNode?.normalize();
+          const range = document.createRange();
+          range.setStart(node, index);
+          range.setEnd(node, index + words.length);
+          ranges.push(range);
           break;
         }
       });
+      editableEntityHighlightRanges.set(highlightKey, ranges);
+      renderEditableEntityHighlights();
     };
     const validateMentionTags = () => {
       selected.querySelectorAll("[data-entity-id]").forEach((chip) => {
         const mention = chip.querySelector("label input");
         if (!mention?.value || editor.innerText.includes(mention.value)) return;
         mention.value = "";
-        editor.querySelectorAll(`[data-entity-ref="${CSS.escape(chip.dataset.entityId)}"]`).forEach((tag) => {
-          tag.replaceWith(document.createTextNode(tag.textContent));
-        });
-        editor.normalize();
       });
-    };
-    const placeCaretAfterEntity = (entityId) => {
-      const tag = editor.querySelector(`[data-entity-ref="${CSS.escape(entityId)}"]`);
-      if (!tag) return;
-      const selection = window.getSelection();
-      const caret = document.createRange();
-      caret.setStartAfter(tag);
-      caret.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(caret);
+      refreshMentionHighlights();
     };
 
     const currentQuery = () => {
@@ -215,6 +207,28 @@
       wordRange.setEnd(selection.anchorNode, selection.anchorOffset);
       return {text: match[0], range: wordRange, replace: true};
     };
+    const placeCaretAtTextOffset = (offset) => {
+      const selection = window.getSelection();
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      let remaining = offset;
+      let node;
+      while ((node = walker.nextNode())) {
+        if (remaining <= node.data.length) {
+          const caret = document.createRange();
+          caret.setStart(node, remaining);
+          caret.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(caret);
+          return;
+        }
+        remaining -= node.data.length;
+      }
+      const caret = document.createRange();
+      caret.selectNodeContents(editor);
+      caret.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(caret);
+    };
     const replaceQueryWithEntityName = (entity) => {
       if (!queryContext?.replace || !queryContext.range) return queryContext?.text || entity.name;
       const range = queryContext.range;
@@ -222,12 +236,14 @@
       range.deleteContents();
       const text = document.createTextNode(entity.name);
       range.insertNode(text);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      const caret = document.createRange();
-      caret.setStartAfter(text);
-      caret.collapse(true);
-      selection.addRange(caret);
+      const offsetRange = document.createRange();
+      offsetRange.selectNodeContents(editor);
+      offsetRange.setEndAfter(text);
+      const caretOffset = offsetRange.toString().length;
+      // Range insertion splits text nodes. Merge them again so subsequent
+      // clicks, Home/End and arrow-key movement behave like a normal editor.
+      editor.normalize();
+      placeCaretAtTextOffset(caretOffset);
       return entity.name;
     };
     const addEntity = (entity) => {
@@ -260,8 +276,7 @@
       selected.appendChild(chip);
       results.hidden = true;
       editor.removeAttribute("aria-activedescendant");
-      applyMentionTags();
-      placeCaretAfterEntity(entity.id);
+      refreshMentionHighlights();
       suppressNextSearch = true;
       editor.dispatchEvent(new Event("input", {bubbles: true}));
       editor.focus();
@@ -341,6 +356,8 @@
     results.setAttribute("role", "listbox");
     editor.setAttribute("aria-autocomplete", "list");
     editor.setAttribute("aria-controls", results.id);
+    unwrapMentionTags(editor);
+    refreshMentionHighlights();
     editor.addEventListener("input", () => {
       validateMentionTags();
       if (suppressNextSearch) {
@@ -349,21 +366,21 @@
       }
       scheduleSearch();
     });
-    editor.addEventListener("blur", (event) => {
-      if (event.relatedTarget && results.contains(event.relatedTarget)) return;
-      applyMentionTags();
-    });
     editor.addEventListener("mouseup", scheduleSearch);
     editor.addEventListener("keyup", (event) => {
       if (!["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(event.key)) scheduleSearch();
     });
     editor.addEventListener("keydown", (event) => {
-      if (event.key === "ArrowDown" && entityButtons().length) { event.preventDefault(); setActive(activeIndex + 1); }
-      else if (event.key === "ArrowUp" && entityButtons().length) { event.preventDefault(); setActive(activeIndex <= 0 ? entityButtons().length - 1 : activeIndex - 1); }
-      else if (event.key === "Enter") {
+      const resultsOpen = !results.hidden;
+      if (event.key === "ArrowDown" && resultsOpen && entityButtons().length) { event.preventDefault(); setActive(activeIndex + 1); }
+      else if (event.key === "ArrowUp" && resultsOpen && entityButtons().length) { event.preventDefault(); setActive(activeIndex <= 0 ? entityButtons().length - 1 : activeIndex - 1); }
+      else if (event.key === "Enter" && resultsOpen && activeIndex >= 0 && entityButtons()[activeIndex]) {
         event.preventDefault();
-        if (activeIndex >= 0 && entityButtons()[activeIndex]) entityButtons()[activeIndex].click();
-      } else if (event.key === "Escape") {
+        entityButtons()[activeIndex].click();
+      } else if (event.key === "Enter" && !resultsOpen) {
+        event.preventDefault();
+        document.execCommand("insertLineBreak", false);
+      } else if (event.key === "Escape" && resultsOpen) {
         event.preventDefault();
         results.hidden = true;
         editor.removeAttribute("aria-activedescendant");
@@ -372,7 +389,7 @@
     selected.addEventListener("click", (event) => {
       if (!event.target.matches("[data-remove-entity]")) return;
       event.target.closest("[data-entity-id]").remove();
-      applyMentionTags();
+      refreshMentionHighlights();
     });
   };
   document.querySelectorAll("[data-entity-control]").forEach(initialiseEntityControl);
