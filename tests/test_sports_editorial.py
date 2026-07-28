@@ -222,7 +222,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(entry_page.status_code, 200)
         self.assertIn(b'class="sew-stats-builder" data-stats-list', entry_page.data)
         saved = self.client.post(f"/workspace/sports-editorial/submissions/{submission_id}/research", data={
-            "event_date": "2026-10-13", "content_type": ["section", "stat"],
+            "event_date": "13-Oct-2026", "content_type": ["section", "stat"],
             "content_html": ["Race scenarios", "A researched statistic."],
             "working_notes": "Source: internal workbook", "unused_stats": "Reserve statistic", "action": "submit",
         })
@@ -456,7 +456,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         withdrawn = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-withdraw")
         self.assertEqual(withdrawn.status_code, 302)
         self.assertEqual(repository.get_fis_publication("demo-submission-approved")["status"], "withdrawn")
-        self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "in_review")
+        self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "draft")
 
     def test_unapproved_submission_cannot_publish_to_fis(self):
         self.set_sub_editor()
@@ -488,7 +488,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_publication_wording_is_editable_for_sub_editor(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'contenteditable="true"', response.data)
         self.assertIn(b'aria-label="Statistic wording"', response.data)
@@ -509,20 +509,20 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_accepted_statistic_places_unlock_in_card_header(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved")
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved?edit=1")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Accepted \xc2\xb7 locked</span><button class="sew-button sew-button--danger sew-button--small" type="button" data-toggle-accepted', response.data)
         self.assertNotIn(b'class="sew-review-actions"', response.data)
 
     def test_unaccepted_statistic_places_accept_and_lock_in_card_header(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Needs review</span><button class="sew-button sew-button--primary sew-button--small" type="button" data-toggle-accepted', response.data)
 
     def test_only_drag_handles_are_draggable_so_original_wording_is_selectable(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b'data-review-block data-block-type="stat" data-accepted="0" draggable=', response.data)
         self.assertIn(b'class="sew-drag" title="Drag to reorder" draggable="true"', response.data)
@@ -530,10 +530,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_sub_editor_gets_explicit_review_actions_instead_of_status_dropdown(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Current stage: Submitted", response.data)
-        self.assertIn(b'value="in_review">Start sub-edit', response.data)
+        self.assertIn(b"Current stage: In Sub Edit", response.data)
         self.assertIn(b'value="changes_requested">Request changes', response.data)
         self.assertIn(b'value="approved">Approve stat sheet', response.data)
         self.assertNotIn(b"<span>Workflow status</span><select", response.data)
@@ -546,7 +545,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             follow_redirects=True,
         )
         self.assertIn(b"Add instructions explaining what the researcher needs to change", missing_feedback.data)
-        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "submitted")
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "in_review")
 
         feedback = "Please replace the final statistic and confirm its source."
         response = self.client.post(
@@ -564,7 +563,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_approved_sheet_offers_fis_json_without_publish_action(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved")
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved?edit=1")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Approved and ready for JSON", response.data)
         self.assertIn(b"Review FIS JSON", response.data)
@@ -665,7 +664,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_core_stat_sheet_data_is_open_collapsible_and_compact(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz")
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz?edit=1")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'<details class="sew-card sew-core-data sew-core-summary" open>', response.data)
         self.assertIn(b"<strong>Core stat-sheet data</strong>", response.data)
@@ -709,7 +708,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.set_sub_editor()
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "approved", "fis_event_ids": "55596"}, follow_redirects=True)
         self.assertIn(b"Accept and lock every statistic", response.data)
-        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "submitted")
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "in_review")
 
     def test_sub_headings_do_not_require_explicit_acceptance(self):
         self.set_sub_editor()
@@ -761,7 +760,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(repository.get_submission(created["id"])["status"], "draft")
         self.client.post(f"/workspace/sports-editorial/submissions/{created['id']}/research", data={
             "action": "submit", "content_id": [b["id"] for b in blocks], "content_type": ["stat", "stat"],
-            "content_html": ["First corrected", "Second"], "event_date": "2026-01-01",
+            "content_html": ["First corrected", "Second"], "event_date": "01-Jan-2026",
         })
         revised = repository.get_submission(created["id"])
         self.assertIsNone(revised["stats"][0]["accepted_at"])
@@ -786,18 +785,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
         _sheet, reopened = repository.acquire_edit_lock("demo-submission-submitted", owner)
         self.assertEqual(reopened["token"], results[owners.index(owner["id"])][1]["token"])
 
-    def test_edit_lock_expires_and_heartbeat_renews(self):
+    def test_edit_lock_does_not_expire_and_heartbeat_updates_activity(self):
         user = {"id": "editor-a", "full_name": "Editor A"}
-        with patch.dict(os.environ, {"SPORTS_EDITORIAL_EDIT_LOCK_TIMEOUT_SECONDS": "60"}):
-            _sheet, lock = repository.acquire_edit_lock("demo-submission-submitted", user)
-            renewed = repository.heartbeat_edit_lock("demo-submission-submitted", user["id"], lock["token"])
-            self.assertIsNotNone(renewed)
-            item = next(row for row in repository._submissions if row["id"] == "demo-submission-submitted")
-            item["lock_last_active_at"] = (datetime.now(timezone.utc) - timedelta(seconds=61)).isoformat()
-            self.assertIsNone(repository.get_edit_lock("demo-submission-submitted"))
-            _sheet, replacement = repository.acquire_edit_lock("demo-submission-submitted", {"id": "editor-b", "full_name": "Editor B"})
-            self.assertEqual(replacement["owner_id"], "editor-b")
-            self.assertNotEqual(replacement["token"], lock["token"])
+        _sheet, lock = repository.acquire_edit_lock("demo-submission-submitted", user)
+        renewed = repository.heartbeat_edit_lock("demo-submission-submitted", user["id"], lock["token"])
+        self.assertIsNotNone(renewed)
+        item = next(row for row in repository._submissions if row["id"] == "demo-submission-submitted")
+        item["lock_last_active_at"] = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        self.assertEqual(repository.get_edit_lock("demo-submission-submitted")["owner_id"], "editor-a")
+        _sheet, blocked = repository.acquire_edit_lock("demo-submission-submitted", {"id": "editor-b", "full_name": "Editor B"})
+        self.assertEqual(blocked["owner_id"], "editor-a")
 
     def test_locked_sheet_is_read_only_and_force_unlock_is_supervisor_only(self):
         repository.acquire_edit_lock("demo-submission-submitted", {"id": "other-editor", "full_name": "Other Editor"})
@@ -814,7 +811,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_stale_lock_token_cannot_save_after_takeover(self):
         self.set_sub_editor()
-        page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(page.status_code, 200)
         old = repository.get_edit_lock("demo-submission-submitted")
         repository.release_edit_lock("demo-submission-submitted", force=True)
@@ -855,6 +852,68 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("Pirovano", rendered)
         self.assertNotIn("javascript:", rendered)
         self.assertNotIn("<script>", rendered)
+
+    def test_entity_linking_decorates_every_exact_full_name_occurrence(self):
+        block = {"entity_ids": ["rast"], "entity_mentions": {"rast": "Camille Rast"}}
+        entities = {"rast": {"canonical_url": "https://example.test/athletes/rast"}}
+        rendered = render_entity_links(
+            "Camille Rast won. Rast led early. <strong>Camille Rast</strong> won again.",
+            block,
+            entities,
+        )
+        self.assertEqual(rendered.count('data-entity-ref="rast"'), 2)
+        self.assertIn("Rast led early", rendered)
+
+    def test_read_only_open_does_not_lock_and_edit_open_changes_stage(self):
+        self.set_sub_editor()
+        read_only = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        self.assertEqual(read_only.status_code, 200)
+        self.assertIsNone(repository.get_edit_lock("demo-submission-submitted"))
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "submitted")
+        editing = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        self.assertEqual(editing.status_code, 200)
+        self.assertEqual(repository.get_edit_lock("demo-submission-submitted")["owner_id"], "demo-user")
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "in_review")
+
+    def test_owned_release_endpoint_closes_lock_without_timeout(self):
+        self.set_sub_editor()
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        lock = repository.get_edit_lock("demo-submission-submitted")
+        released = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted/edit-lock/release",
+            data={"lock_token": lock["token"]},
+        )
+        self.assertEqual(released.status_code, 204)
+        self.assertIsNone(repository.get_edit_lock("demo-submission-submitted"))
+
+    def test_publish_and_force_unlock_are_audited(self):
+        self.set_sub_editor()
+        self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-publish")
+        self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "exported")
+        self.assertEqual(repository.list_audit_events("demo-submission-approved")[-1]["action"], "published")
+        repository.acquire_edit_lock("demo-submission-submitted", {"id": "other-editor", "full_name": "Other Editor"})
+        self.set_role("supervisor")
+        self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted/force-unlock")
+        audit = repository.list_audit_events("demo-submission-submitted")[-1]
+        self.assertEqual(audit["action"], "force_unlock")
+        self.assertEqual(audit["details"]["previous_owner_name"], "Other Editor")
+
+    def test_editorial_supervisor_can_provision_supervisor_user(self):
+        supervisor = {"id": "supervisor-id", "workspace_id": "workspace-id", "role": "supervisor", "workspace_role": "member"}
+        with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), \
+             patch("services.sports_editorial.views.current_user", return_value=supervisor), \
+             patch("services.sports_editorial.views.require_editorial_user_admin", return_value=supervisor), \
+             patch("services.sports_editorial.views.provision_workspace_user") as provision, \
+             patch("services.sports_editorial.views.list_workspace_users", return_value=[]):
+            response = self.client.post("/workspace/sports-editorial/users", data={
+                "email": "new-supervisor@example.test", "full_name": "New Supervisor",
+                "temporary_password": "temporary-passphrase", "editorial_role": "supervisor",
+            })
+        self.assertEqual(response.status_code, 302)
+        provision.assert_called_once_with(
+            "workspace-id", "new-supervisor@example.test", "New Supervisor",
+            "temporary-passphrase", "supervisor",
+        )
 
     def test_fis_calendar_parser_deduplicates_event_links(self):
         html = '''

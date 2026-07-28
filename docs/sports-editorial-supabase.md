@@ -25,6 +25,12 @@ Use `journalist` for a journalist account. A user needs an active `app_users` ro
 
 Workspace owners and admins can subsequently open **Users** in Sports Editorial to create pilot accounts. Existing NPS Me email addresses keep their current password; new addresses receive the temporary password entered by the administrator.
 
+Sports Editorial Supervisors can also manage Sports Editorial users even when
+their general workspace role is `member`. This is enforced by the backend, not
+only by navigation visibility. Supervisors can change editorial roles and
+deactivate editorial membership; historical users are retained rather than
+deleted.
+
 ## 3. Configure CXMS/Heroku
 
 ```text

@@ -1,0 +1,14 @@
+<header class="sew-publication-identity">
+  <div>
+    <p class="sew-publication-identity__eyebrow">{{ submission.competition|default('FIS', true) }}</p>
+    <h1>{{ submission.title }}</h1>
+    <p>{{ submission.location|default('Location to be confirmed', true) }}
+      {% if submission.gender or submission.event_name %} · {{ submission.gender }} {{ submission.event_name }}{% endif %}
+    </p>
+  </div>
+  <dl>
+    <div><dt>Race date</dt><dd>{{ format_display_date(submission.event_date)|default('—', true) }}</dd></div>
+    <div><dt>AMP ID</dt><dd>{{ submission.amp_id|default('—', true) }}</dd></div>
+    <div><dt>Status</dt><dd>{{ status_labels[submission.status] }}</dd></div>
+  </dl>
+</header>

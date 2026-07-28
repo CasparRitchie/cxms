@@ -57,37 +57,85 @@ def rich_text_to_plain(value):
     return "".join(parser.parts).strip()
 
 
-def render_entity_links(value, block, entities_by_id):
-    """Render stored mention text safely; entity identity remains in link rows."""
-    rendered = sanitise_rich_text(value)
+def _entity_href(entity):
+    parsed = urlparse(str(entity.get("canonical_url") or ""))
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return ""
+    return escape(str(entity["canonical_url"]), quote=True)
+
+
+class _EntityOccurrenceRenderer(HTMLParser):
+    """Decorate exact text occurrences without ever matching inside markup."""
+
+    def __init__(self, replacements, published):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+        self.replacements = sorted(replacements, key=lambda item: len(item["mention"]), reverse=True)
+        self.published = published
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ALLOWED_TAGS:
+            normalised = {"b": "strong", "i": "em"}.get(tag, tag)
+            self.parts.append(f"<{normalised}>")
+
+    def handle_startendtag(self, tag, attrs):
+        if tag == "br":
+            self.parts.append("<br>")
+
+    def handle_endtag(self, tag):
+        if tag in ALLOWED_TAGS and tag != "br":
+            normalised = {"b": "strong", "i": "em"}.get(tag, tag)
+            self.parts.append(f"</{normalised}>")
+
+    def handle_data(self, data):
+        if not data or not self.replacements:
+            self.parts.append(escape(data))
+            return
+        pattern = re.compile("|".join(re.escape(item["mention"]) for item in self.replacements))
+        by_mention = {item["mention"]: item for item in self.replacements}
+        cursor = 0
+        for match in pattern.finditer(data):
+            self.parts.append(escape(data[cursor:match.start()]))
+            item = by_mention[match.group(0)]
+            mention = escape(match.group(0))
+            if self.published:
+                self.parts.append(
+                    f'<a class="sew-entity-text-link" href="{item["href"]}" target="_blank" '
+                    f'rel="noopener" data-entity-ref="{item["id"]}">{mention}</a>'
+                )
+            else:
+                self.parts.append(
+                    f'<span class="sew-entity-text-tag" tabindex="0" role="link" '
+                    f'data-entity-ref="{item["id"]}">{mention}</span>'
+                )
+            cursor = match.end()
+        self.parts.append(escape(data[cursor:]))
+
+
+def _render_entity_occurrences(value, block, entities_by_id, published):
+    replacements = []
     for entity_id in block.get("entity_ids", []):
         entity = entities_by_id.get(entity_id) or {}
         mention = str((block.get("entity_mentions") or {}).get(entity_id) or "").strip()
-        if not mention:
+        href = _entity_href(entity)
+        if not mention or (published and not href):
             continue
-        escaped_mention = escape(mention)
-        parsed = urlparse(str(entity.get("canonical_url") or ""))
-        if parsed.scheme not in ("http", "https") or not parsed.netloc:
-            continue
-        anchor = (
-            f'<a class="sew-entity-text-link" href="{escape(entity["canonical_url"], quote=True)}" '
-            f'target="_blank" rel="noopener" data-entity-ref="{escape(str(entity_id), quote=True)}">'
-            f"{escaped_mention}</a>"
-        )
-        rendered = re.sub(re.escape(escaped_mention), lambda _match: anchor, rendered, count=1)
-    return rendered
+        replacements.append({
+            "id": escape(str(entity_id), quote=True),
+            "mention": mention,
+            "href": href,
+        })
+    parser = _EntityOccurrenceRenderer(replacements, published)
+    parser.feed(sanitise_rich_text(value))
+    parser.close()
+    return "".join(parser.parts).strip()
 
 
-def render_entity_tags(value, block):
-    rendered = sanitise_rich_text(value)
-    for entity_id in block.get("entity_ids", []):
-        mention = str((block.get("entity_mentions") or {}).get(entity_id) or "").strip()
-        if not mention:
-            continue
-        escaped_mention = escape(mention)
-        tag = (
-            f'<span class="sew-entity-text-tag" tabindex="0" role="link" '
-            f'data-entity-ref="{escape(str(entity_id), quote=True)}">{escaped_mention}</span>'
-        )
-        rendered = re.sub(re.escape(escaped_mention), lambda _match: tag, rendered, count=1)
-    return rendered
+def render_entity_links(value, block, entities_by_id):
+    """Link every exact confirmed occurrence while preserving safe formatting."""
+    return _render_entity_occurrences(value, block, entities_by_id, published=True)
+
+
+def render_entity_tags(value, block, entities_by_id=None):
+    entities_by_id = entities_by_id or {entity_id: {} for entity_id in block.get("entity_ids", [])}
+    return _render_entity_occurrences(value, block, entities_by_id, published=False)

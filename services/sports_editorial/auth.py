@@ -82,6 +82,13 @@ def require_workspace_admin():
     return user
 
 
+def require_editorial_user_admin():
+    user = current_user()
+    if not user or (user.get("role") != "supervisor" and user.get("workspace_role") not in ("owner", "admin")):
+        abort(403, description="Supervisor or workspace administrator access is required.")
+    return user
+
+
 def list_workspace_users(workspace_id):
     client = SupabaseRestClient()
     memberships = client.request("sports_editorial_memberships", query={"select": "user_id,editorial_role,is_active,created_at", "workspace_id": f"eq.{workspace_id}", "order": "created_at.asc"})
@@ -90,7 +97,14 @@ def list_workspace_users(workspace_id):
     ids = ",".join(item["user_id"] for item in memberships)
     users = client.request("app_users", query={"select": "id,email,full_name,is_active", "id": f"in.({ids})"})
     users_by_id = {item["id"]: item for item in users}
-    return [{**item, **users_by_id.get(item["user_id"], {})} for item in memberships]
+    return [
+        {
+            **item,
+            **users_by_id.get(item["user_id"], {}),
+            "editorial_is_active": item.get("is_active", False),
+        }
+        for item in memberships
+    ]
 
 
 def provision_workspace_user(workspace_id, email, full_name, temporary_password, editorial_role):
@@ -105,3 +119,22 @@ def provision_workspace_user(workspace_id, email, full_name, temporary_password,
     password_hash = bcrypt.hashpw(temporary_password.encode(), bcrypt.gensalt(rounds=12)).decode()
     result = SupabaseRestClient().request("rpc/sports_editorial_provision_user", "POST", payload={"p_workspace_id": workspace_id, "p_email": normalised_email, "p_full_name": str(full_name or "").strip(), "p_password_hash": password_hash, "p_editorial_role": editorial_role})
     return result[0] if isinstance(result, list) and result else result
+
+
+def update_workspace_editorial_user(workspace_id, user_id, full_name, editorial_role, is_active):
+    if editorial_role not in ("researcher", "sub_editor", "supervisor"):
+        raise ValueError("Choose Researcher, Sub-editor or Supervisor access.")
+    client = SupabaseRestClient()
+    rows = client.request("sports_editorial_memberships", query={
+        "select": "user_id", "workspace_id": f"eq.{workspace_id}",
+        "user_id": f"eq.{user_id}", "limit": "1",
+    })
+    if not rows:
+        raise ValueError("That user does not belong to this Sports Editorial workspace.")
+    client.request("sports_editorial_memberships", "PATCH", query={
+        "workspace_id": f"eq.{workspace_id}", "user_id": f"eq.{user_id}",
+    }, payload={"editorial_role": editorial_role, "is_active": bool(is_active)}, prefer="return=minimal")
+    if str(full_name or "").strip():
+        client.request("app_users", "PATCH", query={"id": f"eq.{user_id}"}, payload={
+            "full_name": str(full_name).strip(),
+        }, prefer="return=minimal")

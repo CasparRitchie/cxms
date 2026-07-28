@@ -140,34 +140,43 @@
       });
       editor.normalize();
     };
-    const findMentionTextNode = (editor, words) => {
-      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-      let node;
-      while ((node = walker.nextNode())) {
-        const index = node.data.indexOf(words);
-        if (index >= 0) return {node, index};
-      }
-      return null;
-    };
     const applyMentionTags = () => {
       const editor = editorForControl();
       if (!editor) return;
       unwrapMentionTags(editor);
-      selected.querySelectorAll("[data-entity-id]").forEach((chip) => {
+      const chips = [...selected.querySelectorAll("[data-entity-id]")].sort((left, right) => {
+        const leftWords = left.querySelector("label input")?.value.trim() || "";
+        const rightWords = right.querySelector("label input")?.value.trim() || "";
+        return rightWords.length - leftWords.length;
+      });
+      chips.forEach((chip) => {
         const words = chip.querySelector("label input")?.value.trim();
         if (!words) return;
-        const match = findMentionTextNode(editor, words);
-        if (!match) return;
-        const remainder = match.node.splitText(match.index);
-        const after = remainder.splitText(words.length);
-        const tag = document.createElement("span");
-        tag.className = "sew-entity-text-tag";
-        tag.dataset.entityRef = chip.dataset.entityId;
-        tag.setAttribute("role", "link");
-        tag.tabIndex = 0;
-        tag.textContent = remainder.data;
-        remainder.replaceWith(tag);
-        after.parentNode?.normalize();
+        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+          acceptNode: (node) => node.parentElement?.closest("[data-entity-ref]")
+            ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+        });
+        const matches = [];
+        let node;
+        while ((node = walker.nextNode())) {
+          let index = node.data.indexOf(words);
+          while (index >= 0) {
+            matches.push({node, index});
+            index = node.data.indexOf(words, index + words.length);
+          }
+        }
+        matches.reverse().forEach((match) => {
+          const remainder = match.node.splitText(match.index);
+          const after = remainder.splitText(words.length);
+          const tag = document.createElement("span");
+          tag.className = "sew-entity-text-tag";
+          tag.dataset.entityRef = chip.dataset.entityId;
+          tag.setAttribute("role", "link");
+          tag.tabIndex = 0;
+          tag.textContent = remainder.data;
+          remainder.replaceWith(tag);
+          after.parentNode?.normalize();
+        });
       });
     };
     const validateMentionTags = () => {
@@ -225,7 +234,8 @@
       button.setAttribute("role", "option");
       button.setAttribute("aria-selected", "false");
       button.tabIndex = -1;
-      button.textContent = `${entity.name}${entity.country_code ? ` · ${entity.country_code}` : ""}${entity.canonical_id ? ` · ${entity.canonical_id}` : ""}`;
+      const identity = [entity.country_code, entity.ski_sponsor].filter(Boolean).join(" / ");
+      button.textContent = `${entity.name}${identity ? ` (${identity})` : ""}${entity.canonical_id ? ` · ${entity.canonical_id}` : ""}`;
       button.addEventListener("click", () => addEntity(entity));
       results.appendChild(button);
     };
@@ -380,7 +390,7 @@
     block.dataset.blockType = type;
     block.dataset.accepted = "0";
     block.draggable = false;
-    const entities = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${id}" data-mention-prefix="entity_mention_${id}_"><span class="sew-cell-label">Entity links</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-search-row"><select data-entity-type><option value="athlete">Athlete</option><option value="country">Country</option><option value="event">Event</option><option value="competition">Competition</option></select><input type="search" data-entity-search placeholder="Find entity"><div class="sew-entity-results" data-entity-results hidden></div></div></div>` : "";
+    const entities = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${id}" data-mention-prefix="entity_mention_${id}_"><span class="sew-cell-label">Link text</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-search-row"><select data-entity-type><option value="athlete">Athlete</option><option value="country">Country</option><option value="event">Event</option><option value="competition">Competition</option></select><input type="search" data-entity-search placeholder="Type athlete, country or competition"><div class="sew-entity-results" data-entity-results hidden></div></div></div>` : "";
     const acceptedInput = type === "stat" ? `<input type="hidden" name="accepted_${id}" value="0" data-accepted-input>` : "";
     const accept = type === "stat" ? `<button class="sew-button sew-button--primary sew-button--small" type="button" data-toggle-accepted>Accept and lock</button>` : "";
     block.innerHTML = `<header><div class="sew-card-header-actions"><span class="sew-validation" data-review-status>${type === "section" ? "Sub-heading · editable" : "Needs review"}</span>${accept}<button class="sew-button sew-button--danger sew-button--small" type="button" data-remove-review-block>Remove</button></div></header><input type="hidden" name="content_id" value="${id}"><input type="hidden" name="content_type" value="${type}">${acceptedInput}<div class="sew-content-editor-row"><div class="sew-content-block-label"><span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span><span data-review-label></span></div><div class="sew-content-editor-body"><div class="sew-working-editor"><div class="sew-mini-toolbar"><button type="button" data-review-format="bold"><strong>B</strong></button><button type="button" data-review-format="italic"><em>I</em></button></div><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-label="${type === "section" ? "Sub-heading" : "Statistic"} wording" data-review-editor></div><textarea name="edited_text_${id}" hidden data-review-input data-content-input></textarea></div><details class="sew-original"><summary>View original researcher wording</summary><div class="sew-rendered-content"></div></details>${entities}</div></div>`;

@@ -75,6 +75,16 @@ def parse_display_date(value, field_label):
     return parsed.isoformat(), None
 
 
+def format_display_date(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").strftime("%d-%b-%Y")
+    except ValueError:
+        return raw
+
+
 def _metadata(event):
     return event.get("metadata") or {}
 

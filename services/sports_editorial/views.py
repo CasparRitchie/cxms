@@ -11,7 +11,7 @@ from .fis_client import FisApiError, fis_configuration, get_fis_client
 from .fis_export import FisPayloadValidationError, build_fis_payload
 from .repository import repository
 from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, STATUS_LABELS, validate_status_transition, validate_submission
-from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_editor, require_workspace_admin
+from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_editor, require_editorial_user_admin, require_workspace_admin, update_workspace_editorial_user
 from .supabase_rest import SupabaseError
 from .calendar import RepositoryCalendarProvider
 from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
@@ -21,7 +21,7 @@ from .stat_insights import build_stat_insights, demo_result_rows
 from .fis_results import FisResultError, fetch_alpine_results
 from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
-    parse_display_date, resolve_calendar_event, validate_choice_combination,
+    format_display_date, parse_display_date, resolve_calendar_event, validate_choice_combination,
 )
 from .edit_locks import lock_timeout_seconds, parse_timestamp
 
@@ -126,7 +126,7 @@ def logout():
 def users():
     if auth_configuration()["mode"] != "workspace":
         abort(404)
-    admin = require_workspace_admin()
+    admin = require_editorial_user_admin()
     if request.method == "POST":
         try:
             provision_workspace_user(admin["workspace_id"], request.form.get("email", ""), request.form.get("full_name", ""), request.form.get("temporary_password", ""), request.form.get("editorial_role", ""))
@@ -135,6 +135,24 @@ def users():
         except (ValueError, SupabaseError) as exc:
             flash(str(exc), "error")
     return render_template("sports-editorial-workspace/users.html", users=list_workspace_users(admin["workspace_id"]))
+
+
+@blueprint.post("/users/<user_id>")
+def update_user(user_id):
+    if auth_configuration()["mode"] != "workspace":
+        abort(404)
+    admin = require_editorial_user_admin()
+    if user_id == admin.get("id") and request.form.get("is_active") != "1":
+        abort(400, description="You cannot deactivate your own Sports Editorial access.")
+    try:
+        update_workspace_editorial_user(
+            admin["workspace_id"], user_id, request.form.get("full_name", ""),
+            request.form.get("editorial_role", ""), request.form.get("is_active") == "1",
+        )
+        flash("User access updated.", "success")
+    except (ValueError, SupabaseError) as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("sports_editorial_workspace.users"))
 
 
 @blueprint.route("/calendar", methods=["GET", "POST"])
@@ -686,7 +704,7 @@ def search_entities():
     matches = repository.search_entities(query, entity_type=entity_type, limit=limit + 1, offset=offset)
     results, has_more = matches[:limit], len(matches) > limit
     return jsonify({"ok": True, "provider": "local_pilot", "results": [
-        {"id": item["id"], "type": item["entity_type"], "name": item["name"], "canonical_id": item.get("canonical_id"), "canonical_url": item.get("canonical_url"), "country_code": item.get("country_code")}
+        {"id": item["id"], "type": item["entity_type"], "name": item["name"], "canonical_id": item.get("canonical_id"), "canonical_url": item.get("canonical_url"), "country_code": item.get("country_code"), "ski_sponsor": (item.get("metadata") or {}).get("ski_sponsor")}
         for item in results
     ], "has_more": has_more, "next_offset": offset + len(results)})
 
@@ -701,9 +719,20 @@ def detail(submission_id):
         raw_event_ids = " ".join(request.form.getlist("fis_event_ids"))
         event_ids = _event_ids_from_form(raw_event_ids)
         valid, message = validate_status_transition(submission["status"], requested_status)
+        parsed_dates = {}
+        for field_name, label in (
+            ("event_date", "Race Date"),
+            ("researcher_deadline", "Researcher Deadline"),
+            ("publication_deadline", "Publication Deadline"),
+        ):
+            if field_name in request.form:
+                parsed_dates[field_name], error = parse_display_date(request.form.get(field_name), label)
+                if error:
+                    valid, message = False, error
+                    break
         if _invalid_event_id_tokens(raw_event_ids):
             valid, message = False, "FIS calendar event IDs must contain digits only, for example 123456."
-        elif request.form.get("season_code", "").strip() and _season_code(request.form.get("season_code"), event_ids, request.form.get("event_date")) is None:
+        elif request.form.get("season_code", "").strip() and _season_code(request.form.get("season_code"), event_ids, parsed_dates.get("event_date", request.form.get("event_date"))) is None:
             valid, message = False, "Season must be the four-digit year in which the season ends, for example 2027."
         elif requested_status in ("approved", "exported") and not event_ids:
             valid, message = False, "Select at least one FIS calendar event before approval."
@@ -721,8 +750,11 @@ def detail(submission_id):
         if not valid:
             flash(message, "error")
         else:
-            repository.update_review(submission_id, request.form, requested_status)
-            if requested_status in ("changes_requested", "approved", "exported"):
+            mutable_form = request.form.copy()
+            for field_name, parsed_value in parsed_dates.items():
+                mutable_form[field_name] = parsed_value
+            repository.update_review(submission_id, mutable_form, requested_status)
+            if requested_status in ("changes_requested", "approved", "exported") or request.form.get("save_action") == "close":
                 repository.release_edit_lock(submission_id, user["id"], lock_token)
             workflow_messages = {
                 "changes_requested": "Changes requested. The stat sheet is editable by the assigned researcher again.",
@@ -736,12 +768,13 @@ def detail(submission_id):
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     role = (current_user() or {}).get("role", "researcher")
     editable_role = role in ("sub_editor", "supervisor")
-    refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and submission["status"] != "exported" else (repository.get_submission(submission_id), repository.get_edit_lock(submission_id))
+    wants_edit = request.args.get("edit") == "1"
+    refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and wants_edit and submission["status"] != "exported" else (repository.get_submission(submission_id), repository.get_edit_lock(submission_id))
     owns_lock = bool(edit_lock and edit_lock["owner_id"] == (current_user() or {}).get("id"))
     if owns_lock:
         _remember_lock(submission_id, edit_lock)
     entity_map = _entities_by_id(refreshed)
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=editable_role and owns_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor") and refreshed["status"] in ("draft", "changes_requested"), edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds())
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=editable_role and owns_lock, can_start_review=editable_role and refreshed["status"] != "exported" and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor") and refreshed["status"] in ("draft", "changes_requested"), edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
 
 
 @blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])
@@ -759,18 +792,27 @@ def research(submission_id):
     if request.method == "POST":
         user, lock_token = _require_owned_lock(submission_id)
         action = request.form.get("action", "draft")
+        parsed_date, date_error = parse_display_date(request.form.get("event_date"), "Race Date")
+        if date_error:
+            flash(date_error, "error")
+            entity_map = _entities_by_id(submission)
+            return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date), 400
+        mutable_form = request.form.copy()
+        mutable_form["event_date"] = parsed_date
         content = [{"content_type": kind, "content_html": sanitise_rich_text(value)} for kind, value in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))]
         errors = validate_submission({"title": submission["title"], "sport": submission["sport"], "fis_event_ids": submission.get("fis_event_ids", []), "content": content}, submitting=action == "submit")
         if not errors:
-            repository.update_research(submission_id, request.form, submit=action == "submit")
-            if action == "submit":
+            repository.update_research(submission_id, mutable_form, submit=action == "submit")
+            if action == "submit" or request.form.get("save_action") == "close":
                 repository.release_edit_lock(submission_id, user["id"], lock_token)
             flash("Stat sheet submitted for sub edit." if action == "submit" else "Research saved.", "success")
+            if request.form.get("save_action") == "close":
+                return redirect(url_for("sports_editorial_workspace.queue"))
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
         for error in errors:
             flash(error, "error")
     entity_map = _entities_by_id(submission)
-    return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds())
+    return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
 
 
 @blueprint.post("/submissions/<submission_id>/edit-lock/heartbeat")
@@ -779,8 +821,22 @@ def edit_lock_heartbeat(submission_id):
     payload = request.get_json(silent=True) or {}
     lock = repository.heartbeat_edit_lock(submission_id, user.get("id"), payload.get("lock_token"))
     if not lock:
-        return jsonify({"ok": False, "error": "The editing lock has expired or been replaced."}), 409
+        return jsonify({"ok": False, "error": "The editing lock has been released or replaced."}), 409
     return jsonify({"ok": True, "lock": _lock_display(lock)})
+
+
+@blueprint.post("/submissions/<submission_id>/edit-lock/release")
+def edit_lock_release(submission_id):
+    user = current_user() or {}
+    _submission_or_404(submission_id)
+    payload = request.get_json(silent=True) or request.form
+    token = payload.get("lock_token")
+    if not token or not repository.release_edit_lock(submission_id, user.get("id"), token):
+        return jsonify({"ok": False, "error": "The editing lock is no longer owned by this session."}), 409
+    held = dict(session.get("sports_editorial_edit_locks") or {})
+    held.pop(submission_id, None)
+    session["sports_editorial_edit_locks"] = held
+    return ("", 204)
 
 
 @blueprint.post("/submissions/<submission_id>/force-unlock")
@@ -788,12 +844,20 @@ def force_unlock(submission_id):
     user = current_user() or {}
     if user.get("role") != "supervisor":
         abort(403, description="Supervisor access is required.")
-    _submission_or_404(submission_id)
+    submission = _submission_or_404(submission_id)
+    previous_lock = repository.get_edit_lock(submission_id)
     repository.release_edit_lock(submission_id, force=True)
     _submission, lock = repository.acquire_edit_lock(submission_id, user)
+    if not lock or lock.get("owner_id") != user.get("id"):
+        abort(409, description="The previous lock was removed, but a new editing lock could not be acquired.")
     _remember_lock(submission_id, lock)
+    repository.record_audit_event(submission_id, user, "force_unlock", {
+        "previous_owner_id": (previous_lock or {}).get("owner_id"),
+        "previous_owner_name": (previous_lock or {}).get("owner_name"),
+        "previous_status": submission.get("status"),
+    })
     flash("Previous editing lock invalidated. You now hold the editing lock.", "success")
-    return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+    return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id, edit=1))
 
 
 @blueprint.get("/submissions/<submission_id>/fis-preview")
@@ -812,7 +876,7 @@ def fis_preview(submission_id):
 def publication_preview(submission_id):
     submission = _submission_or_404(submission_id)
     entity_map = _entities_by_id(submission)
-    return render_template("sports-editorial-workspace/publication-preview.html", submission=submission, entities_by_id=entity_map, render_entity_links=render_entity_links)
+    return render_template("sports-editorial-workspace/publication-preview.html", submission=submission, entities_by_id=entity_map, render_entity_links=render_entity_links, format_display_date=format_display_date)
 
 
 @blueprint.post("/submissions/<submission_id>/fis-publish")
@@ -829,6 +893,10 @@ def fis_publish(submission_id):
         payload = build_fis_payload(submission, _entities_by_id(submission), expected_version=previous.get("version"), organisation_uuid=config["organisation_uuid"], calendar_events=_calendar_events())
         publication = get_fis_client().publish(submission.get("fis_external_id") or f"cxms-{submission_id}", payload, previous=previous, submission=submission)
         repository.save_fis_publication(submission_id, publication)
+        repository.set_submission_status(submission_id, "exported")
+        repository.record_audit_event(submission_id, current_user() or {}, "published", {
+            "mode": config["mode"], "version": publication.get("version"),
+        })
         flash("FIS simulation completed. No data was transmitted." if config["mode"] == "mock" else "Published to FIS.", "success")
     except (FisPayloadValidationError, FisApiError) as exc:
         _flash_fis_error(exc)
@@ -845,11 +913,14 @@ def fis_withdraw(submission_id):
     try:
         publication = get_fis_client().withdraw(submission.get("fis_external_id") or f"cxms-{submission_id}", previous=previous)
         repository.save_fis_publication(submission_id, publication)
-        repository.set_submission_status(submission_id, "in_review")
+        repository.set_submission_status(submission_id, "draft")
+        repository.record_audit_event(submission_id, current_user() or {}, "withdrawn", {
+            "mode": fis_configuration()["mode"], "previous_status": submission.get("status"),
+        })
         flash("FIS simulation withdrawn." if fis_configuration()["mode"] == "mock" else "FIS sheet withdrawn.", "success")
     except FisApiError as exc:
         _flash_fis_error(exc)
-    return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+    return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id))
 
 
 @blueprint.post("/submissions/<submission_id>/edit")
@@ -867,6 +938,10 @@ def edit_published(submission_id):
             _flash_fis_error(exc)
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
     repository.set_submission_status(submission_id, "draft")
+    repository.record_audit_event(submission_id, current_user() or {}, "returned_to_in_progress", {
+        "previous_status": submission.get("status"),
+        "withdrawal_performed": publication.get("status") == "published",
+    })
     flash("The published sheet is now In Progress. Edit it, then submit it for sub edit.", "success")
     return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id))
 

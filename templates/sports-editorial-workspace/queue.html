@@ -36,6 +36,7 @@
   <nav class="sew-view-toggle" data-queue-view-switcher data-current-view="{{ queue_view }}" data-standard-url="{{ standard_view_url }}" data-enhanced-url="{{ enhanced_view_url }}" aria-label="Stat sheet queue view">
     <a class="is-active" href="{{ standard_view_url }}" data-queue-view="standard" aria-current="page">Standard</a><a href="{{ enhanced_view_url }}" data-queue-view="enhanced">Enhanced</a>
   </nav>
+  {% if workspace_auth_mode == 'workspace' and workspace_role == 'supervisor' %}<a class="sew-button" href="{{ url_for('sports_editorial_workspace.users') }}">Admin</a>{% endif %}
 </div>
 
 <section class="sew-queue-filter-panel sew-queue-filter-panel--always-open" aria-label="Filters">

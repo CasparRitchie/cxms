@@ -2,8 +2,8 @@
 {% block workspace_title %}Publication preview{% endblock %}
 {% block workspace_content %}
 <div class="sew-page-heading"><a class="sew-back" href="{{ url_for('sports_editorial_workspace.detail', submission_id=submission.id) }}">← Back to stat sheet</a><p class="sew-kicker">Publication preview</p><h1>{{ submission.title }}</h1><p>Visual preview only. Nothing is published from this page.</p></div>
-<article class="sew-publish-preview">
-  <h1>{{ submission.title }}</h1>
+<article class="sew-publish-preview sew-publication-canvas">
+  {% include "sports-editorial-workspace/_document_identity.html" %}
   {% for block in submission.stats|sort(attribute='sort_order') %}{% set wording = block.edited_text or block.stat_text %}
     {% if block.content_type in ['section','heading'] %}<h2>{{ wording|safe }}</h2>{% else %}<div class="sew-preview-stat">{{ render_entity_links(wording, block, entities_by_id)|safe }}</div>{% endif %}
   {% endfor %}

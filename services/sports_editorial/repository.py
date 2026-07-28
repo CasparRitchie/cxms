@@ -34,7 +34,7 @@ class DemoSportsEditorialRepository:
         with self._lock:
             self._submissions, self._entities = fresh_demo_data()
             self._fis_publications = {}
-            self._result_imports, self._results = [], []
+            self._result_imports, self._results, self._audit_events = [], [], []
 
     def list_submissions(self, status="", sport="", order="newest"):
         from .auth import current_user
@@ -102,6 +102,10 @@ class DemoSportsEditorialRepository:
             item["lock_user_id"] = user["id"]
             item["lock_user_name"] = user.get("full_name") or user.get("email") or "Workspace user"
             item["lock_last_active_at"] = now
+            if item.get("status") == "submitted":
+                item["status"] = "in_review"
+                item["updated_at"] = now
+                item["last_modified_by"] = item["lock_user_name"]
             return deepcopy(item), public_lock(item)
 
     def heartbeat_edit_lock(self, submission_id, user_id, token):
@@ -225,6 +229,19 @@ class DemoSportsEditorialRepository:
             item["status"] = status
             item["updated_at"] = _now()
         return deepcopy(item)
+
+    def record_audit_event(self, submission_id, actor, action, details=None):
+        event = {
+            "id": str(uuid4()), "submission_id": submission_id,
+            "actor_user_id": actor.get("id"), "actor_name": actor.get("full_name") or actor.get("email"),
+            "action": action, "details": deepcopy(details or {}), "created_at": _now(),
+        }
+        with self._lock:
+            self._audit_events.append(event)
+        return deepcopy(event)
+
+    def list_audit_events(self, submission_id):
+        return deepcopy([event for event in self._audit_events if event["submission_id"] == submission_id])
 
     def bulk_assign(self, submission_ids, assignment_field, user_id, user_name, actor_id, actor_name):
         if assignment_field not in ("researcher_user_id", "sub_editor_user_id"):
@@ -569,6 +586,21 @@ class SupabaseSportsEditorialRepository:
     def set_submission_status(self, submission_id, status):
         self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload={"status": status, "updated_at": _now()}, prefer="return=minimal")
         return self.get_submission(submission_id)
+
+    def record_audit_event(self, submission_id, actor, action, details=None):
+        payload = {
+            "workspace_id": self._workspace(), "submission_id": submission_id,
+            "actor_user_id": actor.get("id"), "actor_name": actor.get("full_name") or actor.get("email"),
+            "action": action, "details": details or {},
+        }
+        rows = self.client.request("sports_editorial_audit_events", "POST", payload=payload, prefer="return=representation")
+        return rows[0] if rows else None
+
+    def list_audit_events(self, submission_id):
+        return self.client.request("sports_editorial_audit_events", query={
+            "select": "*", "workspace_id": f"eq.{self._workspace()}",
+            "submission_id": f"eq.{submission_id}", "order": "created_at.desc",
+        })
 
     def bulk_assign(self, submission_ids, assignment_field, user_id, user_name, actor_id, actor_name):
         if assignment_field not in ("researcher_user_id", "sub_editor_user_id"):

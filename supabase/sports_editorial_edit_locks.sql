@@ -18,20 +18,20 @@ begin
      set lock_user_id = p_user_id,
          lock_user_name = nullif(trim(p_user_name), ''),
          lock_token = case when s.lock_user_id = p_user_id
-                           and s.lock_last_active_at > now() - make_interval(secs => p_timeout_seconds)
                            then s.lock_token else gen_random_uuid() end,
          lock_acquired_at = case when s.lock_user_id = p_user_id
-                                  and s.lock_last_active_at > now() - make_interval(secs => p_timeout_seconds)
                                   then s.lock_acquired_at else now() end,
          lock_last_active_at = now(),
          lock_version = case when s.lock_user_id = p_user_id
-                              and s.lock_last_active_at > now() - make_interval(secs => p_timeout_seconds)
-                              then s.lock_version else s.lock_version + 1 end
+                              then s.lock_version else s.lock_version + 1 end,
+         status = case when s.status = 'submitted' then 'in_review' else s.status end,
+         updated_at = case when s.status = 'submitted' then now() else s.updated_at end,
+         last_modified_by_user_id = case when s.status = 'submitted' then p_user_id else s.last_modified_by_user_id end,
+         last_modified_by_name = case when s.status = 'submitted' then nullif(trim(p_user_name), '') else s.last_modified_by_name end
    where s.id = p_submission_id
      and s.workspace_id = p_workspace_id
      and (s.lock_user_id is null
-          or s.lock_user_id = p_user_id
-          or s.lock_last_active_at <= now() - make_interval(secs => p_timeout_seconds))
+          or s.lock_user_id = p_user_id)
   returning s.*;
 end $$;
 
@@ -44,7 +44,6 @@ language sql security definer set search_path = public as $$
      set lock_last_active_at = now()
    where id = p_submission_id and workspace_id = p_workspace_id
      and lock_user_id = p_user_id and lock_token = p_lock_token
-     and lock_last_active_at > now() - make_interval(secs => p_timeout_seconds)
   returning *;
 $$;
 

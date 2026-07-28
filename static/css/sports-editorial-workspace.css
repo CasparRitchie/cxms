@@ -501,6 +501,162 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr:nth-child(even) 
 html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr:hover td{background:#e8f1ff}
 html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{background:#d0d5dd}
 
+/* FIS publication canvas: keep the CXMS shell while making the document area
+   read like the finished publication in every theme. */
+.sew-publication-canvas{
+  width:min(100% - 24px,980px);
+  margin:16px auto 36px;
+  padding:42px 46px 54px;
+  border:1px solid #d8dde5;
+  background:#fff;
+  box-shadow:0 16px 42px rgba(5,18,38,.2);
+  color:#161a20;
+}
+.sew-publication-identity{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:end;
+  gap:24px;
+  margin-bottom:30px;
+  padding-bottom:20px;
+  border-bottom:1px solid #d5dae2;
+}
+.sew-publication-identity h1{margin:2px 0 7px;color:#101318;font-size:clamp(24px,3vw,36px);line-height:1.08}
+.sew-publication-identity p{margin:0;color:#5b6472}
+.sew-publication-identity__eyebrow{color:#213f88!important;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.sew-publication-identity dl{display:grid;gap:5px;margin:0}
+.sew-publication-identity dl div{display:grid;grid-template-columns:max-content minmax(80px,1fr);gap:8px}
+.sew-publication-identity dt{color:#697386;font-size:9px;font-weight:800;text-transform:uppercase}
+.sew-publication-identity dd{margin:0;color:#1b2230;font-size:11px;font-weight:700;text-align:right}
+.sew-document-mode-actions{display:flex;justify-content:flex-end;margin:-18px 0 12px}
+.sew-publication-canvas .sew-card{border-color:#d8dde5;background:#fff;color:#1b2230;box-shadow:none}
+.sew-publication-canvas .sew-core-summary>summary,
+.sew-publication-canvas .sew-section-heading,
+.sew-publication-canvas .sew-content-heading{
+  border:0;
+  background:#213f88;
+  color:#fff;
+}
+.sew-publication-canvas .sew-section-heading{margin:22px 0 0;padding:8px 10px}
+.sew-publication-canvas .sew-section-heading h2,
+.sew-publication-canvas .sew-section-heading p{color:#fff}
+.sew-publication-canvas .sew-core-summary{margin:0 0 20px}
+.sew-publication-canvas .sew-core-summary__body{padding:8px 0}
+.sew-publication-canvas .sew-core-grid{gap:0;border-top:1px solid #d8dde5}
+.sew-publication-canvas .sew-core-grid>div,
+.sew-publication-canvas .sew-core-grid>.sew-field{border:0;border-bottom:1px solid #d8dde5;background:#fff;color:#1b2230}
+.sew-publication-canvas .sew-core-grid span{color:#697386!important}
+.sew-publication-canvas .sew-core-grid strong{color:#1b2230}
+.sew-publication-canvas .sew-content-list,
+.sew-publication-canvas .sew-stats-builder{gap:0}
+.sew-publication-canvas .sew-stat-card,
+.sew-publication-canvas .sew-stat-input{border:0;border-bottom:1px solid #d8dde5;border-radius:0;background:#fff;color:#1b2230;box-shadow:none}
+.sew-publication-canvas .sew-stat-card>header{background:transparent!important;border:0}
+.sew-publication-canvas .sew-stat-card--section,
+.sew-publication-canvas .sew-stat-input[data-type="section"]{margin-top:6px;background:#6f82b4}
+.sew-publication-canvas .sew-stat-card--section .sew-rich-editor,
+.sew-publication-canvas .sew-stat-input[data-type="section"] .sew-rich-editor{color:#fff;font-weight:800}
+.sew-publication-canvas .sew-stat-card--section .sew-content-block-label,
+.sew-publication-canvas .sew-stat-input[data-type="section"] [data-block-label]{color:#fff}
+.sew-publication-canvas .sew-rich-editor{
+  min-height:34px;
+  border-color:transparent;
+  background:transparent;
+  color:#1b2230;
+  font-size:14px;
+  line-height:1.55;
+}
+.sew-publication-canvas .sew-rich-editor[contenteditable="true"]:focus{
+  border-color:#5377c5;
+  background:#f8faff;
+  box-shadow:0 0 0 2px rgba(44,84,171,.16);
+  outline:0;
+}
+.sew-publication-canvas .sew-content-block-label{color:#697386}
+.sew-publication-canvas .sew-original summary{color:#5b6472}
+.sew-publication-canvas .sew-validation{color:#5b6472}
+.sew-working-editor{position:relative}
+.sew-working-editor .sew-mini-toolbar{
+  display:flex;
+  position:absolute;
+  z-index:4;
+  top:-27px;
+  right:4px;
+  gap:2px;
+  padding:2px;
+  border:1px solid #cbd3df;
+  border-radius:4px;
+  background:#fff;
+  box-shadow:0 4px 12px rgba(20,31,52,.12);
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(3px);
+  transition:opacity .12s,transform .12s;
+}
+.sew-working-editor:focus-within .sew-mini-toolbar{opacity:1;pointer-events:auto;transform:none}
+.sew-mini-toolbar button{min-width:25px;min-height:23px;border:0;border-radius:3px;background:#edf1f7;color:#1b2230;cursor:pointer}
+.sew-mini-toolbar button:hover,.sew-mini-toolbar button:focus-visible{background:#dce6f8;outline:2px solid #5377c5}
+.sew-mini-toolbar button:disabled{opacity:.4;cursor:not-allowed}
+.sew-publication-canvas .sew-entity-autocomplete{
+  margin:2px 0 6px;
+  padding:5px 0 0;
+  border:0;
+  border-top:1px dashed #cbd3df;
+  background:transparent;
+}
+.sew-document-editor .sew-stat-input .sew-entity-autocomplete,
+.sew-document-editor .sew-stat-card .sew-entity-autocomplete{
+  max-height:0;
+  margin-top:0;
+  padding-top:0;
+  border-top-color:transparent;
+  opacity:0;
+  overflow:hidden;
+  pointer-events:none;
+  transition:max-height .18s,opacity .15s,margin .18s,padding .18s;
+}
+.sew-document-editor .sew-stat-input:focus-within .sew-entity-autocomplete,
+.sew-document-editor .sew-stat-card:focus-within .sew-entity-autocomplete,
+.sew-document-editor .sew-entity-autocomplete:has([data-entity-id]){
+  max-height:240px;
+  margin-top:2px;
+  padding-top:5px;
+  border-top-color:#cbd3df;
+  opacity:1;
+  overflow:visible;
+  pointer-events:auto;
+}
+.sew-publication-canvas .sew-entity-search-row input,
+.sew-publication-canvas .sew-entity-search-row select{background:#fff;color:#1b2230}
+.sew-publication-canvas .sew-unpublished{
+  margin-top:26px;
+  padding:14px;
+  border:1px dashed #98a2b3;
+  background:#f1f3f6;
+}
+.sew-publication-canvas .sew-unpublished h2{color:#344054}
+.sew-date-control{display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:4px}
+.sew-date-control input[type="date"]{min-width:42px;padding:3px;color-scheme:light}
+.sew-close-dialog{width:min(520px,calc(100vw - 28px));padding:20px;border:1px solid #cbd3df;background:#fff;color:#1b2230}
+.sew-close-dialog::backdrop{background:rgba(5,18,38,.66)}
+.sew-close-dialog h2{margin-top:0}
+.sew-close-dialog .sew-actions{justify-content:flex-end}
+.sew-publish-preview .sew-preview-stat{padding:10px 4px;border-bottom:1px solid #d8dde5;color:#1b2230;line-height:1.55}
+.sew-publish-preview>h2{margin:18px 0 0;padding:8px 10px;background:#213f88;color:#fff;font-size:15px}
+.sew-fis-publish-action{display:flex;justify-content:flex-end;margin:10px 0 28px}
+.sew-user-admin-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(180px,1.2fr) 150px 90px auto;align-items:end;gap:7px}
+.sew-user-admin-row label{display:grid;gap:3px}.sew-user-admin-row label>span{font-size:9px;font-weight:800;text-transform:uppercase}
+.sew-user-admin-email{align-self:center;overflow-wrap:anywhere}.sew-user-admin-row .sew-user-active{display:flex;align-items:center;align-self:center;gap:5px}.sew-user-active input{width:auto;min-height:auto}
+@media(max-width:800px){.sew-user-admin-row{grid-template-columns:1fr 1fr}.sew-user-admin-email{grid-column:1/-1}}
+
+@media(max-width:700px){
+  .sew-publication-canvas{width:100%;margin:8px 0 24px;padding:24px 16px 36px;border-right:0;border-left:0}
+  .sew-publication-identity{grid-template-columns:1fr;align-items:start}
+  .sew-publication-identity dl{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sew-publication-identity dl div{display:block}
+  .sew-publication-identity dd{text-align:left}
+}
+
 /* Queue view preference and compact collapsible core metadata. */
 .sew-queue-heading-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .sew-view-toggle{display:inline-flex;align-items:center;border:1px solid var(--sew-line);background:var(--sew-card)}
