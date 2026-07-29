@@ -24,5 +24,5 @@
       "size": "free"
     }
   },
-  "stack": "heroku-20" // Specify your Heroku stack version if needed; check Heroku's documentation for the latest stacks
+  "stack": "heroku-26"
 }
