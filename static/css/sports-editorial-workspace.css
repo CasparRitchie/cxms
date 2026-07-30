@@ -570,6 +570,14 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
   box-shadow:0 0 0 2px rgba(44,84,171,.16);
   outline:0;
 }
+.sew-publication-canvas
+.sew-stat-input[data-type="section"]
+.sew-rich-editor[contenteditable="true"]:focus,
+.sew-publication-canvas
+.sew-stat-card--section
+.sew-rich-editor[contenteditable="true"]:focus {
+  color: #1b2230;
+}
 .sew-publication-canvas .sew-content-block-label{color:#697386}
 .sew-publication-canvas .sew-original summary{color:#5b6472}
 .sew-publication-canvas .sew-validation{color:#5b6472}
@@ -748,7 +756,17 @@ html[data-sew-theme="light"] .sew-content-list>.sew-stat-card--section>header .s
 html[data-sew-theme="light"] .sew-content-list>.sew-stat-card.is-accepted .sew-validation{color:#475467}
 html[data-sew-theme="light"] .sew-content-list .sew-rich-editor[contenteditable="false"]{color:#344054}
 html[data-sew-theme="light"] .sew-content-list .sew-original summary{color:#475467}
-
+html[data-sew-theme="light"]
+.sew-publication-canvas
+.sew-stat-input[data-type="section"]
+.sew-rich-editor[contenteditable="true"]:focus,
+html[data-sew-theme="light"]
+.sew-publication-canvas
+.sew-stat-card--section
+.sew-rich-editor[contenteditable="true"]:focus {
+  color: #1b2230;
+  background: #f8faff;
+}
 /* Dense editing surfaces and checkout state. */
 .sew-core-summary .sew-core-grid > div,
 .sew-core-data .sew-core-grid > div {
