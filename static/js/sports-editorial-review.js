@@ -237,6 +237,34 @@
     .querySelectorAll("[data-review-block]")
     .forEach(initialiseReviewBlock);
 
+  const entityDisplayOptions = (entity) => {
+    const name = String(entity.name || "").trim();
+
+    if (entity.type !== "country") {
+      return name ? [{ label: name, value: name }] : [];
+    }
+
+    const code = String(
+      entity.country_code || entity.canonical_id || "",
+    ).trim();
+
+    const seen = new Set();
+
+    return [code, name]
+      .filter((value) => {
+        const key = value.toLocaleLowerCase();
+
+        if (!value || seen.has(key)) return false;
+
+        seen.add(key);
+        return true;
+      })
+      .map((value) => ({
+        label: value,
+        value,
+      }));
+  };
+
   const initialiseEntityControl = (control) => {
     if (control.dataset.entityInitialised) return;
 
@@ -600,12 +628,15 @@
       selection.addRange(caret);
     };
 
-    const replaceQueryWithEntityName = (entity) => {
+    const replaceQueryWithDisplayValue = (
+      displayValue,
+      replaceSelection = false,
+    ) => {
       if (
-        !queryContext?.replace ||
+        (!queryContext?.replace && !replaceSelection) ||
         !queryContext.range
       ) {
-        return queryContext?.text || entity.name;
+        return queryContext?.text || displayValue;
       }
 
       const range = queryContext.range;
@@ -615,12 +646,13 @@
           range.commonAncestorContainer,
         )
       ) {
-        return entity.name;
+        return displayValue;
       }
 
       range.deleteContents();
 
-      const text = document.createTextNode(entity.name);
+      const text =
+        document.createTextNode(displayValue);
       range.insertNode(text);
 
       const offsetRange = document.createRange();
@@ -635,15 +667,19 @@
       editor.normalize();
       placeCaretAtTextOffset(caretOffset);
 
-      return entity.name;
+      return displayValue;
     };
 
-    const addEntity = (entity) => {
-      if (
-        selected.querySelector(
-          `[data-entity-id="${entity.id}"]`,
-        )
-      ) {
+    const addEntity = (
+      entity,
+      displayValue = entity.name,
+      replaceSelection = false,
+    ) => {
+      const existingChip = selected.querySelector(
+        `[data-entity-id="${entity.id}"]`,
+      );
+
+      if (existingChip && entity.type !== "country") {
         closeResults();
         editor.focus({ preventScroll: true });
         return;
@@ -652,7 +688,28 @@
       editor.focus({ preventScroll: true });
 
       const mentionText =
-        replaceQueryWithEntityName(entity);
+        replaceQueryWithDisplayValue(
+          displayValue,
+          replaceSelection,
+        );
+
+      if (existingChip) {
+        const mention = existingChip.querySelector(
+          "label input",
+        );
+
+        if (mention) mention.value = mentionText;
+
+        closeResults();
+        scheduleMentionHighlights();
+        suppressNextSearch = true;
+
+        editor.dispatchEvent(
+          new Event("input", { bubbles: true }),
+        );
+
+        return;
+      }
 
       const chip = document.createElement("span");
       chip.className = "sew-entity-chip";
@@ -722,6 +779,80 @@
     };
 
     const appendResult = (entity) => {
+      if (entity.type === "country") {
+        const row = document.createElement("div");
+        row.className =
+          "sew-entity-country-result";
+        row.setAttribute("role", "group");
+        row.setAttribute(
+          "aria-label",
+          `${entity.name} insertion choices`,
+        );
+
+        const identity =
+          document.createElement("span");
+        identity.className =
+          "sew-entity-country-identity";
+
+        const code =
+          entity.country_code ||
+          entity.canonical_id ||
+          "";
+
+        identity.textContent = [
+          entity.name,
+          code,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+        const actions =
+          document.createElement("span");
+        actions.className =
+          "sew-entity-country-actions";
+
+        entityDisplayOptions(entity).forEach(
+          (option) => {
+            const button =
+              document.createElement("button");
+
+            button.id =
+              `entity-result-${crypto.randomUUID()}`;
+            button.type = "button";
+            button.dataset.entityResult = "";
+            button.setAttribute("role", "option");
+            button.setAttribute(
+              "aria-selected",
+              "false",
+            );
+            button.setAttribute(
+              "aria-label",
+              `Insert ${option.label} for ${entity.name}`,
+            );
+            button.tabIndex = -1;
+            button.textContent =
+              `Insert ${option.label}`;
+
+            button.addEventListener(
+              "click",
+              () => {
+                addEntity(
+                  entity,
+                  option.value,
+                  true,
+                );
+              },
+            );
+
+            actions.appendChild(button);
+          },
+        );
+
+        row.append(identity, actions);
+        results.appendChild(row);
+        return;
+      }
+
       const button =
         document.createElement("button");
 

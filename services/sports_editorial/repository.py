@@ -271,14 +271,22 @@ class DemoSportsEditorialRepository:
 
     def search_entities(self, query, entity_type="", limit=10, offset=0):
         needle = query.casefold().strip()
+
+        def searchable_values(entity):
+            return tuple(
+                str(entity.get(field) or "").casefold()
+                for field in ("name", "country_code", "canonical_id")
+                if entity.get(field)
+            )
+
         matches = [
             entity for entity in self._entities
             if (not entity_type or entity["entity_type"] == entity_type)
-            and (needle in entity["name"].casefold() or needle in entity.get("canonical_id", "").casefold())
+            and any(needle in value for value in searchable_values(entity))
         ]
         ranked = sorted(matches, key=lambda item: (
-            item["name"].casefold() != needle,
-            not item["name"].casefold().startswith(needle),
+            not any(value == needle for value in searchable_values(item)),
+            not any(value.startswith(needle) for value in searchable_values(item)),
             item["name"].casefold(),
         ))
         return deepcopy(ranked[offset:offset + limit])
@@ -639,17 +647,43 @@ class SupabaseSportsEditorialRepository:
         return self.client.request("sports_editorial_entities", query={"select": "*", "workspace_id": f"eq.{self._workspace()}", "id": f"in.({','.join(ids)})"})
 
     def search_entities(self, query, entity_type="", limit=10, offset=0):
-        params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "name": f"ilike.*{query}*", "limit": str(limit), "offset": str(offset), "order": "name.asc"}
-        if entity_type:
-            params["entity_type"] = f"eq.{entity_type}"
-        matches = self.client.request("sports_editorial_entities", query=params)
-        if len(matches) < limit:
-            code_params = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "canonical_id": f"ilike.*{query}*", "limit": str(limit - len(matches)), "offset": str(max(0, offset - len(matches))), "order": "name.asc"}
+        needle = query.casefold().strip()
+        wanted = offset + limit
+        matches = []
+        seen = set()
+
+        # Query exact, prefix, then substring matches so relevance is stable
+        # without changing the entity table or depending on DB collation.
+        for pattern in (query, f"{query}*", f"*{query}*"):
+            params = {
+                "select": "*",
+                "workspace_id": f"eq.{self._workspace()}",
+                "or": f"(name.ilike.{pattern},country_code.ilike.{pattern},canonical_id.ilike.{pattern})",
+                "limit": str(wanted),
+                "order": "name.asc",
+            }
             if entity_type:
-                code_params["entity_type"] = f"eq.{entity_type}"
-            seen = {item["id"] for item in matches}
-            matches.extend(item for item in self.client.request("sports_editorial_entities", query=code_params) if item["id"] not in seen)
-        return matches[:limit]
+                params["entity_type"] = f"eq.{entity_type}"
+            for item in self.client.request("sports_editorial_entities", query=params):
+                if item["id"] not in seen:
+                    matches.append(item)
+                    seen.add(item["id"])
+            if len(matches) >= wanted:
+                break
+
+        def searchable_values(item):
+            return tuple(
+                str(item.get(field) or "").casefold()
+                for field in ("name", "country_code", "canonical_id")
+                if item.get(field)
+            )
+
+        matches.sort(key=lambda item: (
+            not any(value == needle for value in searchable_values(item)),
+            not any(value.startswith(needle) for value in searchable_values(item)),
+            item["name"].casefold(),
+        ))
+        return matches[offset:wanted]
 
     def add_entity(self, data):
         payload = {"workspace_id": self._workspace(), "entity_type": data["entity_type"], "name": data["name"].strip(), "canonical_id": data.get("canonical_id", "").strip() or None, "canonical_url": data.get("canonical_url", "").strip() or None, "country_code": data.get("country_code", "").strip().upper() or None}

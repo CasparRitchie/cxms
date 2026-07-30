@@ -567,17 +567,15 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
 .sew-publication-canvas .sew-rich-editor[contenteditable="true"]:focus{
   border-color:#5377c5;
   background:#f8faff;
+  color:#172033;
+  caret-color:#172033;
   box-shadow:0 0 0 2px rgba(44,84,171,.16);
   outline:0;
 }
-.sew-publication-canvas
-.sew-stat-input[data-type="section"]
-.sew-rich-editor[contenteditable="true"]:focus,
-.sew-publication-canvas
-.sew-stat-card--section
-.sew-rich-editor[contenteditable="true"]:focus {
-  color: #1b2230;
-}
+.sew-entity-country-result{display:grid;grid-template-columns:minmax(120px,1fr) auto;align-items:center;gap:6px;padding:4px 7px;border-bottom:1px solid var(--sew-line)}
+.sew-entity-country-identity{font-weight:700}
+.sew-entity-country-actions{display:flex;gap:4px}
+.sew-entity-results .sew-entity-country-actions button{width:auto;padding:3px 6px;border:1px solid var(--sew-line);white-space:nowrap}
 .sew-publication-canvas .sew-content-block-label{color:#697386}
 .sew-publication-canvas .sew-original summary{color:#5b6472}
 .sew-publication-canvas .sew-validation{color:#5b6472}
@@ -756,17 +754,6 @@ html[data-sew-theme="light"] .sew-content-list>.sew-stat-card--section>header .s
 html[data-sew-theme="light"] .sew-content-list>.sew-stat-card.is-accepted .sew-validation{color:#475467}
 html[data-sew-theme="light"] .sew-content-list .sew-rich-editor[contenteditable="false"]{color:#344054}
 html[data-sew-theme="light"] .sew-content-list .sew-original summary{color:#475467}
-html[data-sew-theme="light"]
-.sew-publication-canvas
-.sew-stat-input[data-type="section"]
-.sew-rich-editor[contenteditable="true"]:focus,
-html[data-sew-theme="light"]
-.sew-publication-canvas
-.sew-stat-card--section
-.sew-rich-editor[contenteditable="true"]:focus {
-  color: #1b2230;
-  background: #f8faff;
-}
 /* Dense editing surfaces and checkout state. */
 .sew-core-summary .sew-core-grid > div,
 .sew-core-data .sew-core-grid > div {

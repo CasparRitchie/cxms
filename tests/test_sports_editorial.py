@@ -5,6 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+from werkzeug.datastructures import MultiDict
+
 from app import app
 from services.sports_editorial.demo_data import fresh_demo_data
 from services.sports_editorial.json_export import build_pilot_export
@@ -16,7 +18,7 @@ from services.sports_editorial.fis_athletes import parse_athlete_csv
 from services.sports_editorial.fis_entities import countries_from_athletes, parse_event_competitions
 from services.sports_editorial.fis_results import parse_fis_results
 from services.sports_editorial.identifiers import build_fis_external_id
-from services.sports_editorial.repository import repository
+from services.sports_editorial.repository import SupabaseSportsEditorialRepository, repository
 from services.sports_editorial.stat_insights import build_editorial_discoveries, build_perspective_insights, build_stat_insights, demo_result_rows, group_editorial_discoveries
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 from services.sports_editorial.creation import parse_display_date
@@ -369,12 +371,86 @@ class SportsEditorialPilotTests(unittest.TestCase):
         payload = response.get_json()
         self.assertEqual(payload["provider"], "local_pilot")
         self.assertEqual(payload["results"][0]["canonical_id"], "516562")
+        self.assertEqual(payload["results"][0]["name"], "Camille Rast")
 
         invalid = self.client.get("/workspace/sports-editorial/entities/search?q=cam&type=invalid")
         self.assertEqual(invalid.status_code, 400)
 
-        country = self.client.get("/workspace/sports-editorial/entities/search?q=SUI&type=country").get_json()
-        self.assertEqual(country["results"][0]["name"], "Switzerland")
+        by_code = self.client.get("/workspace/sports-editorial/entities/search?q=SUI&type=country").get_json()
+        by_name = self.client.get("/workspace/sports-editorial/entities/search?q=Switzerland&type=country").get_json()
+        self.assertEqual(by_code["results"][0]["id"], by_name["results"][0]["id"])
+        self.assertEqual(by_code["results"][0], {
+            "id": "entity-country-ch",
+            "type": "country",
+            "name": "Switzerland",
+            "canonical_id": "SUI",
+            "canonical_url": "",
+            "country_code": "SUI",
+            "ski_sponsor": None,
+        })
+
+    def test_supabase_entity_search_includes_country_code_and_ranks_exact_matches(self):
+        switzerland = {
+            "id": "country-sui", "entity_type": "country", "name": "Switzerland",
+            "canonical_id": "SUI", "country_code": "SUI", "canonical_url": None,
+        }
+
+        class SearchClient:
+            def __init__(self):
+                self.queries = []
+
+            def request(self, table, query=None):
+                self.queries.append(query)
+                return [switzerland]
+
+        client = SearchClient()
+        supabase_repository = SupabaseSportsEditorialRepository(client=client, workspace_id="workspace")
+        self.assertEqual(supabase_repository.search_entities("SUI", entity_type="country")[0]["id"], "country-sui")
+        self.assertEqual(supabase_repository.search_entities("Switzerland", entity_type="country")[0]["id"], "country-sui")
+        self.assertTrue(all("country_code.ilike." in query["or"] for query in client.queries))
+
+    def test_country_mention_text_saves_code_or_full_name(self):
+        for mention in ("SUI", "Switzerland"):
+            with self.subTest(mention=mention):
+                repository.reset()
+                submission = repository.get_submission("demo-submission-kronplatz")
+                block = next(item for item in submission["stats"] if item["content_type"] == "stat")
+                form = MultiDict([
+                    ("event_date", submission["event_date"]),
+                    ("content_id", block["id"]),
+                    ("content_type", "stat"),
+                    ("content_html", f"Camille Rast represents {mention}."),
+                    (f"entity_ids_{block['id']}", "entity-country-ch"),
+                    (f"entity_mention_{block['id']}_entity-country-ch", mention),
+                ])
+                with app.test_request_context("/"), patch(
+                    "services.sports_editorial.auth.current_user",
+                    return_value={"id": "demo-user", "full_name": "Jamie Laurent", "role": "researcher"},
+                ):
+                    updated = repository.update_research(submission["id"], form)
+                saved = updated["stats"][0]
+                self.assertEqual(saved["entity_mentions"]["entity-country-ch"], mention)
+                self.assertIn(mention, saved["stat_text"])
+
+    def test_country_mention_text_saves_during_sub_edit(self):
+        submission = repository.get_submission("demo-submission-submitted")
+        block = next(item for item in submission["stats"] if item["content_type"] == "stat")
+        form = MultiDict([
+            ("content_id", block["id"]),
+            ("content_type", "stat"),
+            (f"edited_text_{block['id']}", "Camille Rast represents Switzerland."),
+            (f"entity_ids_{block['id']}", "entity-country-ch"),
+            (f"entity_mention_{block['id']}_entity-country-ch", "Switzerland"),
+        ])
+        with app.test_request_context("/"), patch(
+            "services.sports_editorial.auth.current_user",
+            return_value={"id": "demo-sub-editor", "full_name": "Nick L.", "role": "sub_editor"},
+        ):
+            updated = repository.update_review(submission["id"], form, "in_review")
+        self.assertEqual(
+            updated["stats"][0]["entity_mentions"]["entity-country-ch"],
+            "Switzerland",
+        )
 
     def test_fis_payload_matches_v1_shape(self):
         submissions, entities = fresh_demo_data()
@@ -879,6 +955,36 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn("javascript:", rendered)
         self.assertNotIn("<script>", rendered)
 
+    def test_country_publication_links_exact_saved_wording_only_with_valid_url(self):
+        entity = {
+            "country": {
+                "entity_type": "country", "canonical_id": "SUI",
+                "canonical_url": "https://www.fis-ski.com/example-country-source",
+            },
+        }
+        for mention in ("SUI", "Switzerland"):
+            with self.subTest(mention=mention):
+                block = {"entity_ids": ["country"], "entity_mentions": {"country": mention}}
+                rendered = render_entity_links(f"Camille Rast represents {mention}.", block, entity)
+                self.assertIn(f'>{mention}</a>', rendered)
+                self.assertIn('href="https://www.fis-ski.com/example-country-source"', rendered)
+
+        entity["country"]["canonical_url"] = ""
+        block = {"entity_ids": ["country"], "entity_mentions": {"country": "Switzerland"}}
+        rendered = render_entity_links("Camille Rast represents Switzerland.", block, entity)
+        self.assertIn("Switzerland", rendered)
+        self.assertNotIn("<a ", rendered)
+
+    def test_review_entity_validation_accepts_three_letter_country_id(self):
+        form = MultiDict([
+            ("content_id", "stat-1"),
+            ("entity_ids_stat-1", "entity-country-ch"),
+        ])
+        self.assertEqual(
+            sports_editorial_views._invalid_review_entity_links(form, {"stats": [{"id": "stat-1"}]}),
+            [],
+        )
+
     def test_entity_linking_decorates_only_first_exact_occurrence(self):
         block = {"entity_ids": ["rast"], "entity_mentions": {"rast": "Camille Rast"}}
         entities = {"rast": {"canonical_url": "https://example.test/athletes/rast"}}
@@ -969,6 +1075,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_fis_countries_are_derived_from_official_athlete_codes(self):
         countries = countries_from_athletes([{"country_code": "SUI"}, {"country_code": "USA"}, {"country_code": "SUI"}])
         self.assertEqual([(item["canonical_id"], item["name"]) for item in countries], [("SUI", "Switzerland"), ("USA", "United States")])
+        self.assertTrue(all(item["canonical_url"] == "" for item in countries))
 
     def test_fis_competition_parser_retains_race_id_and_codex(self):
         html = '''<a href="https://www.fis-ski.com/DB/general/results.html?sectorcode=AL&amp;raceid=131458"><div data-date="2026-07-31">31 Jul</div></a>
