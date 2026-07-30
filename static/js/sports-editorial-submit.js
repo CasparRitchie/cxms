@@ -26,7 +26,84 @@
     row.dataset.contentBlock = "";
     row.dataset.type = type;
     const entityControl = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${blockId}" data-mention-prefix="entity_mention_${blockId}_"><span class="sew-cell-label">Linked</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-results" data-entity-results hidden></div></div>` : "";
-    row.innerHTML = `<span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span><div><label><span data-block-label>${labels[type]}</span><div class="sew-working-editor"><div class="sew-mini-toolbar" aria-label="Formatting"><button type="button" data-format="bold" aria-label="Bold"><strong>B</strong></button><button type="button" data-format="italic" aria-label="Italic"><em>I</em></button></div><div class="sew-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-editor data-placeholder="Enter ${labels[type].toLowerCase()}"></div></div><input type="hidden" name="content_id" value="${blockId}"><input type="hidden" name="content_type" value="${type}"><input type="hidden" name="content_html" data-content-input></label>${entityControl}</div><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button>`;
+    row.innerHTML = `
+  <span
+    class="sew-drag"
+    title="Drag to reorder"
+    draggable="true"
+  >
+    ⋮⋮
+  </span>
+
+  <div>
+    <div class="sew-stat-field">
+      <span data-block-label>${labels[type]}</span>
+
+      <div class="sew-working-editor">
+        <div
+          class="sew-mini-toolbar"
+          aria-label="Formatting"
+        >
+          <button
+            type="button"
+            data-format="bold"
+            aria-label="Bold"
+          >
+            <strong>B</strong>
+          </button>
+
+          <button
+            type="button"
+            data-format="italic"
+            aria-label="Italic"
+          >
+            <em>I</em>
+          </button>
+        </div>
+
+        <div
+          class="sew-rich-editor"
+          contenteditable="true"
+          role="textbox"
+          aria-multiline="true"
+          aria-label="${labels[type]}"
+          spellcheck="true"
+          data-editor
+          data-placeholder="Enter ${labels[type].toLowerCase()}"
+        ></div>
+      </div>
+
+      <input
+        type="hidden"
+        name="content_id"
+        value="${blockId}"
+      >
+
+      <input
+        type="hidden"
+        name="content_type"
+        value="${type}"
+      >
+
+      <input
+        type="hidden"
+        name="content_html"
+        data-content-input
+      >
+    </div>
+
+    ${entityControl}
+  </div>
+
+  <button
+    type="button"
+    class="sew-remove"
+    data-remove-stat
+    aria-label="Remove block"
+  >
+    ×
+  </button>
+`;
     return row;
   };
 
@@ -40,6 +117,13 @@
     renumber();
   }));
   list.addEventListener("focusin", (event) => { if (event.target.matches("[data-editor]")) activeEditor = event.target; });
+  list.addEventListener("pointerdown", (event) => {
+  const editor = event.target.closest("[data-editor]");
+
+  if (!editor || !editor.isContentEditable) return;
+
+  activeEditor = editor;
+});
   list.addEventListener("input", (event) => { if (event.target.matches("[data-editor]")) syncBlock(event.target.closest("[data-content-block]")); });
   list.addEventListener("paste", (event) => {
     if (!event.target.matches("[data-editor]")) return;

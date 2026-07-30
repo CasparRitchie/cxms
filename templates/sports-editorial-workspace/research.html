@@ -14,9 +14,77 @@
     <div><span>Season</span><strong>{{ submission.season_code|default('—', true) }}</strong></div><label class="sew-field"><span>Race Date <em>Editable</em></span><span class="sew-date-control"><input type="text" name="event_date" value="{{ format_display_date(submission.event_date) }}" placeholder="04-Dec-2026" pattern="\d{2}-[A-Za-z]{3}-\d{4}" spellcheck="false"><input type="date" aria-label="Choose race date" data-date-picker value="{{ submission.event_date|default('') }}"></span></label>
   </div></section>
   <section class="sew-card sew-statistics-panel"><div class="sew-section-heading"><div><h2>Statistics</h2><p>Use sub-headings to group the relevant statistics.</p></div><div class="sew-add-menu"><button class="sew-button" type="button" data-add-block="stat">Add statistic</button><button class="sew-button" type="button" data-add-block="section">Add sub-heading</button></div></div>
-    {% set numbers = namespace(stat=0, section=0) %}<div class="sew-stats-builder" data-stats-list>{% for block in submission.stats %}{% set working_text = block.edited_text or block.stat_text %}{% if block.content_type in ['section','heading'] %}{% set numbers.section = numbers.section + 1 %}{% else %}{% set numbers.stat = numbers.stat + 1 %}{% endif %}<div class="sew-stat-input" data-content-block data-type="{{ 'section' if block.content_type == 'heading' else block.content_type }}"><span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span><div><label><span data-block-label>{{ 'Sub-heading ' ~ numbers.section if block.content_type in ['section','heading'] else 'Statistic ' ~ numbers.stat }}</span><div class="sew-working-editor"><div class="sew-mini-toolbar" aria-label="Formatting"><button type="button" data-format="bold" aria-label="Bold"><strong>B</strong></button><button type="button" data-format="italic" aria-label="Italic"><em>I</em></button></div><div class="sew-rich-editor" contenteditable="{{ 'true' if owns_lock else 'false' }}" role="textbox" aria-multiline="true" spellcheck="true" data-editor data-placeholder="Enter content">{{ render_entity_tags(working_text, block, entities_by_id)|safe }}</div></div><input type="hidden" name="content_id" value="{{ block.id }}"><input type="hidden" name="content_type" value="{{ 'section' if block.content_type == 'heading' else block.content_type }}"><input type="hidden" name="content_html" value="{{ working_text|e }}" data-content-input></label>
+    {% set numbers = namespace(stat=0, section=0) %}<div class="sew-stats-builder" data-stats-list>{% for block in submission.stats %}{% set working_text = block.edited_text or block.stat_text %}{% if block.content_type in ['section','heading'] %}{% set numbers.section = numbers.section + 1 %}{% else %}{% set numbers.stat = numbers.stat + 1 %}{% endif %}<div class="sew-stat-input" data-content-block data-type="{{ 'section' if block.content_type == 'heading' else block.content_type }}"><span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span><div>
+  <div class="sew-stat-field">
+    <span data-block-label>
+      {{ 'Sub-heading ' ~ numbers.section if block.content_type in ['section','heading'] else 'Statistic ' ~ numbers.stat }}
+    </span>
+
+    <div class="sew-working-editor">
+      <div class="sew-mini-toolbar" aria-label="Formatting">
+        <button type="button" data-format="bold" aria-label="Bold">
+          <strong>B</strong>
+        </button>
+        <button type="button" data-format="italic" aria-label="Italic">
+          <em>I</em>
+        </button>
+      </div>
+
+      <div
+        class="sew-rich-editor"
+        contenteditable="{{ 'true' if owns_lock else 'false' }}"
+        role="textbox"
+        aria-multiline="true"
+        aria-label="{{ 'Sub-heading' if block.content_type in ['section','heading'] else 'Statistic' }} {{ numbers.section if block.content_type in ['section','heading'] else numbers.stat }}"
+        spellcheck="true"
+        data-editor
+        data-placeholder="Enter content"
+      >{{ render_entity_tags(working_text, block, entities_by_id)|safe }}</div>
+    </div>
+
+    <input type="hidden" name="content_id" value="{{ block.id }}">
+    <input
+      type="hidden"
+      name="content_type"
+      value="{{ 'section' if block.content_type == 'heading' else block.content_type }}"
+    >
+    <input
+      type="hidden"
+      name="content_html"
+      value="{{ working_text|e }}"
+      data-content-input
+    >
+  </div>
       {% if block.content_type == 'stat' %}<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_{{ block.id }}" data-mention-prefix="entity_mention_{{ block.id }}_"><span class="sew-cell-label">Linked</span><div class="sew-selected-entities" data-selected-entities>{% for entity_id in block.entity_ids %}{% set entity = entities_by_id.get(entity_id) %}{% if entity %}<span class="sew-entity-chip" data-entity-id="{{ entity.id }}">{{ entity.name }} <small>{{ entity.entity_type }}</small><label><input type="hidden" name="entity_mention_{{ block.id }}_{{ entity.id }}" value="{{ block.entity_mentions.get(entity.id, '') }}"></label><button type="button" data-remove-entity aria-label="Remove {{ entity.name }}">×</button><input type="hidden" name="entity_ids_{{ block.id }}" value="{{ entity.id }}"></span>{% endif %}{% endfor %}</div><div class="sew-entity-results" data-entity-results hidden></div></div>{% endif %}
-    </div><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button></div>{% else %}<div class="sew-stat-input" data-content-block data-type="stat"><span class="sew-drag" draggable="true">⋮⋮</span><label><span data-block-label>Statistic 1</span><div class="sew-rich-editor" contenteditable="{{ 'true' if owns_lock else 'false' }}" role="textbox" data-editor data-placeholder="Enter content"></div><input type="hidden" name="content_id" value=""><input type="hidden" name="content_type" value="stat"><input type="hidden" name="content_html" value="" data-content-input></label><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block" {% if not owns_lock %}disabled{% endif %}>×</button></div>{% endfor %}</div>
+    </div><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button></div>{% else %}<div class="sew-stat-input" data-content-block data-type="stat"><span class="sew-drag" draggable="true">⋮⋮</span><div class="sew-stat-field">
+  <span data-block-label>Statistic 1</span>
+
+  <div class="sew-working-editor">
+    <div class="sew-mini-toolbar" aria-label="Formatting">
+      <button type="button" data-format="bold" aria-label="Bold">
+        <strong>B</strong>
+      </button>
+      <button type="button" data-format="italic" aria-label="Italic">
+        <em>I</em>
+      </button>
+    </div>
+
+    <div
+      class="sew-rich-editor"
+      contenteditable="{{ 'true' if owns_lock else 'false' }}"
+      role="textbox"
+      aria-multiline="true"
+      aria-label="Statistic 1"
+      spellcheck="true"
+      data-editor
+      data-placeholder="Enter content"
+    ></div>
+  </div>
+
+  <input type="hidden" name="content_id" value="">
+  <input type="hidden" name="content_type" value="stat">
+  <input type="hidden" name="content_html" value="" data-content-input>
+</div><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block" {% if not owns_lock %}disabled{% endif %}>×</button></div>{% endfor %}</div>
   </section>
   <section class="sew-card sew-unpublished"><h2>Unpublished workspace</h2><div class="sew-form-grid"><label class="sew-field sew-field--wide"><span>Working Notes (Unpublished)</span><textarea name="working_notes" rows="8" placeholder="Internal notes, questions and source links.">{{ submission.working_notes|default('') }}</textarea></label><label class="sew-field sew-field--wide"><span>Unused Stats (Unpublished)</span><textarea name="unused_stats" rows="10" placeholder="Keep curated statistics that are not currently used.">{{ submission.unused_stats|default('') }}</textarea></label></div><small>These fields are internal and excluded from publication payloads.</small></section>
   </fieldset>
