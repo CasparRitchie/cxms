@@ -1,166 +1,167 @@
-{% extends "base.html" %}
-
-{% block title %}Chichester Crossing Monitor — CXMS{% endblock %}
-
-{% block head_extra %}
-  <meta name="description" content="Predicted status for Whyke Road, Stockbridge Road and Basin Road level crossings, with route guidance into Chichester.">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=3">
-{% endblock %}
-
-{% block body_class %} level-crossing-page{% endblock %}
-
-{% block content %}
-<section class="crossing-monitor" id="crossing-monitor">
-  <header class="crossing-monitor__header">
-    <div>
-      <p class="crossing-eyebrow">Chichester route helper</p>
-      <h1>Crossing Monitor</h1>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071d2b">
+  <meta name="description" content="Predicted status for selected level crossings, with route guidance and live Network Rail calibration.">
+  <title>Chichester Crossing Monitor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=4">
+</head>
+<body class="level-crossing-page">
+  <header class="crossing-app-bar">
+    <a class="crossing-brand" href="/level-crossing" aria-label="Crossing Monitor home">
+      <span class="crossing-brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 44 44" role="img">
+          <path d="M8 34h28M12 39h20M14 30l16-16M17 11l16 16M13 10l21 21"/>
+          <circle cx="13" cy="10" r="3"/><circle cx="34" cy="31" r="3"/>
+        </svg>
+      </span>
+      <span><strong>Crossing</strong><small>Chichester live route helper</small></span>
+    </a>
+    <div class="crossing-app-actions">
+      <span class="crossing-mode-badge">Simulation mode</span>
+      <a class="crossing-cxms-link" href="/">CXMS</a>
     </div>
-    <span class="crossing-mode-badge">Simulation mode</span>
   </header>
 
-  <section class="crossing-selection-panel" aria-labelledby="crossing-selection-title">
-    <div class="crossing-selection-heading">
-      <div>
-        <p class="crossing-eyebrow">Your local view</p>
-        <h2 id="crossing-selection-title">Selected level crossings</h2>
-        <p id="crossing-selection-summary">Choose the crossings you want to monitor.</p>
-      </div>
-      <button id="crossing-selection-toggle" class="crossing-button crossing-button--secondary" type="button" aria-expanded="false" aria-controls="crossing-selection-controls">Change selection</button>
-    </div>
-    <div id="crossing-selection-chips" class="crossing-selection-chips" aria-live="polite"></div>
-    <div id="crossing-selection-controls" class="crossing-selection-controls" hidden>
-      <h3>Chichester</h3>
-      <p>Select crossings to show, then choose one as the primary crossing for route advice.</p>
-      <div id="crossing-selection-options"></div>
-    </div>
-  </section>
-
-  <section id="crossing-route-advice" class="crossing-route-advice" aria-live="polite">
-    <p class="crossing-eyebrow">Best route into town</p>
-    <h2>Checking the crossings…</h2>
-  </section>
-
-  <div class="crossing-section-heading">
-    <div>
-      <p class="crossing-eyebrow">Local view</p>
-      <h2>Chichester crossings</h2>
-    </div>
-    <button id="crossing-refresh" class="crossing-button crossing-button--secondary" type="button">Refresh</button>
-  </div>
-
-  <section id="crossing-grid" class="crossing-grid" aria-live="polite"></section>
-
-  <section class="crossing-feed-panel" aria-labelledby="crossing-feed-title">
-    <div>
-      <p class="crossing-eyebrow">Network Rail Train Describer</p>
-      <h2 id="crossing-feed-title">Live feed calibration</h2>
-      <p id="crossing-feed-copy">Checking the server-side TD connection…</p>
-    </div>
-    <div class="crossing-feed-summary">
-      <span id="crossing-feed-status" class="crossing-feed-status">Connecting</span>
-      <dl>
-        <div><dt>TD area</dt><dd id="crossing-feed-area">CH</dd></div>
-        <div><dt>Feed frames</dt><dd id="crossing-feed-frames">0</dd></div>
-        <div><dt>CH messages</dt><dd id="crossing-feed-count">0</dd></div>
-        <div><dt>Last message</dt><dd id="crossing-feed-updated">Waiting</dd></div>
-      </dl>
-    </div>
-    <details id="crossing-feed-events" class="crossing-feed-events" hidden>
-      <summary>Recent Chichester berth movements</summary>
-      <div class="crossing-feed-table-wrap">
-        <table>
-          <thead><tr><th>Received</th><th>Type</th><th>Movement</th><th>Train</th></tr></thead>
-          <tbody id="crossing-feed-event-rows"></tbody>
-        </table>
-      </div>
-    </details>
-    <p class="crossing-feed-note">
-      Live messages are being observed to identify the approach and clearing berths. They do not
-      change the crossing prediction until that mapping has been calibrated.
-    </p>
-  </section>
-
-  <section class="crossing-observation-panel">
-    <div>
-      <p class="crossing-eyebrow">Calibration</p>
-      <h2>What can you see?</h2>
-      <p>
-        Log the physical barrier state when you happen to observe it. Records save immediately on
-        this device, then sync anonymously with the surrounding signalling messages when central
-        storage is available.
-      </p>
-      <div id="crossing-observation-count" class="crossing-observation-count" hidden>
-        <strong>0</strong>
-        <span>observations saved on this device</span>
-      </div>
-    </div>
-
-    <form id="crossing-observation-form">
-      <label for="crossing-observation-select">Crossing</label>
-      <select id="crossing-observation-select" name="crossingId"></select>
-
-      <fieldset>
-        <legend>Barrier state</legend>
-        <div class="crossing-state-buttons">
-          <button type="submit" name="state" value="OPEN" class="crossing-button crossing-state-open">Open</button>
-          <button type="submit" name="state" value="CLOSING" class="crossing-button crossing-state-warning">Closing</button>
-          <button type="submit" name="state" value="CLOSED" class="crossing-button crossing-state-closed">Closed</button>
-          <button type="submit" name="state" value="OPENING" class="crossing-button crossing-state-opening">Opening</button>
+  <main class="crossing-app-shell">
+    <section class="crossing-selection-panel" aria-labelledby="crossing-selection-title">
+      <div class="crossing-selection-heading">
+        <div>
+          <p class="crossing-eyebrow">Your local view</p>
+          <h1 id="crossing-selection-title">Selected level crossings</h1>
+          <p id="crossing-selection-summary">Choose the crossings you want to monitor.</p>
         </div>
-      </fieldset>
-
-      <label for="crossing-observation-note">Optional note</label>
-      <input id="crossing-observation-note" name="note" maxlength="300" placeholder="For example: second train approaching">
-      <p id="crossing-observation-result" class="crossing-form-result" aria-live="polite"></p>
-    </form>
-
-    <section class="crossing-watch-panel" aria-labelledby="crossing-watch-title">
-      <div class="crossing-watch-intro">
-        <p class="crossing-eyebrow">Optional field session</p>
-        <h3 id="crossing-watch-title">Watch one complete barrier cycle</h3>
-        <p>Start only when safely parked or standing away from the road. Each tap is timestamped automatically.</p>
-        <label for="crossing-watch-select">Crossing</label>
-        <select id="crossing-watch-select"></select>
-        <button id="crossing-watch-start" class="crossing-button crossing-watch-start" type="button">Start watch session</button>
+        <button id="crossing-selection-toggle" class="crossing-button crossing-button--quiet" type="button" aria-expanded="false" aria-controls="crossing-selection-controls">Edit crossings</button>
       </div>
-      <div id="crossing-watch-active" class="crossing-watch-active" hidden>
-        <div class="crossing-watch-status">
-          <span id="crossing-watch-name">Watching</span>
-          <strong id="crossing-watch-elapsed">00:00</strong>
-          <span><strong id="crossing-watch-train-count">0</strong> trains recorded</span>
+      <div id="crossing-selection-chips" class="crossing-selection-chips" aria-live="polite"></div>
+      <div id="crossing-selection-controls" class="crossing-selection-controls" hidden>
+        <div>
+          <h2>Chichester</h2>
+          <p>Select crossings to show, then choose the primary crossing used for route advice.</p>
         </div>
-        <div class="crossing-watch-buttons">
-          <button type="button" data-watch-state="CLOSING" class="crossing-button crossing-state-warning">Closing</button>
-          <button type="button" data-watch-state="CLOSED" class="crossing-button crossing-state-closed">Closed</button>
-          <button type="button" data-watch-state="TRAIN_PASSED" class="crossing-button crossing-watch-train">Train passed</button>
-          <button type="button" data-watch-state="OPENING" class="crossing-button crossing-state-opening">Opening</button>
-          <button type="button" data-watch-state="OPEN" class="crossing-button crossing-state-open">Open</button>
-        </div>
-        <button id="crossing-watch-finish" class="crossing-button crossing-button--secondary" type="button">Finish session</button>
-        <p id="crossing-watch-result" class="crossing-form-result" aria-live="polite"></p>
+        <div id="crossing-selection-options"></div>
       </div>
     </section>
 
-    <details id="crossing-observation-history" class="crossing-observation-history" hidden>
-      <summary>Recent observations on this device</summary>
-      <ol id="crossing-observation-rows"></ol>
+    <section id="crossing-route-advice" class="crossing-route-advice" aria-live="polite">
+      <p class="crossing-eyebrow">Best route into town</p>
+      <h2>Checking the crossings…</h2>
+    </section>
+
+    <section class="crossing-local-section" aria-labelledby="crossing-local-title">
+      <div class="crossing-section-heading">
+        <div>
+          <p class="crossing-eyebrow">At a glance</p>
+          <h2 id="crossing-local-title">Crossing detail</h2>
+        </div>
+        <button id="crossing-refresh" class="crossing-button crossing-button--quiet" type="button">Refresh status</button>
+      </div>
+      <div id="crossing-grid" class="crossing-grid" aria-live="polite"></div>
+    </section>
+
+    <section class="crossing-observation-panel" aria-labelledby="crossing-observation-title">
+      <div class="crossing-observation-intro">
+        <p class="crossing-eyebrow">Help improve predictions</p>
+        <h2 id="crossing-observation-title">What can you see?</h2>
+        <p>Record the barrier state when safely stationary. It saves immediately on this device, then syncs anonymously with the surrounding signalling messages.</p>
+        <div id="crossing-observation-count" class="crossing-observation-count" hidden>
+          <strong>0</strong>
+          <span>observations on this device</span>
+        </div>
+      </div>
+
+      <form id="crossing-observation-form" class="crossing-quick-observation">
+        <label for="crossing-observation-select">Crossing</label>
+        <select id="crossing-observation-select" name="crossingId"></select>
+        <fieldset>
+          <legend>Barrier state now</legend>
+          <div class="crossing-state-buttons">
+            <button type="submit" name="state" value="OPEN" class="crossing-button crossing-state-open">Open</button>
+            <button type="submit" name="state" value="CLOSING" class="crossing-button crossing-state-warning">Closing</button>
+            <button type="submit" name="state" value="CLOSED" class="crossing-button crossing-state-closed">Closed</button>
+            <button type="submit" name="state" value="OPENING" class="crossing-button crossing-state-opening">Opening</button>
+          </div>
+        </fieldset>
+        <label for="crossing-observation-note">Optional note</label>
+        <input id="crossing-observation-note" name="note" maxlength="300" placeholder="For example: second train approaching">
+        <p id="crossing-observation-result" class="crossing-form-result" aria-live="polite"></p>
+      </form>
+
+      <section class="crossing-watch-panel" aria-labelledby="crossing-watch-title">
+        <div class="crossing-watch-intro">
+          <p class="crossing-eyebrow">Optional field session</p>
+          <h3 id="crossing-watch-title">Watch one barrier cycle</h3>
+          <p>One short session gives us accurate closing, train and reopening timestamps.</p>
+          <label for="crossing-watch-select">Crossing</label>
+          <select id="crossing-watch-select"></select>
+          <button id="crossing-watch-start" class="crossing-button crossing-watch-start" type="button">Start watch session</button>
+        </div>
+        <div id="crossing-watch-active" class="crossing-watch-active" hidden>
+          <div class="crossing-watch-status">
+            <span id="crossing-watch-name">Watching</span>
+            <strong id="crossing-watch-elapsed">00:00</strong>
+            <span><strong id="crossing-watch-train-count">0</strong> trains recorded</span>
+          </div>
+          <div class="crossing-watch-buttons">
+            <button type="button" data-watch-state="CLOSING" class="crossing-button crossing-state-warning">Closing</button>
+            <button type="button" data-watch-state="CLOSED" class="crossing-button crossing-state-closed">Closed</button>
+            <button type="button" data-watch-state="TRAIN_PASSED" class="crossing-button crossing-watch-train">Train passed</button>
+            <button type="button" data-watch-state="OPENING" class="crossing-button crossing-state-opening">Opening</button>
+            <button type="button" data-watch-state="OPEN" class="crossing-button crossing-state-open">Open</button>
+          </div>
+          <button id="crossing-watch-finish" class="crossing-button crossing-button--quiet" type="button">Finish session</button>
+          <p id="crossing-watch-result" class="crossing-form-result" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <details id="crossing-observation-history" class="crossing-observation-history" hidden>
+        <summary>Recent observations on this device</summary>
+        <ol id="crossing-observation-rows"></ol>
+      </details>
+    </section>
+
+    <details class="crossing-technical-panel">
+      <summary>
+        <span>
+          <span class="crossing-eyebrow">Network Rail Train Describer</span>
+          <strong>Live calibration feed</strong>
+          <small id="crossing-feed-copy">Checking the server-side TD connection…</small>
+        </span>
+        <span id="crossing-feed-status" class="crossing-feed-status">Connecting</span>
+      </summary>
+      <div class="crossing-feed-content">
+        <dl class="crossing-feed-summary">
+          <div><dt>TD area</dt><dd id="crossing-feed-area">CH</dd></div>
+          <div><dt>Feed frames</dt><dd id="crossing-feed-frames">0</dd></div>
+          <div><dt>CH messages</dt><dd id="crossing-feed-count">0</dd></div>
+          <div><dt>Last message</dt><dd id="crossing-feed-updated">Waiting</dd></div>
+        </dl>
+        <details id="crossing-feed-events" class="crossing-feed-events" hidden>
+          <summary>Recent Chichester berth movements</summary>
+          <div class="crossing-feed-table-wrap">
+            <table>
+              <thead><tr><th>Received</th><th>Type</th><th>Movement</th><th>Train</th></tr></thead>
+              <tbody id="crossing-feed-event-rows"></tbody>
+            </table>
+          </div>
+        </details>
+        <p class="crossing-feed-note">Live messages help identify approach and clearing berths. They do not change the route prediction until the mapping has been calibrated.</p>
+      </div>
     </details>
-  </section>
 
-  <aside class="crossing-safety-note">
-    <strong>Route-planning prediction only.</strong>
-    Never use this app to decide whether it is safe to cross. Always obey the physical lights,
-    alarms, gates and barriers.
-  </aside>
+    <aside class="crossing-safety-note">
+      <span aria-hidden="true">!</span>
+      <p><strong>Route-planning prediction only.</strong> Never use this app to decide whether it is safe to cross. Always obey the physical lights, alarms, gates and barriers.</p>
+    </aside>
 
-  <footer class="crossing-monitor__footer">
-    <span id="crossing-last-updated">Preparing local predictions</span>
-    <span>Whyke Road · Stockbridge Road · Basin Road</span>
-  </footer>
-</section>
-{% endblock %}
+    <footer class="crossing-monitor-footer">
+      <span id="crossing-last-updated">Preparing local predictions</span>
+      <span>Whyke Road · Basin Road · Stockbridge Road</span>
+    </footer>
+  </main>
 
-{% block scripts %}
-  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=3"></script>
-{% endblock %}
+  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=4"></script>
+</body>
+</html>
