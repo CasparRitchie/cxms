@@ -553,7 +553,7 @@ html[data-sew-theme="light"] .sew-modern-queue-preview tbody tr.is-selected td{b
 .sew-publication-canvas .sew-stat-card--section,
 .sew-publication-canvas .sew-stat-input[data-type="section"]{margin-top:6px;background:#6f82b4}
 .sew-publication-canvas .sew-stat-card--section .sew-rich-editor,
-.sew-publication-canvas .sew-stat-input[data-type="section"] .sew-rich-editor{color:#fff;font-weight:800}
+.sew-publication-canvas .sew-stat-input[data-type="section"] .sew-rich-editor{background:transparent;color:#fff;font-weight:800}
 .sew-publication-canvas .sew-stat-card--section .sew-content-block-label,
 .sew-publication-canvas .sew-stat-input[data-type="section"] [data-block-label]{color:#fff}
 .sew-publication-canvas .sew-rich-editor{
