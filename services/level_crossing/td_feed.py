@@ -151,12 +151,15 @@ class TrainDescriberFeed:
             else:
                 self._last_disconnected_at = _utc_now()
 
-    def _set_error(self, error):
-        message = f"{type(error).__name__}: {error}"
+    def _set_error(self, error, preserve_existing=False):
+        detail = str(error).strip() or "Connection rejected or timed out"
+        message = f"{type(error).__name__}: {detail}"
         for secret in (self.password, self.username):
             if secret:
                 message = message.replace(secret, "[redacted]")
         with self._lock:
+            if preserve_existing and self._last_error:
+                return
             self._last_error = message[:300]
 
     def _run(self):
@@ -166,7 +169,8 @@ class TrainDescriberFeed:
         while True:
             connection = None
             try:
-                connection = stomp.Connection12(
+                # Network Rail's current examples negotiate STOMP 1.1.
+                connection = stomp.Connection11(
                     [(self.host, self.port)],
                     heartbeats=(5000, 10000),
                     reconnect_attempts_max=1,
@@ -194,7 +198,7 @@ class TrainDescriberFeed:
                     self.sleep(1)
             except Exception as error:  # pragma: no cover - exercised against the live broker
                 LOGGER.warning("Network Rail TD connection unavailable: %s", type(error).__name__)
-                self._set_error(error)
+                self._set_error(error, preserve_existing=True)
             finally:
                 self._set_connected(False)
                 if connection and connection.is_connected():
@@ -218,9 +222,10 @@ class _TDListener:
         except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as error:
             self.feed._set_error(error)
         finally:
-            ack_id = frame.headers.get("ack")
-            if ack_id:
-                self.connection.ack(ack_id)
+            message_id = frame.headers.get("message-id")
+            subscription = frame.headers.get("subscription")
+            if message_id and subscription:
+                self.connection.ack(message_id, subscription)
 
     def on_error(self, frame):
         self.feed._set_error(RuntimeError(frame.body))
