@@ -66,6 +66,7 @@
   const feedStatus = document.getElementById("crossing-feed-status");
   const feedCopy = document.getElementById("crossing-feed-copy");
   const feedArea = document.getElementById("crossing-feed-area");
+  const feedFrames = document.getElementById("crossing-feed-frames");
   const feedCount = document.getElementById("crossing-feed-count");
   const feedUpdated = document.getElementById("crossing-feed-updated");
   const feedEvents = document.getElementById("crossing-feed-events");
@@ -195,6 +196,7 @@
 
   function renderFeedStatus(feed) {
     feedArea.textContent = feed.area || "CH";
+    feedFrames.textContent = String(feed.frameCount || 0);
     feedCount.textContent = String(feed.messageCount || 0);
     feedUpdated.textContent = formatFeedTime(feed.lastMessageAt);
     feedStatus.className = "crossing-feed-status";

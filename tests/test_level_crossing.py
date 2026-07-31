@@ -65,6 +65,8 @@ class TrainDescriberFeedTests(unittest.TestCase):
 
         self.assertEqual(self.feed.ingest(json.dumps(payload)), 1)
         status = self.feed.snapshot()
+        self.assertEqual(status["frameCount"], 1)
+        self.assertEqual(status["nationalMessageCount"], 2)
         self.assertEqual(status["messageCount"], 1)
         self.assertEqual(status["activeBerths"], {"0102": "1A23"})
         self.assertEqual(status["recentEvents"][0]["from"], "0101")

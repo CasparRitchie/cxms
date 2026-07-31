@@ -40,8 +40,11 @@ class TrainDescriberFeed:
         self._connected = False
         self._last_connected_at = None
         self._last_disconnected_at = None
+        self._last_frame_at = None
         self._last_message_at = None
         self._last_error = None
+        self._frame_count = 0
+        self._national_message_count = 0
         self._message_count = 0
         self._recent_events = deque(maxlen=50)
         self._berths = {}
@@ -84,7 +87,10 @@ class TrainDescriberFeed:
                 "topic": self.topic,
                 "lastConnectedAt": self._last_connected_at,
                 "lastDisconnectedAt": self._last_disconnected_at,
+                "lastFrameAt": self._last_frame_at,
                 "lastMessageAt": self._last_message_at,
+                "frameCount": self._frame_count,
+                "nationalMessageCount": self._national_message_count,
                 "messageCount": self._message_count,
                 "lastError": self._last_error,
                 "recentEvents": list(self._recent_events)[:12],
@@ -99,6 +105,10 @@ class TrainDescriberFeed:
             payload = json.loads(payload)
 
         messages = payload if isinstance(payload, list) else [payload]
+        with self._lock:
+            self._frame_count += 1
+            self._last_frame_at = _utc_now()
+            self._national_message_count += sum(isinstance(message, dict) for message in messages)
         accepted = 0
         for message in messages:
             if not isinstance(message, dict):
