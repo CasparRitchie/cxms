@@ -1,8 +1,14 @@
 import json
 import unittest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from app import app
+from services.level_crossing.observations import (
+    LevelCrossingObservationStore,
+    ObservationRateLimiter,
+    ObservationValidationError,
+)
 from services.level_crossing.td_feed import TrainDescriberFeed
 
 
@@ -20,6 +26,8 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"Simulation mode", response.data)
         self.assertIn(b"Route-planning prediction only", response.data)
         self.assertIn(b"Recent observations on this device", response.data)
+        self.assertIn(b"Selected level crossings", response.data)
+        self.assertIn(b"Start watch session", response.data)
         css_response = self.client.get("/static/css/level-crossing.css")
         js_response = self.client.get("/static/js/level-crossing.js")
         self.assertEqual(css_response.status_code, 200)
@@ -46,6 +54,32 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["status"], "not_configured")
         self.assertNotIn(b"password", response.data.lower())
+
+    @patch("app.observation_rate_limiter.allow", return_value=True)
+    @patch("app.observation_store.save")
+    @patch("app.td_feed.snapshot", return_value={"area": "CH", "recentEvents": []})
+    @patch("app.td_feed.start", return_value=True)
+    def test_observation_endpoint_stores_td_context(self, _start, _snapshot, save, _allow):
+        save.return_value = {"id": "obs-12345678"}
+        payload = {
+            "id": "obs-12345678",
+            "crossingId": "whyke-road",
+            "state": "OPEN",
+            "observedAt": datetime.now(timezone.utc).isoformat(),
+            "eventKind": "quick",
+        }
+
+        response = self.client.post("/api/level-crossing/observations", json=payload)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json(), {"saved": True, "id": "obs-12345678"})
+        save.assert_called_once_with(payload, {"area": "CH", "recentEvents": []})
+
+    @patch("app.observation_rate_limiter.allow", return_value=False)
+    def test_observation_endpoint_is_rate_limited(self, _allow):
+        response = self.client.post("/api/level-crossing/observations", json={})
+
+        self.assertEqual(response.status_code, 429)
 
 
 class TrainDescriberFeedTests(unittest.TestCase):
@@ -85,6 +119,74 @@ class TrainDescriberFeedTests(unittest.TestCase):
         error = self.feed.snapshot()["lastError"]
         self.assertNotIn("test@example.com", error)
         self.assertNotIn("not-returned-by-status", error)
+
+
+class FakeSupabaseClient:
+    configured = True
+
+    def __init__(self):
+        self.calls = []
+
+    def request(self, table, method="GET", query=None, payload=None, prefer=None):
+        self.calls.append((table, method, payload, prefer))
+        return [payload]
+
+
+class LevelCrossingObservationTests(unittest.TestCase):
+    def setUp(self):
+        self.client = FakeSupabaseClient()
+        self.store = LevelCrossingObservationStore(client=self.client)
+        self.payload = {
+            "id": "obs-12345678",
+            "crossingId": "whyke-road",
+            "state": "TRAIN_PASSED",
+            "eventKind": "watch",
+            "sessionId": "session-12345678",
+            "observedAt": datetime.now(timezone.utc).isoformat(),
+            "note": "First train",
+            "prediction": {"state": "LIKELY_CLOSED", "demoTrainCount": 3},
+        }
+
+    def test_builds_anonymous_row_with_location_and_td_snapshot(self):
+        saved = self.store.save(
+            self.payload,
+            {
+                "area": "CH",
+                "status": "connected",
+                "lastMessageAt": "2026-07-31T15:25:01+00:00",
+                "messageCount": 44,
+                "recentEvents": [{"type": "CA", "from": "0101", "to": "0102"}],
+                "activeBerths": {"0102": "1A23"},
+                "lastError": "must not be stored",
+            },
+        )
+
+        self.assertEqual(saved["crossing_name"], "Whyke Road")
+        self.assertEqual(saved["what3words"], "awake.mason.melon")
+        self.assertEqual(saved["td_snapshot"]["activeBerths"], {"0102": "1A23"})
+        self.assertNotIn("lastError", saved["td_snapshot"])
+        self.assertNotIn("ip", str(saved).lower())
+        self.assertEqual(self.client.calls[0][0], "level_crossing_observations")
+        self.assertIn("merge-duplicates", self.client.calls[0][3])
+
+    def test_rejects_unknown_crossing_and_old_timestamp(self):
+        self.payload["crossingId"] = "made-up-crossing"
+        with self.assertRaises(ObservationValidationError):
+            self.store.build_row(self.payload, {})
+
+        self.payload["crossingId"] = "whyke-road"
+        self.payload["observedAt"] = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
+        with self.assertRaises(ObservationValidationError):
+            self.store.build_row(self.payload, {})
+
+    def test_rate_limiter_allows_burst_then_blocks(self):
+        limiter = ObservationRateLimiter(limit=2, window_seconds=60)
+        now = datetime.now(timezone.utc)
+
+        self.assertTrue(limiter.allow("device", now))
+        self.assertTrue(limiter.allow("device", now))
+        self.assertFalse(limiter.allow("device", now))
+        self.assertTrue(limiter.allow("device", now + timedelta(seconds=61)))
 
 
 if __name__ == "__main__":

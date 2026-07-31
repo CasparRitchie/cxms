@@ -11,6 +11,12 @@ from services.data_explorer.eda_engine import (
 )
 from services.sports_editorial import sports_editorial_workspace
 from services.level_crossing.td_feed import td_feed
+from services.level_crossing.observations import (
+    ObservationValidationError,
+    observation_rate_limiter,
+    observation_store,
+)
+from services.sports_editorial.supabase_rest import SupabaseError
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "sports-editorial-pilot-dev-only")
@@ -49,6 +55,22 @@ def level_crossing():
 def level_crossing_td_status():
     td_feed.start()
     return jsonify(td_feed.snapshot())
+
+
+@app.route("/api/level-crossing/observations", methods=["POST"])
+def level_crossing_observations():
+    if not observation_rate_limiter.allow(request.remote_addr):
+        return jsonify({"saved": False, "error": "Too many observations. Please wait and try again."}), 429
+
+    td_feed.start()
+    try:
+        saved = observation_store.save(request.get_json(silent=True), td_feed.snapshot())
+    except ObservationValidationError as error:
+        return jsonify({"saved": False, "error": str(error)}), 400
+    except SupabaseError:
+        return jsonify({"saved": False, "error": "Central observation storage is unavailable."}), 503
+
+    return jsonify({"saved": True, "id": saved["id"]}), 201
 
 
 @app.route("/gcse/history")

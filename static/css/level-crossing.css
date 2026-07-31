@@ -80,6 +80,54 @@
   font-weight: 800;
 }
 
+.crossing-selection-panel {
+  margin: 8px 0 22px;
+  padding: clamp(18px, 3vw, 26px);
+  border: 1px solid var(--crossing-line);
+  border-radius: 18px;
+  background: var(--crossing-surface);
+  box-shadow: 0 8px 24px rgba(16, 42, 67, 0.06);
+}
+
+.crossing-selection-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.crossing-selection-heading h2 { margin-bottom: 4px; font-size: clamp(1.2rem, 3vw, 1.55rem); }
+.crossing-selection-heading p { margin-bottom: 0; color: var(--crossing-muted); }
+.crossing-selection-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.crossing-selection-chip,
+.crossing-selection-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #edf2f7;
+  color: #334e68;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+.crossing-selection-chip--primary { background: #e4f2fb; color: #175b89; }
+.crossing-selection-controls { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--crossing-line); }
+.crossing-selection-controls h3 { margin: 0 0 4px; }
+.crossing-selection-controls > p { color: var(--crossing-muted); font-size: 0.84rem; }
+.crossing-selection-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #edf2f7;
+}
+.crossing-selection-option label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.crossing-selection-option input { width: 18px; height: 18px; accent-color: var(--crossing-blue); }
+.crossing-selection-option span { display: grid; gap: 2px; }
+.crossing-selection-option small { color: var(--crossing-muted); }
+.crossing-primary-choice { color: #245b87; font-size: 0.8rem; font-weight: 750; }
+
 .crossing-route-advice {
   position: relative;
   overflow: hidden;
@@ -139,9 +187,10 @@
 
 .crossing-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 16px;
 }
+.crossing-grid-empty { grid-column: 1 / -1; padding: 22px; border-radius: 14px; background: #ffffff; color: var(--crossing-muted); }
 
 .crossing-card {
   padding: 22px;
@@ -229,6 +278,7 @@
   transform: translateY(-1px);
   box-shadow: 0 5px 12px rgba(16, 42, 67, 0.1);
 }
+.crossing-button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .crossing-button:focus-visible,
 .crossing-monitor input:focus-visible,
@@ -354,6 +404,39 @@
 }
 .crossing-observation-history time { color: var(--crossing-muted); text-align: right; }
 .crossing-observation-note { grid-column: 1 / -1; color: var(--crossing-muted); }
+.crossing-observation-sync { grid-column: 1 / -1; color: #8a4b08; font-size: 0.72rem; font-weight: 750; }
+.crossing-observation-sync--saved { color: var(--crossing-green); }
+
+.crossing-watch-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+  gap: 24px;
+  margin-top: 4px;
+  padding: 20px;
+  border: 1px solid #b9d9ee;
+  border-radius: 16px;
+  background: #f8fcff;
+}
+.crossing-watch-panel h3 { margin: 0 0 7px; font-size: 1.2rem; }
+.crossing-watch-panel label { display: block; margin-bottom: 6px; }
+.crossing-watch-panel select { margin-bottom: 10px; }
+.crossing-watch-start { width: 100%; background: var(--crossing-blue); color: #ffffff; }
+.crossing-watch-active { display: grid; align-content: start; gap: 12px; }
+.crossing-watch-active[hidden] { display: none; }
+.crossing-watch-status {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334e68;
+}
+.crossing-watch-status > strong { grid-row: 1 / 3; grid-column: 2; align-self: center; color: var(--crossing-blue); font-size: 1.45rem; }
+.crossing-watch-status > span:last-child { font-size: 0.78rem; color: var(--crossing-muted); }
+.crossing-watch-buttons { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+.crossing-watch-train { background: #dcecff; color: #175b89; }
 
 .crossing-safety-note {
   margin: 24px 0;
@@ -380,11 +463,17 @@
   .crossing-prediction-reason { min-height: 0; }
   .crossing-observation-panel { grid-template-columns: 1fr; }
   .crossing-feed-panel { grid-template-columns: 1fr; }
+  .crossing-watch-panel { grid-template-columns: 1fr; }
+  .crossing-watch-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 520px) {
   .level-crossing-page .site-main > .site-shell { width: min(100% - 22px, 1120px); }
   .crossing-route-advice { border-radius: 18px; }
+  .crossing-selection-heading { display: grid; }
+  .crossing-selection-heading .crossing-button { width: 100%; }
+  .crossing-selection-option { grid-template-columns: 1fr; }
+  .crossing-primary-choice { margin-left: 28px; }
   .crossing-state-buttons { grid-template-columns: 1fr 1fr; }
   .crossing-observation-history li { grid-template-columns: 1fr; }
   .crossing-observation-history time { text-align: left; }

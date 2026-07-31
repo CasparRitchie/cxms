@@ -4,7 +4,7 @@
 
 {% block head_extra %}
   <meta name="description" content="Predicted status for Whyke Road, Stockbridge Road and Basin Road level crossings, with route guidance into Chichester.">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=3">
 {% endblock %}
 
 {% block body_class %} level-crossing-page{% endblock %}
@@ -18,6 +18,23 @@
     </div>
     <span class="crossing-mode-badge">Simulation mode</span>
   </header>
+
+  <section class="crossing-selection-panel" aria-labelledby="crossing-selection-title">
+    <div class="crossing-selection-heading">
+      <div>
+        <p class="crossing-eyebrow">Your local view</p>
+        <h2 id="crossing-selection-title">Selected level crossings</h2>
+        <p id="crossing-selection-summary">Choose the crossings you want to monitor.</p>
+      </div>
+      <button id="crossing-selection-toggle" class="crossing-button crossing-button--secondary" type="button" aria-expanded="false" aria-controls="crossing-selection-controls">Change selection</button>
+    </div>
+    <div id="crossing-selection-chips" class="crossing-selection-chips" aria-live="polite"></div>
+    <div id="crossing-selection-controls" class="crossing-selection-controls" hidden>
+      <h3>Chichester</h3>
+      <p>Select crossings to show, then choose one as the primary crossing for route advice.</p>
+      <div id="crossing-selection-options"></div>
+    </div>
+  </section>
 
   <section id="crossing-route-advice" class="crossing-route-advice" aria-live="polite">
     <p class="crossing-eyebrow">Best route into town</p>
@@ -69,9 +86,9 @@
       <p class="crossing-eyebrow">Calibration</p>
       <h2>What can you see?</h2>
       <p>
-        Log the physical barrier state when you happen to observe it. Records are timestamped and
-        stay on this device for now; they help us calibrate the live feed without collecting your
-        location or identity.
+        Log the physical barrier state when you happen to observe it. Records save immediately on
+        this device, then sync anonymously with the surrounding signalling messages when central
+        storage is available.
       </p>
       <div id="crossing-observation-count" class="crossing-observation-count" hidden>
         <strong>0</strong>
@@ -98,6 +115,33 @@
       <p id="crossing-observation-result" class="crossing-form-result" aria-live="polite"></p>
     </form>
 
+    <section class="crossing-watch-panel" aria-labelledby="crossing-watch-title">
+      <div class="crossing-watch-intro">
+        <p class="crossing-eyebrow">Optional field session</p>
+        <h3 id="crossing-watch-title">Watch one complete barrier cycle</h3>
+        <p>Start only when safely parked or standing away from the road. Each tap is timestamped automatically.</p>
+        <label for="crossing-watch-select">Crossing</label>
+        <select id="crossing-watch-select"></select>
+        <button id="crossing-watch-start" class="crossing-button crossing-watch-start" type="button">Start watch session</button>
+      </div>
+      <div id="crossing-watch-active" class="crossing-watch-active" hidden>
+        <div class="crossing-watch-status">
+          <span id="crossing-watch-name">Watching</span>
+          <strong id="crossing-watch-elapsed">00:00</strong>
+          <span><strong id="crossing-watch-train-count">0</strong> trains recorded</span>
+        </div>
+        <div class="crossing-watch-buttons">
+          <button type="button" data-watch-state="CLOSING" class="crossing-button crossing-state-warning">Closing</button>
+          <button type="button" data-watch-state="CLOSED" class="crossing-button crossing-state-closed">Closed</button>
+          <button type="button" data-watch-state="TRAIN_PASSED" class="crossing-button crossing-watch-train">Train passed</button>
+          <button type="button" data-watch-state="OPENING" class="crossing-button crossing-state-opening">Opening</button>
+          <button type="button" data-watch-state="OPEN" class="crossing-button crossing-state-open">Open</button>
+        </div>
+        <button id="crossing-watch-finish" class="crossing-button crossing-button--secondary" type="button">Finish session</button>
+        <p id="crossing-watch-result" class="crossing-form-result" aria-live="polite"></p>
+      </div>
+    </section>
+
     <details id="crossing-observation-history" class="crossing-observation-history" hidden>
       <summary>Recent observations on this device</summary>
       <ol id="crossing-observation-rows"></ol>
@@ -118,5 +162,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=2"></script>
+  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=3"></script>
 {% endblock %}
