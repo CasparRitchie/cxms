@@ -10,7 +10,6 @@
       area: "Chichester",
       what3words: "awake.mason.melon",
       type: "Manually controlled barriers · CCTV monitored",
-      baselineDriveSeconds: 450,
       closingLeadSeconds: 95,
       clearanceSeconds: 45,
       holdGapSeconds: 120,
@@ -22,7 +21,6 @@
       area: "Chichester",
       what3words: "cubs.glare.photo",
       type: "Manually controlled barriers · CCTV monitored",
-      baselineDriveSeconds: 525,
       closingLeadSeconds: 100,
       clearanceSeconds: 50,
       holdGapSeconds: 130,
@@ -34,7 +32,6 @@
       area: "Chichester",
       what3words: "placed.bless.dance",
       type: "Manually controlled barriers · CCTV monitored",
-      baselineDriveSeconds: 510,
       closingLeadSeconds: 100,
       clearanceSeconds: 50,
       holdGapSeconds: 130,
@@ -42,7 +39,7 @@
     }
   ];
 
-  const destinations = [
+  const demoTrainDestinations = [
     ["Portsmouth & Southsea", "westbound"],
     ["London Victoria", "eastbound"],
     ["Brighton", "eastbound"],
@@ -65,6 +62,8 @@
   };
 
   const elements = {
+    destinationSelect: document.getElementById("crossing-destination-select"),
+    destinationMeta: document.getElementById("crossing-destination-meta"),
     routeAdvice: document.getElementById("crossing-route-advice"),
     crossingGrid: document.getElementById("crossing-grid"),
     refreshButton: document.getElementById("crossing-refresh"),
@@ -100,7 +99,7 @@
     feedEventRows: document.getElementById("crossing-feed-event-rows")
   };
 
-  if (!elements.routeAdvice || !elements.crossingGrid || !elements.observationForm) return;
+  if (!elements.destinationSelect || !elements.routeAdvice || !elements.crossingGrid || !elements.observationForm) return;
 
   function escapeHtml(value) {
     return String(value)
@@ -129,11 +128,18 @@
     const primaryId = selectedIds.includes(stored.primaryId)
       ? stored.primaryId
       : (selectedIds.includes("whyke-road") ? "whyke-road" : selectedIds[0] || null);
-    return { selectedIds, primaryId };
+    return {
+      selectedIds,
+      primaryId,
+      destinationId: typeof stored.destinationId === "string" ? stored.destinationId : "waitrose-chichester"
+    };
   }
 
   let preferences = readPreferences();
   let watchSession = null;
+  let journeyCatalogue = [];
+  let journeyResult = null;
+  let journeyLoading = false;
 
   function savePreferences() {
     window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
@@ -237,7 +243,7 @@
         const start = new Date(hour.getTime() + offset * 60 * 60 * 1000);
         return crossing.minutes.map((minute, index) => {
           const eta = new Date(start.getTime() + minute * 60 * 1000);
-          const [destination, direction] = destinations[index % destinations.length];
+          const [destination, direction] = demoTrainDestinations[index % demoTrainDestinations.length];
           return { id: `demo-${crossing.id}-${eta.toISOString()}`, destination, direction, eta };
         });
       })
@@ -303,7 +309,168 @@
   }
 
   function formatDuration(seconds) {
+    if (seconds > 0 && seconds < 60) return `${Math.max(10, Math.round(seconds / 10) * 10)} sec`;
     return `${Math.max(1, Math.round(seconds / 60))} min`;
+  }
+
+  function formatDistance(metres) {
+    if (!Number.isFinite(metres)) return "Distance unavailable";
+    return metres < 1000 ? `${Math.round(metres / 50) * 50} m` : `${(metres / 1000).toFixed(1)} km`;
+  }
+
+  function currentDestination() {
+    return journeyCatalogue.find(({ id }) => id === preferences.destinationId) || null;
+  }
+
+  function wazeUrl(destination) {
+    return `https://www.waze.com/ul?${new URLSearchParams({ q: destination.wazeQuery, navigate: "yes" })}`;
+  }
+
+  function renderDestinationControl() {
+    const destination = currentDestination();
+    elements.destinationSelect.innerHTML = journeyCatalogue.map((item) => (
+      `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} · ${escapeHtml(item.area)}</option>`
+    )).join("");
+    if (destination) elements.destinationSelect.value = destination.id;
+    elements.destinationMeta.textContent = destination
+      ? `${destination.arrivalNote} Destination: ///${destination.what3words}`
+      : "Choose one of your saved local journeys.";
+  }
+
+  function routeCrossingWait(route, predictionsById) {
+    return (route.crossedCrossings || []).reduce((total, crossingId) => (
+      total + (predictionsById.get(crossingId)?.prediction.waitSeconds || 0)
+    ), 0);
+  }
+
+  function routeName(route) {
+    if (route.usesA27) return "Via the A27";
+    const names = (route.crossedCrossings || [])
+      .map((id) => crossings.find((crossing) => crossing.id === id)?.name)
+      .filter(Boolean);
+    return names.length ? `Via ${names.join(" and ")}` : "Route avoiding tracked crossings";
+  }
+
+  function renderJourneyAdvice(predictions) {
+    const destination = currentDestination();
+    if (!destination) {
+      elements.routeAdvice.innerHTML = '<p class="crossing-eyebrow">Journey recommendation</p><h2>Choose a destination</h2><p>Select one of your familiar journeys above.</p>';
+      return;
+    }
+    if (journeyLoading) {
+      elements.routeAdvice.innerHTML = `<p class="crossing-eyebrow">Journey to ${escapeHtml(destination.name)}</p><h2>Checking live road conditions…</h2><p>Comparing traffic, walking time and the selected crossings.</p>`;
+      return;
+    }
+
+    const primary = predictions.find(({ crossing }) => crossing.id === preferences.primaryId);
+    const wazeLink = `<a class="crossing-route-action" href="${escapeHtml(wazeUrl(destination))}" target="_blank" rel="noopener">Open destination in Waze</a>`;
+    if (!journeyResult || journeyResult.status === "not_configured") {
+      const status = primary ? stateDetails[primary.prediction.state][0] : "No crossing selected";
+      elements.routeAdvice.innerHTML = `
+        <p class="crossing-eyebrow">To ${escapeHtml(destination.name)} · crossing estimate only</p>
+        <h2>${primary ? `${escapeHtml(primary.crossing.name)}: ${escapeHtml(status)}` : "Choose a crossing"}</h2>
+        <p>Live road traffic is not connected yet, so this app will not guess whether this beats the A27.</p>
+        <div class="crossing-route-comparison">
+          <span>Crossing: ${primary ? escapeHtml(status) : "not selected"}</span>
+          <span>A27: check live traffic</span>
+          <span>Parking walk: ${formatDuration(destination.parkingWalkSeconds)}</span>
+        </div>
+        <div class="crossing-route-actions">${wazeLink}<span class="crossing-route-source">Live ETAs need Mapbox + what3words keys</span></div>`;
+      return;
+    }
+    if (journeyResult.status !== "ready") {
+      elements.routeAdvice.innerHTML = `
+        <p class="crossing-eyebrow">To ${escapeHtml(destination.name)}</p>
+        <h2>Live traffic is unavailable</h2>
+        <p>${escapeHtml(journeyResult.message || "Try refreshing in a moment. No estimated road time has been substituted.")}</p>
+        <div class="crossing-route-actions">${wazeLink}</div>`;
+      return;
+    }
+
+    const predictionsById = new Map(crossings.map((crossing) => [
+      crossing.id,
+      { crossing, prediction: predict(crossing, new Date()) }
+    ]));
+    const driving = (journeyResult.routes || []).map((route) => {
+      const crossingWaitSeconds = routeCrossingWait(route, predictionsById);
+      return {
+        ...route,
+        crossingWaitSeconds,
+        totalSeconds: route.durationSeconds + crossingWaitSeconds + destination.parkingWalkSeconds
+      };
+    }).sort((left, right) => left.totalSeconds - right.totalSeconds);
+    const bestDrive = driving[0];
+    const walking = journeyResult.walking;
+    const walkIsBest = walking && bestDrive && walking.durationSeconds <= bestDrive.totalSeconds;
+    const heading = walkIsBest ? "Walk this one" : bestDrive ? routeName(bestDrive) : "Check the route";
+    const explanation = walkIsBest
+      ? `Walking is currently the quickest complete journey at about ${formatDuration(walking.durationSeconds)}.`
+      : bestDrive
+        ? `Allow about ${formatDuration(bestDrive.totalSeconds)} including live traffic, the current crossing estimate and the final walk.`
+        : "No driving route was returned.";
+    const drivingRows = driving.map((route, index) => {
+      const trafficDifference = route.durationSeconds - route.typicalDurationSeconds;
+      const details = [
+        `${formatDuration(route.durationSeconds)} live road time`,
+        route.crossingWaitSeconds ? `${formatDuration(route.crossingWaitSeconds)} crossing wait` : "no predicted crossing wait",
+        `${formatDuration(destination.parkingWalkSeconds)} parking walk`
+      ].join(" + ");
+      return `<article class="crossing-route-option${index === 0 && !walkIsBest ? " crossing-route-option--recommended" : ""}">
+        <span>${escapeHtml(routeName(route))}${index === 0 && !walkIsBest ? " · best" : ""}</span>
+        <strong>${formatDuration(route.totalSeconds)}</strong>
+        <small>${escapeHtml(details)} · ${formatDistance(route.distanceMetres)}${trafficDifference > 60 ? ` · ${formatDuration(trafficDifference)} slower than usual` : ""}</small>
+      </article>`;
+    }).join("");
+    const walkingRow = walking ? `<article class="crossing-route-option${walkIsBest ? " crossing-route-option--recommended" : ""}">
+      <span>Walk${walkIsBest ? " · best" : ""}</span><strong>${formatDuration(walking.durationSeconds)}</strong>
+      <small>${formatDistance(walking.distanceMetres)} door to destination</small>
+    </article>` : "";
+
+    elements.routeAdvice.innerHTML = `
+      <p class="crossing-eyebrow">Best complete journey to ${escapeHtml(destination.name)}</p>
+      <h2>${escapeHtml(heading)}</h2>
+      <p>${escapeHtml(explanation)}</p>
+      <div class="crossing-journey-options">${drivingRows}${walkingRow}</div>
+      <div class="crossing-route-actions">${wazeLink}<span class="crossing-route-source">Live traffic · refreshed automatically</span></div>`;
+  }
+
+  async function loadJourney() {
+    if (journeyLoading) return;
+    const destination = currentDestination();
+    if (!destination) return;
+    journeyLoading = true;
+    journeyResult = null;
+    renderPredictions();
+    try {
+      const response = await fetch(`/api/level-crossing/journeys/${encodeURIComponent(destination.id)}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Journey unavailable");
+      journeyResult = await response.json();
+    } catch (_) {
+      journeyResult = { status: "unavailable", message: "Live road information could not be loaded." };
+    } finally {
+      journeyLoading = false;
+      renderPredictions();
+    }
+  }
+
+  async function loadDestinations() {
+    try {
+      const response = await fetch("/api/level-crossing/destinations", { cache: "no-store" });
+      if (!response.ok) throw new Error("Destinations unavailable");
+      const catalogue = await response.json();
+      journeyCatalogue = Array.isArray(catalogue.destinations) ? catalogue.destinations : [];
+      if (!journeyCatalogue.some(({ id }) => id === preferences.destinationId)) {
+        preferences.destinationId = journeyCatalogue[0]?.id || "";
+        savePreferences();
+      }
+      renderDestinationControl();
+      await loadJourney();
+    } catch (_) {
+      elements.destinationSelect.innerHTML = '<option value="">Destinations unavailable</option>';
+      elements.destinationMeta.textContent = "Refresh the page to try again.";
+      journeyResult = { status: "unavailable", message: "Your saved destinations could not be loaded." };
+      renderPredictions();
+    }
   }
 
   function formatObservationTime(value) {
@@ -427,25 +594,13 @@
     const primary = predictions.find(({ crossing }) => crossing.id === preferences.primaryId);
 
     if (!primary) {
-      elements.routeAdvice.innerHTML = '<p class="crossing-eyebrow">Best route into town</p><h2>Select a crossing</h2><p>Choose at least one level crossing above to restore route advice.</p>';
+      renderJourneyAdvice(predictions);
       elements.crossingGrid.innerHTML = '<p class="crossing-grid-empty">No crossings selected.</p>';
       elements.lastUpdated.textContent = `Updated ${formatTime(now)}`;
       return;
     }
 
-    const viaCrossing = primary.crossing.baselineDriveSeconds + primary.prediction.waitSeconds;
-    const viaA27 = 690;
-    const useCrossing = viaCrossing <= viaA27;
-    const saving = Math.abs(viaCrossing - viaA27);
-    elements.routeAdvice.innerHTML = `
-      <p class="crossing-eyebrow">Best route into town · demo estimate</p>
-      <h2>${useCrossing ? `Turn towards ${escapeHtml(primary.crossing.name)}` : "Take the A27"}</h2>
-      <p>${useCrossing ? "The selected crossing route is currently estimated to be quicker." : "The demonstration barrier wait makes the A27 quicker."} <strong>Estimated saving: ${formatDuration(saving)}.</strong></p>
-      <div class="crossing-route-comparison">
-        <span>${escapeHtml(primary.crossing.name)}: ${formatDuration(viaCrossing)}</span>
-        <span>A27: ${formatDuration(viaA27)}</span>
-        <span>Road data: baseline</span>
-      </div>`;
+    renderJourneyAdvice(predictions);
 
     elements.crossingGrid.innerHTML = predictions.map(({ crossing, prediction }) => {
       const [label, statusClass] = stateDetails[prediction.state];
@@ -527,6 +682,14 @@
     elements.selectionToggle.textContent = opening ? "Done" : "Edit crossings";
   });
 
+  elements.destinationSelect.addEventListener("change", () => {
+    if (!journeyCatalogue.some(({ id }) => id === elements.destinationSelect.value)) return;
+    preferences.destinationId = elements.destinationSelect.value;
+    savePreferences();
+    renderDestinationControl();
+    void loadJourney();
+  });
+
   elements.selectionOptions.addEventListener("change", (event) => {
     const selectId = event.target.dataset.crossingSelect;
     const primaryId = event.target.dataset.crossingPrimary;
@@ -544,6 +707,7 @@
 
   elements.refreshButton.addEventListener("click", () => {
     renderPredictions();
+    void loadJourney();
     void loadFeedStatus();
     syncPendingObservations();
   });
@@ -610,9 +774,11 @@
   renderSelection();
   renderObservations();
   renderPredictions();
+  void loadDestinations();
   void loadFeedStatus();
   syncPendingObservations();
   window.setInterval(renderPredictions, 30000);
+  window.setInterval(loadJourney, 90000);
   window.setInterval(loadFeedStatus, 10000);
   window.setInterval(updateWatchElapsed, 1000);
 })();

@@ -2,6 +2,7 @@ import json
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
 from app import app
 from services.level_crossing.observations import (
@@ -10,6 +11,7 @@ from services.level_crossing.observations import (
     ObservationValidationError,
 )
 from services.level_crossing.td_feed import TrainDescriberFeed
+from services.level_crossing.routing import DESTINATIONS, RoutePlanner
 
 
 class LevelCrossingPageTests(unittest.TestCase):
@@ -29,12 +31,16 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"Selected level crossings", response.data)
         self.assertIn(b"Start watch session", response.data)
         self.assertIn(b"Chichester live route helper", response.data)
+        self.assertIn(b"Choose a familiar journey", response.data)
+        self.assertIn(b"crossing-destination-select", response.data)
         css_response = self.client.get("/static/css/level-crossing.css")
         js_response = self.client.get("/static/js/level-crossing.js")
         self.assertEqual(css_response.status_code, 200)
         self.assertEqual(js_response.status_code, 200)
         self.assertIn(b"crossing-app-bar", css_response.data)
         self.assertIn(b"crossing-selection-chip-state", js_response.data)
+        self.assertIn(b"waitrose-chichester", js_response.data)
+        self.assertNotIn(b"const viaA27 = 690", js_response.data)
         css_response.close()
         js_response.close()
 
@@ -57,6 +63,32 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["status"], "not_configured")
         self.assertNotIn(b"password", response.data.lower())
+
+    @patch("app.route_planner.catalogue")
+    def test_destination_catalogue_endpoint_is_public(self, catalogue):
+        catalogue.return_value = {"originLabel": "Willowbed Drive area", "destinations": [{"id": "waitrose-chichester"}]}
+
+        response = self.client.get("/api/level-crossing/destinations")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["destinations"][0]["id"], "waitrose-chichester")
+
+    @patch("app.route_planner.journey")
+    def test_journey_endpoint_returns_honest_unconfigured_state(self, journey):
+        journey.return_value = {"status": "not_configured", "routes": [], "routing": {"missing": ["MAPBOX_ACCESS_TOKEN"]}}
+
+        response = self.client.get("/api/level-crossing/journeys/waitrose-chichester")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["status"], "not_configured")
+        self.assertEqual(response.get_json()["routes"], [])
+
+    @patch("app.route_planner.journey", side_effect=KeyError("unknown"))
+    def test_journey_endpoint_rejects_unknown_destination(self, _journey):
+        response = self.client.get("/api/level-crossing/journeys/unknown")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.get_json()["status"], "invalid_destination")
 
     @patch("app.observation_rate_limiter.allow", return_value=True)
     @patch("app.observation_store.save")
@@ -122,6 +154,98 @@ class TrainDescriberFeedTests(unittest.TestCase):
         error = self.feed.snapshot()["lastError"]
         self.assertNotIn("test@example.com", error)
         self.assertNotIn("not-returned-by-status", error)
+
+
+class FakeRouteResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def read(self):
+        return json.dumps(self.payload).encode("utf-8")
+
+
+class FakeRouteOpener:
+    def __init__(self):
+        self.urls = []
+        self.points = {
+            "gosh.alone.milky": [0.010, 50.010],
+            "awake.mason.melon": [0.001, 50.001],
+            "cubs.glare.photo": [0.020, 50.000],
+            "placed.bless.dance": [-0.020, 50.000],
+        }
+
+    def __call__(self, request, timeout):
+        url = request.full_url
+        self.urls.append(url)
+        parsed = urlparse(url)
+        if parsed.path.endswith("/forward"):
+            return FakeRouteResponse({"features": [{"geometry": {"coordinates": [0.000, 50.000]}}]})
+        if "convert-to-coordinates" in parsed.path:
+            words = parse_qs(parsed.query)["words"][0]
+            longitude, latitude = self.points[words]
+            return FakeRouteResponse({"coordinates": {"lng": longitude, "lat": latitude}})
+        if "/mapbox/driving-traffic/" in parsed.path:
+            return FakeRouteResponse({
+                "routes": [
+                    {
+                        "duration": 300,
+                        "duration_typical": 240,
+                        "distance": 4000,
+                        "geometry": {"coordinates": [[0.000, 50.000], [0.001, 50.001], [0.010, 50.010]]},
+                        "legs": [{"steps": [{"name": "Whyke Road", "ref": ""}]}],
+                    },
+                    {
+                        "duration": 420,
+                        "duration_typical": 420,
+                        "distance": 7000,
+                        "geometry": {"coordinates": [[0.000, 50.000], [0.030, 49.990], [0.010, 50.010]]},
+                        "legs": [{"steps": [{"name": "Chichester Bypass", "ref": "A27"}]}],
+                    },
+                ]
+            })
+        if "/mapbox/walking/" in parsed.path:
+            return FakeRouteResponse({"routes": [{"duration": 900, "distance": 1800, "geometry": {"coordinates": []}, "legs": []}]})
+        raise AssertionError(f"Unexpected URL: {url}")
+
+
+class LevelCrossingRoutingTests(unittest.TestCase):
+    def test_catalogue_preserves_distinct_arrival_details(self):
+        planner = RoutePlanner(environ={})
+        catalogue = planner.catalogue()
+
+        self.assertEqual(len(DESTINATIONS), 12)
+        self.assertEqual(catalogue["originLabel"], "Willowbed Drive area")
+        city_fc = next(item for item in catalogue["destinations"] if item["id"] == "chichester-city-fc")
+        self.assertEqual(city_fc["what3words"], "supply.chimp.heat")
+        self.assertEqual(city_fc["driveWhat3Words"], "repair.united.handed")
+        self.assertEqual(city_fc["parkingWalkSeconds"], 120)
+
+    def test_missing_keys_never_returns_a_made_up_duration(self):
+        result = RoutePlanner(environ={}).journey("waitrose-chichester")
+
+        self.assertEqual(result["status"], "not_configured")
+        self.assertEqual(result["routes"], [])
+        self.assertCountEqual(result["routing"]["missing"], ["MAPBOX_ACCESS_TOKEN", "WHAT3WORDS_API_KEY"])
+
+    def test_live_routes_identify_crossing_and_a27_and_are_cached(self):
+        opener = FakeRouteOpener()
+        planner = RoutePlanner(
+            environ={"MAPBOX_ACCESS_TOKEN": "mapbox-test", "WHAT3WORDS_API_KEY": "w3w-test"},
+            opener=opener,
+        )
+
+        result = planner.journey("waitrose-chichester")
+        call_count = len(opener.urls)
+        cached = planner.journey("waitrose-chichester")
+
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["routes"][0]["crossedCrossings"], ["whyke-road"])
+        self.assertFalse(result["routes"][0]["usesA27"])
+        self.assertTrue(result["routes"][1]["usesA27"])
+        self.assertEqual(result["walking"], {"durationSeconds": 900, "distanceMetres": 1800})
+        self.assertEqual(cached, result)
+        self.assertEqual(len(opener.urls), call_count)
+        self.assertNotIn("w3w-test", " ".join(opener.urls))
 
 
 class FakeSupabaseClient:

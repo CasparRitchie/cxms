@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071d2b">
   <meta name="description" content="Predicted status for selected level crossings, with route guidance and live Network Rail calibration.">
   <title>Chichester Crossing Monitor</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=5">
 </head>
 <body class="level-crossing-page">
   <header class="crossing-app-bar">
@@ -26,6 +26,21 @@
   </header>
 
   <main class="crossing-app-shell">
+    <section class="crossing-journey-panel" aria-labelledby="crossing-destination-title">
+      <div class="crossing-journey-copy">
+        <p class="crossing-eyebrow">Where are you going?</p>
+        <h1 id="crossing-destination-title">Choose a familiar journey</h1>
+        <p>Starting from the Willowbed Drive area. Your precise home location is never requested or displayed.</p>
+      </div>
+      <div class="crossing-destination-control">
+        <label for="crossing-destination-select">Destination</label>
+        <select id="crossing-destination-select">
+          <option value="">Loading saved destinations…</option>
+        </select>
+        <p id="crossing-destination-meta" class="crossing-destination-meta" aria-live="polite"></p>
+      </div>
+    </section>
+
     <section class="crossing-selection-panel" aria-labelledby="crossing-selection-title">
       <div class="crossing-selection-heading">
         <div>
@@ -46,8 +61,8 @@
     </section>
 
     <section id="crossing-route-advice" class="crossing-route-advice" aria-live="polite">
-      <p class="crossing-eyebrow">Best route into town</p>
-      <h2>Checking the crossings…</h2>
+      <p class="crossing-eyebrow">Journey recommendation</p>
+      <h2>Loading your destinations…</h2>
     </section>
 
     <section class="crossing-local-section" aria-labelledby="crossing-local-title">
@@ -162,6 +177,6 @@
     </footer>
   </main>
 
-  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=4"></script>
+  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=5"></script>
 </body>
 </html>

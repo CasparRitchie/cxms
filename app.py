@@ -16,6 +16,7 @@ from services.level_crossing.observations import (
     observation_rate_limiter,
     observation_store,
 )
+from services.level_crossing.routing import route_planner
 from services.sports_editorial.supabase_rest import SupabaseError
 
 app = Flask(__name__)
@@ -55,6 +56,20 @@ def level_crossing():
 def level_crossing_td_status():
     td_feed.start()
     return jsonify(td_feed.snapshot())
+
+
+@app.route("/api/level-crossing/destinations")
+def level_crossing_destinations():
+    return jsonify(route_planner.catalogue())
+
+
+@app.route("/api/level-crossing/journeys/<destination_id>")
+def level_crossing_journey(destination_id):
+    try:
+        journey = route_planner.journey(destination_id)
+    except KeyError:
+        return jsonify({"status": "invalid_destination", "message": "Unknown destination."}), 404
+    return jsonify(journey)
 
 
 @app.route("/api/level-crossing/observations", methods=["POST"])
