@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Chichester Crossing Monitor — CXMS{% endblock %}
+
+{% block head_extra %}
+  <meta name="description" content="Predicted status for Whyke Road, Stockbridge Road and Basin Road level crossings, with route guidance into Chichester.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=1">
+{% endblock %}
+
+{% block body_class %} level-crossing-page{% endblock %}
+
+{% block content %}
+<section class="crossing-monitor" id="crossing-monitor">
+  <header class="crossing-monitor__header">
+    <div>
+      <p class="crossing-eyebrow">Chichester route helper</p>
+      <h1>Crossing Monitor</h1>
+    </div>
+    <span class="crossing-mode-badge">Simulation mode</span>
+  </header>
+
+  <section id="crossing-route-advice" class="crossing-route-advice" aria-live="polite">
+    <p class="crossing-eyebrow">Best route into town</p>
+    <h2>Checking the crossings…</h2>
+  </section>
+
+  <div class="crossing-section-heading">
+    <div>
+      <p class="crossing-eyebrow">Local view</p>
+      <h2>Chichester crossings</h2>
+    </div>
+    <button id="crossing-refresh" class="crossing-button crossing-button--secondary" type="button">Refresh</button>
+  </div>
+
+  <section id="crossing-grid" class="crossing-grid" aria-live="polite"></section>
+
+  <section class="crossing-observation-panel">
+    <div>
+      <p class="crossing-eyebrow">Calibration</p>
+      <h2>What can you see?</h2>
+      <p>
+        Log the physical barrier state when you happen to observe it. These records stay on this
+        device and will help us design the live calibration workflow.
+      </p>
+      <div id="crossing-observation-count" class="crossing-observation-count" hidden>
+        <strong>0</strong>
+        <span>observations saved on this device</span>
+      </div>
+    </div>
+
+    <form id="crossing-observation-form">
+      <label for="crossing-observation-select">Crossing</label>
+      <select id="crossing-observation-select" name="crossingId"></select>
+
+      <fieldset>
+        <legend>Barrier state</legend>
+        <div class="crossing-state-buttons">
+          <button type="submit" name="state" value="OPEN" class="crossing-button crossing-state-open">Open</button>
+          <button type="submit" name="state" value="CLOSING" class="crossing-button crossing-state-warning">Closing</button>
+          <button type="submit" name="state" value="CLOSED" class="crossing-button crossing-state-closed">Closed</button>
+          <button type="submit" name="state" value="OPENING" class="crossing-button crossing-state-opening">Opening</button>
+        </div>
+      </fieldset>
+
+      <label for="crossing-observation-note">Optional note</label>
+      <input id="crossing-observation-note" name="note" maxlength="300" placeholder="For example: second train approaching">
+      <p id="crossing-observation-result" class="crossing-form-result" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <aside class="crossing-safety-note">
+    <strong>Route-planning prediction only.</strong>
+    Never use this app to decide whether it is safe to cross. Always obey the physical lights,
+    alarms, gates and barriers.
+  </aside>
+
+  <footer class="crossing-monitor__footer">
+    <span id="crossing-last-updated">Preparing local predictions</span>
+    <span>Whyke Road · Stockbridge Road · Basin Road</span>
+  </footer>
+</section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=1"></script>
+{% endblock %}

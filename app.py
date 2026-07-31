@@ -37,6 +37,12 @@ def circuit_training():
     return render_template("circuit-training.html")
 
 
+@app.route("/level-crossing")
+@app.route("/level-crossing/")
+def level_crossing():
+    return render_template("level-crossing.html")
+
+
 @app.route("/gcse/history")
 @app.route("/gcse/history/")
 def gcse_history():
