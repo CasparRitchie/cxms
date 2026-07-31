@@ -61,6 +61,8 @@
   const observationNote = document.getElementById("crossing-observation-note");
   const observationResult = document.getElementById("crossing-observation-result");
   const observationCount = document.getElementById("crossing-observation-count");
+  const observationHistory = document.getElementById("crossing-observation-history");
+  const observationRows = document.getElementById("crossing-observation-rows");
   const lastUpdated = document.getElementById("crossing-last-updated");
   const modeBadge = document.querySelector(".crossing-mode-badge");
   const feedStatus = document.getElementById("crossing-feed-status");
@@ -121,8 +123,8 @@
       return {
         state: "LIKELY_CLOSED",
         reason: active.trains.length > 1
-          ? `${active.trains.length} closely spaced trains may keep the barriers down.`
-          : "A train is inside the predicted closure window.",
+          ? `The demo pattern groups ${active.trains.length} trains here; the live feed has not confirmed that sequence.`
+          : "One demo train is inside the predicted closure window; the live feed has not confirmed it.",
         eventAt: active.end,
         eventLabel: "Predicted reopening",
         waitSeconds: Math.max(0, Math.round((active.end.getTime() - now.getTime()) / 1000)),
@@ -133,7 +135,7 @@
     if (next && next.start.getTime() - now.getTime() <= 180 * 1000) {
       return {
         state: "CLOSING_SOON",
-        reason: "The next predicted closure begins within three minutes.",
+        reason: "The next demo closure begins within three minutes; the live feed has not confirmed it.",
         eventAt: next.start,
         eventLabel: "Predicted closing",
         waitSeconds: Math.max(0, Math.round((next.end.getTime() - now.getTime()) / 1000)),
@@ -143,7 +145,7 @@
 
     return {
       state: "OPEN",
-      reason: "No train is currently inside the predicted closure window.",
+      reason: "No train is currently inside the demonstration closure window.",
       eventAt: next?.start || null,
       eventLabel: "Next predicted closing",
       waitSeconds: 0,
@@ -183,10 +185,40 @@
     }
   }
 
-  function renderObservationCount() {
-    const count = readObservations().length;
+  function formatObservationTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Time unavailable";
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZone: "Europe/London",
+      timeZoneName: "short"
+    }).format(date);
+  }
+
+  function renderObservations() {
+    const observations = readObservations();
+    const count = observations.length;
     observationCount.hidden = count === 0;
     observationCount.querySelector("strong").textContent = count;
+    observationHistory.hidden = count === 0;
+    observationRows.innerHTML = observations.slice(0, 10).map((observation) => {
+      const crossing = crossings.find(({ id }) => id === observation.crossingId);
+      const state = String(observation.state || "Unknown").toLowerCase();
+      const label = state.charAt(0).toUpperCase() + state.slice(1);
+      const note = observation.note
+        ? `<span class="crossing-observation-note">${escapeHtml(observation.note)}</span>`
+        : "";
+      return `<li>
+        <strong>${escapeHtml(crossing?.name || observation.crossingId || "Crossing")} · ${escapeHtml(label)}</strong>
+        <time datetime="${escapeHtml(observation.observedAt || "")}">${escapeHtml(formatObservationTime(observation.observedAt))}</time>
+        ${note}
+      </li>`;
+    }).join("");
   }
 
   function formatFeedTime(value) {
@@ -271,7 +303,7 @@
     crossingGrid.innerHTML = predictions.map(({ crossing, prediction }) => {
       const [label, statusClass] = stateDetails[prediction.state];
       const nextTrain = prediction.trains[0]
-        ? `<span>Next train: ${escapeHtml(prediction.trains[0].destination)} · ${escapeHtml(prediction.trains[0].direction)}</span>`
+        ? `<span>Demo train: ${escapeHtml(prediction.trains[0].destination)} · ${escapeHtml(prediction.trains[0].direction)}</span>`
         : "";
       return `
         <article class="crossing-card${crossing.primary ? " crossing-card--primary" : ""}">
@@ -313,11 +345,11 @@
     const observations = [observation, ...readObservations()].slice(0, 100);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
     observationNote.value = "";
-    observationResult.textContent = `${submitter.textContent} recorded for ${crossing?.name || "the crossing"}.`;
-    renderObservationCount();
+    observationResult.textContent = `${submitter.textContent} recorded for ${crossing?.name || "the crossing"} at ${formatObservationTime(observation.observedAt)}.`;
+    renderObservations();
   });
 
-  renderObservationCount();
+  renderObservations();
   render();
   loadFeedStatus();
   window.setInterval(render, 30000);

@@ -4,7 +4,7 @@
 
 {% block head_extra %}
   <meta name="description" content="Predicted status for Whyke Road, Stockbridge Road and Basin Road level crossings, with route guidance into Chichester.">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=2">
 {% endblock %}
 
 {% block body_class %} level-crossing-page{% endblock %}
@@ -69,8 +69,9 @@
       <p class="crossing-eyebrow">Calibration</p>
       <h2>What can you see?</h2>
       <p>
-        Log the physical barrier state when you happen to observe it. These records stay on this
-        device and will help us design the live calibration workflow.
+        Log the physical barrier state when you happen to observe it. Records are timestamped and
+        stay on this device for now; they help us calibrate the live feed without collecting your
+        location or identity.
       </p>
       <div id="crossing-observation-count" class="crossing-observation-count" hidden>
         <strong>0</strong>
@@ -96,6 +97,11 @@
       <input id="crossing-observation-note" name="note" maxlength="300" placeholder="For example: second train approaching">
       <p id="crossing-observation-result" class="crossing-form-result" aria-live="polite"></p>
     </form>
+
+    <details id="crossing-observation-history" class="crossing-observation-history" hidden>
+      <summary>Recent observations on this device</summary>
+      <ol id="crossing-observation-rows"></ol>
+    </details>
   </section>
 
   <aside class="crossing-safety-note">
@@ -112,5 +118,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=1"></script>
+  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=2"></script>
 {% endblock %}

@@ -19,6 +19,7 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"Whyke Road", response.data)
         self.assertIn(b"Simulation mode", response.data)
         self.assertIn(b"Route-planning prediction only", response.data)
+        self.assertIn(b"Recent observations on this device", response.data)
         css_response = self.client.get("/static/css/level-crossing.css")
         js_response = self.client.get("/static/js/level-crossing.js")
         self.assertEqual(css_response.status_code, 200)
