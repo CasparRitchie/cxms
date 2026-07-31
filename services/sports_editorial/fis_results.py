@@ -45,7 +45,8 @@ class _ResultParser(HTMLParser):
                 field = "fis_code"
             # FIS has used both four- and six-column athlete cells. Keep the
             # semantic class checks but tolerate either historical layout.
-            elif "bold" in classes and "justify-left" in classes and ({"g-lg-4", "g-lg-6", "g-lg-15"} & classes):
+            elif ("bold" in classes and "justify-left" in classes
+                  and any(re.fullmatch(r"g-lg-\d+", class_name) for class_name in classes)):
                 field = "athlete"
             elif {"g-lg-1", "hidden-sm-down", "justify-left"}.issubset(classes):
                 field = "birth_year"

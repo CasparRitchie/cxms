@@ -1131,6 +1131,22 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(rows[0]["fis_code"], "-10427")
         self.assertEqual(rows[0]["athlete"], "KILLY Jean-Claude")
 
+    def test_early_2000s_layout_reads_twelve_column_athlete_name(self):
+        html = '''
+        <h1>Lake Louise (CAN)</h1>
+        <option selected>01.12.2002 - Men's Super G | WC</option>
+        <a class="table-row" href="https://www.fis-ski.com/DB/general/athlete-biography.html?competitorid=14972">
+          <div class="g-lg-1 pr-1 bold justify-right">1</div>
+          <div class="pr-1 g-lg-2 gray justify-right">50024</div>
+          <div class="g-lg-12 bold justify-left">EBERHARTER Stephan</div>
+          <div class="g-lg-1 hidden-sm-down justify-left">1969</div>
+          <span class="country__name-short">AUT</span>
+          <div class="g-lg-2 blue bold justify-right">1:23.39</div>
+        </a>'''
+        rows = parse_fis_results(html, {"canonical_id": "16860", "metadata": {"season_code": 2003, "date": "2002-12-01"}})
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["athlete"], "EBERHARTER Stephan")
+
     def test_combined_entity_refresh_is_admin_only_in_workspace_mode(self):
         with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=None):
             response = self.client.post("/workspace/sports-editorial/entities/refresh/events", data={"season_code": "2027"})
