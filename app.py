@@ -10,6 +10,7 @@ from services.data_explorer.eda_engine import (
     parse_csv_dataset,
 )
 from services.sports_editorial import sports_editorial_workspace
+from services.level_crossing.td_feed import td_feed
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "sports-editorial-pilot-dev-only")
@@ -40,7 +41,14 @@ def circuit_training():
 @app.route("/level-crossing")
 @app.route("/level-crossing/")
 def level_crossing():
+    td_feed.start()
     return render_template("level-crossing.html")
+
+
+@app.route("/api/level-crossing/td-status")
+def level_crossing_td_status():
+    td_feed.start()
+    return jsonify(td_feed.snapshot())
 
 
 @app.route("/gcse/history")

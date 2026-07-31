@@ -34,6 +34,35 @@
 
   <section id="crossing-grid" class="crossing-grid" aria-live="polite"></section>
 
+  <section class="crossing-feed-panel" aria-labelledby="crossing-feed-title">
+    <div>
+      <p class="crossing-eyebrow">Network Rail Train Describer</p>
+      <h2 id="crossing-feed-title">Live feed calibration</h2>
+      <p id="crossing-feed-copy">Checking the server-side TD connection…</p>
+    </div>
+    <div class="crossing-feed-summary">
+      <span id="crossing-feed-status" class="crossing-feed-status">Connecting</span>
+      <dl>
+        <div><dt>TD area</dt><dd id="crossing-feed-area">CH</dd></div>
+        <div><dt>CH messages</dt><dd id="crossing-feed-count">0</dd></div>
+        <div><dt>Last message</dt><dd id="crossing-feed-updated">Waiting</dd></div>
+      </dl>
+    </div>
+    <details id="crossing-feed-events" class="crossing-feed-events" hidden>
+      <summary>Recent Chichester berth movements</summary>
+      <div class="crossing-feed-table-wrap">
+        <table>
+          <thead><tr><th>Received</th><th>Type</th><th>Movement</th><th>Train</th></tr></thead>
+          <tbody id="crossing-feed-event-rows"></tbody>
+        </table>
+      </div>
+    </details>
+    <p class="crossing-feed-note">
+      Live messages are being observed to identify the approach and clearing berths. They do not
+      change the crossing prediction until that mapping has been calibrated.
+    </p>
+  </section>
+
   <section class="crossing-observation-panel">
     <div>
       <p class="crossing-eyebrow">Calibration</p>

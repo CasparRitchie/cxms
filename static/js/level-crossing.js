@@ -62,6 +62,14 @@
   const observationResult = document.getElementById("crossing-observation-result");
   const observationCount = document.getElementById("crossing-observation-count");
   const lastUpdated = document.getElementById("crossing-last-updated");
+  const modeBadge = document.querySelector(".crossing-mode-badge");
+  const feedStatus = document.getElementById("crossing-feed-status");
+  const feedCopy = document.getElementById("crossing-feed-copy");
+  const feedArea = document.getElementById("crossing-feed-area");
+  const feedCount = document.getElementById("crossing-feed-count");
+  const feedUpdated = document.getElementById("crossing-feed-updated");
+  const feedEvents = document.getElementById("crossing-feed-events");
+  const feedEventRows = document.getElementById("crossing-feed-event-rows");
 
   if (!routeAdvice || !crossingGrid || !refreshButton || !observationForm) return;
 
@@ -180,6 +188,60 @@
     observationCount.querySelector("strong").textContent = count;
   }
 
+  function formatFeedTime(value) {
+    if (!value) return "Waiting";
+    return formatTime(new Date(value));
+  }
+
+  function renderFeedStatus(feed) {
+    feedArea.textContent = feed.area || "CH";
+    feedCount.textContent = String(feed.messageCount || 0);
+    feedUpdated.textContent = formatFeedTime(feed.lastMessageAt);
+    feedStatus.className = "crossing-feed-status";
+
+    if (feed.status === "connected") {
+      feedStatus.textContent = "Connected";
+      feedStatus.classList.add("crossing-feed-status--connected");
+      modeBadge.textContent = "Live feed · calibrating";
+      feedCopy.textContent = feed.messageCount
+        ? "Receiving Chichester signalling messages. Compare these movements with the physical barriers to identify the correct berths."
+        : "Connected to Network Rail and waiting for the next Chichester signalling message.";
+    } else if (feed.status === "not_configured") {
+      feedStatus.textContent = "Not configured";
+      feedStatus.classList.add("crossing-feed-status--error");
+      modeBadge.textContent = "Simulation mode";
+      feedCopy.textContent = "The server cannot see the Network Rail username and password environment variables.";
+    } else {
+      feedStatus.textContent = "Connecting";
+      modeBadge.textContent = "Simulation · connecting";
+      feedCopy.textContent = feed.lastError
+        ? `The live connection is retrying (${feed.lastError}). Simulation remains available.`
+        : "Opening the secure Network Rail TD connection. Simulation remains available while it starts.";
+    }
+
+    const events = Array.isArray(feed.recentEvents) ? feed.recentEvents : [];
+    feedEvents.hidden = events.length === 0;
+    feedEventRows.innerHTML = events.map((event) => {
+      const movement = [event.from, event.to].filter(Boolean).join(" → ") || "Signal update";
+      return `<tr>
+        <td>${escapeHtml(formatFeedTime(event.receivedAt))}</td>
+        <td>${escapeHtml(event.type || "")}</td>
+        <td>${escapeHtml(movement)}</td>
+        <td>${escapeHtml(event.descriptor || "—")}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  async function loadFeedStatus() {
+    try {
+      const response = await fetch("/api/level-crossing/td-status", { cache: "no-store" });
+      if (!response.ok) throw new Error("Status unavailable");
+      renderFeedStatus(await response.json());
+    } catch (_) {
+      renderFeedStatus({ status: "connecting", area: "CH", lastError: "status endpoint unavailable" });
+    }
+  }
+
   function render() {
     const now = new Date();
     const predictions = crossings.map((crossing) => ({ crossing, prediction: predict(crossing, now) }));
@@ -255,5 +317,7 @@
 
   renderObservationCount();
   render();
+  loadFeedStatus();
   window.setInterval(render, 30000);
+  window.setInterval(loadFeedStatus, 10000);
 })();
