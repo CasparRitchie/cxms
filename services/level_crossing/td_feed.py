@@ -178,7 +178,6 @@ class TrainDescriberFeed:
                 )
                 listener = _TDListener(self, connection)
                 connection.set_listener("cxms-td", listener)
-                connection.set_ssl(for_hosts=[(self.host, self.port)])
                 connection.connect(
                     self.username,
                     self.password,
