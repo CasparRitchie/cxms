@@ -339,6 +339,22 @@
 .crossing-state-opening { background: #e2ecf8; color: #245b87; }
 .crossing-form-result { min-height: 20px; margin: 0; color: var(--crossing-green) !important; font-size: 0.86rem; }
 
+.crossing-observation-history { grid-column: 1 / -1; border-top: 1px solid var(--crossing-line); padding-top: 16px; }
+.crossing-observation-history summary { color: #245b87; font-weight: 750; cursor: pointer; }
+.crossing-observation-history ol { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+.crossing-observation-history li {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  gap: 3px 18px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #334e68;
+  font-size: 0.8rem;
+}
+.crossing-observation-history time { color: var(--crossing-muted); text-align: right; }
+.crossing-observation-note { grid-column: 1 / -1; color: var(--crossing-muted); }
+
 .crossing-safety-note {
   margin: 24px 0;
   padding: 16px 18px;
@@ -370,5 +386,7 @@
   .level-crossing-page .site-main > .site-shell { width: min(100% - 22px, 1120px); }
   .crossing-route-advice { border-radius: 18px; }
   .crossing-state-buttons { grid-template-columns: 1fr 1fr; }
+  .crossing-observation-history li { grid-template-columns: 1fr; }
+  .crossing-observation-history time { text-align: left; }
   .crossing-monitor__footer { flex-direction: column; }
 }
