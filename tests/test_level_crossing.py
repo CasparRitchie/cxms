@@ -28,10 +28,13 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"Recent observations on this device", response.data)
         self.assertIn(b"Selected level crossings", response.data)
         self.assertIn(b"Start watch session", response.data)
+        self.assertIn(b"Chichester live route helper", response.data)
         css_response = self.client.get("/static/css/level-crossing.css")
         js_response = self.client.get("/static/js/level-crossing.js")
         self.assertEqual(css_response.status_code, 200)
         self.assertEqual(js_response.status_code, 200)
+        self.assertIn(b"crossing-app-bar", css_response.data)
+        self.assertIn(b"crossing-selection-chip-state", js_response.data)
         css_response.close()
         js_response.close()
 

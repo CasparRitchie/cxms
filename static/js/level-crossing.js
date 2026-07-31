@@ -149,17 +149,45 @@
     }
   }
 
+  function displayStatusFor(crossing, now = new Date()) {
+    const latest = readObservations().find((observation) => {
+      if (observation.crossingId !== crossing.id || observation.state === "TRAIN_PASSED") return false;
+      const age = now.getTime() - new Date(observation.observedAt).getTime();
+      return Number.isFinite(age) && age >= 0 && age <= 10 * 60 * 1000;
+    });
+    if (latest) {
+      const className = latest.state === "OPEN"
+        ? "open"
+        : latest.state === "CLOSED" ? "closed" : "closing";
+      return { label: `${observationLabels[latest.state] || latest.state} · seen`, className };
+    }
+    const prediction = predict(crossing, now);
+    const className = prediction.state === "OPEN"
+      ? "open"
+      : prediction.state === "LIKELY_CLOSED" ? "closed" : "closing";
+    return { label: `${stateDetails[prediction.state][0]} · est.`, className };
+  }
+
+  function renderSelectionChips() {
+    const selected = selectedCrossings();
+    elements.selectionChips.innerHTML = selected.length
+      ? selected.map((crossing) => {
+          const status = displayStatusFor(crossing);
+          return `<span class="crossing-selection-chip${crossing.id === preferences.primaryId ? " crossing-selection-chip--primary" : ""}">
+            <span class="crossing-selection-chip-name">${crossing.id === preferences.primaryId ? '<span aria-label="Primary crossing">★</span>' : ""}${escapeHtml(crossing.name)}</span>
+            <span class="crossing-selection-chip-state crossing-selection-chip-state--${status.className}">${escapeHtml(status.label)}</span>
+          </span>`;
+        }).join("")
+      : '<span class="crossing-selection-empty">No crossings selected</span>';
+  }
+
   function renderSelection() {
     ensurePrimary();
     const selected = selectedCrossings();
     elements.selectionSummary.textContent = selected.length
       ? `${selected.length} crossing${selected.length === 1 ? "" : "s"} selected. The star marks the crossing used for route advice.`
       : "No crossings selected. Choose at least one to see predictions and record observations.";
-    elements.selectionChips.innerHTML = selected.length
-      ? selected.map((crossing) => `<span class="crossing-selection-chip${crossing.id === preferences.primaryId ? " crossing-selection-chip--primary" : ""}">
-          ${crossing.id === preferences.primaryId ? '<span aria-hidden="true">★</span>' : ""}${escapeHtml(crossing.name)}
-        </span>`).join("")
-      : '<span class="crossing-selection-empty">None selected</span>';
+    renderSelectionChips();
 
     elements.selectionOptions.innerHTML = crossings.map((crossing) => {
       const selectedHere = preferences.selectedIds.includes(crossing.id);
@@ -386,12 +414,14 @@
     };
     writeObservations([observation, ...readObservations()]);
     renderObservations();
+    renderSelectionChips();
     void syncObservation(observation);
     return observation;
   }
 
   function renderPredictions() {
     const now = new Date();
+    renderSelectionChips();
     const selected = selectedCrossings();
     const predictions = selected.map((crossing) => ({ crossing, prediction: predict(crossing, now) }));
     const primary = predictions.find(({ crossing }) => crossing.id === preferences.primaryId);
@@ -494,7 +524,7 @@
     const opening = elements.selectionControls.hidden;
     elements.selectionControls.hidden = !opening;
     elements.selectionToggle.setAttribute("aria-expanded", String(opening));
-    elements.selectionToggle.textContent = opening ? "Done" : "Change selection";
+    elements.selectionToggle.textContent = opening ? "Done" : "Edit crossings";
   });
 
   elements.selectionOptions.addEventListener("change", (event) => {
