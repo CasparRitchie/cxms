@@ -113,7 +113,14 @@ class TrainDescriberFeed:
         for message in messages:
             if not isinstance(message, dict):
                 continue
-            body = message.get("body", message)
+            body = message.get("body")
+            if not isinstance(body, dict):
+                wrapped_bodies = [
+                    value
+                    for key, value in message.items()
+                    if key.endswith("_MSG") and isinstance(value, dict)
+                ]
+                body = wrapped_bodies[0] if len(wrapped_bodies) == 1 else message
             if not isinstance(body, dict) or str(body.get("area_id", "")).upper() != self.area:
                 continue
             self._record_event(body)

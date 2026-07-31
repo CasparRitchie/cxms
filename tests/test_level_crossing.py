@@ -59,7 +59,7 @@ class TrainDescriberFeedTests(unittest.TestCase):
 
     def test_filters_to_chichester_and_tracks_berth_steps(self):
         payload = [
-            {"body": {"msg_type": "CA", "area_id": "CH", "from": "0101", "to": "0102", "descr": "1A23", "time": "123456"}},
+            {"CA_MSG": {"msg_type": "CA", "area_id": "CH", "from": "0101", "to": "0102", "descr": "1A23", "time": "123456"}},
             {"body": {"msg_type": "CA", "area_id": "CW", "from": "9999", "to": "9998", "descr": "9Z99", "time": "123457"}},
         ]
 
