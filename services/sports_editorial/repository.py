@@ -785,8 +785,10 @@ def _result_storage_row(workspace_id, row):
         "workspace_id": workspace_id, "race_id": int(row["race_id"]), "fis_code": int(row["fis_code"]),
         "competitor_id": integer(row.get("competitor_id")), "athlete_name": row["athlete"], "nation_code": row["nation"],
         "bib": integer(row.get("bib")), "birth_year": integer(row.get("birth_year")), "place": row.get("place"),
-        "result_status": row.get("status") or "finished", "total_time": row.get("time") or None,
-        "diff_time": row.get("diff_time") or None, "fis_points": row.get("fis_points"), "cup_points": row.get("cup_points"),
+        "result_status": row.get("status") or "finished",
+        "total_time": row.get("total_time") or (row.get("time") if not str(row.get("time") or "").startswith("+") else None),
+        "diff_time": row.get("diff_time") or (row.get("time") if str(row.get("time") or "").startswith("+") else None),
+        "fis_points": row.get("fis_points"), "cup_points": row.get("cup_points"),
         "source_url": row.get("source_url") or "", "imported_at": row.get("imported_at") or _now(),
     }
 
@@ -800,7 +802,9 @@ def _hydrate_result_row(row, imported):
         "competition": imported.get("category_code") or "FIS", "place": row.get("place"), "status": row.get("result_status"),
         "athlete": row.get("athlete_name"), "fis_code": str(row.get("fis_code") or ""),
         "competitor_id": str(row.get("competitor_id") or ""), "nation": row.get("nation_code"),
-        "bib": str(row.get("bib") or ""), "birth_year": str(row.get("birth_year") or ""), "time": row.get("total_time") or "",
+        "bib": str(row.get("bib") or ""), "birth_year": str(row.get("birth_year") or ""),
+        "time": row.get("total_time") or row.get("diff_time") or "", "total_time": row.get("total_time") or "",
+        "diff_time": row.get("diff_time") or "", "fis_points": row.get("fis_points"), "cup_points": row.get("cup_points"),
         "source_url": row.get("source_url") or imported.get("source_url") or "", "source": "fis_official_results",
         "imported_at": row.get("imported_at") or imported.get("imported_at"),
     }

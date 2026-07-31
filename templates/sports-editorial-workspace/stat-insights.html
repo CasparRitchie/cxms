@@ -1,26 +1,114 @@
 {% extends "sports-editorial-workspace/_workspace_base.html" %}
 {% block workspace_title %}Stat insights{% endblock %}
 {% block workspace_content %}
-<div class="sew-page-heading"><p class="sew-kicker">CXMS data product prototype</p><h1>Historical race insights</h1><p>Answer common editorial questions across races without opening each result page. Available to supervisors, sub-editors and researchers.</p></div>
-{% if result_source == 'fis_official_results' %}<p class="sew-message sew-message--success"><strong>Stored official FIS result data:</strong> calculations use classifications already imported into CXMS. Opening or filtering this page does not request FIS again.</p>{% else %}<p class="sew-message sew-message--notice"><strong>Demonstration data:</strong> no stored classifications match this view, so the pilot dataset is shown. It is not an authoritative FIS record.</p>{% endif %}
-{% if workspace_role == 'supervisor' or workspace_account_role in ['owner','admin'] %}<section class="sew-card sew-import-panel"><div><h2>Controlled FIS refresh</h2><p>Imports completed missing competitions only, sequentially, with at least 1.5 seconds between calls. Each run is capped at five races.</p></div><form method="post" action="{{ url_for('sports_editorial_workspace.import_stat_results') }}"><label>Season<input name="season" inputmode="numeric" placeholder="e.g. 2026"></label><label>Specific completed race IDs <em>Optional</em><input name="race_ids" inputmode="numeric" placeholder="127367, 127368"></label><input type="hidden" name="limit" value="5"><button class="sew-button" type="submit">Import completed races</button></form></section>{% endif %}
-<form class="sew-filters" method="get">
+<div class="sew-page-heading">
+  <p class="sew-kicker">CXMS data product prototype</p>
+  <h1>Historical race insights</h1>
+  <p>Answer common editorial questions across races without opening each result page. Available to supervisors, sub-editors and researchers.</p>
+</div>
+
+{% if result_source == 'fis_official_results' %}
+<p class="sew-message sew-message--success"><strong>Stored official FIS result data:</strong> calculations use classifications already imported into CXMS. Opening or filtering this page does not request FIS again.</p>
+{% else %}
+<p class="sew-message sew-message--notice"><strong>Demonstration data:</strong> no stored classifications match this view, so the pilot dataset is shown. It is not an authoritative FIS record.</p>
+{% endif %}
+
+{% if workspace_role == 'supervisor' or workspace_account_role in ['owner','admin'] %}
+<section class="sew-card sew-import-panel">
+  <div><h2>Controlled FIS refresh</h2><p>Imports completed missing competitions only, sequentially, with at least 1.5 seconds between calls. Each run is capped at five races.</p></div>
+  <form method="post" action="{{ url_for('sports_editorial_workspace.import_stat_results') }}">
+    <label>Season<input name="season" inputmode="numeric" placeholder="e.g. 2026"></label>
+    <label>Specific completed race IDs <em>Optional</em><input name="race_ids" inputmode="numeric" placeholder="127367, 127368"></label>
+    <input type="hidden" name="limit" value="5">
+    <button class="sew-button" type="submit">Import completed races</button>
+  </form>
+</section>
+{% endif %}
+
+<form class="sew-filters sew-insight-filters" method="get">
   <label>Season<select name="season"><option value="">All seasons</option>{% for season in seasons %}<option value="{{ season }}" {% if filters.season == season %}selected{% endif %}>{{ season }}</option>{% endfor %}</select></label>
   <label>Venue<select name="venue"><option value="">All venues</option>{% for venue in venues %}<option value="{{ venue }}" {% if filters.venue == venue %}selected{% endif %}>{{ venue }}</option>{% endfor %}</select></label>
   <label>Discipline<select name="discipline"><option value="">All disciplines</option>{% for discipline in disciplines %}<option value="{{ discipline }}" {% if filters.discipline == discipline %}selected{% endif %}>{{ discipline }}</option>{% endfor %}</select></label>
   <label>Gender<select name="gender"><option value="">All genders</option><option value="W" {% if filters.gender == 'W' %}selected{% endif %}>Women</option><option value="M" {% if filters.gender == 'M' %}selected{% endif %}>Men</option></select></label>
   <label>Nation<select name="nation"><option value="">All nations</option>{% for nation in nations %}<option value="{{ nation }}" {% if filters.nation == nation %}selected{% endif %}>{{ nation }}</option>{% endfor %}</select></label>
   <label>Athlete<input type="search" name="athlete" value="{{ filters.athlete }}" placeholder="e.g. Mikaela Shiffrin"></label>
+  <label>Insight category<select name="category"><option value="">All categories</option>{% for item in insights.available_categories %}<option value="{{ item.value }}" {% if filters.category == item.value %}selected{% endif %}>{{ item.label }}</option>{% endfor %}</select></label>
   <label>Competition IDs<input name="race_ids" value="{{ filters.race_ids }}" inputmode="numeric" placeholder="Optional: 127367, 127368"><small>Leave blank to analyse every stored competition.</small></label>
+  <label>Scenario athlete FIS codes<input name="scenario_athlete_ids" value="{{ filters.scenario_athlete_ids }}" inputmode="numeric" placeholder="Optional: 516562"><small>Only named entrants are modelled; CXMS does not infer a start list.</small></label>
   <div class="sew-actions"><button class="sew-button sew-button--primary" type="submit">Calculate</button><a class="sew-button" href="{{ url_for('sports_editorial_workspace.stat_insights') }}">Clear</a></div>
 </form>
-<div class="sew-metrics"><article><strong>{{ insights.race_count }}</strong><span>races in view</span></article><article><strong>{{ insights.athlete_count }}</strong><span>athletes in view</span></article><article><strong>{{ insights.rows|length }}</strong><span>result rows</span></article><article><strong>{{ filters.venue or 'All venues' }}</strong><span>selected perspective</span></article></div>
-<section class="sew-card sew-discoveries"><div class="sew-section-heading"><div><h2>Research leads</h2><p>Python-assisted pattern detection for investigation. These are prompts, not publication-ready facts: verify the evidence and historical coverage before using one.</p></div></div>{% for group in insights.discovery_groups %}<section class="sew-discovery-group"><header><h3>{{ group.label }}</h3><p>{{ group.description }}</p></header><div class="sew-discovery-grid">{% for item in group['items'] %}<article class="sew-discovery sew-discovery--{{ item.kind }}"><h3>{{ item.title }}</h3><p>{{ item.summary }}</p><small>{{ item.evidence }}</small></article>{% else %}<p class="sew-discovery-empty">No defensible {{ group.label|lower }} candidate in the current filters. Broaden the comparison or import more history.</p>{% endfor %}</div></section>{% endfor %}</section>
-<section class="sew-card sew-discoveries"><div class="sew-section-heading"><div><h2>Additional perspectives</h2><p>Country, timing, gender, age and host-country questions generated from the same filtered evidence. Treat these as research prompts and verify important claims against the official result.</p></div></div>{% for group in insights.perspective_groups %}<section class="sew-discovery-group"><header><h3>{{ group.label }}</h3><p>{{ group.description }}</p></header><div class="sew-discovery-grid">{% for item in group['items'] %}<article class="sew-discovery sew-discovery--{{ item.kind }}"><h3>{{ item.title }}</h3><p>{{ item.summary }}</p><small>{{ item.evidence }}</small></article>{% else %}<p class="sew-discovery-empty">This view does not yet contain enough comparable data for {{ group.label|lower }}.</p>{% endfor %}</div></section>{% endfor %}</section>
-<section class="sew-card sew-table-card sew-coverage"><div class="sew-section-heading"><div><h2>Competition coverage</h2><p>Every official competition currently stored in CXMS. This catalogue loads without contacting FIS.</p></div></div><table class="sew-table"><thead><tr><th>Date</th><th>Venue</th><th>Event</th><th>Gender</th><th>Race ID</th><th>Rows</th><th>Last refreshed</th></tr></thead><tbody>{% for race in coverage %}<tr><td>{{ race.race_date|default('—', true) }}</td><td><strong>{{ race.venue|default('—', true) }}</strong></td><td>{{ race.event_code|default('AL', true) }}</td><td>{{ race.gender|default('—', true) }}</td><td>{{ race.race_id }}</td><td>{{ race.row_count }}</td><td>{{ race.refreshed_at[:10] if race.refreshed_at else '—' }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="7">No official competitions have been stored yet.</td></tr>{% endfor %}</tbody></table></section>
-<div class="sew-insights-grid">
-  <section class="sew-card sew-table-card"><div class="sew-section-heading"><div><h2>Wins, podiums and starts</h2><p>Ranked by wins, then podiums and starts in the loaded dataset.</p></div></div><table class="sew-table"><thead><tr><th>Athlete</th><th>Starts</th><th>Wins</th><th>Podiums</th><th>Best</th></tr></thead><tbody>{% for row in insights.leaders %}<tr><td><strong>{{ row.athlete }}</strong><span>{{ row.nation }}</span></td><td>{{ row.starts }}</td><td>{{ row.wins }}</td><td>{{ row.podiums }}</td><td>{{ row.best }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="5">No matching results.</td></tr>{% endfor %}</tbody></table></section>
-  <section class="sew-card sew-table-card"><div class="sew-section-heading"><div><h2>Consecutive podiums</h2><p>Longest run in chronological results for the selected venue and discipline.</p></div></div><table class="sew-table"><thead><tr><th>Athlete</th><th>Nation</th><th>Longest run</th></tr></thead><tbody>{% for row in insights.streaks[:10] %}<tr><td><strong>{{ row.athlete }}</strong></td><td>{{ row.nation }}</td><td>{{ row.podium_streak }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="3">No matching podium streaks.</td></tr>{% endfor %}</tbody></table></section>
+
+<div class="sew-metrics">
+  <article><strong>{{ insights.race_count }}</strong><span>races in view</span></article>
+  <article><strong>{{ insights.athlete_count }}</strong><span>athletes in view</span></article>
+  <article><strong>{{ insights.rows|length }}</strong><span>result rows</span></article>
+  <article><strong>{{ insights.data_as_of or 'No dated race' }}</strong><span>data as of</span></article>
 </div>
-<section class="sew-card sew-table-card sew-results-detail"><div class="sew-section-heading"><div><h2>Result evidence</h2><p>The rows behind the calculations, so a researcher can verify each proposed statistic. {% if insights.rows|length > 500 %}Showing the first 500 of {{ insights.rows|length }} matching rows; narrow the filters for complete on-screen evidence.{% endif %}</p></div></div><table class="sew-table"><thead><tr><th>Date</th><th>Venue</th><th>Discipline</th><th>Place/status</th><th>Athlete</th><th>FIS code</th><th>Nation</th></tr></thead><tbody>{% for row in insights.rows[:500] %}<tr><td>{{ row.date }}</td><td>{{ row.venue }}</td><td>{{ row.discipline }}</td><td>{{ row.place if row.place is not none else row.status|replace('_', ' ') }}</td><td><strong>{{ row.athlete }}</strong></td><td>{{ row.fis_code|default('—', true) }}</td><td>{{ row.nation }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="7">No matching evidence rows.</td></tr>{% endfor %}</tbody></table></section>
+
+<section class="sew-card sew-coverage-summary">
+  <div>
+    <strong>Comparison scope: {{ 'known complete history' if insights.coverage.is_known_complete else 'currently loaded results only' }}</strong>
+    <span>{{ insights.coverage.earliest_race_date or 'Unknown start' }} to {{ insights.coverage.latest_race_date or 'unknown end' }} · {{ insights.coverage.race_count }} races</span>
+  </div>
+  {% if not insights.coverage.is_known_complete %}<p>Records and career totals are described as loaded-data findings. A possible all-time record still requires full historical coverage and editorial verification.</p>{% endif %}
+  {% for warning in insights.coverage.warnings %}<p class="sew-coverage-warning">{{ warning }}</p>{% endfor %}
+</section>
+
+<section class="sew-card sew-discoveries sew-structured-discoveries">
+  <div class="sew-section-heading"><div><h2>Confirmed facts</h2><p>Strongest research leads first. Scores rank editorial interest; confidence describes data quality. Every claim links back to its calculation evidence.</p></div></div>
+  {% for group in insights.confirmed_groups %}
+  <section class="sew-discovery-group" data-insight-category="{{ group.category }}">
+    <header><h3>{{ group.label }}</h3><p>Within the selected filters and currently loaded comparison scope.</p></header>
+    <div class="sew-discovery-grid">
+      {% for item in group['items'] %}
+      <article class="sew-discovery sew-insight-card sew-insight-card--{{ item.status }}" id="{{ item.id }}">
+        <div class="sew-insight-meta"><span>{{ item.priority_label }} priority · {{ item.editorial_score }}/100</span><span>{{ item.status|replace('_', ' ') }}</span></div>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.summary }}</p>
+        <p class="sew-insight-scope"><strong>Scope:</strong> {{ item.scope.comparison_scope }}{% if item.scope.venue %} · {{ item.scope.venue }}{% endif %}{% if item.scope.disciplines %} · {{ item.scope.disciplines|join(', ') }}{% endif %}</p>
+        {% if item.comparison %}<p class="sew-insight-scope"><strong>Comparison:</strong> {{ item.comparison.type|replace('_', ' ') }}</p>{% endif %}
+        {% if item.coverage_warning %}<small>{{ item.coverage_warning }}</small>{% endif %}
+        <details class="sew-insight-evidence"><summary>Evidence and score ({{ item.evidence|length }} rows)</summary>
+          <dl><dt>Detector</dt><dd>{{ item.detector }} v{{ item.detector_version }}</dd><dt>Data as of</dt><dd>{{ item.data_as_of or 'Unknown' }}</dd><dt>Confidence</dt><dd>{{ (item.confidence * 100)|round|int }}%</dd></dl>
+          <p>{% for evidence in item.evidence[:8] %}<a href="#evidence-{{ evidence.race_id or 'fallback' }}-{{ evidence.fis_code or loop.index }}">{{ evidence.race_date }} {{ evidence.venue }} {{ evidence.athlete_name }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+          <p class="sew-score-breakdown">{% for key, value in item.score_breakdown.items() %}{{ key|replace('_', ' ') }} {{ '%+d'|format(value) }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
+        </details>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% else %}
+  <p class="sew-discovery-empty">No defensible confirmed insight meets the current score threshold. Broaden the filters or import more relevant classifications.</p>
+  {% endfor %}
+</section>
+
+<section class="sew-card sew-discoveries sew-scenarios">
+  <div class="sew-section-heading"><div><h2>Pre-race scenarios</h2><p>Conditional consequences for the explicitly entered athlete FIS codes. These are visually and semantically separate from completed results.</p></div></div>
+  {% for group in insights.scenario_groups %}
+  <section class="sew-discovery-group"><header><h3>{{ group.label }}</h3><p>Each statement begins from the current loaded total and adds the named hypothetical result.</p></header>
+    <div class="sew-discovery-grid">{% for item in group['items'] %}<article class="sew-discovery sew-insight-card sew-insight-card--conditional"><div class="sew-insight-meta"><span>{{ item.priority_label }} priority · {{ item.editorial_score }}/100</span><span>conditional</span></div><h3>{{ item.title }}</h3><p>{{ item.summary }}</p><small>{{ item.coverage_warning }}</small><details class="sew-insight-evidence"><summary>Current-total evidence ({{ item.evidence|length }} rows)</summary><p>Condition: {{ item.condition.type|replace('_', ' ') }} · increment {{ item.condition.increment }}</p></details></article>{% endfor %}</div>
+  </section>
+  {% else %}
+  <p class="sew-discovery-empty">Enter one or more athlete FIS codes above to calculate “if win” and “if podium” scenarios. Historical result appearances are never treated as an upcoming start list.</p>
+  {% endfor %}
+</section>
+
+<section class="sew-card sew-table-card sew-coverage">
+  <div class="sew-section-heading"><div><h2>Competition coverage</h2><p>Every official competition currently stored in CXMS. This catalogue loads without contacting FIS.</p></div></div>
+  <table class="sew-table"><thead><tr><th>Date</th><th>Venue</th><th>Event</th><th>Gender</th><th>Race ID</th><th>Rows</th><th>Last refreshed</th></tr></thead><tbody>{% for race in coverage %}<tr><td>{{ race.race_date|default('—', true) }}</td><td><strong>{{ race.venue|default('—', true) }}</strong></td><td>{{ race.event_code|default('AL', true) }}</td><td>{{ race.gender|default('—', true) }}</td><td>{{ race.race_id }}</td><td>{{ race.row_count }}</td><td>{{ race.refreshed_at[:10] if race.refreshed_at else '—' }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="7">No official competitions have been stored yet. The demonstration rows above are isolated from production calculations.</td></tr>{% endfor %}</tbody></table>
+</section>
+
+<div class="sew-insights-grid">
+  <section class="sew-card sew-table-card"><div class="sew-section-heading"><div><h2>Career totals within loaded data</h2><p>Stable FIS codes are used where available. DNS is excluded from starts; DNF, DNQ and DSQ count as starts but not completed races.</p></div></div>
+    <table class="sew-table"><thead><tr><th>Athlete</th><th>Starts</th><th>Completed</th><th>Wins</th><th>Podiums</th><th>Top 5</th><th>Top 10</th><th>Finish rate</th></tr></thead><tbody>{% for row in insights.leaders %}<tr><td><strong>{{ row.athlete }}</strong><span>{{ row.nation }}{% if row.fis_code %} · {{ row.fis_code }}{% endif %}</span></td><td>{{ row.starts }}</td><td>{{ row.completed }}</td><td>{{ row.wins }}</td><td>{{ row.podiums }}</td><td>{{ row.top_fives }}</td><td>{{ row.top_tens }}</td><td>{{ (row.finish_rate * 100)|round|int }}%</td></tr>{% else %}<tr><td class="sew-empty" colspan="8">No matching results.</td></tr>{% endfor %}</tbody></table>
+  </section>
+  <section class="sew-card sew-table-card"><div class="sew-section-heading"><div><h2>Consecutive results</h2><p>Only entered races in the selected discipline scope are tested; unrelated disciplines and non-entry do not interrupt a sequence.</p></div></div>
+    <table class="sew-table"><thead><tr><th>Athlete</th><th>Nation</th><th>Longest podium run</th><th>Current</th><th>Longest win run</th></tr></thead><tbody>{% for row in insights.streaks[:10] %}<tr><td><strong>{{ row.athlete }}</strong></td><td>{{ row.nation }}</td><td>{{ row.podium_streak }}</td><td>{{ row.current_podium_streak }}</td><td>{{ row.winning_streak }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="5">No matching podium streaks.</td></tr>{% endfor %}</tbody></table>
+  </section>
+</div>
+
+<section class="sew-card sew-table-card sew-results-detail" id="result-evidence">
+  <div class="sew-section-heading"><div><h2>Result evidence</h2><p>The normalised rows behind the calculations. {% if insights.rows|length > 500 %}Showing the first 500 of {{ insights.rows|length }} matching rows; narrow the filters for complete on-screen evidence.{% endif %}</p></div></div>
+  <table class="sew-table"><thead><tr><th>Date</th><th>Venue</th><th>Discipline</th><th>Place/status</th><th>Athlete</th><th>FIS code</th><th>Nation</th><th>Total</th><th>Difference</th></tr></thead><tbody>{% for row in insights.rows[:500] %}<tr id="evidence-{{ row.race_id|default('fallback', true) }}-{{ row.fis_code|default(loop.index, true) }}"><td>{{ row.date }}</td><td>{{ row.venue }}</td><td>{{ row.discipline }}</td><td>{{ row.place if row.place is not none else row.status|replace('_', ' ') }}</td><td><strong>{{ row.athlete }}</strong></td><td>{{ row.fis_code|default('—', true) }}</td><td>{{ row.nation }}</td><td>{{ row.total_time|default(row.time, true)|default('—', true) }}</td><td>{{ row.diff_time|default('—', true) }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="9">No matching evidence rows. Check the selected race IDs and imported competition coverage.</td></tr>{% endfor %}</tbody></table>
+</section>
 {% endblock %}

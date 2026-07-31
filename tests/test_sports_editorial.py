@@ -139,6 +139,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Demonstration data", response.data)
         self.assertIn(b"Mikaela Shiffrin", response.data)
+        self.assertIn(b"Confirmed facts", response.data)
+        self.assertIn(b"Pre-race scenarios", response.data)
+        self.assertIn(b"currently loaded results only", response.data)
+        self.assertIn(b"Scenario athlete FIS codes", response.data)
 
     def test_stored_official_results_replace_demo_default_and_show_coverage(self):
         race = {"canonical_id": "127367", "canonical_url": "https://www.fis-ski.com/result",
@@ -152,6 +156,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Stored official FIS result data", response.data)
         self.assertIn(b"127367", response.data)
         self.assertNotIn(b"Alice Robinson", response.data)
+        scenario = self.client.get("/workspace/sports-editorial/stat-insights?scenario_athlete_ids=516562")
+        self.assertIn(b"A win for RAST Camille", scenario.data)
+        self.assertIn(b"A podium for RAST Camille", scenario.data)
+        self.assertIn(b"conditional", scenario.data)
 
     def test_controlled_import_is_missing_only_and_capped(self):
         self.set_role("supervisor")

@@ -121,6 +121,12 @@ def parse_fis_results(html, race):
         if not re.fullmatch(r"-?\d+", fis_code) or not athlete or not re.fullmatch(r"[A-Z]{3}", nation):
             continue
         raw_place = item.get("place", "").strip()
+        raw_time = item.get("time", "").strip()
+        # FIS classification pages commonly display a winner's elapsed total and
+        # later finishers as +difference. Preserve `time` for compatibility while
+        # making the semantic distinction explicit for margin calculations.
+        total_time = raw_time if raw_time and not raw_time.startswith("+") else ""
+        diff_time = raw_time if raw_time.startswith("+") else ""
         rows.append({
             "race_id": str(race.get("canonical_id") or ""), "date": metadata.get("date") or iso_date,
             "venue": race.get("event_name") or venue or race.get("name") or "FIS event",
@@ -129,7 +135,8 @@ def parse_fis_results(html, race):
             "place": int(raw_place) if raw_place.isdigit() else None, "status": item.get("status", "finished"),
             "athlete": athlete, "fis_code": fis_code, "competitor_id": item.get("competitor_id", ""),
             "nation": nation, "bib": item.get("bib", "").strip(), "birth_year": item.get("birth_year", "").strip(),
-            "time": item.get("time", "").strip(), "source_url": race.get("canonical_url") or "",
+            "time": raw_time, "total_time": total_time, "diff_time": diff_time,
+            "source_url": race.get("canonical_url") or "",
             "source": "fis_official_results", "imported_at": imported_at,
         })
     return rows

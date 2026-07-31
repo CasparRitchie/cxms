@@ -3,6 +3,8 @@
 from collections import defaultdict
 from statistics import mean, median, pstdev
 
+from .insights import build_engine_result
+
 
 DEMO_RESULTS = [
     ("2025-01-21", "Kronplatz", "GS", "Alice Robinson", "NZL", 1),
@@ -45,45 +47,41 @@ def demo_result_rows():
             for date, venue, discipline, athlete, nation, place in DEMO_RESULTS]
 
 
-def build_stat_insights(rows, venue="", discipline="", athlete=""):
-    filtered = [row for row in rows if (not venue or row["venue"] == venue)
-                and (not discipline or row["discipline"] == discipline)
-                and (not athlete or athlete.casefold() in row["athlete"].casefold())]
-    totals = defaultdict(lambda: {"starts": 0, "wins": 0, "podiums": 0, "best": 999})
-    for row in filtered:
-        item = totals[(row["athlete"], row["nation"])]
-        item["starts"] += row.get("status") != "did_not_start"
-        place = row.get("place")
-        item["wins"] += place == 1
-        item["podiums"] += isinstance(place, int) and place <= 3
-        if isinstance(place, int):
-            item["best"] = min(item["best"], place)
-    leaders = [{"athlete": name, "nation": nation, **values} for (name, nation), values in totals.items()]
-    leaders.sort(key=lambda item: (-item["wins"], -item["podiums"], -item["starts"], item["athlete"]))
+def build_stat_insights(rows, venue="", discipline="", athlete="", *, coverage=None,
+                        scenario_athlete_ids=None, category="", country_mapping=None,
+                        score_threshold=28):
+    """Compatibility entry point backed by the structured detector engine."""
+    filtered = [row for row in rows if (not venue or row.get("venue") == venue)
+                and (not discipline or row.get("discipline") == discipline)
+                and (not athlete or athlete.casefold() in str(row.get("athlete") or "").casefold())]
+    result = build_engine_result(
+        filtered, coverage=coverage, scenario_athlete_ids=scenario_athlete_ids,
+        category=category, country_mapping=country_mapping, score_threshold=score_threshold,
+    )
+    context = result.pop("context")
+    result.pop("profiles", None)
+    result["rows"] = sorted(context.rows, key=lambda item: (item.get("date") or "", item.get("race_key") or ""), reverse=True)
+    result["race_count"] = context.coverage["race_count"]
+    result["athlete_count"] = len(context.by_athlete)
 
-    athlete_rows = defaultdict(list)
-    for row in rows:
-        if (not venue or row["venue"] == venue) and (not discipline or row["discipline"] == discipline) and (not athlete or athlete.casefold() in row["athlete"].casefold()):
-            athlete_rows[(row["athlete"], row["nation"])].append(row)
-    streaks = []
-    for (name, nation), results in athlete_rows.items():
-        current = best = 0
-        for row in sorted(results, key=lambda item: item["date"]):
-            place = row.get("place")
-            current = current + 1 if isinstance(place, int) and place <= 3 else 0
-            best = max(best, current)
-        if best:
-            streaks.append({"athlete": name, "nation": nation, "podium_streak": best})
-    streaks.sort(key=lambda item: (-item["podium_streak"], item["athlete"]))
-    for item in leaders:
-        item["best"] = None if item["best"] == 999 else item["best"]
-    discoveries = build_editorial_discoveries(filtered)
-    discovery_groups = group_editorial_discoveries(discoveries)
-    perspective_groups = build_perspective_insights(filtered)
-    return {"rows": sorted(filtered, key=lambda item: item["date"], reverse=True), "leaders": leaders,
-            "streaks": streaks, "race_count": len({(r["date"], r["venue"], r["discipline"]) for r in filtered}),
-            "athlete_count": len(totals), "discoveries": discoveries, "discovery_groups": discovery_groups,
-            "perspective_groups": perspective_groups}
+    # Transitional fields retained for the existing template and external callers.
+    legacy = []
+    category_map = {
+        "recent_form": ("Emerging trend", "trend"),
+        "venue": ("Venue specialist", "group"),
+        "career": ("Experience group", "group"),
+    }
+    for item in result["structured_insights"]:
+        if item["status"] == "conditional":
+            continue
+        label, kind = category_map.get(item["category"], ("Performance outlier", "outlier"))
+        legacy.append({"label": label, "kind": kind, "score": item["editorial_score"],
+                       "title": item["title"], "summary": item["summary"],
+                       "evidence": item.get("coverage_warning") or "Evidence is attached to the structured lead."})
+    result["discoveries"] = legacy
+    result["discovery_groups"] = group_editorial_discoveries(legacy)
+    result["perspective_groups"] = build_perspective_insights(filtered)
+    return result
 
 
 def _seconds(value):

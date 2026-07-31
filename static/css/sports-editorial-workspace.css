@@ -1007,3 +1007,23 @@ html[data-sew-theme="light"] .sew-entity-text-tag {
 .sew-creation-form input[readonly]{cursor:not-allowed;background:rgba(127,137,153,.14)}
 @media(max-width:850px){.sew-creation-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.sew-creation-grid{grid-template-columns:1fr}}
+
+/* Structured Stat Insights: evidence-led research facts and conditional scenarios. */
+.sew-insight-filters{grid-template-columns:repeat(5,minmax(125px,1fr))}
+.sew-coverage-summary{display:flex;justify-content:space-between;gap:16px;align-items:start;margin-bottom:8px;border-color:rgba(135,168,255,.38)}
+.sew-coverage-summary div{display:grid;gap:2px}.sew-coverage-summary span,.sew-coverage-summary p{color:var(--sew-muted)}
+.sew-coverage-summary p{max-width:620px;margin:0}.sew-coverage-warning{color:#ffd782!important}
+.sew-structured-discoveries .sew-discovery-grid,.sew-scenarios .sew-discovery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.sew-insight-card{display:flex;flex-direction:column;min-width:0}
+.sew-insight-card--coverage_limited,.sew-insight-card--approximate{border-left-color:var(--sew-review)}
+.sew-insight-card--conditional{border-left-color:#a78bfa;background:linear-gradient(90deg,rgba(167,139,250,.14),rgba(255,255,255,.025) 42%)}
+.sew-insight-meta{display:flex;justify-content:space-between;gap:8px;color:var(--sew-muted);font-size:9px;font-weight:700;text-transform:uppercase}
+.sew-insight-scope{color:var(--sew-muted)}
+.sew-insight-evidence{margin-top:auto;padding-top:6px}.sew-insight-evidence summary{cursor:pointer;color:#bfcfff;font-weight:700}
+.sew-insight-evidence dl{display:grid;grid-template-columns:auto 1fr;gap:2px 6px;margin:6px 0}.sew-insight-evidence dt{color:var(--sew-muted)}.sew-insight-evidence dd{margin:0}
+.sew-insight-evidence a{color:#bfcfff}.sew-score-breakdown{color:var(--sew-muted)}
+.sew-results-detail tr:target{outline:2px solid var(--sew-opportunity);background:rgba(255,128,102,.12)}
+html[data-sew-theme="light"] .sew-insight-card--conditional{border-left-color:#7c3aed;background:linear-gradient(90deg,#f3e8ff,#fff 42%)}
+html[data-sew-theme="light"] .sew-insight-evidence summary,html[data-sew-theme="light"] .sew-insight-evidence a{color:#244b9b}
+@media(max-width:1000px){.sew-insight-filters{grid-template-columns:repeat(3,1fr)}.sew-structured-discoveries .sew-discovery-grid,.sew-scenarios .sew-discovery-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.sew-insight-filters{grid-template-columns:1fr}.sew-coverage-summary{display:grid}.sew-structured-discoveries .sew-discovery-grid,.sew-scenarios .sew-discovery-grid{grid-template-columns:1fr}}

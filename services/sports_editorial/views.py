@@ -331,6 +331,10 @@ def stat_insights():
     season = request.args.get("season", "").strip()
     gender = request.args.get("gender", "").strip().upper()
     nation = request.args.get("nation", "").strip().upper()
+    category = request.args.get("category", "").strip().casefold()
+    allowed_categories = {"career", "streak", "milestone", "venue", "margin", "drought", "recent_form", "nation", "age"}
+    category = category if category in allowed_categories else ""
+    scenario_athlete_ids = list(dict.fromkeys(re.findall(r"\d+", request.args.get("scenario_athlete_ids", ""))))[:10]
     if source == "fis_official_results":
         rows = [row for row in rows if (not season or str(row.get("season_code") or "") == season)
                 and (not gender or row.get("gender") == gender) and (not nation or row.get("nation") == nation)]
@@ -340,11 +344,23 @@ def stat_insights():
     nations = sorted({row["nation"] for row in rows if row.get("nation")})
     venue = venue if venue in venues else ""
     discipline = discipline if discipline in disciplines else ""
+    coverage_metadata = {
+        "coverage_type": "stored_fis_classifications" if source == "fis_official_results" else "demonstration",
+        # Imports are individually complete, but the catalogue does not yet prove
+        # complete historical coverage for an athlete, venue or competition.
+        "is_known_complete": False,
+        "warnings": (["One or more stored competition imports are marked partial."]
+                     if any(item.get("import_status") == "partial" for item in coverage) else []),
+    }
     return render_template("sports-editorial-workspace/stat-insights.html",
-                           insights=build_stat_insights(rows, venue, discipline, athlete),
+                           insights=build_stat_insights(rows, venue, discipline, athlete,
+                                                       coverage=coverage_metadata,
+                                                       scenario_athlete_ids=scenario_athlete_ids,
+                                                       category=category),
                            venues=venues, disciplines=disciplines, seasons=seasons, nations=nations, coverage=coverage,
                            filters={"venue": venue, "discipline": discipline, "athlete": athlete, "race_ids": ", ".join(race_ids),
-                                    "season": season, "gender": gender, "nation": nation},
+                                    "season": season, "gender": gender, "nation": nation,
+                                    "category": category, "scenario_athlete_ids": ", ".join(scenario_athlete_ids)},
                            result_source=source, result_failures=0)
 
 
