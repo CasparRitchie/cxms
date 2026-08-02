@@ -72,6 +72,20 @@ def level_crossing_journey(destination_id):
     return jsonify(journey)
 
 
+@app.route("/api/level-crossing/calibration-status")
+def level_crossing_calibration_status():
+    try:
+        return jsonify(observation_store.calibration_summary())
+    except SupabaseError:
+        return jsonify({
+            "status": "unavailable",
+            "totalObservations": 0,
+            "predictionUse": "not_active",
+            "crossings": [],
+            "latestReports": [],
+        })
+
+
 @app.route("/api/level-crossing/observations", methods=["POST"])
 def level_crossing_observations():
     if not observation_rate_limiter.allow(request.remote_addr):

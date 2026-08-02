@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071d2b">
   <meta name="description" content="Predicted status for selected level crossings, with route guidance and live Network Rail calibration.">
   <title>Chichester Crossing Monitor</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=5">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=6">
 </head>
 <body class="level-crossing-page">
   <header class="crossing-app-bar">
@@ -153,6 +153,7 @@
           <div><dt>CH messages</dt><dd id="crossing-feed-count">0</dd></div>
           <div><dt>Last message</dt><dd id="crossing-feed-updated">Waiting</dd></div>
         </dl>
+        <p id="crossing-calibration-copy" class="crossing-calibration-copy">Checking the centrally stored field observations…</p>
         <details id="crossing-feed-events" class="crossing-feed-events" hidden>
           <summary>Recent Chichester berth movements</summary>
           <div class="crossing-feed-table-wrap">
@@ -162,7 +163,7 @@
             </table>
           </div>
         </details>
-        <p class="crossing-feed-note">Live messages help identify approach and clearing berths. They do not change the route prediction until the mapping has been calibrated.</p>
+        <p class="crossing-feed-note">Live messages and anonymous field reports help identify approach and clearing berths. They do not change the timed prediction until the mapping has passed a confidence review.</p>
       </div>
     </details>
 
@@ -177,6 +178,6 @@
     </footer>
   </main>
 
-  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=5"></script>
+  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=6"></script>
 </body>
 </html>

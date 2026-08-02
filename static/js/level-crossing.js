@@ -95,6 +95,7 @@
     feedFrames: document.getElementById("crossing-feed-frames"),
     feedCount: document.getElementById("crossing-feed-count"),
     feedUpdated: document.getElementById("crossing-feed-updated"),
+    calibrationCopy: document.getElementById("crossing-calibration-copy"),
     feedEvents: document.getElementById("crossing-feed-events"),
     feedEventRows: document.getElementById("crossing-feed-event-rows")
   };
@@ -140,6 +141,7 @@
   let journeyCatalogue = [];
   let journeyResult = null;
   let journeyLoading = false;
+  let centralReports = new Map();
 
   function savePreferences() {
     window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
@@ -166,6 +168,16 @@
         ? "open"
         : latest.state === "CLOSED" ? "closed" : "closing";
       return { label: `${observationLabels[latest.state] || latest.state} · seen`, className };
+    }
+    const central = centralReports.get(crossing.id);
+    if (central) {
+      const age = now.getTime() - new Date(central.observedAt).getTime();
+      if (Number.isFinite(age) && age >= 0 && age <= 10 * 60 * 1000) {
+        const className = central.state === "OPEN"
+          ? "open"
+          : central.state === "CLOSED" ? "closed" : "closing";
+        return { label: `${observationLabels[central.state] || central.state} · reported`, className };
+      }
     }
     const prediction = predict(crossing, now);
     const className = prediction.state === "OPEN"
@@ -375,7 +387,7 @@
           <span>A27: check live traffic</span>
           <span>Parking walk: ${formatDuration(destination.parkingWalkSeconds)}</span>
         </div>
-        <div class="crossing-route-actions">${wazeLink}<span class="crossing-route-source">Live ETAs need Mapbox + what3words keys</span></div>`;
+        <div class="crossing-route-actions">${wazeLink}<span class="crossing-route-source">Live ETAs need a Mapbox token</span></div>`;
       return;
     }
     if (journeyResult.status !== "ready") {
@@ -470,6 +482,25 @@
       elements.destinationMeta.textContent = "Refresh the page to try again.";
       journeyResult = { status: "unavailable", message: "Your saved destinations could not be loaded." };
       renderPredictions();
+    }
+  }
+
+  async function loadCalibrationStatus() {
+    if (!elements.calibrationCopy) return;
+    try {
+      const response = await fetch("/api/level-crossing/calibration-status", { cache: "no-store" });
+      if (!response.ok) throw new Error("Calibration unavailable");
+      const calibration = await response.json();
+      centralReports = new Map((calibration.latestReports || []).map((report) => [report.crossingId, report]));
+      const total = Number(calibration.totalObservations || 0);
+      const reviewReady = (calibration.crossings || []).filter(({ calibrationState }) => calibrationState === "ready_to_review").length;
+      elements.calibrationCopy.textContent = calibration.status === "ready"
+        ? `${total} central observation${total === 1 ? "" : "s"} collected. ${reviewReady ? `${reviewReady} crossing${reviewReady === 1 ? " is" : "s are"} ready for berth review.` : "Predictor learning is not active yet; reports are building calibration evidence."}`
+        : "Central observation totals are temporarily unavailable.";
+      renderSelectionChips();
+      renderPredictions();
+    } catch (_) {
+      elements.calibrationCopy.textContent = "Central observation totals are temporarily unavailable.";
     }
   }
 
@@ -775,10 +806,12 @@
   renderObservations();
   renderPredictions();
   void loadDestinations();
+  void loadCalibrationStatus();
   void loadFeedStatus();
   syncPendingObservations();
   window.setInterval(renderPredictions, 30000);
   window.setInterval(loadJourney, 90000);
+  window.setInterval(loadCalibrationStatus, 30000);
   window.setInterval(loadFeedStatus, 10000);
   window.setInterval(updateWatchElapsed, 1000);
 })();

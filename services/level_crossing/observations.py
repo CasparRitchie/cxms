@@ -138,6 +138,95 @@ class LevelCrossingObservationStore:
         )
         return result[0] if isinstance(result, list) and result else row
 
+    def calibration_summary(self, now=None, limit=1000):
+        """Return anonymous evidence totals and fresh gate reports.
+
+        Notes, session identifiers and raw TD snapshots are never returned to
+        the browser. The summary is diagnostic only; it does not claim that a
+        predictive model is already trained.
+        """
+        now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        summaries = {
+            crossing_id: {
+                "id": crossing_id,
+                "name": crossing["name"],
+                "total": 0,
+                "byState": {state: 0 for state in sorted(STATES)},
+                "tdLinked": 0,
+                "watchSessions": 0,
+                "latestObservedAt": None,
+                "calibrationState": "collecting",
+            }
+            for crossing_id, crossing in CROSSINGS.items()
+        }
+        if not self.configured:
+            return {
+                "status": "not_configured",
+                "totalObservations": 0,
+                "predictionUse": "not_active",
+                "crossings": list(summaries.values()),
+                "latestReports": [],
+            }
+
+        rows = self.client.request(
+            "level_crossing_observations",
+            "GET",
+            query={
+                "select": "crossing_id,state,observed_at,event_kind,session_id,td_snapshot",
+                "order": "observed_at.desc",
+                "limit": str(max(1, min(int(limit), 2000))),
+            },
+        )
+        rows = rows if isinstance(rows, list) else []
+        sessions = defaultdict(set)
+        latest_reports = []
+        latest_crossings = set()
+        for row in rows:
+            crossing_id = row.get("crossing_id")
+            state = str(row.get("state", "")).upper()
+            summary = summaries.get(crossing_id)
+            if not summary or state not in STATES:
+                continue
+            try:
+                observed_at = datetime.fromisoformat(str(row.get("observed_at", "")).replace("Z", "+00:00")).astimezone(timezone.utc)
+            except (TypeError, ValueError):
+                continue
+            summary["total"] += 1
+            summary["byState"][state] += 1
+            if summary["latestObservedAt"] is None:
+                summary["latestObservedAt"] = observed_at.isoformat()
+            snapshot = row.get("td_snapshot") if isinstance(row.get("td_snapshot"), dict) else {}
+            if snapshot.get("status") == "connected" and snapshot.get("recentEvents"):
+                summary["tdLinked"] += 1
+            session_id = str(row.get("session_id") or "")
+            if session_id:
+                sessions[crossing_id].add(session_id)
+            age_seconds = (now - observed_at).total_seconds()
+            if crossing_id not in latest_crossings and 0 <= age_seconds <= 10 * 60 and state != "TRAIN_PASSED":
+                latest_reports.append({
+                    "crossingId": crossing_id,
+                    "state": state,
+                    "observedAt": observed_at.isoformat(),
+                    "eventKind": str(row.get("event_kind") or "quick"),
+                })
+                latest_crossings.add(crossing_id)
+
+        for crossing_id, summary in summaries.items():
+            summary["watchSessions"] = len(sessions[crossing_id])
+            states = summary["byState"]
+            if summary["watchSessions"] >= 3 and states["CLOSED"] and states["OPEN"] and states["TRAIN_PASSED"]:
+                summary["calibrationState"] = "ready_to_review"
+            elif summary["total"] >= 5 and summary["tdLinked"] >= 3:
+                summary["calibrationState"] = "early_evidence"
+
+        return {
+            "status": "ready",
+            "totalObservations": sum(summary["total"] for summary in summaries.values()),
+            "predictionUse": "not_active",
+            "crossings": list(summaries.values()),
+            "latestReports": latest_reports,
+        }
+
 
 observation_store = LevelCrossingObservationStore()
 observation_rate_limiter = ObservationRateLimiter()

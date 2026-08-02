@@ -377,6 +377,7 @@ a:focus-visible { outline: 3px solid #69b9d5; outline-offset: 3px; }
 .crossing-feed-events td { padding: 9px 10px; border-bottom: 1px solid var(--line); color: #304c59; text-align: left; white-space: nowrap; }
 .crossing-feed-events th { color: var(--muted); font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase; }
 .crossing-feed-note { margin: 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.crossing-calibration-copy { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--blue-soft); color: #245d73; font-size: 0.76rem; font-weight: 750; line-height: 1.5; }
 
 .crossing-safety-note { display: flex; align-items: start; gap: 12px; margin: 22px 0; padding: 17px 18px; border: 1px solid #ecd8ae; border-radius: 15px; background: #fff9e9; color: #6d4a16; }
 .crossing-safety-note > span { display: grid; flex: 0 0 25px; height: 25px; place-items: center; border-radius: 50%; background: #e4a735; color: #fff; font-weight: 900; }

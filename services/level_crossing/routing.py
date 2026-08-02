@@ -1,14 +1,13 @@
 """Traffic-aware journeys for the Chichester crossing helper.
 
 The destination catalogue is useful without external services. Live journey
-times are only returned when both Mapbox and what3words are configured; this
-keeps the interface from presenting hard-coded road times as live information.
+times are only returned when Mapbox is configured; this keeps the interface
+from presenting hard-coded road times as live information.
 """
 
 from __future__ import annotations
 
 import json
-import math
 import os
 import threading
 import time
@@ -17,7 +16,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from services.level_crossing.observations import CROSSINGS
+CROSSING_ROUTE_TERMS = {
+    "whyke-road": ("whyke road",),
+    "basin-road": ("basin road",),
+    "stockbridge-road": ("stockbridge road",),
+}
 
 
 DESTINATIONS = (
@@ -31,6 +34,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 60,
         "arrivalNote": "Road leading to the car park; about a one-minute walk to the bar.",
         "wazeQuery": "The Bull's Head, Fishbourne, Chichester",
+        "mapboxQuery": "The Bull's Head, Fishbourne, Chichester",
     },
     {
         "id": "waitrose-chichester",
@@ -42,6 +46,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 60,
         "arrivalNote": "Car-park approach; about a one-minute walk to the shop.",
         "wazeQuery": "Waitrose, Chichester",
+        "mapboxQuery": "Waitrose, Chichester",
     },
     {
         "id": "station-south",
@@ -53,6 +58,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 60,
         "arrivalNote": "South car park, useful for trains arriving from Brighton and London.",
         "wazeQuery": "Chichester Station South Car Park",
+        "mapboxQuery": "Chichester Station South Car Park",
     },
     {
         "id": "station-north",
@@ -64,6 +70,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 60,
         "arrivalNote": "North car park, useful for trains arriving from the west.",
         "wazeQuery": "Chichester Station North Car Park",
+        "mapboxQuery": "Chichester Station North Car Park",
     },
     {
         "id": "chichester-library",
@@ -75,6 +82,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 60,
         "arrivalNote": "Nearby on-road parking; about a one-minute walk to the library.",
         "wazeQuery": "Chichester Library, Tower Street",
+        "mapboxQuery": "Chichester Library, Tower Street, Chichester",
     },
     {
         "id": "st-anthonys-school",
@@ -86,6 +94,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 120,
         "arrivalNote": "On-road parking; allow about two minutes to walk to the school.",
         "wazeQuery": "St Anthony's School, Chichester",
+        "mapboxQuery": "St Anthony's School, Chichester",
     },
     {
         "id": "the-seal-selsey",
@@ -97,6 +106,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 30,
         "arrivalNote": "Nearby road parking; roughly a 30-second walk to the pub.",
         "wazeQuery": "The Seal, Selsey",
+        "mapboxQuery": "The Seal, Selsey",
     },
     {
         "id": "portland-retail-park",
@@ -108,6 +118,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 120,
         "arrivalNote": "Retail-park car park; about a two-minute walk to M&S Food.",
         "wazeQuery": "Portland Retail Park, Chichester",
+        "mapboxQuery": "Portland Retail Park, Chichester",
     },
     {
         "id": "sainsburys-chichester",
@@ -119,6 +130,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 60,
         "arrivalNote": "Car-park entrance; about a one-minute walk to Sainsbury's.",
         "wazeQuery": "Sainsbury's, Westhampnett Road, Chichester",
+        "mapboxQuery": "Sainsbury's, Westhampnett Road, Chichester",
     },
     {
         "id": "the-range-chichester",
@@ -130,6 +142,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 120,
         "arrivalNote": "Shares the Sainsbury's car-park entrance; about a two-minute walk.",
         "wazeQuery": "The Range, Chichester",
+        "mapboxQuery": "The Range, Chichester",
     },
     {
         "id": "goodwood-motor-circuit",
@@ -141,6 +154,7 @@ DESTINATIONS = (
         "parkingWalkSeconds": 120,
         "arrivalNote": "Circuit entrance; allow about two minutes from the car park.",
         "wazeQuery": "Goodwood Motor Circuit",
+        "mapboxQuery": "Goodwood Motor Circuit, Chichester",
     },
     {
         "id": "chichester-city-fc",
@@ -152,6 +166,8 @@ DESTINATIONS = (
         "parkingWalkSeconds": 120,
         "arrivalNote": "Routes to the nearer car park; about a two-minute walk to the ground.",
         "wazeQuery": "Chichester City Football Club",
+        "mapboxQuery": "Chichester City Football Club, Oaklands Park, Chichester",
+        "driveMapboxQuery": "Oaklands Park, Oaklands Way, Chichester",
     },
 )
 
@@ -170,7 +186,7 @@ class RoutePlanner:
         self.opener = opener or urlopen
         self.clock = clock or time.monotonic
         self._cache = {}
-        self._coordinate_cache = {}
+        self._location_cache = {}
         self._lock = threading.Lock()
 
     def catalogue(self):
@@ -184,8 +200,6 @@ class RoutePlanner:
         missing = []
         if not self.environ.get("MAPBOX_ACCESS_TOKEN"):
             missing.append("MAPBOX_ACCESS_TOKEN")
-        if not self.environ.get("WHAT3WORDS_API_KEY"):
-            missing.append("WHAT3WORDS_API_KEY")
         return {
             "configured": not missing,
             "status": "ready" if not missing else "not_configured",
@@ -216,25 +230,16 @@ class RoutePlanner:
 
     def _build_journey(self, destination):
         origin = self._origin_coordinates()
-        drive_destination = self._what3words(destination["driveWhat3Words"])
-        walk_destination = self._what3words(destination["what3words"])
-        crossing_coordinates = {
-            crossing_id: self._what3words(crossing["what3words"])
-            for crossing_id, crossing in CROSSINGS.items()
-        }
+        drive_destination = self._search_location(destination.get("driveMapboxQuery") or destination["mapboxQuery"])
+        walk_destination = self._search_location(destination["mapboxQuery"])
         driving = self._directions("mapbox/driving-traffic", origin, drive_destination, alternatives=True)
         walking = self._directions("mapbox/walking", origin, walk_destination, alternatives=False)
 
         routes = []
         for index, route in enumerate(driving):
-            coordinates = route.get("geometry", {}).get("coordinates", [])
             steps = [step for leg in route.get("legs", []) for step in leg.get("steps", [])]
             uses_a27 = any("A27" in f"{step.get('ref', '')} {step.get('name', '')}".upper() for step in steps)
-            crossed = [
-                crossing_id
-                for crossing_id, point in crossing_coordinates.items()
-                if self._route_near_point(coordinates, point, threshold_metres=75)
-            ]
+            crossed = self._crossings_in_steps(steps)
             routes.append(
                 {
                     "id": f"drive-{index + 1}",
@@ -269,23 +274,43 @@ class RoutePlanner:
                 raise RoutingUnavailable("The configured journey origin is invalid.")
         return list(DEFAULT_ORIGIN)
 
-    def _what3words(self, words):
+    def _search_location(self, query):
         with self._lock:
-            cached = self._coordinate_cache.get(words)
-        if cached:
-            return list(cached)
+            cached = self._location_cache.get(query)
+        if cached and self.clock() - cached[0] <= 10 * 60:
+            return list(cached[1])
         data = self._request_json(
-            "https://api.what3words.com/v3/convert-to-coordinates",
-            {"words": words},
-            headers={"X-Api-Key": self.environ["WHAT3WORDS_API_KEY"]},
+            "https://api.mapbox.com/search/searchbox/v1/forward",
+            {
+                "q": query,
+                "access_token": self.environ["MAPBOX_ACCESS_TOKEN"],
+                "country": "GB",
+                "bbox": "-0.90,50.70,-0.65,50.95",
+                "proximity": f"{DEFAULT_ORIGIN[0]},{DEFAULT_ORIGIN[1]}",
+                "language": "en",
+                "limit": 1,
+            },
         )
-        coordinates = data.get("coordinates") or {}
-        if "lng" not in coordinates or "lat" not in coordinates:
-            raise RoutingUnavailable("One of the saved three-word locations could not be resolved.")
-        result = [float(coordinates["lng"]), float(coordinates["lat"])]
+        features = data.get("features") or []
+        coordinates = features[0].get("geometry", {}).get("coordinates") if features else None
+        if not coordinates or len(coordinates) < 2:
+            raise RoutingUnavailable("The saved destination could not be located by Mapbox.")
+        result = [float(coordinates[0]), float(coordinates[1])]
         with self._lock:
-            self._coordinate_cache[words] = result
+            self._location_cache[query] = (self.clock(), result)
         return list(result)
+
+    @staticmethod
+    def _crossings_in_steps(steps):
+        route_text = " ".join(
+            f"{step.get('name', '')} {step.get('ref', '')} {step.get('destinations', '')}".lower()
+            for step in steps
+        )
+        return [
+            crossing_id
+            for crossing_id, terms in CROSSING_ROUTE_TERMS.items()
+            if any(term in route_text for term in terms)
+        ]
 
     def _directions(self, profile, origin, destination, alternatives):
         coordinate_text = ";".join(",".join(str(value) for value in point) for point in (origin, destination))
@@ -329,33 +354,5 @@ class RoutePlanner:
     def _store(self, key, value):
         with self._lock:
             self._cache[key] = (self.clock(), deepcopy(value))
-
-    @staticmethod
-    def _route_near_point(route, point, threshold_metres):
-        if len(route) < 2:
-            return False
-        return any(
-            RoutePlanner._point_segment_distance(point, route[index - 1], route[index]) <= threshold_metres
-            for index in range(1, len(route))
-        )
-
-    @staticmethod
-    def _point_segment_distance(point, start, end):
-        latitude = math.radians(point[1])
-
-        def project(coordinate):
-            return (
-                math.radians(coordinate[0] - point[0]) * math.cos(latitude) * 6_371_000,
-                math.radians(coordinate[1] - point[1]) * 6_371_000,
-            )
-
-        start_x, start_y = project(start)
-        end_x, end_y = project(end)
-        dx, dy = end_x - start_x, end_y - start_y
-        if dx == 0 and dy == 0:
-            return math.hypot(start_x, start_y)
-        fraction = max(0.0, min(1.0, -(start_x * dx + start_y * dy) / (dx * dx + dy * dy)))
-        return math.hypot(start_x + fraction * dx, start_y + fraction * dy)
-
 
 route_planner = RoutePlanner()

@@ -33,6 +33,7 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"Chichester live route helper", response.data)
         self.assertIn(b"Choose a familiar journey", response.data)
         self.assertIn(b"crossing-destination-select", response.data)
+        self.assertIn(b"crossing-calibration-copy", response.data)
         css_response = self.client.get("/static/css/level-crossing.css")
         js_response = self.client.get("/static/js/level-crossing.js")
         self.assertEqual(css_response.status_code, 200)
@@ -89,6 +90,23 @@ class LevelCrossingPageTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.get_json()["status"], "invalid_destination")
+
+    @patch("app.observation_store.calibration_summary")
+    def test_calibration_status_exposes_only_safe_summary(self, summary):
+        summary.return_value = {
+            "status": "ready",
+            "totalObservations": 4,
+            "predictionUse": "not_active",
+            "crossings": [{"id": "whyke-road", "total": 4}],
+            "latestReports": [{"crossingId": "whyke-road", "state": "OPEN", "observedAt": "2026-08-02T12:00:00+00:00"}],
+        }
+
+        response = self.client.get("/api/level-crossing/calibration-status")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["totalObservations"], 4)
+        self.assertNotIn(b"note", response.data)
+        self.assertNotIn(b"session", response.data.lower())
 
     @patch("app.observation_rate_limiter.allow", return_value=True)
     @patch("app.observation_store.save")
@@ -167,23 +185,14 @@ class FakeRouteResponse:
 class FakeRouteOpener:
     def __init__(self):
         self.urls = []
-        self.points = {
-            "gosh.alone.milky": [0.010, 50.010],
-            "awake.mason.melon": [0.001, 50.001],
-            "cubs.glare.photo": [0.020, 50.000],
-            "placed.bless.dance": [-0.020, 50.000],
-        }
 
     def __call__(self, request, timeout):
         url = request.full_url
         self.urls.append(url)
         parsed = urlparse(url)
         if parsed.path.endswith("/forward"):
-            return FakeRouteResponse({"features": [{"geometry": {"coordinates": [0.000, 50.000]}}]})
-        if "convert-to-coordinates" in parsed.path:
-            words = parse_qs(parsed.query)["words"][0]
-            longitude, latitude = self.points[words]
-            return FakeRouteResponse({"coordinates": {"lng": longitude, "lat": latitude}})
+            self.last_search = parse_qs(parsed.query)["q"][0]
+            return FakeRouteResponse({"features": [{"geometry": {"coordinates": [0.010, 50.010]}}]})
         if "/mapbox/driving-traffic/" in parsed.path:
             return FakeRouteResponse({
                 "routes": [
@@ -225,12 +234,12 @@ class LevelCrossingRoutingTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "not_configured")
         self.assertEqual(result["routes"], [])
-        self.assertCountEqual(result["routing"]["missing"], ["MAPBOX_ACCESS_TOKEN", "WHAT3WORDS_API_KEY"])
+        self.assertEqual(result["routing"]["missing"], ["MAPBOX_ACCESS_TOKEN"])
 
     def test_live_routes_identify_crossing_and_a27_and_are_cached(self):
         opener = FakeRouteOpener()
         planner = RoutePlanner(
-            environ={"MAPBOX_ACCESS_TOKEN": "mapbox-test", "WHAT3WORDS_API_KEY": "w3w-test"},
+            environ={"MAPBOX_ACCESS_TOKEN": "mapbox-test"},
             opener=opener,
         )
 
@@ -245,7 +254,8 @@ class LevelCrossingRoutingTests(unittest.TestCase):
         self.assertEqual(result["walking"], {"durationSeconds": 900, "distanceMetres": 1800})
         self.assertEqual(cached, result)
         self.assertEqual(len(opener.urls), call_count)
-        self.assertNotIn("w3w-test", " ".join(opener.urls))
+        self.assertTrue(any("/search/searchbox/v1/forward" in url for url in opener.urls))
+        self.assertFalse(any("what3words" in url for url in opener.urls))
 
 
 class FakeSupabaseClient:
@@ -257,6 +267,18 @@ class FakeSupabaseClient:
     def request(self, table, method="GET", query=None, payload=None, prefer=None):
         self.calls.append((table, method, payload, prefer))
         return [payload]
+
+
+class FakeObservationReadClient:
+    configured = True
+
+    def __init__(self, rows):
+        self.rows = rows
+        self.calls = []
+
+    def request(self, table, method="GET", query=None, payload=None, prefer=None):
+        self.calls.append((table, method, query))
+        return self.rows
 
 
 class LevelCrossingObservationTests(unittest.TestCase):
@@ -314,6 +336,39 @@ class LevelCrossingObservationTests(unittest.TestCase):
         self.assertTrue(limiter.allow("device", now))
         self.assertFalse(limiter.allow("device", now))
         self.assertTrue(limiter.allow("device", now + timedelta(seconds=61)))
+
+    def test_calibration_summary_counts_evidence_and_returns_fresh_report(self):
+        now = datetime(2026, 8, 2, 14, 0, tzinfo=timezone.utc)
+        client = FakeObservationReadClient([
+            {
+                "crossing_id": "whyke-road",
+                "state": "OPEN",
+                "observed_at": (now - timedelta(minutes=2)).isoformat(),
+                "event_kind": "quick",
+                "session_id": None,
+                "td_snapshot": {"status": "connected", "recentEvents": [{"type": "CA"}]},
+            },
+            {
+                "crossing_id": "whyke-road",
+                "state": "CLOSED",
+                "observed_at": (now - timedelta(hours=2)).isoformat(),
+                "event_kind": "watch",
+                "session_id": "session-12345678",
+                "td_snapshot": {"status": "connected", "recentEvents": [{"type": "CA"}]},
+            },
+        ])
+
+        summary = LevelCrossingObservationStore(client=client).calibration_summary(now=now)
+        whyke = next(item for item in summary["crossings"] if item["id"] == "whyke-road")
+
+        self.assertEqual(summary["totalObservations"], 2)
+        self.assertEqual(summary["predictionUse"], "not_active")
+        self.assertEqual(whyke["byState"]["OPEN"], 1)
+        self.assertEqual(whyke["byState"]["CLOSED"], 1)
+        self.assertEqual(whyke["tdLinked"], 2)
+        self.assertEqual(whyke["watchSessions"], 1)
+        self.assertEqual(summary["latestReports"][0]["state"], "OPEN")
+        self.assertNotIn("td_snapshot", summary["latestReports"][0])
 
 
 if __name__ == "__main__":
