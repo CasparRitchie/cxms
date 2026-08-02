@@ -723,9 +723,30 @@ class SupabaseSportsEditorialRepository:
         return len(entities)
 
     def list_result_competitions(self):
-        return self.client.request("sports_editorial_result_imports", query={
-            "select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "race_date.desc.nullslast", "limit": "1000",
-        })
+        rows = []
+        page_size = 500
+        offset = 0
+
+        while True:
+            page = self.client.request(
+                "sports_editorial_result_imports",
+                query={
+                    "select": "*",
+                    "workspace_id": f"eq.{self._workspace()}",
+                    "order": "race_date.desc.nullslast,race_id.desc",
+                    "limit": str(page_size),
+                    "offset": str(offset),
+                },
+            )
+
+            rows.extend(page)
+
+            if len(page) < page_size:
+                break
+
+            offset += page_size
+
+        return rows
 
     def list_results(self, race_ids=None):
         query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "race_id.asc,place.asc.nullslast"}
@@ -734,7 +755,7 @@ class SupabaseSportsEditorialRepository:
             query["race_id"] = f"in.({','.join(ids)})"
         rows = []
         page_size = 1000
-        for offset in range(0, 50000, page_size):
+        for offset in range(0, 250000, page_size):
             page = self.client.request("sports_editorial_results", query={**query, "limit": str(page_size), "offset": str(offset)})
             rows.extend(page)
             if len(page) < page_size:
