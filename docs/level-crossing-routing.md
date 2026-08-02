@@ -28,17 +28,27 @@ heroku config:set LEVEL_CROSSING_ORIGIN_COORDINATES='longitude,latitude' --app Y
 1. Mapbox Search temporarily resolves the saved named destination near
    Chichester. The what3words addresses remain visible references and do not
    require a paid API plan.
-2. Mapbox `driving-traffic` returns the fastest route and up to two meaningful
-   alternatives using current and historic traffic.
-3. Road-step names identify tracked crossing roads, while road references
-   identify an A27 alternative when one is returned.
+2. CXMS asks Mapbox `driving-traffic` to time explicit local route families:
+   Whyke Road, the A27, north via Quarry Lane and Orchard Street, or Quarry
+   Lane for destinations north and east of the city. This avoids relying on
+   Mapbox's generic alternatives to discover locally useful choices.
+3. Active local road closures are excluded from every driving request. Basin
+   Road is closed by default and is also shown as closed in the crossing
+   selector. Once it reopens, disable that override with:
+
+   ```sh
+   heroku config:set LEVEL_CROSSING_ROAD_CLOSURES='none' --app YOUR_CXMS_APP
+   ```
+
+   More road IDs can be supported by extending `ROAD_CLOSURES` in
+   `services/level_crossing/routing.py`.
 4. The browser adds the current predicted barrier wait and the saved
    parking-to-door walk to each driving time.
 5. A Mapbox walking route is shown alongside the driving choices.
 
 Journey results are cached for 75 seconds in each web process. Mapbox search
-results are retained in memory for the life of the process. Waze remains the
-hand-off for turn-by-turn navigation.
+results are cached for ten minutes. Waze remains the hand-off for turn-by-turn
+navigation.
 
 Provider references:
 

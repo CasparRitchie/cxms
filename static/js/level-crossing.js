@@ -142,6 +142,7 @@
   let journeyResult = null;
   let journeyLoading = false;
   let centralReports = new Map();
+  let roadClosures = new Map();
 
   function savePreferences() {
     window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
@@ -158,6 +159,10 @@
   }
 
   function displayStatusFor(crossing, now = new Date()) {
+    const roadClosure = roadClosures.get(crossing.id);
+    if (roadClosure?.status === "closed") {
+      return { label: "Road closed", className: "closed" };
+    }
     const latest = readObservations().find((observation) => {
       if (observation.crossingId !== crossing.id || observation.state === "TRAIN_PASSED") return false;
       const age = now.getTime() - new Date(observation.observedAt).getTime();
@@ -356,6 +361,7 @@
   }
 
   function routeName(route) {
+    if (route.label) return route.label;
     if (route.usesA27) return "Via the A27";
     const names = (route.crossedCrossings || [])
       .map((id) => crossings.find((crossing) => crossing.id === id)?.name)
@@ -471,11 +477,13 @@
       if (!response.ok) throw new Error("Destinations unavailable");
       const catalogue = await response.json();
       journeyCatalogue = Array.isArray(catalogue.destinations) ? catalogue.destinations : [];
+      roadClosures = new Map((catalogue.roadClosures || []).map((closure) => [closure.id, closure]));
       if (!journeyCatalogue.some(({ id }) => id === preferences.destinationId)) {
         preferences.destinationId = journeyCatalogue[0]?.id || "";
         savePreferences();
       }
       renderDestinationControl();
+      renderSelectionChips();
       await loadJourney();
     } catch (_) {
       elements.destinationSelect.innerHTML = '<option value="">Destinations unavailable</option>';
@@ -634,19 +642,28 @@
     renderJourneyAdvice(predictions);
 
     elements.crossingGrid.innerHTML = predictions.map(({ crossing, prediction }) => {
-      const [label, statusClass] = stateDetails[prediction.state];
+      const roadClosure = roadClosures.get(crossing.id);
+      const [predictedLabel, predictedStatusClass] = stateDetails[prediction.state];
+      const label = roadClosure?.status === "closed" ? "Road closed" : predictedLabel;
+      const statusClass = roadClosure?.status === "closed" ? "crossing-status--closed" : predictedStatusClass;
       const nextTrain = prediction.trains[0]
         ? `<span>Demo train: ${escapeHtml(prediction.trains[0].destination)} · ${escapeHtml(prediction.trains[0].direction)}</span>`
         : "";
+      const reason = roadClosure?.status === "closed"
+        ? roadClosure.message
+        : prediction.reason;
+      const predictionMeta = roadClosure?.status === "closed"
+        ? "<span>Road availability overrides the barrier estimate</span>"
+        : `<span>${escapeHtml(prediction.eventLabel)}: <strong>${formatTime(prediction.eventAt)}</strong></span>
+          <span>Confidence: demonstration</span>${nextTrain}`;
       return `<article class="crossing-card${crossing.id === preferences.primaryId ? " crossing-card--primary" : ""}">
         <h3>${escapeHtml(crossing.name)}</h3>
         ${crossing.id === preferences.primaryId ? '<span class="crossing-primary-tag">Primary route crossing</span>' : ""}
         <p class="crossing-type">${escapeHtml(crossing.type)}<br><span>///${escapeHtml(crossing.what3words)}</span></p>
         <span class="crossing-status ${statusClass}">${label}</span>
-        <p class="crossing-prediction-reason">${escapeHtml(prediction.reason)}</p>
+        <p class="crossing-prediction-reason">${escapeHtml(reason)}</p>
         <div class="crossing-prediction-meta">
-          <span>${escapeHtml(prediction.eventLabel)}: <strong>${formatTime(prediction.eventAt)}</strong></span>
-          <span>Confidence: demonstration</span>${nextTrain}
+          ${predictionMeta}
         </div>
       </article>`;
     }).join("");

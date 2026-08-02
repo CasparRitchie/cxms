@@ -16,10 +16,44 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-CROSSING_ROUTE_TERMS = {
-    "whyke-road": ("whyke road",),
-    "basin-road": ("basin road",),
-    "stockbridge-road": ("stockbridge road",),
+# Route families reflect the decisions made when leaving Willowbed Drive.  We
+# deliberately ask Mapbox to time each family instead of trusting its generic
+# alternatives to include the locally useful choices.
+ROUTE_POINTS = {
+    "whyke-crossing": [-0.7659, 50.8321],
+    "whyke-roundabout": [-0.76771, 50.82611],
+    "fishbourne-roundabout": [-0.7988841, 50.8329791],
+    "fishbourne-road": [-0.80057, 50.835511],
+    "bognor-roundabout": [-0.754833, 50.830174],
+    "quarry-lane": [-0.760232, 50.829577],
+    "orchard-street": [-0.782258, 50.839141],
+}
+
+ROAD_CLOSURES = {
+    "basin-road": {
+        "id": "basin-road",
+        "name": "Basin Road",
+        "status": "closed",
+        "message": "Road closed · routes are avoiding Basin Road",
+        "excludePoint": [-0.780614, 50.830726],
+    },
+}
+
+WESTERN_DESTINATIONS = {
+    "bulls-head-fishbourne",
+    "waitrose-chichester",
+    "station-south",
+    "station-north",
+    "chichester-library",
+    "portland-retail-park",
+}
+
+NORTHERN_DESTINATIONS = {
+    "st-anthonys-school",
+    "sainsburys-chichester",
+    "the-range-chichester",
+    "goodwood-motor-circuit",
+    "chichester-city-fc",
 }
 
 
@@ -193,6 +227,7 @@ class RoutePlanner:
         return {
             "originLabel": "Willowbed Drive area",
             "destinations": deepcopy(list(DESTINATIONS)),
+            "roadClosures": self._public_road_closures(),
             "routing": self.configuration(),
         }
 
@@ -232,22 +267,36 @@ class RoutePlanner:
         origin = self._origin_coordinates()
         drive_destination = self._search_location(destination.get("driveMapboxQuery") or destination["mapboxQuery"])
         walk_destination = self._search_location(destination["mapboxQuery"])
-        driving = self._directions("mapbox/driving-traffic", origin, drive_destination, alternatives=True)
+        driving = []
+        for corridor in self._corridors_for(destination["id"]):
+            try:
+                corridor_routes = self._directions(
+                    "mapbox/driving-traffic",
+                    origin,
+                    drive_destination,
+                    alternatives=False,
+                    via=corridor["via"],
+                    excluded_points=self._closed_road_points(),
+                )
+            except RoutingUnavailable:
+                continue
+            if corridor_routes:
+                driving.append((corridor, corridor_routes[0]))
+        if not driving:
+            raise RoutingUnavailable("No known local route is currently available for this destination.")
         walking = self._directions("mapbox/walking", origin, walk_destination, alternatives=False)
 
         routes = []
-        for index, route in enumerate(driving):
-            steps = [step for leg in route.get("legs", []) for step in leg.get("steps", [])]
-            uses_a27 = any("A27" in f"{step.get('ref', '')} {step.get('name', '')}".upper() for step in steps)
-            crossed = self._crossings_in_steps(steps)
+        for corridor, route in driving:
             routes.append(
                 {
-                    "id": f"drive-{index + 1}",
+                    "id": corridor["id"],
+                    "label": corridor["label"],
                     "durationSeconds": round(float(route.get("duration", 0))),
                     "typicalDurationSeconds": round(float(route.get("duration_typical", route.get("duration", 0)))),
                     "distanceMetres": round(float(route.get("distance", 0))),
-                    "crossedCrossings": crossed,
-                    "usesA27": uses_a27,
+                    "crossedCrossings": list(corridor["crossedCrossings"]),
+                    "usesA27": corridor["usesA27"],
                 }
             )
 
@@ -257,6 +306,7 @@ class RoutePlanner:
             "destination": deepcopy(destination),
             "routing": self.configuration(),
             "routes": routes,
+            "roadClosures": self._public_road_closures(),
             "walking": {
                 "durationSeconds": round(float(walking_route.get("duration", 0))),
                 "distanceMetres": round(float(walking_route.get("distance", 0))),
@@ -300,29 +350,95 @@ class RoutePlanner:
             self._location_cache[query] = (self.clock(), result)
         return list(result)
 
-    @staticmethod
-    def _crossings_in_steps(steps):
-        route_text = " ".join(
-            f"{step.get('name', '')} {step.get('ref', '')} {step.get('destinations', '')}".lower()
-            for step in steps
+    def _corridors_for(self, destination_id):
+        if destination_id in WESTERN_DESTINATIONS:
+            return (
+                {
+                    "id": "via-whyke-road",
+                    "label": "Via Whyke Road",
+                    "via": [ROUTE_POINTS["whyke-crossing"]],
+                    "crossedCrossings": ["whyke-road"],
+                    "usesA27": False,
+                },
+                {
+                    "id": "via-a27-west",
+                    "label": "Via the A27",
+                    "via": [
+                        ROUTE_POINTS["whyke-roundabout"],
+                        ROUTE_POINTS["fishbourne-roundabout"],
+                        ROUTE_POINTS["fishbourne-road"],
+                    ],
+                    "crossedCrossings": [],
+                    "usesA27": True,
+                },
+                {
+                    "id": "via-north-chichester",
+                    "label": "North via Quarry Lane and Orchard Street",
+                    "via": [ROUTE_POINTS["quarry-lane"], ROUTE_POINTS["orchard-street"]],
+                    "crossedCrossings": [],
+                    "usesA27": False,
+                },
+            )
+        if destination_id in NORTHERN_DESTINATIONS:
+            return (
+                {
+                    "id": "via-quarry-lane",
+                    "label": "Via Quarry Lane",
+                    "via": [ROUTE_POINTS["quarry-lane"]],
+                    "crossedCrossings": [],
+                    "usesA27": False,
+                },
+                {
+                    "id": "via-a27-east",
+                    "label": "Via the A27",
+                    "via": [ROUTE_POINTS["whyke-roundabout"], ROUTE_POINTS["bognor-roundabout"]],
+                    "crossedCrossings": [],
+                    "usesA27": True,
+                },
+            )
+        return (
+            {
+                "id": "direct",
+                "label": "Direct route",
+                "via": [],
+                "crossedCrossings": [],
+                "usesA27": False,
+            },
         )
+
+    def _active_road_closures(self):
+        configured = self.environ.get("LEVEL_CROSSING_ROAD_CLOSURES", "basin-road").strip().lower()
+        if configured in {"", "none", "off"}:
+            return {}
+        selected = {value.strip() for value in configured.split(",") if value.strip()}
+        return {closure_id: closure for closure_id, closure in ROAD_CLOSURES.items() if closure_id in selected}
+
+    def _closed_road_points(self):
+        return [closure["excludePoint"] for closure in self._active_road_closures().values()]
+
+    def _public_road_closures(self):
         return [
-            crossing_id
-            for crossing_id, terms in CROSSING_ROUTE_TERMS.items()
-            if any(term in route_text for term in terms)
+            {key: value for key, value in closure.items() if key != "excludePoint"}
+            for closure in self._active_road_closures().values()
         ]
 
-    def _directions(self, profile, origin, destination, alternatives):
-        coordinate_text = ";".join(",".join(str(value) for value in point) for point in (origin, destination))
+    def _directions(self, profile, origin, destination, alternatives, via=None, excluded_points=None):
+        points = [origin, *(via or []), destination]
+        coordinate_text = ";".join(",".join(str(value) for value in point) for point in points)
+        parameters = {
+            "access_token": self.environ["MAPBOX_ACCESS_TOKEN"],
+            "alternatives": "true" if alternatives else "false",
+            "geometries": "geojson",
+            "overview": "full",
+            "steps": "true",
+        }
+        if profile in {"mapbox/driving", "mapbox/driving-traffic"} and excluded_points:
+            parameters["exclude"] = ",".join(
+                f"point({point[0]} {point[1]})" for point in excluded_points
+            )
         data = self._request_json(
             f"https://api.mapbox.com/directions/v5/{profile}/{coordinate_text}",
-            {
-                "access_token": self.environ["MAPBOX_ACCESS_TOKEN"],
-                "alternatives": "true" if alternatives else "false",
-                "geometries": "geojson",
-                "overview": "full",
-                "steps": "true",
-            },
+            parameters,
         )
         routes = data.get("routes") or []
         if not routes:

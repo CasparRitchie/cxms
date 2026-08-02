@@ -185,6 +185,7 @@ class FakeRouteResponse:
 class FakeRouteOpener:
     def __init__(self):
         self.urls = []
+        self.driving_calls = 0
 
     def __call__(self, request, timeout):
         url = request.full_url
@@ -194,21 +195,24 @@ class FakeRouteOpener:
             self.last_search = parse_qs(parsed.query)["q"][0]
             return FakeRouteResponse({"features": [{"geometry": {"coordinates": [0.010, 50.010]}}]})
         if "/mapbox/driving-traffic/" in parsed.path:
+            self.driving_calls += 1
+            if "-0.782258,50.839141" in parsed.path:
+                route_details = (360, 330, "Orchard Street", "")
+            elif "-0.7988841,50.8329791" in parsed.path or "-0.754833,50.830174" in parsed.path:
+                route_details = (420, 390, "Chichester Bypass", "A27")
+            elif "-0.7659,50.8321" in parsed.path:
+                route_details = (300, 240, "Whyke Road", "")
+            else:
+                route_details = (330, 300, "Quarry Lane", "")
+            duration, typical, name, ref = route_details
             return FakeRouteResponse({
                 "routes": [
                     {
-                        "duration": 300,
-                        "duration_typical": 240,
+                        "duration": duration,
+                        "duration_typical": typical,
                         "distance": 4000,
                         "geometry": {"coordinates": [[0.000, 50.000], [0.001, 50.001], [0.010, 50.010]]},
-                        "legs": [{"steps": [{"name": "Whyke Road", "ref": ""}]}],
-                    },
-                    {
-                        "duration": 420,
-                        "duration_typical": 420,
-                        "distance": 7000,
-                        "geometry": {"coordinates": [[0.000, 50.000], [0.030, 49.990], [0.010, 50.010]]},
-                        "legs": [{"steps": [{"name": "Chichester Bypass", "ref": "A27"}]}],
+                        "legs": [{"steps": [{"name": name, "ref": ref}]}],
                     },
                 ]
             })
@@ -228,6 +232,8 @@ class LevelCrossingRoutingTests(unittest.TestCase):
         self.assertEqual(city_fc["what3words"], "supply.chimp.heat")
         self.assertEqual(city_fc["driveWhat3Words"], "repair.united.handed")
         self.assertEqual(city_fc["parkingWalkSeconds"], 120)
+        self.assertEqual(catalogue["roadClosures"][0]["id"], "basin-road")
+        self.assertNotIn("excludePoint", catalogue["roadClosures"][0])
 
     def test_missing_keys_never_returns_a_made_up_duration(self):
         result = RoutePlanner(environ={}).journey("waitrose-chichester")
@@ -236,7 +242,7 @@ class LevelCrossingRoutingTests(unittest.TestCase):
         self.assertEqual(result["routes"], [])
         self.assertEqual(result["routing"]["missing"], ["MAPBOX_ACCESS_TOKEN"])
 
-    def test_live_routes_identify_crossing_and_a27_and_are_cached(self):
+    def test_live_routes_compare_known_local_corridors_and_are_cached(self):
         opener = FakeRouteOpener()
         planner = RoutePlanner(
             environ={"MAPBOX_ACCESS_TOKEN": "mapbox-test"},
@@ -248,14 +254,40 @@ class LevelCrossingRoutingTests(unittest.TestCase):
         cached = planner.journey("waitrose-chichester")
 
         self.assertEqual(result["status"], "ready")
+        self.assertEqual([route["label"] for route in result["routes"]], [
+            "Via Whyke Road",
+            "Via the A27",
+            "North via Quarry Lane and Orchard Street",
+        ])
         self.assertEqual(result["routes"][0]["crossedCrossings"], ["whyke-road"])
         self.assertFalse(result["routes"][0]["usesA27"])
         self.assertTrue(result["routes"][1]["usesA27"])
+        self.assertEqual(result["routes"][2]["crossedCrossings"], [])
+        self.assertEqual(result["roadClosures"][0]["message"], "Road closed · routes are avoiding Basin Road")
         self.assertEqual(result["walking"], {"durationSeconds": 900, "distanceMetres": 1800})
         self.assertEqual(cached, result)
         self.assertEqual(len(opener.urls), call_count)
         self.assertTrue(any("/search/searchbox/v1/forward" in url for url in opener.urls))
         self.assertFalse(any("what3words" in url for url in opener.urls))
+        driving_urls = [url for url in opener.urls if "/mapbox/driving-traffic/" in url]
+        self.assertEqual(len(driving_urls), 3)
+        self.assertTrue(all("exclude" in parse_qs(urlparse(url).query) for url in driving_urls))
+        self.assertIn("-0.7988841,50.8329791", driving_urls[1])
+        self.assertIn("-0.782258,50.839141", driving_urls[2])
+
+    def test_northern_destinations_compare_quarry_lane_with_a27(self):
+        opener = FakeRouteOpener()
+        planner = RoutePlanner(
+            environ={"MAPBOX_ACCESS_TOKEN": "mapbox-test", "LEVEL_CROSSING_ROAD_CLOSURES": "none"},
+            opener=opener,
+        )
+
+        result = planner.journey("sainsburys-chichester")
+
+        self.assertEqual([route["label"] for route in result["routes"]], ["Via Quarry Lane", "Via the A27"])
+        driving_urls = [url for url in opener.urls if "/mapbox/driving-traffic/" in url]
+        self.assertEqual(len(driving_urls), 2)
+        self.assertTrue(all("exclude=" not in url for url in driving_urls))
 
 
 class FakeSupabaseClient:
