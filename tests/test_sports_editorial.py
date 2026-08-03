@@ -262,6 +262,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'name="title" required value=""', page.data)
         self.assertIn(b'name="season_code" required', page.data)
         self.assertIn(b'name="fis_event_ids" value="" readonly', page.data)
+        self.assertEqual(page.data.count(b"data-date-picker"), 3)
+        for label in (b"Choose race date", b"Choose researcher deadline", b"Choose publication deadline"):
+            self.assertIn(label, page.data)
 
     def test_creation_required_fields_reject_blank_and_whitespace(self):
         self.set_sub_editor()

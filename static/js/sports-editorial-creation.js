@@ -10,6 +10,23 @@
   const createButton = form.querySelector("[data-create-button]");
   let explicitSubmission = false;
 
+  const formatPickerDate = (value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
+    }).format(new Date(Date.UTC(year, month - 1, day))).replace(/ /g, "-");
+  };
+
+  form.querySelectorAll("[data-date-picker]").forEach((picker) => {
+    const display = picker.parentElement?.querySelector("input:not([type='date'])");
+    if (!display) return;
+    picker.addEventListener("change", () => {
+      if (!picker.value) return;
+      display.value = formatPickerDate(picker.value);
+      display.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  });
+
   const fillSelect = (select, choices, selected) => {
     select.replaceChildren(new Option("", ""));
     choices.forEach((choice) => select.add(new Option(choice, choice)));
