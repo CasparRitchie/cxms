@@ -116,6 +116,24 @@ class DemoSportsEditorialRepository:
             item["lock_last_active_at"] = _now()
             return public_lock(item)
 
+    def force_takeover_edit_lock(self, submission_id, user):
+        with self._lock:
+            item = next((row for row in self._submissions if row["id"] == submission_id), None)
+            if not item:
+                return None, None
+            now = _now()
+            item["lock_user_id"] = user["id"]
+            item["lock_user_name"] = user.get("full_name") or user.get("email") or "Workspace user"
+            item["lock_token"] = str(uuid4())
+            item["lock_acquired_at"] = now
+            item["lock_last_active_at"] = now
+            item["lock_version"] = int(item.get("lock_version") or 0) + 1
+            if item.get("status") == "submitted":
+                item["status"] = "in_review"
+                item["updated_at"] = now
+                item["last_modified_by"] = item["lock_user_name"]
+            return deepcopy(item), public_lock(item)
+
     def verify_edit_lock(self, submission_id, user_id, token, version):
         item = next((row for row in self._submissions if row["id"] == submission_id), None)
         return bool(item and lock_is_active(item) and item.get("lock_user_id") == user_id
@@ -465,6 +483,14 @@ class SupabaseSportsEditorialRepository:
             "p_user_id": user_id, "p_lock_token": token, "p_timeout_seconds": lock_timeout_seconds(),
         })
         return public_lock(rows[0]) if rows else None
+
+    def force_takeover_edit_lock(self, submission_id, user):
+        rows = self.client.request("rpc/sports_editorial_force_takeover_edit_lock", "POST", payload={
+            "p_workspace_id": self._workspace(), "p_submission_id": submission_id,
+            "p_user_id": user["id"], "p_user_name": user.get("full_name") or user.get("email") or "Workspace user",
+        })
+        item = self._hydrate(rows)[0] if rows else self.get_submission(submission_id)
+        return item, public_lock(item)
 
     def verify_edit_lock(self, submission_id, user_id, token, version):
         item = self.get_submission(submission_id)

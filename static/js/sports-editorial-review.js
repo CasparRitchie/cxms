@@ -237,34 +237,6 @@
     .querySelectorAll("[data-review-block]")
     .forEach(initialiseReviewBlock);
 
-  const entityDisplayOptions = (entity) => {
-    const name = String(entity.name || "").trim();
-
-    if (entity.type !== "country") {
-      return name ? [{ label: name, value: name }] : [];
-    }
-
-    const code = String(
-      entity.country_code || entity.canonical_id || "",
-    ).trim();
-
-    const seen = new Set();
-
-    return [code, name]
-      .filter((value) => {
-        const key = value.toLocaleLowerCase();
-
-        if (!value || seen.has(key)) return false;
-
-        seen.add(key);
-        return true;
-      })
-      .map((value) => ({
-        label: value,
-        value,
-      }));
-  };
-
   const initialiseEntityControl = (control) => {
     if (control.dataset.entityInitialised) return;
 
@@ -291,7 +263,7 @@
     let nextOffset = 0;
     let activeIndex = -1;
     let queryContext = null;
-    let suppressNextSearch = false;
+    let savedMentionContext = null;
 
     const highlightKey = crypto.randomUUID();
 
@@ -325,7 +297,7 @@
 
       buttons[activeIndex].tabIndex = 0;
 
-      editor.setAttribute(
+      results.querySelector("[data-entity-lookup]")?.setAttribute(
         "aria-activedescendant",
         buttons[activeIndex].id,
       );
@@ -445,76 +417,7 @@
       scheduleMentionHighlights();
     };
 
-    const caretTextOffset = () => {
-      const selection = window.getSelection();
-
-      if (
-        !selection?.rangeCount ||
-        !editor.contains(selection.anchorNode)
-      ) {
-        return null;
-      }
-
-      const range = document.createRange();
-      range.selectNodeContents(editor);
-
-      try {
-        range.setEnd(
-          selection.anchorNode,
-          selection.anchorOffset,
-        );
-      } catch {
-        return null;
-      }
-
-      return range.toString().length;
-    };
-
-    const caretIsInsideExistingMention = () => {
-      const caretOffset = caretTextOffset();
-
-      if (caretOffset === null) return false;
-
-      const editorText = editor.innerText;
-
-      return [
-        ...selected.querySelectorAll(
-          "[data-entity-id] label input",
-        ),
-      ].some((input) => {
-        const mention = input.value.trim();
-
-        if (!mention) return false;
-
-        let searchFrom = 0;
-        let mentionOffset;
-
-        while (
-          (
-            mentionOffset = editorText.indexOf(
-              mention,
-              searchFrom,
-            )
-          ) !== -1
-        ) {
-          const mentionEnd =
-            mentionOffset + mention.length;
-
-          if (
-            caretOffset >= mentionOffset &&
-            caretOffset <= mentionEnd
-          ) {
-            return true;
-          }
-
-          searchFrom = mentionEnd;
-        }
-
-        return false;
-      });
-    };
-
-    const currentQuery = () => {
+    const selectedMentionContext = () => {
       const selection = window.getSelection();
 
       if (
@@ -525,13 +428,6 @@
       }
 
       const range = selection.getRangeAt(0);
-
-      if (
-        range.collapsed &&
-        caretIsInsideExistingMention()
-      ) {
-        return null;
-      }
 
       if (!range.collapsed) {
         const text = range.toString().trim();
@@ -544,172 +440,21 @@
             }
           : null;
       }
-
-      if (
-        selection.anchorNode?.nodeType !==
-        Node.TEXT_NODE
-      ) {
-        return null;
-      }
-
-      const before =
-        selection.anchorNode.data.slice(
-          0,
-          selection.anchorOffset,
-        );
-
-      const match = before.match(
-        /[\p{L}\p{M}'’.-]{2,}$/u,
-      );
-
-      // Keep ordinary prose unobstructed: automatic inline lookup is for
-      // capitalised entity wording. Users can still select any exact wording
-      // (including lower-case text) to request an entity match explicitly.
-      if (
-        !match ||
-        !/^\p{Lu}/u.test(match[0])
-      ) {
-        return null;
-      }
-
-      const wordRange = document.createRange();
-
-      wordRange.setStart(
-        selection.anchorNode,
-        selection.anchorOffset - match[0].length,
-      );
-
-      wordRange.setEnd(
-        selection.anchorNode,
-        selection.anchorOffset,
-      );
-
-      return {
-        text: match[0],
-        range: wordRange,
-        replace: true,
-      };
+      return null;
     };
 
-    const placeCaretAtTextOffset = (offset) => {
-      const selection = window.getSelection();
-
-      if (!selection) return;
-
-      const walker = document.createTreeWalker(
-        editor,
-        NodeFilter.SHOW_TEXT,
-      );
-
-      let remaining = offset;
-      let node;
-
-      while ((node = walker.nextNode())) {
-        if (remaining <= node.data.length) {
-          const caret = document.createRange();
-
-          caret.setStart(node, remaining);
-          caret.collapse(true);
-
-          selection.removeAllRanges();
-          selection.addRange(caret);
-
-          return;
-        }
-
-        remaining -= node.data.length;
-      }
-
-      const caret = document.createRange();
-      caret.selectNodeContents(editor);
-      caret.collapse(false);
-
-      selection.removeAllRanges();
-      selection.addRange(caret);
-    };
-
-    const replaceQueryWithDisplayValue = (
-      displayValue,
-      replaceSelection = false,
-    ) => {
-      if (
-        (!queryContext?.replace && !replaceSelection) ||
-        !queryContext.range
-      ) {
-        return queryContext?.text || displayValue;
-      }
-
-      const range = queryContext.range;
-
-      if (
-        !editor.contains(
-          range.commonAncestorContainer,
-        )
-      ) {
-        return displayValue;
-      }
-
-      range.deleteContents();
-
-      const text =
-        document.createTextNode(displayValue);
-      range.insertNode(text);
-
-      const offsetRange = document.createRange();
-      offsetRange.selectNodeContents(editor);
-      offsetRange.setEndAfter(text);
-
-      const caretOffset =
-        offsetRange.toString().length;
-
-      // Range insertion splits text nodes. Merge them again so subsequent
-      // clicks, Home/End and arrow-key movement behave like a normal editor.
-      editor.normalize();
-      placeCaretAtTextOffset(caretOffset);
-
-      return displayValue;
-    };
-
-    const addEntity = (
-      entity,
-      displayValue = entity.name,
-      replaceSelection = false,
-    ) => {
+    const addEntity = (entity) => {
       const existingChip = selected.querySelector(
         `[data-entity-id="${entity.id}"]`,
       );
 
-      if (existingChip && entity.type !== "country") {
+      if (existingChip) {
         closeResults();
         editor.focus({ preventScroll: true });
         return;
       }
 
-      editor.focus({ preventScroll: true });
-
-      const mentionText =
-        replaceQueryWithDisplayValue(
-          displayValue,
-          replaceSelection,
-        );
-
-      if (existingChip) {
-        const mention = existingChip.querySelector(
-          "label input",
-        );
-
-        if (mention) mention.value = mentionText;
-
-        closeResults();
-        scheduleMentionHighlights();
-        suppressNextSearch = true;
-
-        editor.dispatchEvent(
-          new Event("input", { bubbles: true }),
-        );
-
-        return;
-      }
+      const mentionText = queryContext?.text || entity.name;
 
       const chip = document.createElement("span");
       chip.className = "sew-entity-chip";
@@ -771,88 +516,12 @@
       closeResults();
       scheduleMentionHighlights();
 
-      suppressNextSearch = true;
-
       editor.dispatchEvent(
         new Event("input", { bubbles: true }),
       );
     };
 
     const appendResult = (entity) => {
-      if (entity.type === "country") {
-        const row = document.createElement("div");
-        row.className =
-          "sew-entity-country-result";
-        row.setAttribute("role", "group");
-        row.setAttribute(
-          "aria-label",
-          `${entity.name} insertion choices`,
-        );
-
-        const identity =
-          document.createElement("span");
-        identity.className =
-          "sew-entity-country-identity";
-
-        const code =
-          entity.country_code ||
-          entity.canonical_id ||
-          "";
-
-        identity.textContent = [
-          entity.name,
-          code,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-
-        const actions =
-          document.createElement("span");
-        actions.className =
-          "sew-entity-country-actions";
-
-        entityDisplayOptions(entity).forEach(
-          (option) => {
-            const button =
-              document.createElement("button");
-
-            button.id =
-              `entity-result-${crypto.randomUUID()}`;
-            button.type = "button";
-            button.dataset.entityResult = "";
-            button.setAttribute("role", "option");
-            button.setAttribute(
-              "aria-selected",
-              "false",
-            );
-            button.setAttribute(
-              "aria-label",
-              `Insert ${option.label} for ${entity.name}`,
-            );
-            button.tabIndex = -1;
-            button.textContent =
-              `Insert ${option.label}`;
-
-            button.addEventListener(
-              "click",
-              () => {
-                addEntity(
-                  entity,
-                  option.value,
-                  true,
-                );
-              },
-            );
-
-            actions.appendChild(button);
-          },
-        );
-
-        row.append(identity, actions);
-        results.appendChild(row);
-        return;
-      }
-
       const button =
         document.createElement("button");
 
@@ -883,31 +552,38 @@
         addEntity(entity);
       });
 
-      results.appendChild(button);
+      results
+        .querySelector("[data-entity-options]")
+        ?.appendChild(button);
     };
 
     const runSearch = async (
       append = false,
-      context = queryContext,
+      searchText = "",
     ) => {
-      const query = context?.text.trim() || "";
+      const query = searchText.trim();
+      const options = results.querySelector(
+        "[data-entity-options]",
+      );
+
+      if (!options) return;
 
       if (query.length < 2) {
-        closeResults();
+        options.innerHTML =
+          '<span class="sew-entity-loading">Type at least two characters.</span>';
         return;
       }
 
       if (!append) {
-        queryContext = context;
         nextOffset = 0;
-        results.replaceChildren();
+        options.replaceChildren();
         activeIndex = -1;
       } else {
-        results
+        options
           .querySelector("[data-show-more]")
           ?.remove();
 
-        results
+        options
           .querySelector("[data-no-more]")
           ?.remove();
       }
@@ -920,7 +596,7 @@
         ? "Loading more…"
         : "Searching…";
 
-      results.appendChild(loading);
+      options.appendChild(loading);
       results.hidden = false;
 
       controller?.abort();
@@ -943,7 +619,9 @@
         // Ignore a response from an outdated request.
         if (
           !append &&
-          queryContext?.text.trim() !== query
+          results
+            .querySelector("[data-entity-lookup]")
+            ?.value.trim() !== query
         ) {
           return;
         }
@@ -954,7 +632,7 @@
           !append &&
           !payload.results.length
         ) {
-          results.innerHTML =
+          options.innerHTML =
             '<span class="sew-entity-loading">No matches.</span>';
         }
 
@@ -970,10 +648,10 @@
           more.textContent = "Show more";
 
           more.addEventListener("click", () => {
-            runSearch(true, queryContext);
+            runSearch(true, query);
           });
 
-          results.appendChild(more);
+          options.appendChild(more);
         } else if (
           append &&
           payload.results.length
@@ -985,33 +663,21 @@
           end.dataset.noMore = "";
           end.textContent = "No more results.";
 
-          results.appendChild(end);
+          options.appendChild(end);
         }
       } catch (error) {
         if (error.name === "AbortError") return;
 
-        results.innerHTML =
+        options.innerHTML =
           '<span class="sew-entity-loading">Search is temporarily unavailable.</span>';
       }
     };
 
-    const scheduleSearch = () => {
+    const scheduleSearch = (searchText) => {
       clearTimeout(timer);
 
-      if (!editor.isContentEditable) {
-        closeResults();
-        return;
-      }
-
-      const context = currentQuery();
-
-      if (!context) {
-        closeResults();
-        return;
-      }
-
       timer = setTimeout(() => {
-        runSearch(false, context);
+        runSearch(false, searchText);
       }, 250);
     };
 
@@ -1019,112 +685,119 @@
       results.id ||
       `entity-results-${crypto.randomUUID()}`;
 
-    results.setAttribute("role", "listbox");
-
-    editor.setAttribute(
-      "aria-autocomplete",
-      "list",
-    );
-
-    editor.setAttribute(
-      "aria-controls",
-      results.id,
-    );
-
     unwrapMentionTags(editor);
     scheduleMentionHighlights();
 
     editor.addEventListener("input", () => {
       validateMentionTags();
-
-      if (suppressNextSearch) {
-        suppressNextSearch = false;
-        return;
-      }
-
-      scheduleSearch();
     });
 
-    // Only run a mouse-triggered entity search when the user has explicitly
-    // selected text. Simply placing the caret inside normal prose or an
-    // existing linked athlete must not reopen autocomplete.
+    const openEntityLookup = (context) => {
+      if (!context || !editor.isContentEditable) return;
+      queryContext = context;
+      activeIndex = -1;
+      nextOffset = 0;
+
+      const label = document.createElement("label");
+      label.className = "sew-entity-lookup-label";
+      label.textContent = `Link “${context.text}” to an entity`;
+
+      const lookup = document.createElement("input");
+      lookup.type = "search";
+      lookup.dataset.entityLookup = "";
+      lookup.placeholder = "Search athlete, country or competition";
+      lookup.autocomplete = "off";
+      lookup.setAttribute("role", "combobox");
+      lookup.setAttribute("aria-expanded", "true");
+
+      const options = document.createElement("div");
+      options.dataset.entityOptions = "";
+      options.id = `${results.id}-options`;
+      options.setAttribute("role", "listbox");
+      options.innerHTML = '<span class="sew-entity-loading">Type at least two characters.</span>';
+      lookup.setAttribute("aria-controls", options.id);
+
+      lookup.addEventListener("input", () => {
+        scheduleSearch(lookup.value);
+      });
+      lookup.addEventListener("keydown", (event) => {
+        const buttons = entityButtons();
+        if (event.key === "ArrowDown" && buttons.length) {
+          event.preventDefault();
+          setActive(activeIndex + 1);
+        } else if (event.key === "ArrowUp" && buttons.length) {
+          event.preventDefault();
+          setActive(activeIndex <= 0 ? buttons.length - 1 : activeIndex - 1);
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          if (activeIndex >= 0 && buttons[activeIndex]) buttons[activeIndex].click();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          closeResults();
+          editor.focus({ preventScroll: true });
+        }
+      });
+
+      results.replaceChildren(label, lookup, options);
+      results.hidden = false;
+      lookup.focus({ preventScroll: true });
+    };
+
+    const chainButton = editor
+      .closest(".sew-working-editor")
+      ?.querySelector("[data-link-entity]");
+
+    chainButton?.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      savedMentionContext = selectedMentionContext() || savedMentionContext;
+    });
+
+    chainButton?.addEventListener("click", () => {
+      const context = selectedMentionContext() || savedMentionContext;
+      if (context) openEntityLookup(context);
+      else window.alert("Select the exact text you want to link first.");
+    });
+
+    editor.addEventListener("selectstart", () => {
+      savedMentionContext = null;
+    });
+
     editor.addEventListener("mouseup", () => {
-      const selection = window.getSelection();
-
-      if (
-        selection?.rangeCount &&
-        !selection.isCollapsed
-      ) {
-        scheduleSearch();
-      }
+      savedMentionContext = selectedMentionContext();
     });
 
-    // Typing is already handled by the input event. Keyboard lookup here is
-    // limited to explicit Shift + navigation-key text selection.
     editor.addEventListener("keyup", (event) => {
-      const keyboardSelectionKeys = [
-        "ArrowLeft",
-        "ArrowRight",
-        "Home",
-        "End",
-      ];
+      if (event.shiftKey) savedMentionContext = selectedMentionContext();
+    });
 
-      if (
-        event.shiftKey &&
-        keyboardSelectionKeys.includes(event.key)
-      ) {
-        scheduleSearch();
-      }
+    editor.addEventListener("contextmenu", (event) => {
+      const context = selectedMentionContext();
+      if (!context) return;
+      event.preventDefault();
+
+      document.querySelector("[data-entity-context-menu]")?.remove();
+      const menu = document.createElement("div");
+      menu.className = "sew-entity-context-menu";
+      menu.dataset.entityContextMenu = "";
+      menu.style.left = `${event.clientX}px`;
+      menu.style.top = `${event.clientY}px`;
+
+      const action = document.createElement("button");
+      action.type = "button";
+      action.innerHTML = '<span aria-hidden="true">🔗</span> Add entity link';
+      action.addEventListener("click", () => {
+        menu.remove();
+        openEntityLookup(context);
+      });
+      menu.appendChild(action);
+      document.body.appendChild(menu);
+      action.focus();
     });
 
     editor.addEventListener("keydown", (event) => {
-      const resultsOpen = !results.hidden;
-      const buttons = entityButtons();
-
-      if (
-        event.key === "ArrowDown" &&
-        resultsOpen &&
-        buttons.length
-      ) {
+      if (event.key === "Enter") {
         event.preventDefault();
-        setActive(activeIndex + 1);
-      } else if (
-        event.key === "ArrowUp" &&
-        resultsOpen &&
-        buttons.length
-      ) {
-        event.preventDefault();
-
-        setActive(
-          activeIndex <= 0
-            ? buttons.length - 1
-            : activeIndex - 1,
-        );
-      } else if (
-        event.key === "Enter" &&
-        resultsOpen &&
-        activeIndex >= 0 &&
-        buttons[activeIndex]
-      ) {
-        event.preventDefault();
-        buttons[activeIndex].click();
-      } else if (
-        event.key === "Enter" &&
-        !resultsOpen
-      ) {
-        event.preventDefault();
-
-        document.execCommand(
-          "insertLineBreak",
-          false,
-        );
-      } else if (
-        event.key === "Escape" &&
-        resultsOpen
-      ) {
-        event.preventDefault();
-        closeResults();
-        editor.focus({ preventScroll: true });
+        document.execCommand("insertLineBreak", false);
       }
     });
 
@@ -1149,11 +822,13 @@
       (event) => {
         if (
           editor.contains(event.target) ||
-          results.contains(event.target)
+          results.contains(event.target) ||
+          event.target.closest?.("[data-entity-context-menu]")
         ) {
           return;
         }
 
+        document.querySelector("[data-entity-context-menu]")?.remove();
         closeResults();
       },
     );
@@ -1460,8 +1135,8 @@
         ).textContent =
           `${
             block.dataset.blockType === "section"
-              ? "Sub-heading"
-              : "Statistic"
+              ? "Head"
+              : "Stat"
           } ${counts[block.dataset.blockType]}`;
       });
   };
@@ -1593,6 +1268,8 @@
               >
                 <em>I</em>
               </button>
+
+              ${type === "stat" ? `<button type="button" data-link-entity aria-label="Add entity link" title="Add entity link"><span aria-hidden="true">🔗</span></button>` : ""}
             </div>
 
             <div
@@ -1793,7 +1470,7 @@
           [
             "textarea",
             "[contenteditable='true']",
-            "[data-entity-search]",
+            "[data-entity-lookup]",
             "button[type='submit']",
           ].join(", "),
         )

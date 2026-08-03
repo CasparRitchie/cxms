@@ -640,8 +640,14 @@ def queue():
     standard_view_url = url_for("sports_editorial_workspace.queue", **view_args)
     enhanced_view_url = url_for("sports_editorial_workspace.modern_queue_preview", **view_args)
     queue_view = "enhanced" if queue_endpoint.endswith("modern_queue_preview") else "standard"
+    role = (current_user() or {}).get("role", "researcher")
     for item in submissions:
-        item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"])
+        if item["status"] == "draft" or (role == "researcher" and item["status"] == "changes_requested"):
+            item["queue_url"] = url_for("sports_editorial_workspace.research", submission_id=item["id"])
+        elif role in ("sub_editor", "supervisor") and item["status"] != "exported":
+            item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], edit=1)
+        else:
+            item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"])
     return render_template(
         "sports-editorial-workspace/queue-modern-preview.html" if queue_endpoint.endswith("modern_queue_preview") else "sports-editorial-workspace/queue.html",
         submissions=submissions,
@@ -780,7 +786,7 @@ def detail(submission_id):
             flash(workflow_messages.get(requested_status, "Review changes saved."), "success")
             if request.form.get("save_action") == "close":
                 return redirect(url_for("sports_editorial_workspace.queue"))
-            return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+            return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id, edit=1))
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     role = (current_user() or {}).get("role", "researcher")
     editable_role = role in ("sub_editor", "supervisor")
@@ -824,7 +830,9 @@ def research(submission_id):
             flash("Stat sheet submitted for sub edit." if action == "submit" else "Research saved.", "success")
             if request.form.get("save_action") == "close":
                 return redirect(url_for("sports_editorial_workspace.queue"))
-            return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+            if action == "submit":
+                return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+            return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id))
         for error in errors:
             flash(error, "error")
     entity_map = _entities_by_id(submission)
@@ -862,8 +870,7 @@ def force_unlock(submission_id):
         abort(403, description="Supervisor access is required.")
     submission = _submission_or_404(submission_id)
     previous_lock = repository.get_edit_lock(submission_id)
-    repository.release_edit_lock(submission_id, force=True)
-    _submission, lock = repository.acquire_edit_lock(submission_id, user)
+    _submission, lock = repository.force_takeover_edit_lock(submission_id, user)
     if not lock or lock.get("owner_id") != user.get("id"):
         abort(409, description="The previous lock was removed, but a new editing lock could not be acquired.")
     _remember_lock(submission_id, lock)

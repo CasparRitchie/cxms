@@ -4,6 +4,7 @@
   let activeEditor = null;
 
   const labels = { stat: "Statistic", section: "Sub-heading", heading: "Sub-heading" };
+  const shortLabels = { stat: "Stat", section: "Head", heading: "Head" };
   const syncBlock = (row) => {
     const clone = row.querySelector("[data-editor]").cloneNode(true);
     clone.querySelectorAll("[data-entity-ref]").forEach((tag) => tag.replaceWith(document.createTextNode(tag.textContent)));
@@ -14,7 +15,7 @@
     list.querySelectorAll("[data-content-block]").forEach((row) => {
       const kind = row.dataset.type === "heading" ? "section" : row.dataset.type;
       counts[kind] += 1;
-      row.querySelector("[data-block-label]").textContent = `${labels[row.dataset.type]} ${counts[kind]}`;
+      row.querySelector("[data-block-label]").textContent = `${shortLabels[row.dataset.type]} ${counts[kind]}`;
       syncBlock(row);
     });
   };
@@ -37,7 +38,7 @@
 
   <div>
     <div class="sew-stat-field">
-      <span data-block-label>${labels[type]}</span>
+      <span data-block-label>${shortLabels[type]}</span>
 
       <div class="sew-working-editor">
         <div
@@ -59,6 +60,8 @@
           >
             <em>I</em>
           </button>
+
+          ${type === "stat" ? `<button type="button" data-link-entity aria-label="Add entity link" title="Add entity link"><span aria-hidden="true">🔗</span></button>` : ""}
         </div>
 
         <div

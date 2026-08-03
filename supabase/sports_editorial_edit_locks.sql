@@ -64,9 +64,33 @@ language sql security definer set search_path = public as $$
   returning *;
 $$;
 
+-- Force takeover is deliberately a single update: there must never be a
+-- moment between invalidating the displaced token and assigning the
+-- supervisor's replacement lock in which a third editor can acquire it.
+create or replace function public.sports_editorial_force_takeover_edit_lock(
+  p_workspace_id uuid, p_submission_id uuid, p_user_id uuid, p_user_name text
+) returns setof public.sports_editorial_submissions
+language sql security definer set search_path = public as $$
+  update public.sports_editorial_submissions
+     set lock_user_id = p_user_id,
+         lock_user_name = nullif(trim(p_user_name), ''),
+         lock_token = gen_random_uuid(),
+         lock_acquired_at = now(),
+         lock_last_active_at = now(),
+         lock_version = lock_version + 1,
+         status = case when status = 'submitted' then 'in_review' else status end,
+         updated_at = case when status = 'submitted' then now() else updated_at end,
+         last_modified_by_user_id = case when status = 'submitted' then p_user_id else last_modified_by_user_id end,
+         last_modified_by_name = case when status = 'submitted' then nullif(trim(p_user_name), '') else last_modified_by_name end
+   where id = p_submission_id and workspace_id = p_workspace_id
+  returning *;
+$$;
+
 revoke all on function public.sports_editorial_acquire_edit_lock(uuid,uuid,uuid,text,integer) from public, anon, authenticated;
 revoke all on function public.sports_editorial_heartbeat_edit_lock(uuid,uuid,uuid,uuid,integer) from public, anon, authenticated;
 revoke all on function public.sports_editorial_force_unlock(uuid,uuid) from public, anon, authenticated;
+revoke all on function public.sports_editorial_force_takeover_edit_lock(uuid,uuid,uuid,text) from public, anon, authenticated;
 grant execute on function public.sports_editorial_acquire_edit_lock(uuid,uuid,uuid,text,integer) to service_role;
 grant execute on function public.sports_editorial_heartbeat_edit_lock(uuid,uuid,uuid,uuid,integer) to service_role;
 grant execute on function public.sports_editorial_force_unlock(uuid,uuid) to service_role;
+grant execute on function public.sports_editorial_force_takeover_edit_lock(uuid,uuid,uuid,text) to service_role;

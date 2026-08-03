@@ -3,6 +3,7 @@ import os
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 from werkzeug.datastructures import MultiDict
@@ -858,6 +859,51 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Visual preview only", response.data)
         self.assertNotIn(b"Working Notes", response.data)
+        self.assertNotIn(b"sew-publication-identity", response.data)
+        self.assertNotIn(b"<dt>Race date</dt>", response.data)
+        self.assertNotIn(b"<dt>AMP ID</dt>", response.data)
+        self.assertNotIn(b"<dt>Status</dt>", response.data)
+
+    def test_queue_open_routes_directly_to_the_role_appropriate_editor(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        researcher_queue = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(
+            b'href="/workspace/sports-editorial/submissions/demo-submission-kronplatz/research"',
+            researcher_queue.data,
+        )
+        opened = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        self.assertEqual(opened.status_code, 200)
+        self.assertEqual(repository.get_edit_lock("demo-submission-kronplatz")["owner_id"], "demo-user")
+
+        self.set_sub_editor()
+        sub_editor_queue = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(
+            b'href="/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1"',
+            sub_editor_queue.data,
+        )
+
+    def test_research_save_stays_in_editor_and_retains_lock(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        submission = repository.get_submission("demo-submission-kronplatz")
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        original_lock = repository.get_edit_lock("demo-submission-kronplatz")
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-kronplatz/research",
+            data={
+                "action": "draft",
+                "event_date": "27-Oct-2026",
+                "content_id": [block["id"] for block in submission["stats"]],
+                "content_type": [block["content_type"] for block in submission["stats"]],
+                "content_html": [block["stat_text"] for block in submission["stats"]],
+                "lock_token": original_lock["token"],
+                "lock_version": original_lock["version"],
+            },
+        )
+        retained_lock = repository.get_edit_lock("demo-submission-kronplatz")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/research"))
+        self.assertEqual(retained_lock["token"], original_lock["token"])
+        self.assertEqual(retained_lock["version"], original_lock["version"])
 
     def test_edit_lock_acquisition_is_atomic_and_owner_can_reopen(self):
         users = [
@@ -907,7 +953,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotEqual(replacement["token"], original["token"])
 
     def test_locked_sheet_is_read_only_and_force_unlock_is_supervisor_only(self):
-        repository.acquire_edit_lock("demo-submission-submitted", {"id": "other-editor", "full_name": "Other Editor"})
+        _sheet, displaced_lock = repository.acquire_edit_lock(
+            "demo-submission-submitted", {"id": "other-editor", "full_name": "Other Editor"}
+        )
         self.set_sub_editor()
         page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
         self.assertIn(b"This sheet is locked by Other Editor", page.data)
@@ -917,7 +965,38 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.set_role("supervisor")
         allowed = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted/force-unlock")
         self.assertEqual(allowed.status_code, 302)
-        self.assertEqual(repository.get_edit_lock("demo-submission-submitted")["owner_id"], "demo-user")
+        supervisor_lock = repository.get_edit_lock("demo-submission-submitted")
+        self.assertEqual(supervisor_lock["owner_id"], "demo-user")
+        self.assertNotEqual(supervisor_lock["token"], displaced_lock["token"])
+        self.assertGreater(supervisor_lock["version"], displaced_lock["version"])
+        self.assertFalse(repository.verify_edit_lock(
+            "demo-submission-submitted", "other-editor", displaced_lock["token"], displaced_lock["version"]
+        ))
+
+    def test_force_takeover_migration_is_atomic_and_service_role_only(self):
+        migration = Path("supabase/sports_editorial_edit_locks.sql").read_text(encoding="utf-8")
+        self.assertIn("sports_editorial_force_takeover_edit_lock", migration)
+        self.assertIn("lock_token = gen_random_uuid()", migration)
+        self.assertIn("lock_version = lock_version + 1", migration)
+        self.assertIn(
+            "revoke all on function public.sports_editorial_force_takeover_edit_lock",
+            migration,
+        )
+        self.assertIn(
+            "grant execute on function public.sports_editorial_force_takeover_edit_lock(uuid,uuid,uuid,text) to service_role",
+            migration,
+        )
+
+    def test_entity_linking_requires_deliberate_selected_text_action(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        self.assertIn(b'data-link-entity', page.data)
+        self.assertIn(b'aria-label="Add entity link"', page.data)
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn('editor.addEventListener("contextmenu"', script)
+        self.assertIn("selectedMentionContext", script)
+        self.assertNotIn("currentQuery", script)
+        self.assertNotIn('editor.addEventListener("input", () => {\n      scheduleSearch', script)
 
     def test_stale_lock_token_cannot_save_after_takeover(self):
         self.set_sub_editor()

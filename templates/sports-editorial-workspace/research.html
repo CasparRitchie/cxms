@@ -4,7 +4,7 @@
 {% include "sports-editorial-workspace/_edit_lock.html" %}
 <form class="sew-form sew-document-editor" method="post" data-edit-lock-form data-lock-heartbeat-url="{{ url_for('sports_editorial_workspace.edit_lock_heartbeat', submission_id=submission.id) }}" data-lock-release-url="{{ url_for('sports_editorial_workspace.edit_lock_release', submission_id=submission.id) }}" data-lock-timeout="{{ lock_timeout_seconds }}" data-close-url="{{ url_for('sports_editorial_workspace.queue') }}">
   {% if owns_lock %}<input type="hidden" name="lock_token" value="{{ edit_lock.token }}"><input type="hidden" name="lock_version" value="{{ edit_lock.version }}">{% endif %}
-  <div class="sew-document-bar"><a class="sew-button" href="{{ url_for('sports_editorial_workspace.queue') }}" data-close-editor>Close</a><div><strong>AMP {{ submission.amp_id|default('—', true) }}</strong><span>FIS {{ submission.fis_event_ids|join(', ') or '—' }}</span></div><div class="sew-actions"><a class="sew-button" href="{{ url_for('sports_editorial_workspace.publication_preview', submission_id=submission.id) }}" target="_blank" rel="noopener">Publication preview</a><button class="sew-button" type="submit" name="action" value="draft" {% if not owns_lock %}disabled{% endif %}>Save</button><button class="sew-button sew-button--primary" type="submit" name="action" value="submit" {% if not owns_lock %}disabled{% endif %}>Submit for sub edit</button></div></div>
+  <div class="sew-document-bar"><a class="sew-button" href="{{ url_for('sports_editorial_workspace.queue') }}" data-close-editor>Close</a><div><strong>AMP {{ submission.amp_id|default('—', true) }}</strong><span>FIS {{ submission.fis_event_ids|join(', ') or '—' }}</span></div><div class="sew-actions sew-document-bar__add"><button class="sew-button" type="button" data-add-block="stat" {% if not owns_lock %}disabled{% endif %}>Add statistic</button><button class="sew-button" type="button" data-add-block="section" {% if not owns_lock %}disabled{% endif %}>Add sub-heading</button></div><div class="sew-actions"><a class="sew-button" href="{{ url_for('sports_editorial_workspace.publication_preview', submission_id=submission.id) }}" target="_blank" rel="noopener">Publication preview</a><button class="sew-button" type="submit" name="action" value="draft" {% if not owns_lock %}disabled{% endif %}>Save</button><button class="sew-button sew-button--primary" type="submit" name="action" value="submit" {% if not owns_lock %}disabled{% endif %}>Submit for sub edit</button></div></div>
   <article class="sew-publication-canvas">
   {% include "sports-editorial-workspace/_document_identity.html" %}
   {% if submission.status == 'changes_requested' and submission.editor_notes %}<div class="sew-message sew-message--review-feedback"><strong>Changes requested by the sub-editor</strong><span>{{ submission.editor_notes }}</span></div>{% endif %}
@@ -13,11 +13,11 @@
     {% for label, value in [('AMP ID', submission.amp_id),('Client', submission.client_name),('Sport','ALP'),('Competition',submission.competition),('Event',submission.event_name),('Gender',submission.gender),('Location',submission.location),('FIS Calendar Event ID',submission.fis_event_ids|join(', ')),('Publication Deadline',submission.publication_deadline),('Researcher Deadline',submission.researcher_deadline),('Status',status_labels[submission.status]),('Researcher',submission.researcher_name),('Sub-editor',submission.sub_editor_name)] %}<div><span>{{ label }}</span><strong>{{ value|default('—', true) }}</strong></div>{% endfor %}
     <div><span>Season</span><strong>{{ submission.season_code|default('—', true) }}</strong></div><label class="sew-field"><span>Race Date <em>Editable</em></span><span class="sew-date-control"><input type="text" name="event_date" value="{{ format_display_date(submission.event_date) }}" placeholder="04-Dec-2026" pattern="\d{2}-[A-Za-z]{3}-\d{4}" spellcheck="false"><input type="date" aria-label="Choose race date" data-date-picker value="{{ submission.event_date|default('') }}"></span></label>
   </div></section>
-  <section class="sew-card sew-statistics-panel"><div class="sew-section-heading"><div><h2>Statistics</h2><p>Use sub-headings to group the relevant statistics.</p></div><div class="sew-add-menu"><button class="sew-button" type="button" data-add-block="stat">Add statistic</button><button class="sew-button" type="button" data-add-block="section">Add sub-heading</button></div></div>
+  <section class="sew-card sew-statistics-panel"><div class="sew-section-heading"><div><h2>Statistics</h2><p>Use sub-headings to group the relevant statistics.</p></div></div>
     {% set numbers = namespace(stat=0, section=0) %}<div class="sew-stats-builder" data-stats-list>{% for block in submission.stats %}{% set working_text = block.edited_text or block.stat_text %}{% if block.content_type in ['section','heading'] %}{% set numbers.section = numbers.section + 1 %}{% else %}{% set numbers.stat = numbers.stat + 1 %}{% endif %}<div class="sew-stat-input" data-content-block data-type="{{ 'section' if block.content_type == 'heading' else block.content_type }}"><span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span><div>
   <div class="sew-stat-field">
     <span data-block-label>
-      {{ 'Sub-heading ' ~ numbers.section if block.content_type in ['section','heading'] else 'Statistic ' ~ numbers.stat }}
+      {{ 'Head ' ~ numbers.section if block.content_type in ['section','heading'] else 'Stat ' ~ numbers.stat }}
     </span>
 
     <div class="sew-working-editor">
@@ -28,6 +28,7 @@
         <button type="button" data-format="italic" aria-label="Italic">
           <em>I</em>
         </button>
+        {% if block.content_type == 'stat' %}<button type="button" data-link-entity aria-label="Add entity link" title="Add entity link"><span aria-hidden="true">&#128279;</span></button>{% endif %}
       </div>
 
       <div
@@ -57,7 +58,7 @@
   </div>
       {% if block.content_type == 'stat' %}<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_{{ block.id }}" data-mention-prefix="entity_mention_{{ block.id }}_"><span class="sew-cell-label">Linked</span><div class="sew-selected-entities" data-selected-entities>{% for entity_id in block.entity_ids %}{% set entity = entities_by_id.get(entity_id) %}{% if entity %}<span class="sew-entity-chip" data-entity-id="{{ entity.id }}">{{ entity.name }} <small>{{ entity.entity_type }}</small><label><input type="hidden" name="entity_mention_{{ block.id }}_{{ entity.id }}" value="{{ block.entity_mentions.get(entity.id, '') }}"></label><button type="button" data-remove-entity aria-label="Remove {{ entity.name }}">×</button><input type="hidden" name="entity_ids_{{ block.id }}" value="{{ entity.id }}"></span>{% endif %}{% endfor %}</div><div class="sew-entity-results" data-entity-results hidden></div></div>{% endif %}
     </div><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block">×</button></div>{% else %}<div class="sew-stat-input" data-content-block data-type="stat"><span class="sew-drag" draggable="true">⋮⋮</span><div class="sew-stat-field">
-  <span data-block-label>Statistic 1</span>
+  <span data-block-label>Stat 1</span>
 
   <div class="sew-working-editor">
     <div class="sew-mini-toolbar" aria-label="Formatting">
@@ -67,6 +68,7 @@
       <button type="button" data-format="italic" aria-label="Italic">
         <em>I</em>
       </button>
+      <button type="button" data-link-entity aria-label="Add entity link" title="Add entity link"><span aria-hidden="true">&#128279;</span></button>
     </div>
 
     <div
@@ -86,7 +88,7 @@
   <input type="hidden" name="content_html" value="" data-content-input>
 </div><button type="button" class="sew-remove" data-remove-stat aria-label="Remove block" {% if not owns_lock %}disabled{% endif %}>×</button></div>{% endfor %}</div>
   </section>
-  <section class="sew-card sew-unpublished"><h2>Unpublished workspace</h2><div class="sew-form-grid"><label class="sew-field sew-field--wide"><span>Working Notes (Unpublished)</span><textarea name="working_notes" rows="8" placeholder="Internal notes, questions and source links.">{{ submission.working_notes|default('') }}</textarea></label><label class="sew-field sew-field--wide"><span>Unused Stats (Unpublished)</span><textarea name="unused_stats" rows="10" placeholder="Keep curated statistics that are not currently used.">{{ submission.unused_stats|default('') }}</textarea></label></div><small>These fields are internal and excluded from publication payloads.</small></section>
+  <section class="sew-card sew-unpublished"><header class="sew-unpublished__heading"><h2>Unpublished workspace</h2><small>These fields are internal and excluded from publication payloads.</small></header><div class="sew-form-grid"><label class="sew-field sew-field--wide"><span>Working Notes (Unpublished)</span><textarea name="working_notes" rows="8" placeholder="Internal notes, questions and source links.">{{ submission.working_notes|default('') }}</textarea></label><label class="sew-field sew-field--wide"><span>Unused Stats (Unpublished)</span><textarea name="unused_stats" rows="10" placeholder="Keep curated statistics that are not currently used.">{{ submission.unused_stats|default('') }}</textarea></label></div></section>
   </fieldset>
   </article>
   <dialog class="sew-close-dialog" data-close-dialog><h2>Unsaved changes</h2><p>Save your changes before closing this stat sheet?</p><div class="sew-actions"><button class="sew-button sew-button--primary" type="button" data-save-close>Save and close</button><button class="sew-button sew-button--danger" type="button" data-discard-close>Discard changes and close</button><button class="sew-button" type="button" data-cancel-close>Cancel</button></div></dialog>
