@@ -898,6 +898,8 @@ html[data-sew-theme="light"] .sew-entity-chip button[data-remove-entity] {
  */
 .sew-working-editor {
   position: relative;
+  display: block;
+  width: 100%;
   min-width: 0;
 }
 
