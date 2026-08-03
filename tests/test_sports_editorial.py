@@ -857,12 +857,23 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_publication_preview_is_visual_and_not_a_publish_action(self):
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/publication-preview")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Visual preview only", response.data)
+        self.assertIn(b"sew-preview-page", response.data)
         self.assertNotIn(b"Working Notes", response.data)
+        self.assertNotIn(b"All Stat Sheets", response.data)
+        self.assertNotIn(b"Back to stat sheet", response.data)
+        self.assertNotIn(b"/workspace/sports-editorial", response.data)
         self.assertNotIn(b"sew-publication-identity", response.data)
         self.assertNotIn(b"<dt>Race date</dt>", response.data)
         self.assertNotIn(b"<dt>AMP ID</dt>", response.data)
         self.assertNotIn(b"<dt>Status</dt>", response.data)
+
+    def test_research_core_data_uses_single_clean_race_date_control(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"Only Race Date is editable", response.data)
+        self.assertNotIn(b"Race Date <em>Editable</em>", response.data)
+        self.assertIn(b'<span>Race Date</span><span class="sew-date-control">', response.data)
 
     def test_queue_open_routes_directly_to_the_role_appropriate_editor(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")
