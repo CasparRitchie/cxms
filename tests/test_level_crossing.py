@@ -460,9 +460,9 @@ class LevelCrossingObservationTests(unittest.TestCase):
             row("session-bbbbbbbb", 600, "OPEN"),
             row("session-bbbbbbbb", 660, "CLOSING", [td_event(start + timedelta(seconds=650), descriptor="2B34")]),
             row("session-bbbbbbbb", 680, "CLOSED"),
-            row("session-bbbbbbbb", 720, "TRAIN_PASSED", [td_event(start + timedelta(seconds=710), from_berth="0102", to_berth="0103", descriptor="2B34")]),
-            row("session-bbbbbbbb", 730, "OPEN"),
-            row("session-bbbbbbbb", 735, "CLOSED"),
+            row("session-bbbbbbbb", 700, "OPEN"),
+            row("session-bbbbbbbb", 715, "TRAIN_PASSED", [td_event(start + timedelta(seconds=710), from_berth="0102", to_berth="0103", descriptor="2B34")]),
+            row("session-bbbbbbbb", 730, "CLOSED"),
             row("session-bbbbbbbb", 750, "TRAIN_PASSED", [td_event(start + timedelta(seconds=745), from_berth="0104", to_berth="0105", descriptor="1C45")]),
             row("session-bbbbbbbb", 780, "OPENING", [td_event(start + timedelta(seconds=775), "CB", "0103", "", "")]),
             row("session-bbbbbbbb", 800, "OPEN"),
@@ -474,6 +474,7 @@ class LevelCrossingObservationTests(unittest.TestCase):
         self.assertEqual(analysis["completeSessionCount"], 2)
         self.assertEqual(analysis["correctionCount"], 1)
         self.assertEqual(analysis["sessions"][1]["correctionsApplied"][0]["removedState"], "OPEN")
+        self.assertEqual(analysis["sessions"][1]["correctionsApplied"][0]["followedBy"], "TRAIN_PASSED")
         self.assertEqual(analysis["sessions"][1]["sequence"].count("OPEN"), 2)
         repeated = next(item for item in analysis["candidateSignals"] if item["signature"] == "CA:0101>0102")
         self.assertEqual(repeated["sessionCount"], 2)

@@ -19,11 +19,13 @@ Original observations remain unchanged. During analysis, an `OPEN` tap is
 treated as superseded when all of the following occur in one session:
 
 1. The previous effective state was `CLOSED` or `TRAIN_PASSED`.
-2. `CLOSED` is tapped within 30 seconds of `OPEN`.
-3. `TRAIN_PASSED` follows within 120 seconds of that `OPEN` tap.
+2. No `OPENING` was recorded first.
+3. Another `CLOSED` or `TRAIN_PASSED` observation follows within 120 seconds.
 
-The analyser removes only the mistaken `OPEN` from its effective sequence and
-reports the correction in `correctionsApplied`.
+This also covers a mistaken `OPEN` immediately followed by `TRAIN_PASSED`, then
+`CLOSED`, as recorded in the fourth Whyke Road session. The analyser removes
+only the mistaken `OPEN` from its effective sequence and reports the correction
+in `correctionsApplied`.
 
 ## Activation rule
 

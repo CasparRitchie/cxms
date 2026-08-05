@@ -308,7 +308,7 @@ class LevelCrossingObservationStore:
             "sessionCount": len(session_summaries),
             "completeSessionCount": complete_sessions,
             "correctionCount": total_corrections,
-            "correctionRule": "A rapid OPEN then CLOSED before TRAIN_PASSED inside an already closed session is treated as a superseded tap.",
+            "correctionRule": "An OPEN without a preceding OPENING is treated as superseded when CLOSED or TRAIN_PASSED follows within 120 seconds of an already closed period.",
             "sessions": session_summaries,
             "candidateSignals": ranked_candidates[:20],
             "phaseHypotheses": {
@@ -336,18 +336,23 @@ class LevelCrossingObservationStore:
                 current["state"] == "OPEN"
                 and effective
                 and effective[-1]["state"] in {"CLOSED", "TRAIN_PASSED"}
-                and index + 2 < len(rows)
-                and rows[index + 1]["state"] == "CLOSED"
-                and rows[index + 2]["state"] == "TRAIN_PASSED"
             ):
-                closed_delay = (rows[index + 1]["_observedAt"] - current["_observedAt"]).total_seconds()
-                train_delay = (rows[index + 2]["_observedAt"] - current["_observedAt"]).total_seconds()
-                if 0 <= closed_delay <= 30 and 0 <= train_delay <= 120:
+                contradicting_state = None
+                for later in rows[index + 1:]:
+                    delay = (later["_observedAt"] - current["_observedAt"]).total_seconds()
+                    if delay < 0:
+                        continue
+                    if delay > 120 or later["state"] == "OPENING":
+                        break
+                    if later["state"] in {"CLOSED", "TRAIN_PASSED"}:
+                        contradicting_state = later["state"]
+                        break
+                if contradicting_state:
                     corrections.append({
                         "kind": "superseded_tap",
                         "removedState": "OPEN",
-                        "replacementState": "CLOSED",
-                        "followedBy": "TRAIN_PASSED",
+                        "replacementState": "CLOSED_CONTINUED",
+                        "followedBy": contradicting_state,
                     })
                     index += 1
                     continue
