@@ -108,6 +108,31 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertNotIn(b"note", response.data)
         self.assertNotIn(b"session", response.data.lower())
 
+    @patch("app.observation_store.calibration_analysis")
+    def test_calibration_analysis_endpoint_returns_review_only_evidence(self, analysis):
+        analysis.return_value = {
+            "status": "ready",
+            "predictionUse": "review_only",
+            "sessionCount": 4,
+            "correctionCount": 1,
+            "sessions": [{"number": 1, "sequence": ["CLOSED", "TRAIN_PASSED", "OPEN"]}],
+            "candidateSignals": [{"signature": "CA:0101>0102", "sessionCount": 3}],
+            "phaseHypotheses": {"closing": [{"signature": "CA:0101>0102"}]},
+        }
+
+        response = self.client.get("/api/level-crossing/calibration-analysis/whyke-road")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["predictionUse"], "review_only")
+        self.assertNotIn(b"td_snapshot", response.data)
+        self.assertNotIn(b"session_id", response.data)
+
+    def test_calibration_analysis_endpoint_rejects_unknown_crossing(self):
+        response = self.client.get("/api/level-crossing/calibration-analysis/unknown")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.get_json()["status"], "invalid_crossing")
+
     @patch("app.observation_rate_limiter.allow", return_value=True)
     @patch("app.observation_store.save")
     @patch("app.td_feed.snapshot", return_value={"area": "CH", "recentEvents": []})
@@ -401,6 +426,61 @@ class LevelCrossingObservationTests(unittest.TestCase):
         self.assertEqual(whyke["watchSessions"], 1)
         self.assertEqual(summary["latestReports"][0]["state"], "OPEN")
         self.assertNotIn("td_snapshot", summary["latestReports"][0])
+
+    def test_calibration_analysis_corrects_mistap_and_ranks_repeated_berths(self):
+        start = datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc)
+
+        def td_event(received_at, event_type="CA", from_berth="0101", to_berth="0102", descriptor="1A23"):
+            return {
+                "receivedAt": received_at.isoformat(),
+                "messageTime": str(int(received_at.timestamp() * 1000)),
+                "type": event_type,
+                "from": from_berth,
+                "to": to_berth,
+                "descriptor": descriptor,
+            }
+
+        def row(session_id, seconds, state, events=None):
+            return {
+                "crossing_id": "whyke-road",
+                "state": state,
+                "observed_at": (start + timedelta(seconds=seconds)).isoformat(),
+                "event_kind": "watch",
+                "session_id": session_id,
+                "td_snapshot": {"status": "connected", "recentEvents": events or [], "activeBerths": {}},
+            }
+
+        rows = [
+            row("session-aaaaaaaa", 0, "OPEN"),
+            row("session-aaaaaaaa", 60, "CLOSING", [td_event(start + timedelta(seconds=50))]),
+            row("session-aaaaaaaa", 80, "CLOSED"),
+            row("session-aaaaaaaa", 120, "TRAIN_PASSED", [td_event(start + timedelta(seconds=110), from_berth="0102", to_berth="0103")]),
+            row("session-aaaaaaaa", 150, "OPENING", [td_event(start + timedelta(seconds=140), "CB", "0103", "", "")]),
+            row("session-aaaaaaaa", 170, "OPEN"),
+            row("session-bbbbbbbb", 600, "OPEN"),
+            row("session-bbbbbbbb", 660, "CLOSING", [td_event(start + timedelta(seconds=650), descriptor="2B34")]),
+            row("session-bbbbbbbb", 680, "CLOSED"),
+            row("session-bbbbbbbb", 720, "TRAIN_PASSED", [td_event(start + timedelta(seconds=710), from_berth="0102", to_berth="0103", descriptor="2B34")]),
+            row("session-bbbbbbbb", 730, "OPEN"),
+            row("session-bbbbbbbb", 735, "CLOSED"),
+            row("session-bbbbbbbb", 750, "TRAIN_PASSED", [td_event(start + timedelta(seconds=745), from_berth="0104", to_berth="0105", descriptor="1C45")]),
+            row("session-bbbbbbbb", 780, "OPENING", [td_event(start + timedelta(seconds=775), "CB", "0103", "", "")]),
+            row("session-bbbbbbbb", 800, "OPEN"),
+        ]
+        analysis = LevelCrossingObservationStore(client=FakeObservationReadClient(rows)).calibration_analysis("whyke-road")
+
+        self.assertEqual(analysis["status"], "ready")
+        self.assertEqual(analysis["sessionCount"], 2)
+        self.assertEqual(analysis["completeSessionCount"], 2)
+        self.assertEqual(analysis["correctionCount"], 1)
+        self.assertEqual(analysis["sessions"][1]["correctionsApplied"][0]["removedState"], "OPEN")
+        self.assertEqual(analysis["sessions"][1]["sequence"].count("OPEN"), 2)
+        repeated = next(item for item in analysis["candidateSignals"] if item["signature"] == "CA:0101>0102")
+        self.assertEqual(repeated["sessionCount"], 2)
+        self.assertEqual(repeated["repeatStrength"], "promising")
+        self.assertEqual(analysis["phaseHypotheses"]["closing"][0]["signature"], "CA:0101>0102")
+        self.assertNotIn("session-aaaaaaaa", str(analysis))
+        self.assertNotIn("td_snapshot", str(analysis))
 
 
 if __name__ == "__main__":

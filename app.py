@@ -86,6 +86,25 @@ def level_crossing_calibration_status():
         })
 
 
+@app.route("/api/level-crossing/calibration-analysis/<crossing_id>")
+def level_crossing_calibration_analysis(crossing_id):
+    try:
+        return jsonify(observation_store.calibration_analysis(crossing_id))
+    except KeyError:
+        return jsonify({"status": "invalid_crossing", "message": "Unknown crossing."}), 404
+    except SupabaseError:
+        return jsonify({
+            "status": "unavailable",
+            "predictionUse": "review_only",
+            "sessionCount": 0,
+            "completeSessionCount": 0,
+            "correctionCount": 0,
+            "sessions": [],
+            "candidateSignals": [],
+            "phaseHypotheses": {},
+        })
+
+
 @app.route("/api/level-crossing/observations", methods=["POST"])
 def level_crossing_observations():
     if not observation_rate_limiter.allow(request.remote_addr):
