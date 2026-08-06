@@ -1,0 +1,10 @@
+{% extends "trade-ledger/_base.html" %}
+{% block ledger_content %}
+<section class="tl-hero">
+  <div><span class="tl-kicker">Simple records for busy tradespeople</span><h1>Money in. Money out. Sorted.</h1>
+  <p>Record sales and purchases as they happen, see each quarter at a glance, and download a clean CSV for your accounting workflow.</p>
+  <a class="tl-button tl-button--primary" href="{{ url_for('trade_ledger.login') }}">Open Trade Ledger</a></div>
+  <div class="tl-example" aria-label="Example quarterly totals"><span>This quarter</span><strong>£12,450.00</strong><small>Sales recorded</small><strong>£7,280.00</strong><small>Purchases recorded</small></div>
+</section>
+<section class="tl-feature-grid"><article><h2>Add a sale</h2><p>Keep the full invoice value, CIS deduction and amount received clear.</p></article><article><h2>Add a purchase</h2><p>Record supplier costs using straightforward trade categories.</p></article><article><h2>Review and export</h2><p>Check quarterly totals and download the underlying records as CSV.</p></article></section>
+{% endblock %}

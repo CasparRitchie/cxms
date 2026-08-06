@@ -1,0 +1,8 @@
+{% extends "trade-ledger/_base.html" %}
+{% block ledger_title %}Sign in to Trade Ledger{% endblock %}
+{% block ledger_content %}
+<section class="tl-card tl-narrow"><h1>Open Trade Ledger</h1><p>Enter the private pilot password.</p>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="tl-message tl-message--{{ category }}">{{ message }}</p>{% endfor %}{% endwith %}
+{% if not configured %}<p class="tl-message tl-message--error">Trade Ledger access has not been configured yet.</p>{% endif %}
+<form method="post"><input type="hidden" name="csrf_token" value="{{ trade_ledger_csrf() }}"><input type="hidden" name="next" value="{{ next }}"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required {% if not configured %}disabled{% endif %}><button class="tl-button tl-button--primary" type="submit" {% if not configured %}disabled{% endif %}>Continue</button></form></section>
+{% endblock %}

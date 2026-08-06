@@ -10,6 +10,7 @@ from services.data_explorer.eda_engine import (
     parse_csv_dataset,
 )
 from services.sports_editorial import sports_editorial_workspace
+from services.trade_ledger import trade_ledger
 from services.level_crossing.td_feed import td_feed
 from services.level_crossing.observations import (
     ObservationValidationError,
@@ -22,6 +23,7 @@ from services.sports_editorial.supabase_rest import SupabaseError
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "sports-editorial-pilot-dev-only")
 app.register_blueprint(sports_editorial_workspace)
+app.register_blueprint(trade_ledger)
 
 
 @app.route("/")

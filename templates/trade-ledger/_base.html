@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{% block ledger_title %}Trade Ledger{% endblock %} | CXMS{% endblock %}
+{% block body_class %} tl-page{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{{ url_for('static', filename='css/trade-ledger.css') }}">{% endblock %}
+{% block site_header %}
+<header class="tl-header">
+  <div class="tl-shell tl-header__inner">
+    <a class="tl-brand" href="{{ url_for('trade_ledger.dashboard') }}"><span>CXMS</span> Trade Ledger</a>
+    {% if session.get('trade_ledger_access') %}
+    <form method="post" action="{{ url_for('trade_ledger.logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ trade_ledger_csrf() }}">
+      <button class="tl-link-button" type="submit">Sign out</button>
+    </form>
+    {% endif %}
+  </div>
+</header>
+{% endblock %}
+{% block site_footer %}<footer class="tl-footer"><div class="tl-shell">Trade Ledger keeps your records; it does not submit them to HMRC.</div></footer>{% endblock %}
+{% block content %}<div class="tl-shell">{% block ledger_content %}{% endblock %}</div>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/trade-ledger.js') }}"></script>{% endblock %}
