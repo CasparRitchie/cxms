@@ -248,6 +248,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn("working_notes", json.dumps(exported))
         self.assertNotIn("unused_stats", json.dumps(exported))
 
+    def test_research_submit_button_value_is_preserved_by_browser_guard(self):
+        script = Path("static/js/sports-editorial-submit.js").read_text(encoding="utf-8")
+        self.assertIn("if (!event.submitter || formSubmitting)", script)
+        self.assertIn("if (button !== event.submitter) button.disabled = true", script)
+        self.assertNotIn(
+            'form.querySelectorAll("button[type=\'submit\']").forEach((button) => { button.disabled = true; })',
+            script,
+        )
+
     def test_supervisor_has_editor_creation_access(self):
         self.set_role("supervisor")
         self.assertEqual(self.client.get("/workspace/sports-editorial/submit").status_code, 200)

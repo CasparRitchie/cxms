@@ -149,21 +149,25 @@
     syncBlock(activeEditor.closest("[data-content-block]"));
   });
   const form = document.querySelector(".sew-form");
-  let explicitSubmission = false;
-  form.addEventListener("click", (event) => {
-    if (event.target.closest("button[type='submit']")) explicitSubmission = true;
-  });
+  let formSubmitting = false;
   form.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" || event.target.matches("textarea, [contenteditable='true'], [data-entity-search], button[type='submit'], select")) return;
+    if (event.key !== "Enter" || event.target.matches("textarea, [contenteditable='true'], [data-entity-lookup], button[type='submit'], select")) return;
     event.preventDefault();
   });
   form.addEventListener("submit", (event) => {
-    if (!explicitSubmission) {
+    if (!event.submitter || formSubmitting) {
       event.preventDefault();
       return;
     }
+    formSubmitting = true;
     renumber();
-    form.querySelectorAll("button[type='submit']").forEach((button) => { button.disabled = true; });
+    form.querySelectorAll("button[type='submit']").forEach((button) => {
+      // The activated button must remain enabled until the browser constructs
+      // the request, otherwise its name/value (for example action=submit) is
+      // omitted and Submit for sub edit is indistinguishable from Save.
+      if (button !== event.submitter) button.disabled = true;
+    });
+    event.submitter.setAttribute("aria-disabled", "true");
   });
 
   let dragged;
