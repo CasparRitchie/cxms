@@ -22,14 +22,14 @@
     <section class="view active" id="view-landing">
       <div class="hero">
         <div class="hero-copy">
-          <span class="eyebrow">Prototype PortPass v0.1</span>
+          <span class="eyebrow">Prototype PortPass v0.2</span>
           <h1>Simplifier l’enregistrement des escales.</h1>
           <p>Une démonstration conçue pour explorer avec les capitaineries une façon plus simple de recueillir, vérifier et suivre les informations liées aux navires de plaisance.</p>
           <div class="hero-actions">
             <button class="btn primary" data-go="skipper">Voir le parcours plaisancier</button>
             <button class="btn secondary" data-go="harbour">Voir la capitainerie</button>
           </div>
-          <p class="legal-note">Prototype de validation uniquement. PortPass ne prétend pas encore constituer une solution juridiquement conforme.</p>
+          <p class="legal-note">Prototype de validation uniquement. Les champs ont été rapprochés du décret n° 2026-753 du 8 août 2026, mais PortPass ne prétend pas encore constituer une solution juridiquement conforme.</p>
         </div>
         <div class="hero-panel">
           <div class="harbour-mark">⚓</div>
@@ -37,8 +37,8 @@
           <p>Arrivée fluide pour le plaisancier. Informations structurées pour la capitainerie.</p>
           <div class="mini-steps">
             <div><strong>1</strong><span>Le plaisancier prépare sa déclaration</span></div>
-            <div><strong>2</strong><span>La capitainerie vérifie les identités</span></div>
-            <div><strong>3</strong><span>Le dossier est marqué complet</span></div>
+            <div><strong>2</strong><span>La capitainerie confirme l’escale et vérifie les identités</span></div>
+            <div><strong>3</strong><span>Le dossier est marqué complet et traçable</span></div>
           </div>
         </div>
       </div>
@@ -62,42 +62,54 @@
           <h2>Votre navire</h2>
           <div class="field-grid">
             <label>Nom du navire<input value="BLUE MOON"></label>
-            <label>Immatriculation<input value="FR-DB-24871"></label>
+            <label>Numéro d’identification / immatriculation<input value="FR-DB-24871"></label>
             <label>Pavillon<select><option>France</option><option>Royaume-Uni</option><option>Espagne</option></select></label>
-            <label>Port d’attache<input value="Arcachon"></label>
-            <label>Type<input value="Voilier — Beneteau Oceanis 38"></label>
+            <label>Port d’enregistrement<input value="Arcachon"></label>
+            <label>MMSI / indicatif / AIS<input value="227123456"></label>
             <label>Longueur<input value="11,50 m"></label>
+            <label>Marque<input value="Beneteau"></label>
+            <label>Modèle<input value="Oceanis 38"></label>
+            <label>Année de mise à l’eau<input type="number" value="2016"></label>
+            <label>Année de construction<input type="number" value="2015"></label>
           </div>
         </div>
 
         <div class="form-step" data-panel="2">
-          <div class="section-title-row"><div><h2>Personnes à bord</h2><p>4 personnes déclarées</p></div><button class="btn secondary small">+ Ajouter une personne</button></div>
+          <div class="section-title-row"><div><h2>Propriétaire et personnes à bord</h2><p>4 personnes déclarées · données fictives</p></div><button class="btn secondary small">+ Ajouter une personne</button></div>
+          <div class="notice">Le décret prévoit notamment nom, prénom, date et lieu de naissance, coordonnées, nationalité et, le cas échéant, type et numéro de la pièce d’identité. La vérification de l’identité reste une étape de la capitainerie.</div>
           <div class="people-list">
-            <div class="person-row"><div class="avatar">JM</div><div><strong>Jean Martin</strong><span>Propriétaire · Skipper · Français</span></div><span class="status-pill good">Complet</span></div>
-            <div class="person-row"><div class="avatar">CM</div><div><strong>Claire Martin</strong><span>Passagère · Française</span></div><span class="status-pill good">Complet</span></div>
-            <div class="person-row"><div class="avatar">LM</div><div><strong>Louis Martin</strong><span>Passager · Français</span></div><span class="status-pill good">Complet</span></div>
-            <div class="person-row"><div class="avatar">AM</div><div><strong>Anna Martin</strong><span>Passagère · Française</span></div><span class="status-pill good">Complet</span></div>
+            <div class="person-row"><div class="avatar">JM</div><div><strong>Jean Martin</strong><span>Propriétaire · Skipper · Français · né le 14/05/1974 à Bordeaux · jean.demo@example.invalid · 06 00 00 00 01 · Passeport ••••••7421</span></div><span class="status-pill good">Complet</span></div>
+            <div class="person-row"><div class="avatar">CM</div><div><strong>Claire Martin</strong><span>Passagère · Française · née le 09/02/1976 à Nantes · claire.demo@example.invalid · 06 00 00 00 02 · Passeport ••••••1084</span></div><span class="status-pill good">Complet</span></div>
+            <div class="person-row"><div class="avatar">LM</div><div><strong>Louis Martin</strong><span>Passager · Français · né le 21/07/2008 à Bordeaux · louis.demo@example.invalid · 06 00 00 00 03 · CNI ••••••5512</span></div><span class="status-pill good">Complet</span></div>
+            <div class="person-row"><div class="avatar">AM</div><div><strong>Anna Martin</strong><span>Passagère · Française · née le 03/11/2011 à Bordeaux · anna.demo@example.invalid · 06 00 00 00 04 · CNI ••••••8831</span></div><span class="status-pill good">Complet</span></div>
           </div>
+          <p class="legal-note">Le modèle de données de production devra aussi gérer un propriétaire personne morale : raison sociale, nationalité et SIRET/SIREN le cas échéant.</p>
         </div>
 
         <div class="form-step" data-panel="3">
-          <h2>Votre voyage</h2>
+          <h2>Votre voyage et votre escale</h2>
           <div class="field-grid">
-            <label>Port précédent<input value="Santander"></label>
-            <label>Port suivant<input value="Royan"></label>
+            <label>Port de départ du voyage<input value="Bilbao"></label>
+            <label>Escale précédente<input value="Santander"></label>
+            <label>Port d’arrivée<input value="Port de Démo"></label>
+            <label>Escale suivante prévue<input value="Royan"></label>
+            <label>Emplacement / poste / mouillage<input value="Visiteurs — ponton V3"></label>
             <label>Date d’arrivée<input type="date" value="2026-08-26"></label>
-            <label>Départ prévu<input type="date" value="2026-08-29"></label>
+            <label>Heure d’arrivée estimée<input type="time" value="10:42"></label>
+            <label>Date de départ prévue<input type="date" value="2026-08-29"></label>
+            <label>Heure de départ estimée<input type="time" value="09:30"></label>
           </div>
+          <div class="notice">Le plaisancier peut fournir des heures estimées. Pour le dossier définitif, PortPass devra permettre à la capitainerie de confirmer les heures réelles de début et de fin de l’escale.</div>
         </div>
 
         <div class="form-step" data-panel="4">
           <h2>Vérifiez votre déclaration</h2>
           <div class="summary-grid">
-            <div><span>Navire</span><strong>BLUE MOON</strong><small>FR-DB-24871 · France</small></div>
+            <div><span>Navire</span><strong>BLUE MOON</strong><small>FR-DB-24871 · France · Beneteau Oceanis 38</small></div>
             <div><span>Personnes</span><strong>4 à bord</strong><small>Jean, Claire, Louis, Anna</small></div>
-            <div><span>Itinéraire</span><strong>Santander → Royan</strong><small>Arrivée 26 août · départ 29 août</small></div>
+            <div><span>Itinéraire</span><strong>Bilbao → Santander → Port de Démo → Royan</strong><small>ETA 26 août 10:42 · ETD 29 août 09:30 · ponton V3</small></div>
           </div>
-          <div class="notice">À votre arrivée, la capitainerie devra encore vérifier les pièces d’identité présentées.</div>
+          <div class="notice">À votre arrivée, la capitainerie devra encore vérifier les pièces d’identité présentées et pourra confirmer l’heure réelle de début de l’escale.</div>
           <button class="btn primary wide" id="submit-demo">Transmettre la déclaration</button>
         </div>
 
@@ -118,29 +130,45 @@
       <div class="metrics">
         <div class="metric"><span>Visiteurs aujourd’hui</span><strong>152</strong><small>+18 depuis 10h</small></div>
         <div class="metric"><span>Complets</span><strong>103</strong><small>67,8 %</small></div>
-        <div class="metric"><span>À vérifier</span><strong>31</strong><small>Pièces d’identité</small></div>
+        <div class="metric"><span>À vérifier</span><strong>31</strong><small>Identité / heure réelle</small></div>
         <div class="metric"><span>Incomplets</span><strong>18</strong><small>Action requise</small></div>
       </div>
 
       <div class="dashboard-grid">
         <div class="table-card">
-          <div class="section-title-row"><div><h2>Arrivées</h2><p>Dernières déclarations reçues</p></div><input class="search" placeholder="Rechercher un navire…"></div>
-          <div class="arrival-row selected" data-vessel="blue"><div><strong>BLUE MOON</strong><span>10:42 · Santander</span></div><span>4 pers.</span><span class="status-pill warn">À vérifier</span></div>
-          <div class="arrival-row"><div><strong>ARIEL</strong><span>10:55 · Royan</span></div><span>2 pers.</span><span class="status-pill good">Complet</span></div>
-          <div class="arrival-row"><div><strong>MAJESTIC</strong><span>11:03 · Plymouth</span></div><span>6 pers.</span><span class="status-pill bad">Incomplet</span></div>
-          <div class="arrival-row"><div><strong>L’ALBATROS</strong><span>11:08 · Les Sables-d’Olonne</span></div><span>3 pers.</span><span class="status-pill good">Complet</span></div>
+          <div class="section-title-row"><div><h2>Arrivées</h2><p>Dernières déclarations reçues · heure = ETA tant que non confirmée</p></div><input class="search" placeholder="Rechercher un navire…"></div>
+          <div class="arrival-row selected" data-vessel="blue"><div><strong>BLUE MOON</strong><span>ETA 10:42 · Santander · V3</span></div><span>4 pers.</span><span class="status-pill warn">À vérifier</span></div>
+          <div class="arrival-row"><div><strong>ARIEL</strong><span>Arrivé 10:55 · Royan · V8</span></div><span>2 pers.</span><span class="status-pill good">Complet</span></div>
+          <div class="arrival-row"><div><strong>MAJESTIC</strong><span>ETA 11:03 · Plymouth · V12</span></div><span>6 pers.</span><span class="status-pill bad">Incomplet</span></div>
+          <div class="arrival-row"><div><strong>L’ALBATROS</strong><span>Arrivé 11:08 · Les Sables-d’Olonne · V5</span></div><span>3 pers.</span><span class="status-pill good">Complet</span></div>
         </div>
 
         <aside class="detail-card">
           <div class="section-title-row"><div><span class="eyebrow">Déclaration</span><h2>BLUE MOON</h2></div><span class="status-pill warn">À vérifier</span></div>
-          <dl class="details"><div><dt>Immatriculation</dt><dd>FR-DB-24871</dd></div><div><dt>Pavillon</dt><dd>France</dd></div><div><dt>Port précédent</dt><dd>Santander</dd></div><div><dt>Port suivant</dt><dd>Royan</dd></div></dl>
+          <dl class="details">
+            <div><dt>Identification</dt><dd>FR-DB-24871</dd></div>
+            <div><dt>Pavillon</dt><dd>France</dd></div>
+            <div><dt>MMSI</dt><dd>227123456</dd></div>
+            <div><dt>Navire</dt><dd>Beneteau Oceanis 38 · 11,50 m</dd></div>
+            <div><dt>Voyage</dt><dd>Bilbao → Santander → Port de Démo → Royan</dd></div>
+            <div><dt>Emplacement</dt><dd>Visiteurs — ponton V3</dd></div>
+            <div><dt>Début prévu</dt><dd>26/08/2026 · 10:42</dd></div>
+            <div><dt>Fin prévue</dt><dd>29/08/2026 · 09:30</dd></div>
+          </dl>
+
+          <h3>Confirmer l’escale</h3>
+          <div class="field-grid">
+            <label>Heure réelle d’arrivée<input type="time" value="10:47"></label>
+            <label>Heure réelle de départ<input type="time" placeholder="À confirmer au départ"></label>
+          </div>
+
           <h3>Vérification d’identité</h3>
           <div class="verify-person"><div><strong>Jean Martin</strong><span>Passeport ••••••7421</span></div><button class="verify-btn">Confirmer</button></div>
           <div class="verify-person"><div><strong>Claire Martin</strong><span>Passeport ••••••1084</span></div><button class="verify-btn">Confirmer</button></div>
           <div class="verify-person"><div><strong>Louis Martin</strong><span>CNI ••••••5512</span></div><button class="verify-btn">Confirmer</button></div>
           <div class="verify-person"><div><strong>Anna Martin</strong><span>CNI ••••••8831</span></div><button class="verify-btn">Confirmer</button></div>
           <button class="btn primary wide" id="complete-checkin" disabled>Terminer l’enregistrement</button>
-          <p class="audit-note">Chaque action de démonstration illustre le futur journal d’audit : utilisateur, date, action et motif.</p>
+          <p class="audit-note">Dans la version de production, les opérations de collecte, modification, consultation, communication et effacement seront journalisées. Les consultations/communications devront notamment conserver l’utilisateur, la date, l’heure, le motif et, le cas échéant, le destinataire.</p>
         </aside>
       </div>
     </section>
