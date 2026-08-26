@@ -31,6 +31,12 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/portpass")
+@app.route("/portpass/")
+def portpass():
+    return render_template("portpass.html")
+
+
 @app.route("/style-guide")
 def style_guide():
     return render_template("style-guide.html")
