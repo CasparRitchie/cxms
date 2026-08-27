@@ -7,7 +7,7 @@ import re
 from flask import has_request_context
 
 from .demo_data import fresh_demo_data
-from .formatting import sanitise_rich_text
+from .formatting import rich_text_to_plain, sanitise_rich_text
 from .identifiers import build_fis_external_id
 from .supabase_rest import SupabaseRestClient
 from .validation import VALID_CONTENT_TYPES
@@ -21,6 +21,23 @@ def _now():
 def _event_ids_from_form(form_data):
     values = re.split(r"[\s,]+", " ".join(form_data.getlist("fis_event_ids")))
     return list(dict.fromkeys(int(value) for value in values if value.isdigit() and int(value) > 0))[:10]
+
+
+def _submitted_entity_links(form_data, block_id, allowed_ids, rich_text):
+    """Keep inline links only while their exact confirmed wording still exists."""
+    plain_text = rich_text_to_plain(rich_text)
+    entity_ids = []
+    mentions = {}
+    for entity_id in form_data.getlist(f"entity_ids_{block_id}"):
+        if entity_id not in allowed_ids or entity_id in entity_ids:
+            continue
+        mention = form_data.get(f"entity_mention_{block_id}_{entity_id}", "").strip()
+        if mention and mention not in plain_text:
+            continue
+        entity_ids.append(entity_id)
+        if mention:
+            mentions[entity_id] = mention
+    return entity_ids, mentions
 
 
 class DemoSportsEditorialRepository:
@@ -171,10 +188,11 @@ class DemoSportsEditorialRepository:
                 if kind in ("stat", "section") and sanitise_rich_text(content).strip():
                     block_id = block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4())
                     allowed_ids = {entity["id"] for entity in self._entities}
-                    entity_ids = [value for value in form_data.getlist(f"entity_ids_{block_id}") if value in allowed_ids]
-                    mentions = {value: form_data.get(f"entity_mention_{block_id}_{value}", "").strip() for value in entity_ids if form_data.get(f"entity_mention_{block_id}_{value}", "").strip()}
                     existing = existing_by_id.get(block_id, {})
                     clean = sanitise_rich_text(content)
+                    entity_ids, mentions = _submitted_entity_links(
+                        form_data, block_id, allowed_ids, clean
+                    )
                     changed = not existing or kind != existing.get("content_type") or clean != (existing.get("edited_text") or existing.get("stat_text") or "") or set(entity_ids) != set(existing.get("entity_ids", [])) or mentions != existing.get("entity_mentions", {})
                     blocks.append({"id": block_id, "sort_order": index, "content_type": kind, "stat_text": clean if changed else existing.get("stat_text", clean), "edited_text": "" if changed else existing.get("edited_text", ""), "editor_comment": "", "accepted_at": None if changed else existing.get("accepted_at"), "accepted_by_user_id": None if changed else existing.get("accepted_by_user_id"), "entity_ids": entity_ids, "entity_mentions": mentions, "tags": existing.get("tags", [])})
             item["stats"] = blocks
@@ -219,12 +237,9 @@ class DemoSportsEditorialRepository:
                 stat["accepted_by_user_id"] = (current_user() or {}).get("id") if accepted else None
                 stat["tags"] = [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()]
                 allowed_ids = {entity["id"] for entity in self._entities}
-                stat["entity_ids"] = [entity_id for entity_id in form_data.getlist(f"entity_ids_{stat_id}") if entity_id in allowed_ids]
-                stat["entity_mentions"] = {
-                    entity_id: form_data.get(f"entity_mention_{stat_id}_{entity_id}", "").strip()
-                    for entity_id in stat["entity_ids"]
-                    if form_data.get(f"entity_mention_{stat_id}_{entity_id}", "").strip()
-                }
+                stat["entity_ids"], stat["entity_mentions"] = _submitted_entity_links(
+                    form_data, stat_id, allowed_ids, stat["edited_text"]
+                )
             item["status"] = requested_status
             item["updated_at"] = _now()
             user = current_user() or {}
@@ -530,6 +545,7 @@ class SupabaseSportsEditorialRepository:
         for stat in existing.get("stats", []):
             self.client.request("sports_editorial_stats", "DELETE", query={"id": f"eq.{stat['id']}"})
         blocks = []
+        submitted_links = {}
         block_ids = form_data.getlist("content_id")
         for index, (kind, content) in enumerate(zip(form_data.getlist("content_type"), form_data.getlist("content_html"))):
             kind = "section" if kind == "heading" else kind
@@ -537,19 +553,28 @@ class SupabaseSportsEditorialRepository:
             if kind in ("stat", "section") and clean.strip():
                 block_id = block_ids[index] if index < len(block_ids) and block_ids[index] else str(uuid4())
                 existing_block = existing_by_id.get(block_id, {})
-                requested_ids = form_data.getlist(f"entity_ids_{block_id}")
-                mentions = {value: form_data.get(f"entity_mention_{block_id}_{value}", "").strip() for value in requested_ids if form_data.get(f"entity_mention_{block_id}_{value}", "").strip()}
+                requested_ids, mentions = _submitted_entity_links(
+                    form_data,
+                    block_id,
+                    {entity["id"] for entity in self.get_entities_by_ids(form_data.getlist(f"entity_ids_{block_id}"))},
+                    clean,
+                )
+                submitted_links[block_id] = (requested_ids, mentions)
                 changed = not existing_block or kind != existing_block.get("content_type") or clean != (existing_block.get("edited_text") or existing_block.get("stat_text") or "") or set(requested_ids) != set(existing_block.get("entity_ids", [])) or mentions != existing_block.get("entity_mentions", {})
                 blocks.append({"id": block_id, "submission_id": submission_id, "sort_order": index, "content_type": kind, "stat_text": clean if changed else existing_block.get("stat_text", clean), "edited_text": "" if changed else existing_block.get("edited_text", ""), "editor_comment": "", "accepted_at": None if changed else existing_block.get("accepted_at"), "accepted_by_user_id": None if changed else existing_block.get("accepted_by_user_id"), "tags": existing_block.get("tags", [])})
         if blocks:
             self.client.request("sports_editorial_stats", "POST", payload=blocks, prefer="return=minimal")
-            requested_ids = [value for block in blocks for value in form_data.getlist(f"entity_ids_{block['id']}")]
+            requested_ids = [
+                value for block in blocks
+                for value in submitted_links.get(block["id"], ([], {}))[0]
+            ]
             allowed_ids = {entity["id"] for entity in self.get_entities_by_ids(requested_ids)}
             links = []
             for block in blocks:
-                for entity_id in form_data.getlist(f"entity_ids_{block['id']}"):
+                entity_ids, mentions = submitted_links.get(block["id"], ([], {}))
+                for entity_id in entity_ids:
                     if entity_id in allowed_ids:
-                        mention = form_data.get(f"entity_mention_{block['id']}_{entity_id}", "").strip()
+                        mention = mentions.get(entity_id, "")
                         links.append({"stat_id": block["id"], "entity_id": entity_id, "relationship_type": "inline" if mention else "about", "mention_text": mention or None})
             if links:
                 self.client.request("sports_editorial_stat_entities", "POST", payload=links, prefer="return=minimal")
@@ -588,14 +613,17 @@ class SupabaseSportsEditorialRepository:
         for stat in item["stats"]:
             stat_id = stat["id"]
             accepted = stat.get("content_type") == "stat" and form_data.get(f"accepted_{stat_id}") == "1"
-            self.client.request("sports_editorial_stats", "PATCH", query={"id": f"eq.{stat_id}"}, payload={"sort_order": stat.get("sort_order", 0), "content_type": stat.get("content_type", "stat"), "edited_text": sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", stat.get("edited_text") or stat.get("stat_text", ""))), "editor_comment": form_data.get(f"editor_comment_{stat_id}", "").strip(), "tags": [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()], "accepted_at": _now() if accepted else None, "accepted_by_user_id": user.get("id") if accepted else None, "updated_at": _now()}, prefer="return=minimal")
-            selected = [value for value in form_data.getlist(f"entity_ids_{stat_id}") if value in allowed_ids]
+            edited_text = sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", stat.get("edited_text") or stat.get("stat_text", "")))
+            self.client.request("sports_editorial_stats", "PATCH", query={"id": f"eq.{stat_id}"}, payload={"sort_order": stat.get("sort_order", 0), "content_type": stat.get("content_type", "stat"), "edited_text": edited_text, "editor_comment": form_data.get(f"editor_comment_{stat_id}", "").strip(), "tags": [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()], "accepted_at": _now() if accepted else None, "accepted_by_user_id": user.get("id") if accepted else None, "updated_at": _now()}, prefer="return=minimal")
+            selected, mentions = _submitted_entity_links(
+                form_data, stat_id, allowed_ids, edited_text
+            )
             self.client.request("sports_editorial_stat_entities", "DELETE", query={"stat_id": f"eq.{stat_id}"})
             if selected:
                 self.client.request("sports_editorial_stat_entities", "POST", payload=[{
                     "stat_id": stat_id, "entity_id": value,
-                    "relationship_type": "inline" if form_data.get(f"entity_mention_{stat_id}_{value}", "").strip() else "about",
-                    "mention_text": form_data.get(f"entity_mention_{stat_id}_{value}", "").strip() or None,
+                    "relationship_type": "inline" if mentions.get(value) else "about",
+                    "mention_text": mentions.get(value) or None,
                 } for value in selected], prefer="return=minimal")
         event_ids = _event_ids_from_form(form_data)
         changes = {"status": requested_status, "editor_notes": form_data.get("editor_notes", "").strip(), "fis_submission_notes": form_data.get("fis_submission_notes", "").strip(), "fis_event_ids": event_ids, "updated_at": _now(), "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}

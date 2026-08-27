@@ -473,6 +473,48 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "Switzerland",
         )
 
+    def test_deleted_linked_wording_removes_research_entity_relationship(self):
+        submission = repository.get_submission("demo-submission-kronplatz")
+        block = next(item for item in submission["stats"] if item["content_type"] == "stat")
+        form = MultiDict([
+            ("content_id", block["id"]),
+            ("content_type", "stat"),
+            ("content_html", "The athlete won the race."),
+            (f"entity_ids_{block['id']}", "entity-athlete-rast"),
+            (f"entity_mention_{block['id']}_entity-athlete-rast", "Camille Rast"),
+        ])
+        with app.test_request_context("/"), patch(
+            "services.sports_editorial.auth.current_user",
+            return_value={"id": "demo-user", "full_name": "Jamie Laurent", "role": "researcher"},
+        ):
+            updated = repository.update_research(submission["id"], form)
+        self.assertEqual(updated["stats"][0]["entity_ids"], [])
+        self.assertEqual(updated["stats"][0]["entity_mentions"], {})
+
+    def test_deleted_linked_wording_removes_sub_edit_entity_relationship(self):
+        submission = repository.get_submission("demo-submission-submitted")
+        block = next(item for item in submission["stats"] if item["content_type"] == "stat")
+        form = MultiDict([
+            ("content_id", block["id"]),
+            ("content_type", "stat"),
+            (f"edited_text_{block['id']}", "The athlete won the race."),
+            (f"entity_ids_{block['id']}", "entity-athlete-rast"),
+            (f"entity_mention_{block['id']}_entity-athlete-rast", "Camille Rast"),
+        ])
+        with app.test_request_context("/"), patch(
+            "services.sports_editorial.auth.current_user",
+            return_value={"id": "demo-sub-editor", "full_name": "Nick L.", "role": "sub_editor"},
+        ):
+            updated = repository.update_review(submission["id"], form, "in_review")
+        self.assertNotIn("entity-athlete-rast", updated["stats"][0]["entity_ids"])
+        self.assertNotIn("entity-athlete-rast", updated["stats"][0]["entity_mentions"])
+
+    def test_entity_editor_removes_stale_chip_so_entity_can_be_relinked(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("chip.remove();", script)
+        self.assertIn("existingChip = null;", script)
+        self.assertIn("unwrapMentionTags(editor);\n    validateMentionTags();", script)
+
     def test_fis_payload_matches_v1_shape(self):
         submissions, entities = fresh_demo_data()
         payload = build_fis_payload(submissions[0], {item["id"]: item for item in entities})

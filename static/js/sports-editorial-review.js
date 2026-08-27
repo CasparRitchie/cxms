@@ -411,7 +411,10 @@
             return;
           }
 
-          mention.value = "";
+          // The chip and entity ID are one relationship. Remove them together
+          // when the exact confirmed wording no longer exists, otherwise the
+          // stale chip blocks the editor from linking this entity again.
+          chip.remove();
         });
 
       scheduleMentionHighlights();
@@ -444,9 +447,22 @@
     };
 
     const addEntity = (entity) => {
-      const existingChip = selected.querySelector(
+      let existingChip = selected.querySelector(
         `[data-entity-id="${entity.id}"]`,
       );
+
+      const existingMention = existingChip
+        ?.querySelector("label input")
+        ?.value.trim();
+
+      if (
+        existingChip &&
+        existingMention &&
+        !editor.innerText.includes(existingMention)
+      ) {
+        existingChip.remove();
+        existingChip = null;
+      }
 
       if (existingChip) {
         closeResults();
@@ -686,7 +702,7 @@
       `entity-results-${crypto.randomUUID()}`;
 
     unwrapMentionTags(editor);
-    scheduleMentionHighlights();
+    validateMentionTags();
 
     editor.addEventListener("input", () => {
       validateMentionTags();
