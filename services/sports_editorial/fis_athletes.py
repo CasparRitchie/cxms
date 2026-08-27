@@ -31,7 +31,8 @@ def parse_athlete_csv(content, source_url, season_code, list_name=""):
         competitor_id = str(row.get("Competitorid") or "").strip()
         gender = str(row.get("Gender") or "").strip().upper()
         name = _display_name(row.get("Firstname"), row.get("Lastname"))
-        if not fis_code.isdigit() or not competitor_id.isdigit() or gender not in ("M", "W") or not name:
+        # Historic FIS athlete codes can be negative (for example -10220).
+        if not re.fullmatch(r"-?\d+", fis_code) or not competitor_id.isdigit() or gender not in ("M", "W") or not name:
             continue
         athletes.append({
             "entity_type": "athlete",

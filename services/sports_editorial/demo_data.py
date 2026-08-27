@@ -16,7 +16,7 @@ ENTITIES = [
 
 
 def _block(block_id, order, text, content_type="stat", entity_ids=None, tags=None):
-    return {"id": block_id, "sort_order": order, "content_type": content_type, "stat_text": text, "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "entity_ids": entity_ids or [], "entity_mentions": {}, "tags": tags or []}
+    return {"id": block_id, "sort_order": order, "content_type": content_type, "stat_text": text, "edited_text": "", "editor_comment": "", "accepted_at": None, "accepted_by_user_id": None, "entity_ids": entity_ids or [], "entity_mentions": {}, "entity_ranges": {}, "tags": tags or []}
 
 
 KRONPLATZ_CONTENT = [

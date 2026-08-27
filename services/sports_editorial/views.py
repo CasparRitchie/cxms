@@ -75,7 +75,7 @@ def _invalid_review_entity_links(form_data, submission):
         entity = entities.get(entity_id) or {}
         canonical_id = str(entity.get("canonical_id") or "")
         entity_type = entity.get("entity_type")
-        valid = canonical_id.isdigit() if entity_type in ("athlete", "event", "competition") else bool(re.fullmatch(r"[A-Z]{3}", canonical_id)) if entity_type == "country" else False
+        valid = bool(re.fullmatch(r"-?\d+", canonical_id)) if entity_type == "athlete" else canonical_id.isdigit() if entity_type in ("event", "competition") else bool(re.fullmatch(r"[A-Z]{3}", canonical_id)) if entity_type == "country" else False
         if not valid:
             invalid.append(entity.get("name") or entity_id)
     return invalid
@@ -188,7 +188,7 @@ def athletes():
             return redirect(url_for("sports_editorial_workspace.athletes", season_code=season_code))
         except (FisAthleteError, SupabaseError) as exc:
             flash(str(exc), "error")
-    catalogue = [entity for entity in repository.list_entities(entity_type="athlete", limit=200) if str(entity.get("canonical_id") or "").isdigit()]
+    catalogue = [entity for entity in repository.list_entities(entity_type="athlete", limit=200) if re.fullmatch(r"-?\d+", str(entity.get("canonical_id") or ""))]
     athlete_count = f"{len(catalogue)}+" if len(catalogue) == 200 else str(len(catalogue))
     return render_template("sports-editorial-workspace/athletes.html", athletes=catalogue, athlete_count=athlete_count, season_code=season_code)
 

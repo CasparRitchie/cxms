@@ -378,6 +378,60 @@
       targetEditor.normalize();
     };
 
+    const rangeInputs = (chip) => ({
+      mention: chip.querySelector("input[name^='entity_mention_']"),
+      start: chip.querySelector("input[name^='entity_start_']"),
+      end: chip.querySelector("input[name^='entity_end_']"),
+    });
+
+    const textOffsetForPoint = (node, offset) => {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.setEnd(node, offset);
+      return range.toString().length;
+    };
+
+    const rangeFromOffsets = (start, end) => {
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start) return null;
+      const range = document.createRange();
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      let position = 0;
+      let startSet = false;
+      let node;
+      while ((node = walker.nextNode())) {
+        const next = position + node.data.length;
+        if (!startSet && start >= position && start <= next) {
+          range.setStart(node, Math.min(start - position, node.data.length));
+          startSet = true;
+        }
+        if (startSet && end >= position && end <= next) {
+          range.setEnd(node, Math.min(end - position, node.data.length));
+          return range;
+        }
+        position = next;
+      }
+      return null;
+    };
+
+    const ensureChipRange = (chip, allowStale = false) => {
+      const inputs = rangeInputs(chip);
+      const mention = inputs.mention?.value.trim() || "";
+      let start = Number.parseInt(inputs.start?.value, 10);
+      let end = Number.parseInt(inputs.end?.value, 10);
+      if (!mention) return null;
+      if (allowStale && Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end > start) {
+        return { start, end, mention, inputs };
+      }
+      if (!Number.isInteger(start) || !Number.isInteger(end) || editor.innerText.slice(start, end) !== mention) {
+        start = editor.innerText.indexOf(mention);
+        end = start + mention.length;
+      }
+      if (start < 0 || editor.innerText.slice(start, end) !== mention) return null;
+      if (inputs.start) inputs.start.value = String(start);
+      if (inputs.end) inputs.end.value = String(end);
+      return { start, end, mention, inputs };
+    };
+
     const refreshMentionHighlights = () => {
       const ranges = [];
 
@@ -398,38 +452,9 @@
       });
 
       chips.forEach((chip) => {
-        const words =
-          chip
-            .querySelector("label input")
-            ?.value.trim();
-
-        if (!words) return;
-
-        const walker = document.createTreeWalker(
-          editor,
-          NodeFilter.SHOW_TEXT,
-          {
-            acceptNode: (node) =>
-              node.parentElement?.closest("[data-entity-ref]")
-                ? NodeFilter.FILTER_REJECT
-                : NodeFilter.FILTER_ACCEPT,
-          },
-        );
-
-        let node;
-
-        while ((node = walker.nextNode())) {
-          const index = node.data.indexOf(words);
-
-          if (index < 0) continue;
-
-          const range = document.createRange();
-          range.setStart(node, index);
-          range.setEnd(node, index + words.length);
-
-          ranges.push(range);
-          break;
-        }
+        const annotation = ensureChipRange(chip);
+        const range = annotation && rangeFromOffsets(annotation.start, annotation.end);
+        if (range) ranges.push(range);
       });
 
       editableEntityHighlightRanges.set(
@@ -448,27 +473,99 @@
       });
     };
 
+    const selectedOffsets = () => {
+      const selection = window.getSelection();
+      if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return null;
+      const range = selection.getRangeAt(0);
+      return {
+        start: textOffsetForPoint(range.startContainer, range.startOffset),
+        end: textOffsetForPoint(range.endContainer, range.endOffset),
+        collapsed: range.collapsed,
+      };
+    };
+
+    const annotationAtSelection = () => {
+      const offsets = selectedOffsets();
+      if (!offsets) return null;
+      return [...selected.querySelectorAll("[data-entity-id]")].find((chip) => {
+        const annotation = ensureChipRange(chip, true);
+        if (!annotation) return false;
+        return offsets.collapsed
+          ? offsets.start >= annotation.start && offsets.start <= annotation.end
+          : offsets.start < annotation.end && offsets.end > annotation.start;
+      }) || null;
+    };
+
+    function updateToolbarState() {
+      const toolbar = editor.closest(".sew-working-editor")?.querySelector(".sew-mini-toolbar");
+      if (!toolbar) return;
+      const states = {
+        bold: document.queryCommandState("bold"),
+        italic: document.queryCommandState("italic"),
+      };
+      Object.entries(states).forEach(([format, active]) => {
+        const button = toolbar.querySelector(`[data-format="${format}"], [data-review-format="${format}"]`);
+        button?.classList.toggle("is-active", active);
+        button?.setAttribute("aria-pressed", String(active));
+      });
+      const linkButton = toolbar.querySelector("[data-link-entity]");
+      const linked = Boolean(annotationAtSelection());
+      linkButton?.classList.toggle("is-active", linked);
+      linkButton?.setAttribute("aria-pressed", String(linked));
+      if (linkButton) linkButton.title = linked ? "Unlink selected entity" : "Add entity link";
+    }
+
+    let previousEditorText = editor.innerText;
+
     const validateMentionTags = () => {
+      const currentText = editor.innerText;
+      let prefix = 0;
+      while (prefix < previousEditorText.length && prefix < currentText.length && previousEditorText[prefix] === currentText[prefix]) prefix += 1;
+      let suffix = 0;
+      while (suffix < previousEditorText.length - prefix && suffix < currentText.length - prefix && previousEditorText[previousEditorText.length - 1 - suffix] === currentText[currentText.length - 1 - suffix]) suffix += 1;
+      const oldEnd = previousEditorText.length - suffix;
+      const newEnd = currentText.length - suffix;
+      const inserted = currentText.slice(prefix, newEnd);
+      const delta = currentText.length - previousEditorText.length;
+
       selected
         .querySelectorAll("[data-entity-id]")
         .forEach((chip) => {
-          const mention =
-            chip.querySelector("label input");
-
-          if (
-            !mention?.value ||
-            editor.innerText.includes(mention.value)
-          ) {
+          const annotation = ensureChipRange(chip, true);
+          if (!annotation) {
+            if (rangeInputs(chip).mention?.value) chip.remove();
             return;
           }
 
-          // The chip and entity ID are one relationship. Remove them together
-          // when the exact confirmed wording no longer exists, otherwise the
-          // stale chip blocks the editor from linking this entity again.
-          chip.remove();
+          let { start, end } = annotation;
+          if (oldEnd <= start) {
+            start += delta;
+            end += delta;
+          } else if (prefix < end && oldEnd > start) {
+            end = Math.max(start, end + delta);
+          } else if (prefix >= end && prefix <= end + 1) {
+            const startsSponsor = inserted.includes("(");
+            if (chip.dataset.extendingAnnotation === "true" || startsSponsor) {
+              end = newEnd;
+              chip.dataset.extendingAnnotation = inserted.includes(")") ? "false" : "true";
+            }
+          }
+
+          const updatedMention = currentText.slice(start, end).trimEnd();
+          if (!updatedMention) {
+            chip.remove();
+            return;
+          }
+          end = start + updatedMention.length;
+          annotation.inputs.mention.value = updatedMention;
+          annotation.inputs.start.value = String(start);
+          annotation.inputs.end.value = String(end);
+
         });
 
+      previousEditorText = currentText;
       scheduleMentionHighlights();
+      updateToolbarState();
     };
 
     const selectedMentionContext = () => {
@@ -491,6 +588,8 @@
               text,
               range: range.cloneRange(),
               replace: false,
+              start: textOffsetForPoint(range.startContainer, range.startOffset),
+              end: textOffsetForPoint(range.endContainer, range.endOffset),
             }
           : null;
       }
@@ -527,7 +626,34 @@
         return;
       }
 
-      const mentionText = mentionOverride || queryContext?.text || entity.name;
+      const activeContext = queryContext;
+      let mentionText = mentionOverride || activeContext?.text || entity.name;
+      let annotationStart = trustedPaste ? entity.annotation_start : activeContext?.start;
+      let annotationEnd = trustedPaste ? entity.annotation_end : activeContext?.end;
+
+      if (activeContext?.replace) {
+        const replacement = document.createTextNode(entity.name);
+        activeContext.range.deleteContents();
+        activeContext.range.insertNode(replacement);
+        activeContext.range.setStart(replacement, 0);
+        activeContext.range.setEnd(replacement, entity.name.length);
+        mentionText = entity.name;
+        annotationStart = textOffsetForPoint(replacement, 0);
+        annotationEnd = annotationStart + entity.name.length;
+        const caret = document.createRange();
+        caret.setStartAfter(replacement);
+        caret.collapse(true);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(caret);
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+      } else if (!trustedPaste && activeContext?.range) {
+        annotationStart = textOffsetForPoint(activeContext.range.startContainer, activeContext.range.startOffset);
+        annotationEnd = textOffsetForPoint(activeContext.range.endContainer, activeContext.range.endOffset);
+      }
+
+      if (!Number.isInteger(annotationStart)) annotationStart = editor.innerText.indexOf(mentionText);
+      if (!Number.isInteger(annotationEnd)) annotationEnd = annotationStart + mentionText.length;
 
       const chip = document.createElement("span");
       chip.className = "sew-entity-chip";
@@ -578,6 +704,18 @@
       mention.value = mentionText;
 
       mentionLabel.appendChild(mention);
+
+      const start = document.createElement("input");
+      start.type = "hidden";
+      start.name = `${control.dataset.mentionPrefix.replace("entity_mention_", "entity_start_")}${entity.id}`;
+      start.value = String(annotationStart);
+
+      const end = document.createElement("input");
+      end.type = "hidden";
+      end.name = `${control.dataset.mentionPrefix.replace("entity_mention_", "entity_end_")}${entity.id}`;
+      end.value = String(annotationEnd);
+
+      mentionLabel.append(start, end);
 
       chip.append(
         entityType,
@@ -853,18 +991,26 @@
       if (initialQuery.length >= 2) runSearch(false, initialQuery);
     };
 
-    const rangeForText = (text) => {
-      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-      let node;
-      while ((node = walker.nextNode())) {
-        const index = node.data.indexOf(text);
-        if (index < 0) continue;
-        const range = document.createRange();
-        range.setStart(node, index);
-        range.setEnd(node, index + text.length);
-        return range;
-      }
-      return null;
+    const typedAthletePrefixContext = () => {
+      const selection = window.getSelection();
+      if (!selection?.rangeCount || !selection.isCollapsed || !editor.contains(selection.anchorNode)) return null;
+      const node = selection.anchorNode;
+      if (node.nodeType !== Node.TEXT_NODE) return null;
+      const beforeCaret = node.data.slice(0, selection.anchorOffset);
+      const match = beforeCaret.match(/(?:^|[^\p{L}’'-])(\p{Lu}\p{Ll}[\p{L}’'-]{1,})$/u);
+      if (!match) return null;
+      const text = match[1];
+      const startOffset = selection.anchorOffset - text.length;
+      const range = document.createRange();
+      range.setStart(node, startOffset);
+      range.setEnd(node, selection.anchorOffset);
+      return {
+        text,
+        range,
+        replace: true,
+        start: textOffsetForPoint(node, startOffset),
+        end: textOffsetForPoint(node, selection.anchorOffset),
+      };
     };
 
     const scheduleRecognisedEntitySuggestion = () => {
@@ -873,42 +1019,42 @@
       if (!suggestions || !editor.isContentEditable) return;
       suggestions.replaceChildren();
 
-      // Country/sponsor codes in parentheses belong to the athlete display
-      // wording, but should not themselves trigger recognition searches.
-      const recognitionText = editor.innerText.replace(/\([^)]*\)/g, " ");
-      const candidates = [...recognitionText.matchAll(/\b\p{Lu}\p{Ll}[\p{L}’'-]*(?:\s+\p{Lu}\p{Ll}[\p{L}’'-]*){0,3}/gu)]
-        .map((match) => match[0].trim())
-        .filter((text) => text.length >= 3 && text.length <= 60)
-        .filter((text) => ![...selected.querySelectorAll("label input")]
-          .some((input) => input.value === text));
-      const candidate = candidates.at(-1);
-      if (!candidate) return;
+      const context = typedAthletePrefixContext();
+      if (!context || context.text.length < 3) return;
 
       recognitionTimer = setTimeout(async () => {
         recognitionController = new AbortController();
         try {
           const response = await fetch(
-            `/workspace/sports-editorial/entities/search?q=${encodeURIComponent(candidate)}&offset=0`,
+            `/workspace/sports-editorial/entities/search?q=${encodeURIComponent(context.text)}&type=athlete&offset=0`,
             { signal: recognitionController.signal },
           );
-          if (!response.ok || !editor.innerText.includes(candidate)) return;
+          if (!response.ok || !contextStillMatches(context)) return;
           const payload = await response.json();
-          const entity = payload.results.find((item) =>
-            item.name.localeCompare(candidate, undefined, { sensitivity: "base" }) === 0,
-          );
-          if (!entity || selected.querySelector(`[data-entity-id="${entity.id}"]`)) return;
-          const button = document.createElement("button");
-          button.type = "button";
-          button.textContent = `Link recognised ${entity.type}: ${candidate}`;
-          button.addEventListener("click", () => {
-            const range = rangeForText(candidate);
-            if (range) openEntityLookup({ text: candidate, range, replace: false });
+          const matches = payload.results.filter((entity) =>
+            entity.type === "athlete" &&
+            entity.name.toLocaleLowerCase().startsWith(context.text.toLocaleLowerCase()),
+          ).slice(0, 5);
+          if (!matches.length) return;
+          const label = document.createElement("span");
+          label.className = "sew-entity-loading";
+          label.textContent = `Athlete suggestions for “${context.text}”`;
+          const buttons = matches.map((entity) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = entity.name;
+            button.addEventListener("mousedown", (event) => event.preventDefault());
+            button.addEventListener("click", () => {
+              queryContext = context;
+              addEntity(entity);
+            });
+            return button;
           });
-          suggestions.replaceChildren(button);
+          suggestions.replaceChildren(label, ...buttons);
         } catch (error) {
           if (error.name !== "AbortError") suggestions.replaceChildren();
         }
-      }, 600);
+      }, 300);
     };
 
     const chainButton = editor
@@ -921,6 +1067,14 @@
     });
 
     chainButton?.addEventListener("click", () => {
+      const linkedChip = annotationAtSelection();
+      if (linkedChip) {
+        linkedChip.remove();
+        scheduleMentionHighlights();
+        updateToolbarState();
+        announce("Entity unlinked.");
+        return;
+      }
       const context = selectedMentionContext() || savedMentionContext;
       if (context) openEntityLookup(context);
       else window.alert("Select the exact text you want to link first.");
@@ -987,6 +1141,7 @@
     });
 
     document.addEventListener("selectionchange", () => {
+      updateToolbarState();
       if (!queryContext || results.hidden) return;
       const selection = window.getSelection();
       if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return;
@@ -1026,12 +1181,20 @@
       }
       if (payload.token !== sheetClipboardToken || !Array.isArray(payload.links)) return;
       const pastedText = event.clipboardData.getData("text/plain");
+      const pasteStart = selectedOffsets()?.start ?? editor.innerText.length;
       event.preventDefault();
       event.stopImmediatePropagation();
       document.execCommand("insertText", false, pastedText);
       payload.links
         .filter((entity) => pastedText.includes(entity.mention))
-        .forEach((entity) => addEntity(entity, entity.mention, true));
+        .forEach((entity) => {
+          const relativeStart = pastedText.indexOf(entity.mention);
+          addEntity({
+            ...entity,
+            annotation_start: pasteStart + relativeStart,
+            annotation_end: pasteStart + relativeStart + entity.mention.length,
+          }, entity.mention, true);
+        });
       editor.dispatchEvent(new Event("input", { bubbles: true }));
       announce("Copied entity links were retained within this stat sheet.");
     }, true);
@@ -1386,6 +1549,11 @@
             <div
               class="sew-selected-entities"
               data-selected-entities
+            ></div>
+            <div
+              class="sew-entity-suggestions"
+              data-entity-suggestions
+              aria-live="polite"
             ></div>
             <div
               class="sew-entity-results"

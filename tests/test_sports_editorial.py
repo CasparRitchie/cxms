@@ -453,6 +453,35 @@ class SportsEditorialPilotTests(unittest.TestCase):
                 self.assertEqual(saved["entity_mentions"]["entity-country-ch"], mention)
                 self.assertIn(mention, saved["stat_text"])
 
+    def test_exact_entity_range_is_saved_and_forged_range_is_rejected(self):
+        submission = repository.get_submission("demo-submission-kronplatz")
+        block = next(item for item in submission["stats"] if item["content_type"] == "stat")
+        wording = "First Camille Rast then Camille Rast (SUI/Head)."
+        mention = "Camille Rast (SUI/Head)"
+        start = wording.index(mention)
+
+        def update(range_start, range_end):
+            form = MultiDict([
+                ("event_date", submission["event_date"]),
+                ("content_id", block["id"]),
+                ("content_type", "stat"),
+                ("content_html", wording),
+                (f"entity_ids_{block['id']}", "entity-athlete-rast"),
+                (f"entity_mention_{block['id']}_entity-athlete-rast", mention),
+                (f"entity_start_{block['id']}_entity-athlete-rast", str(range_start)),
+                (f"entity_end_{block['id']}_entity-athlete-rast", str(range_end)),
+            ])
+            with app.test_request_context("/"), patch(
+                "services.sports_editorial.auth.current_user",
+                return_value={"id": "demo-user", "full_name": "Jamie Laurent", "role": "researcher"},
+            ):
+                return repository.update_research(submission["id"], form)["stats"][0]
+
+        saved = update(start, start + len(mention))
+        self.assertEqual(saved["entity_ranges"]["entity-athlete-rast"], {"start": start, "end": start + len(mention)})
+        rejected = update(0, len(mention))
+        self.assertNotIn("entity-athlete-rast", rejected["entity_ids"])
+
     def test_country_mention_text_saves_during_sub_edit(self):
         submission = repository.get_submission("demo-submission-submitted")
         block = next(item for item in submission["stats"] if item["content_type"] == "stat")
@@ -550,9 +579,22 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_recognised_entity_suggestion_requires_deliberate_activation(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         self.assertIn("scheduleRecognisedEntitySuggestion", script)
-        self.assertIn("Link recognised ${entity.type}", script)
+        self.assertIn("typedAthletePrefixContext", script)
+        self.assertIn("type=athlete&offset=0", script)
+        self.assertIn("replace: true", script)
+        self.assertIn("Athlete suggestions for", script)
         self.assertIn('button.addEventListener("click"', script)
         self.assertNotIn("addEntity(entity);\n          suggestions.replaceChildren", script)
+
+    def test_entity_range_and_toolbar_state_are_preserved_by_the_editor(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("entity_start_", script)
+        self.assertIn("entity_end_", script)
+        self.assertIn('document.queryCommandState("bold")', script)
+        self.assertIn('document.queryCommandState("italic")', script)
+        self.assertIn('setAttribute("aria-pressed"', script)
+        self.assertIn("annotationAtSelection", script)
+        self.assertIn("chip.dataset.extendingAnnotation", script)
 
     def test_fis_payload_matches_v1_shape(self):
         submissions, entities = fresh_demo_data()
@@ -1262,6 +1304,27 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(athletes[0]["name"], "Camille Rast")
         self.assertEqual(athletes[0]["country_code"], "SUI")
         self.assertEqual(athletes[0]["metadata"]["competitor_id"], "12345")
+
+    def test_fis_athlete_csv_parser_accepts_signed_historic_fis_code(self):
+        content = (
+            "Competitorid\tSectorcode\tFiscode\tLastname\tFirstname\tGender\tBirthdate\tNationcode\tStatus\r\n"
+            "12582\tAL\t-10220\tDE AGOSTINI\tDoris\tW\t1958-04-28\tSUI\tO\r\n"
+        ).encode()
+        athletes = parse_athlete_csv(content, "https://www.fis-ski.com/example.zip", 2027, "historic")
+        self.assertEqual(athletes[0]["canonical_id"], "-10220")
+        self.assertEqual(athletes[0]["metadata"]["competitor_id"], "12582")
+
+    def test_result_import_promotes_historic_athlete_to_local_autocomplete_catalogue(self):
+        row = {
+            "race_id": "100", "athlete": "Doris De Agostini", "fis_code": "-10220",
+            "competitor_id": "12582", "nation": "SUI", "status": "finished",
+            "place": 1, "source_url": "https://www.fis-ski.com/example-result",
+        }
+        repository.save_result_import({"metadata": {}}, [row])
+        results = repository.search_entities("Doris", entity_type="athlete")
+        historic = next(entity for entity in results if entity["canonical_id"] == "-10220")
+        self.assertEqual(historic["metadata"]["competitor_id"], "12582")
+        self.assertIn("competitorid=12582", historic["canonical_url"])
 
     def test_fis_countries_are_derived_from_official_athlete_codes(self):
         countries = countries_from_athletes([{"country_code": "SUI"}, {"country_code": "USA"}, {"country_code": "SUI"}])

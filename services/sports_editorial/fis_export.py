@@ -74,7 +74,9 @@ def _validate_link(link, block_id, errors):
         errors.append(f"Statistic {block_id} has an invalid {link_type} identifier: {link_id}.")
     elif link_type == "nation" and not re.fullmatch(r"[A-Z]{3}", link_id):
         errors.append(f"Statistic {block_id} nation IDs must be three uppercase FIS letters.")
-    elif link_type in ("athlete", "event", "competition") and not link_id.isdigit():
+    elif link_type == "athlete" and not re.fullmatch(r"-?\d+", link_id):
+        errors.append(f"Statistic {block_id} athlete IDs must be numeric FIS identifiers, including the signed historic format.")
+    elif link_type in ("event", "competition") and not link_id.isdigit():
         errors.append(f"Statistic {block_id} {link_type} IDs must be numeric FIS identifiers.")
 
 
