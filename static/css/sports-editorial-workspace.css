@@ -875,6 +875,50 @@ html[data-sew-theme="light"] .sew-entity-chip button[data-remove-entity] {
   color: #101318;
 }
 
+.sew-entity-chip button[data-remove-entity] {
+  margin-left: 2px;
+  padding: 1px 4px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sew-entity-suggestions {
+  grid-column: 2;
+  min-height: 0;
+}
+
+.sew-entity-suggestions:empty {
+  display: none;
+}
+
+.sew-entity-suggestions button {
+  padding: 3px 6px;
+  border: 1px solid var(--sew-line);
+  border-radius: 2px;
+  background: rgba(135,168,255,.12);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sew-entity-suggestions button:hover,
+.sew-entity-suggestions button:focus-visible {
+  border-color: var(--sew-blue);
+  outline: 2px solid var(--sew-blue);
+  outline-offset: 1px;
+}
+
+.sew-entity-selection-status {
+  display: block;
+  padding: 4px 7px;
+  border-bottom: 1px solid var(--sew-line);
+  color: var(--sew-ink);
+  background: rgba(135,168,255,.1);
+}
+
 .sew-stat-input .sew-stat-field > [data-block-label] {
   grid-column: 1;
   padding-top: 5px;

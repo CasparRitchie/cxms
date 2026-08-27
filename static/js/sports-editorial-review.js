@@ -1,5 +1,26 @@
 (() => {
   const editableEntityHighlightRanges = new Map();
+  const entityClipboardType = "application/x-cxms-entity-links+json";
+  const sheetClipboardToken = crypto.randomUUID();
+  const recentEntityKey = `sew-entity-recents:${window.location.pathname}`;
+
+  const readRecentEntities = () => {
+    try {
+      return JSON.parse(sessionStorage.getItem(recentEntityKey) || "[]");
+    } catch (_error) {
+      return [];
+    }
+  };
+
+  const rememberRecentEntity = (entity) => {
+    const recents = readRecentEntities().filter((item) => item.id !== entity.id);
+    recents.unshift(entity);
+    try {
+      sessionStorage.setItem(recentEntityKey, JSON.stringify(recents.slice(0, 6)));
+    } catch (_error) {
+      // Linking must continue even when browser storage is unavailable.
+    }
+  };
 
   const renderEditableEntityHighlights = () => {
     if (!window.CSS?.highlights || typeof window.Highlight !== "function") return;
@@ -246,6 +267,9 @@
     const selected = control.querySelector(
       "[data-selected-entities]",
     );
+    const suggestions = control.querySelector(
+      "[data-entity-suggestions]",
+    );
 
     const editor = control
       .closest("[data-review-block], [data-content-block]")
@@ -264,6 +288,8 @@
     let activeIndex = -1;
     let queryContext = null;
     let savedMentionContext = null;
+    let recognitionTimer;
+    let recognitionController;
 
     const highlightKey = crypto.randomUUID();
 
@@ -303,7 +329,11 @@
       );
     };
 
-    const closeResults = () => {
+    const announce = (message) => {
+      if (suggestions) suggestions.textContent = message;
+    };
+
+    const closeResults = (message = "") => {
       clearTimeout(timer);
       controller?.abort();
       controller = null;
@@ -313,6 +343,27 @@
       results.hidden = true;
       results.replaceChildren();
       editor.removeAttribute("aria-activedescendant");
+      if (message) announce(message);
+    };
+
+    const contextStillMatches = (context) => {
+      if (!context?.range) return false;
+      try {
+        return editor.contains(context.range.commonAncestorContainer) &&
+          context.range.toString().trim() === context.text;
+      } catch (_error) {
+        return false;
+      }
+    };
+
+    const sameRange = (left, right) => {
+      if (!left || !right) return false;
+      try {
+        return left.compareBoundaryPoints(Range.START_TO_START, right) === 0 &&
+          left.compareBoundaryPoints(Range.END_TO_END, right) === 0;
+      } catch (_error) {
+        return false;
+      }
     };
 
     const unwrapMentionTags = (targetEditor) => {
@@ -446,7 +497,13 @@
       return null;
     };
 
-    const addEntity = (entity) => {
+    const addEntity = (entity, mentionOverride = "", trustedPaste = false) => {
+      if (!trustedPaste && !contextStillMatches(queryContext)) {
+        closeResults("The selected wording changed. Select it again before linking.");
+        editor.focus({ preventScroll: true });
+        return;
+      }
+
       let existingChip = selected.querySelector(
         `[data-entity-id="${entity.id}"]`,
       );
@@ -470,11 +527,13 @@
         return;
       }
 
-      const mentionText = queryContext?.text || entity.name;
+      const mentionText = mentionOverride || queryContext?.text || entity.name;
 
       const chip = document.createElement("span");
       chip.className = "sew-entity-chip";
       chip.dataset.entityId = entity.id;
+      chip.dataset.entityName = entity.name;
+      chip.dataset.entityType = entity.type;
       chip.dataset.canonicalId =
         entity.canonical_id || "";
       chip.dataset.entityUrl =
@@ -496,9 +555,9 @@
       remove.dataset.removeEntity = "";
       remove.setAttribute(
         "aria-label",
-        `Remove ${entity.name}`,
+        `Unlink ${entity.name}`,
       );
-      remove.textContent = "×";
+      remove.textContent = "Unlink";
 
       const input =
         document.createElement("input");
@@ -528,6 +587,8 @@
       );
 
       selected.appendChild(chip);
+
+      rememberRecentEntity(entity);
 
       closeResults();
       scheduleMentionHighlights();
@@ -706,7 +767,16 @@
 
     editor.addEventListener("input", () => {
       validateMentionTags();
+      if (queryContext) {
+        closeResults("The wording changed, so the previous lookup was cancelled.");
+      }
+      scheduleRecognisedEntitySuggestion();
     });
+
+    const meaningfulSearchText = (selectedText) => selectedText
+      .replace(/\s*\([^)]*\)\s*$/, "")
+      .replace(/^[“\"']+|[”\"'.,;:!?]+$/g, "")
+      .trim();
 
     const openEntityLookup = (context) => {
       if (!context || !editor.isContentEditable) return;
@@ -716,7 +786,11 @@
 
       const label = document.createElement("label");
       label.className = "sew-entity-lookup-label";
-      label.textContent = `Link “${context.text}” to an entity`;
+      label.textContent = "Find the entity";
+
+      const selectionStatus = document.createElement("strong");
+      selectionStatus.className = "sew-entity-selection-status";
+      selectionStatus.textContent = `Selected wording: “${context.text}”`;
 
       const lookup = document.createElement("input");
       lookup.type = "search";
@@ -725,13 +799,32 @@
       lookup.autocomplete = "off";
       lookup.setAttribute("role", "combobox");
       lookup.setAttribute("aria-expanded", "true");
+      const initialQuery = meaningfulSearchText(context.text);
+      lookup.value = initialQuery;
 
       const options = document.createElement("div");
       options.dataset.entityOptions = "";
       options.id = `${results.id}-options`;
       options.setAttribute("role", "listbox");
-      options.innerHTML = '<span class="sew-entity-loading">Type at least two characters.</span>';
+      options.innerHTML = '<span class="sew-entity-loading">Searching…</span>';
       lookup.setAttribute("aria-controls", options.id);
+
+      const recent = document.createElement("div");
+      recent.className = "sew-entity-recents";
+      const recentEntities = readRecentEntities();
+      if (recentEntities.length) {
+        const recentLabel = document.createElement("span");
+        recentLabel.className = "sew-entity-loading";
+        recentLabel.textContent = "Recently linked in this editing session";
+        recent.appendChild(recentLabel);
+        recentEntities.forEach((entity) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = entity.name;
+          button.addEventListener("click", () => addEntity(entity));
+          recent.appendChild(button);
+        });
+      }
 
       lookup.addEventListener("input", () => {
         scheduleSearch(lookup.value);
@@ -754,9 +847,68 @@
         }
       });
 
-      results.replaceChildren(label, lookup, options);
+      results.replaceChildren(selectionStatus, label, lookup, recent, options);
       results.hidden = false;
       lookup.focus({ preventScroll: true });
+      if (initialQuery.length >= 2) runSearch(false, initialQuery);
+    };
+
+    const rangeForText = (text) => {
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const index = node.data.indexOf(text);
+        if (index < 0) continue;
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + text.length);
+        return range;
+      }
+      return null;
+    };
+
+    const scheduleRecognisedEntitySuggestion = () => {
+      clearTimeout(recognitionTimer);
+      recognitionController?.abort();
+      if (!suggestions || !editor.isContentEditable) return;
+      suggestions.replaceChildren();
+
+      // Country/sponsor codes in parentheses belong to the athlete display
+      // wording, but should not themselves trigger recognition searches.
+      const recognitionText = editor.innerText.replace(/\([^)]*\)/g, " ");
+      const candidates = [...recognitionText.matchAll(/\b\p{Lu}\p{Ll}[\p{L}’'-]*(?:\s+\p{Lu}\p{Ll}[\p{L}’'-]*){0,3}/gu)]
+        .map((match) => match[0].trim())
+        .filter((text) => text.length >= 3 && text.length <= 60)
+        .filter((text) => ![...selected.querySelectorAll("label input")]
+          .some((input) => input.value === text));
+      const candidate = candidates.at(-1);
+      if (!candidate) return;
+
+      recognitionTimer = setTimeout(async () => {
+        recognitionController = new AbortController();
+        try {
+          const response = await fetch(
+            `/workspace/sports-editorial/entities/search?q=${encodeURIComponent(candidate)}&offset=0`,
+            { signal: recognitionController.signal },
+          );
+          if (!response.ok || !editor.innerText.includes(candidate)) return;
+          const payload = await response.json();
+          const entity = payload.results.find((item) =>
+            item.name.localeCompare(candidate, undefined, { sensitivity: "base" }) === 0,
+          );
+          if (!entity || selected.querySelector(`[data-entity-id="${entity.id}"]`)) return;
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = `Link recognised ${entity.type}: ${candidate}`;
+          button.addEventListener("click", () => {
+            const range = rangeForText(candidate);
+            if (range) openEntityLookup({ text: candidate, range, replace: false });
+          });
+          suggestions.replaceChildren(button);
+        } catch (error) {
+          if (error.name !== "AbortError") suggestions.replaceChildren();
+        }
+      }, 600);
     };
 
     const chainButton = editor
@@ -831,7 +983,58 @@
         ?.remove();
 
       scheduleMentionHighlights();
+      announce("Entity unlinked. Select wording and use the link button to add it again.");
     });
+
+    document.addEventListener("selectionchange", () => {
+      if (!queryContext || results.hidden) return;
+      const selection = window.getSelection();
+      if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return;
+      if (!sameRange(selection.getRangeAt(0), queryContext.range)) {
+        closeResults("The selection changed, so the previous lookup was cancelled.");
+      }
+    });
+
+    editor.addEventListener("copy", (event) => {
+      const context = selectedMentionContext();
+      if (!context) return;
+      const links = [...selected.querySelectorAll("[data-entity-id]")]
+        .map((chip) => ({
+          id: chip.dataset.entityId,
+          name: chip.dataset.entityName || chip.firstChild?.textContent?.trim() || "",
+          type: chip.dataset.entityType || chip.querySelector("small")?.textContent || "",
+          canonical_id: chip.dataset.canonicalId || "",
+          canonical_url: chip.dataset.entityUrl || "",
+          mention: chip.querySelector("label input")?.value.trim() || "",
+        }))
+        .filter((entity) => entity.mention && context.text.includes(entity.mention));
+      if (!links.length) return;
+      event.clipboardData.setData(entityClipboardType, JSON.stringify({
+        token: sheetClipboardToken,
+        links,
+      }));
+    });
+
+    editor.addEventListener("paste", (event) => {
+      const encoded = event.clipboardData.getData(entityClipboardType);
+      if (!encoded) return;
+      let payload;
+      try {
+        payload = JSON.parse(encoded);
+      } catch (_error) {
+        return;
+      }
+      if (payload.token !== sheetClipboardToken || !Array.isArray(payload.links)) return;
+      const pastedText = event.clipboardData.getData("text/plain");
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      document.execCommand("insertText", false, pastedText);
+      payload.links
+        .filter((entity) => pastedText.includes(entity.mention))
+        .forEach((entity) => addEntity(entity, entity.mention, true));
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      announce("Copied entity links were retained within this stat sheet.");
+    }, true);
 
     document.addEventListener(
       "pointerdown",

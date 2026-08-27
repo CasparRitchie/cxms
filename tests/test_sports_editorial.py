@@ -515,6 +515,45 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("existingChip = null;", script)
         self.assertIn("unwrapMentionTags(editor);\n    validateMentionTags();", script)
 
+    def test_entity_lookup_is_bound_to_the_exact_current_selection(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("Selected wording:", script)
+        self.assertIn("contextStillMatches(queryContext)", script)
+        self.assertIn('document.addEventListener("selectionchange"', script)
+        self.assertIn("sameRange(selection.getRangeAt(0), queryContext.range)", script)
+        self.assertIn("The selected wording changed", script)
+        self.assertIn("The selection changed", script)
+
+    def test_entity_lookup_prefills_search_and_starts_immediately(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("meaningfulSearchText", script)
+        self.assertIn("lookup.value = initialQuery", script)
+        self.assertIn("runSearch(false, initialQuery)", script)
+        self.assertIn("Recently linked in this editing session", script)
+
+    def test_entity_unlink_is_explicit_in_research_and_review(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        research = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        self.assertIn(b">Unlink</button>", research.data)
+        review_template = Path("templates/sports-editorial-workspace/detail.html").read_text(encoding="utf-8")
+        self.assertIn(">Unlink</button>", review_template)
+        self.assertIn(b"data-entity-suggestions", research.data)
+        self.assertIn("data-entity-suggestions", review_template)
+
+    def test_entity_copy_metadata_is_limited_to_the_current_sheet_session(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("application/x-cxms-entity-links+json", script)
+        self.assertIn("sheetClipboardToken = crypto.randomUUID()", script)
+        self.assertIn("payload.token !== sheetClipboardToken", script)
+        self.assertIn("Copied entity links were retained within this stat sheet", script)
+
+    def test_recognised_entity_suggestion_requires_deliberate_activation(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("scheduleRecognisedEntitySuggestion", script)
+        self.assertIn("Link recognised ${entity.type}", script)
+        self.assertIn('button.addEventListener("click"', script)
+        self.assertNotIn("addEntity(entity);\n          suggestions.replaceChildren", script)
+
     def test_fis_payload_matches_v1_shape(self):
         submissions, entities = fresh_demo_data()
         payload = build_fis_payload(submissions[0], {item["id"]: item for item in entities})

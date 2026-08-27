@@ -26,7 +26,7 @@
     row.draggable = false;
     row.dataset.contentBlock = "";
     row.dataset.type = type;
-    const entityControl = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${blockId}" data-mention-prefix="entity_mention_${blockId}_"><span class="sew-cell-label">Linked</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-results" data-entity-results hidden></div></div>` : "";
+    const entityControl = type === "stat" ? `<div class="sew-entity-autocomplete" data-entity-control data-field-name="entity_ids_${blockId}" data-mention-prefix="entity_mention_${blockId}_"><span class="sew-cell-label">Linked</span><div class="sew-selected-entities" data-selected-entities></div><div class="sew-entity-suggestions" data-entity-suggestions aria-live="polite"></div><div class="sew-entity-results" data-entity-results hidden></div></div>` : "";
     row.innerHTML = `
   <span
     class="sew-drag"
