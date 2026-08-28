@@ -574,15 +574,28 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("application/x-cxms-entity-links+json", script)
         self.assertIn("sheetClipboardToken = crypto.randomUUID()", script)
         self.assertIn("payload.token !== sheetClipboardToken", script)
+        self.assertIn("relative_start: annotation.start - context.start", script)
+        self.assertIn("relative_end: annotation.end - context.start", script)
+        self.assertIn('event.clipboardData.setData("text/plain", context.range.toString())', script)
+        self.assertIn('event.clipboardData.setData("text/html", htmlClipboard.outerHTML)', script)
+        self.assertIn("data-cxms-entity-clipboard", script)
+        paste_handler = script[script.index('let encoded = event.clipboardData.getData(entityClipboardType)'):]
+        self.assertLess(
+            paste_handler.index('editor.dispatchEvent(new Event("input", { bubbles: true }));'),
+            paste_handler.index("payload.links\n        .filter"),
+        )
         self.assertIn("Copied entity links were retained within this stat sheet", script)
 
     def test_recognised_entity_suggestion_requires_deliberate_activation(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         self.assertIn("scheduleRecognisedEntitySuggestion", script)
         self.assertIn("typedAthletePrefixContext", script)
-        self.assertIn("type=athlete&offset=0", script)
+        self.assertIn("type=athlete&offset=${offset}", script)
         self.assertIn("replace: true", script)
         self.assertIn("Athlete suggestions for", script)
+        self.assertIn("while (hasMore)", script)
+        self.assertIn("sew-inline-entity-options", script)
+        self.assertNotIn(").slice(0, 5)", script)
         self.assertIn('button.addEventListener("click"', script)
         self.assertNotIn("addEntity(entity);\n          suggestions.replaceChildren", script)
 
@@ -1167,14 +1180,17 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(preview.status_code, 200)
 
     def test_entity_search_paginates_and_reports_more(self):
-        for index in range(15):
+        for index in range(27):
             repository.add_entity({"entity_type": "athlete", "name": f"Laura Test {index:02d}", "canonical_id": str(700000 + index)})
         first = self.client.get("/workspace/sports-editorial/entities/search?q=Laura&type=athlete").get_json()
         self.assertEqual(len(first["results"]), 10)
         self.assertTrue(first["has_more"])
         second = self.client.get(f"/workspace/sports-editorial/entities/search?q=Laura&type=athlete&offset={first['next_offset']}").get_json()
-        self.assertEqual(len(second["results"]), 5)
-        self.assertFalse(second["has_more"])
+        self.assertEqual(len(second["results"]), 10)
+        self.assertTrue(second["has_more"])
+        third = self.client.get(f"/workspace/sports-editorial/entities/search?q=Laura&type=athlete&offset={second['next_offset']}").get_json()
+        self.assertEqual(len(third["results"]), 7)
+        self.assertFalse(third["has_more"])
 
     def test_entity_link_rendering_is_safe_and_degrades_without_url(self):
         block = {"entity_ids": ["safe", "plain"], "entity_mentions": {"safe": "Laura", "plain": "Pirovano"}}

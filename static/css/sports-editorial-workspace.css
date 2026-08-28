@@ -907,6 +907,34 @@ html[data-sew-theme="light"] .sew-entity-chip button[data-remove-entity] {
   display: none;
 }
 
+.sew-inline-entity-options {
+  display: grid;
+  max-height: 190px;
+  margin-top: 3px;
+  border: 1px solid var(--sew-line);
+  border-radius: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--sew-card);
+}
+
+.sew-inline-entity-options button {
+  width: 100%;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.sew-inline-entity-options button:last-child {
+  border-bottom-width: 0;
+}
+
+.sew-entity-suggestion-count {
+  color: var(--sew-muted);
+  font-weight: 400;
+}
+
 .sew-entity-suggestions button {
   padding: 3px 6px;
   border: 1px solid var(--sew-line);
@@ -918,8 +946,11 @@ html[data-sew-theme="light"] .sew-entity-chip button[data-remove-entity] {
 }
 
 .sew-entity-suggestions button:hover,
-.sew-entity-suggestions button:focus-visible {
+.sew-entity-suggestions button:focus-visible,
+.sew-entity-suggestions button.is-active,
+.sew-entity-suggestions button[aria-selected="true"] {
   border-color: var(--sew-blue);
+  background: rgba(135,168,255,.2);
   outline: 2px solid var(--sew-blue);
   outline-offset: 1px;
 }

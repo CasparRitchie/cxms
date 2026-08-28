@@ -290,6 +290,7 @@
     let savedMentionContext = null;
     let recognitionTimer;
     let recognitionController;
+    let recognitionActiveIndex = -1;
 
     const highlightKey = crypto.randomUUID();
 
@@ -1016,6 +1017,8 @@
     const scheduleRecognisedEntitySuggestion = () => {
       clearTimeout(recognitionTimer);
       recognitionController?.abort();
+      recognitionActiveIndex = -1;
+      editor.removeAttribute("aria-activedescendant");
       if (!suggestions || !editor.isContentEditable) return;
       suggestions.replaceChildren();
 
@@ -1025,32 +1028,61 @@
       recognitionTimer = setTimeout(async () => {
         recognitionController = new AbortController();
         try {
-          const response = await fetch(
-            `/workspace/sports-editorial/entities/search?q=${encodeURIComponent(context.text)}&type=athlete&offset=0`,
-            { signal: recognitionController.signal },
-          );
-          if (!response.ok || !contextStillMatches(context)) return;
-          const payload = await response.json();
-          const matches = payload.results.filter((entity) =>
-            entity.type === "athlete" &&
-            entity.name.toLocaleLowerCase().startsWith(context.text.toLocaleLowerCase()),
-          ).slice(0, 5);
-          if (!matches.length) return;
           const label = document.createElement("span");
           label.className = "sew-entity-loading";
           label.textContent = `Athlete suggestions for “${context.text}”`;
-          const buttons = matches.map((entity) => {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.textContent = entity.name;
-            button.addEventListener("mousedown", (event) => event.preventDefault());
-            button.addEventListener("click", () => {
-              queryContext = context;
-              addEntity(entity);
-            });
-            return button;
-          });
-          suggestions.replaceChildren(label, ...buttons);
+          const options = document.createElement("div");
+          options.className = "sew-inline-entity-options";
+          options.setAttribute("role", "listbox");
+          options.setAttribute("aria-label", `Athletes matching ${context.text}`);
+          suggestions.replaceChildren(label, options);
+
+          const seen = new Set();
+          let offset = 0;
+          let hasMore = true;
+          while (hasMore) {
+            const response = await fetch(
+              `/workspace/sports-editorial/entities/search?q=${encodeURIComponent(context.text)}&type=athlete&offset=${offset}`,
+              { signal: recognitionController.signal },
+            );
+            if (!response.ok || !contextStillMatches(context)) return;
+            const payload = await response.json();
+            payload.results
+              .filter((entity) =>
+                entity.type === "athlete" &&
+                entity.name.toLocaleLowerCase().startsWith(context.text.toLocaleLowerCase()) &&
+                !seen.has(entity.id)
+              )
+              .forEach((entity) => {
+                seen.add(entity.id);
+                const button = document.createElement("button");
+                button.id = `inline-entity-${crypto.randomUUID()}`;
+                button.type = "button";
+                button.setAttribute("role", "option");
+                button.setAttribute("aria-selected", "false");
+                button.tabIndex = -1;
+                const identity = [entity.country_code, entity.ski_sponsor].filter(Boolean).join(" / ");
+                button.textContent = `${entity.name}${identity ? ` (${identity})` : ""}`;
+                button.addEventListener("mousedown", (event) => event.preventDefault());
+                button.addEventListener("click", () => {
+                  queryContext = context;
+                  addEntity(entity);
+                });
+                options.appendChild(button);
+              });
+            hasMore = Boolean(payload.has_more);
+            offset = payload.next_offset;
+          }
+
+          if (!seen.size) {
+            suggestions.replaceChildren();
+            return;
+          }
+
+          const count = document.createElement("small");
+          count.className = "sew-entity-suggestion-count";
+          count.textContent = `${seen.size} matching athlete${seen.size === 1 ? "" : "s"}`;
+          label.append(" · ", count);
         } catch (error) {
           if (error.name !== "AbortError") suggestions.replaceChildren();
         }
@@ -1117,6 +1149,35 @@
     });
 
     editor.addEventListener("keydown", (event) => {
+      const inlineOptions = [...(suggestions?.querySelectorAll(".sew-inline-entity-options button") || [])];
+      if (inlineOptions.length && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+        event.preventDefault();
+        recognitionActiveIndex = event.key === "ArrowDown"
+          ? (recognitionActiveIndex + 1) % inlineOptions.length
+          : (recognitionActiveIndex <= 0 ? inlineOptions.length - 1 : recognitionActiveIndex - 1);
+        inlineOptions.forEach((button, index) => {
+          const active = index === recognitionActiveIndex;
+          button.setAttribute("aria-selected", String(active));
+          button.classList.toggle("is-active", active);
+        });
+        const active = inlineOptions[recognitionActiveIndex];
+        editor.setAttribute("aria-activedescendant", active.id);
+        active.scrollIntoView({ block: "nearest" });
+        return;
+      }
+      if (inlineOptions.length && event.key === "Enter" && recognitionActiveIndex >= 0) {
+        event.preventDefault();
+        inlineOptions[recognitionActiveIndex].click();
+        return;
+      }
+      if (inlineOptions.length && event.key === "Escape") {
+        event.preventDefault();
+        recognitionController?.abort();
+        suggestions.replaceChildren();
+        recognitionActiveIndex = -1;
+        editor.removeAttribute("aria-activedescendant");
+        return;
+      }
       if (event.key === "Enter") {
         event.preventDefault();
         document.execCommand("insertLineBreak", false);
@@ -1154,24 +1215,49 @@
       const context = selectedMentionContext();
       if (!context) return;
       const links = [...selected.querySelectorAll("[data-entity-id]")]
-        .map((chip) => ({
-          id: chip.dataset.entityId,
-          name: chip.dataset.entityName || chip.firstChild?.textContent?.trim() || "",
-          type: chip.dataset.entityType || chip.querySelector("small")?.textContent || "",
-          canonical_id: chip.dataset.canonicalId || "",
-          canonical_url: chip.dataset.entityUrl || "",
-          mention: chip.querySelector("label input")?.value.trim() || "",
-        }))
-        .filter((entity) => entity.mention && context.text.includes(entity.mention));
+        .map((chip) => {
+          const annotation = ensureChipRange(chip);
+          if (!annotation || annotation.start < context.start || annotation.end > context.end) return null;
+          return {
+            id: chip.dataset.entityId,
+            name: chip.dataset.entityName || chip.firstChild?.textContent?.trim() || "",
+            type: chip.dataset.entityType || chip.querySelector("small")?.textContent || "",
+            canonical_id: chip.dataset.canonicalId || "",
+            canonical_url: chip.dataset.entityUrl || "",
+            mention: annotation.mention,
+            relative_start: annotation.start - context.start,
+            relative_end: annotation.end - context.start,
+          };
+        })
+        .filter(Boolean);
       if (!links.length) return;
-      event.clipboardData.setData(entityClipboardType, JSON.stringify({
+      const clipboardPayload = JSON.stringify({
         token: sheetClipboardToken,
         links,
-      }));
+      });
+      const htmlClipboard = document.createElement("span");
+      htmlClipboard.dataset.cxmsEntityClipboard = encodeURIComponent(clipboardPayload);
+      htmlClipboard.textContent = context.range.toString();
+      event.preventDefault();
+      event.clipboardData.setData("text/plain", context.range.toString());
+      event.clipboardData.setData("text/html", htmlClipboard.outerHTML);
+      event.clipboardData.setData(entityClipboardType, clipboardPayload);
     });
 
     editor.addEventListener("paste", (event) => {
-      const encoded = event.clipboardData.getData(entityClipboardType);
+      let encoded = event.clipboardData.getData(entityClipboardType);
+      if (!encoded) {
+        const html = document.createElement("template");
+        html.innerHTML = event.clipboardData.getData("text/html");
+        const fallback = html.content.querySelector("[data-cxms-entity-clipboard]");
+        if (fallback?.dataset.cxmsEntityClipboard) {
+          try {
+            encoded = decodeURIComponent(fallback.dataset.cxmsEntityClipboard);
+          } catch (_error) {
+            return;
+          }
+        }
+      }
       if (!encoded) return;
       let payload;
       try {
@@ -1185,17 +1271,27 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       document.execCommand("insertText", false, pastedText);
+
+      // Let each editor synchronise its plain-text baseline before attaching
+      // annotations. Otherwise the insertion diff shifts a newly created range
+      // for a second time and immediately treats the copied link as stale.
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+
       payload.links
-        .filter((entity) => pastedText.includes(entity.mention))
+        .filter((entity) =>
+          Number.isInteger(entity.relative_start) &&
+          Number.isInteger(entity.relative_end) &&
+          entity.relative_start >= 0 &&
+          entity.relative_end > entity.relative_start &&
+          pastedText.slice(entity.relative_start, entity.relative_end) === entity.mention
+        )
         .forEach((entity) => {
-          const relativeStart = pastedText.indexOf(entity.mention);
           addEntity({
             ...entity,
-            annotation_start: pasteStart + relativeStart,
-            annotation_end: pasteStart + relativeStart + entity.mention.length,
+            annotation_start: pasteStart + entity.relative_start,
+            annotation_end: pasteStart + entity.relative_end,
           }, entity.mention, true);
         });
-      editor.dispatchEvent(new Event("input", { bubbles: true }));
       announce("Copied entity links were retained within this stat sheet.");
     }, true);
 
