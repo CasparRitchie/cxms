@@ -642,7 +642,10 @@ html[data-sew-theme="light"] .sew-mini-toolbar button[aria-pressed="true"] {
   pointer-events:none;
   transition:max-height .18s,opacity .15s,margin .18s,padding .18s;
 }
-.sew-document-editor .sew-entity-autocomplete:has([data-entity-id]){
+.sew-document-editor .sew-entity-autocomplete:has(
+  [data-entity-id],
+  [data-entity-suggestions]:not(:empty)
+){
   max-height:240px;
   margin-top:2px;
   padding-top:5px;

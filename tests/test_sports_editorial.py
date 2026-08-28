@@ -607,6 +607,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_new_statistic_initialises_entity_suggestions_before_typing(self):
         submit_script = Path("static/js/sports-editorial-submit.js").read_text(encoding="utf-8")
         review_script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
         self.assertIn('new CustomEvent("sports-editorial:block-added", { bubbles: true })', submit_script)
         self.assertIn('document.addEventListener("sports-editorial:block-added"', review_script)
         self.assertIn('document.addEventListener("focusin"', review_script)
@@ -614,6 +615,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             review_script.index('control.dataset.entityInitialised = "true"'),
             review_script.index("if (!editor || !results || !selected || !suggestions) return"),
         )
+        self.assertIn("[data-entity-suggestions]:not(:empty)", stylesheet)
 
     def test_entity_range_and_toolbar_state_are_preserved_by_the_editor(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
