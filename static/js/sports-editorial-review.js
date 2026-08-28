@@ -995,22 +995,23 @@
     const typedAthletePrefixContext = () => {
       const selection = window.getSelection();
       if (!selection?.rangeCount || !selection.isCollapsed || !editor.contains(selection.anchorNode)) return null;
-      const node = selection.anchorNode;
-      if (node.nodeType !== Node.TEXT_NODE) return null;
-      const beforeCaret = node.data.slice(0, selection.anchorOffset);
+      const beforeCaretRange = document.createRange();
+      beforeCaretRange.selectNodeContents(editor);
+      beforeCaretRange.setEnd(selection.anchorNode, selection.anchorOffset);
+      const beforeCaret = beforeCaretRange.toString();
       const match = beforeCaret.match(/(?:^|[^\p{L}’'-])(\p{Lu}\p{Ll}[\p{L}’'-]{1,})$/u);
       if (!match) return null;
       const text = match[1];
-      const startOffset = selection.anchorOffset - text.length;
-      const range = document.createRange();
-      range.setStart(node, startOffset);
-      range.setEnd(node, selection.anchorOffset);
+      const end = beforeCaret.length;
+      const start = end - text.length;
+      const range = rangeFromOffsets(start, end);
+      if (!range) return null;
       return {
         text,
         range,
         replace: true,
-        start: textOffsetForPoint(node, startOffset),
-        end: textOffsetForPoint(node, selection.anchorOffset),
+        start,
+        end,
       };
     };
 
@@ -1024,6 +1025,11 @@
 
       const context = typedAthletePrefixContext();
       if (!context || context.text.length < 3) return;
+
+      const waiting = document.createElement("span");
+      waiting.className = "sew-entity-loading";
+      waiting.textContent = `Looking for athletes matching “${context.text}”…`;
+      suggestions.replaceChildren(waiting);
 
       recognitionTimer = setTimeout(async () => {
         recognitionController = new AbortController();
@@ -1075,7 +1081,10 @@
           }
 
           if (!seen.size) {
-            suggestions.replaceChildren();
+            const empty = document.createElement("span");
+            empty.className = "sew-entity-loading";
+            empty.textContent = `No athletes match “${context.text}”.`;
+            suggestions.replaceChildren(empty);
             return;
           }
 
@@ -1084,7 +1093,12 @@
           count.textContent = `${seen.size} matching athlete${seen.size === 1 ? "" : "s"}`;
           label.append(" · ", count);
         } catch (error) {
-          if (error.name !== "AbortError") suggestions.replaceChildren();
+          if (error.name !== "AbortError") {
+            const unavailable = document.createElement("span");
+            unavailable.className = "sew-entity-loading";
+            unavailable.textContent = "Athlete suggestions are temporarily unavailable. You can still select the wording and use the link button.";
+            suggestions.replaceChildren(unavailable);
+          }
         }
       }, 300);
     };
