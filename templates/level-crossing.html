@@ -120,11 +120,13 @@
             <span><strong id="crossing-watch-train-count">0</strong> trains recorded</span>
           </div>
           <div class="crossing-watch-buttons">
+            <button type="button" data-watch-state="OPEN" class="crossing-button crossing-state-open">Open</button>
             <button type="button" data-watch-state="CLOSING" class="crossing-button crossing-state-warning">Closing</button>
             <button type="button" data-watch-state="CLOSED" class="crossing-button crossing-state-closed">Closed</button>
             <button type="button" data-watch-state="TRAIN_PASSED" class="crossing-button crossing-watch-train">Train passed</button>
-            <button type="button" data-watch-state="OPENING" class="crossing-button crossing-state-opening">Opening</button>
-            <button type="button" data-watch-state="OPEN" class="crossing-button crossing-state-open">Open</button>
+            <button type="button" data-watch-state="TRAIN_PASSED" data-train-direction="from_chichester" class="crossing-button crossing-watch-train">Train from Chichester</button>
+            <button type="button" data-watch-state="TRAIN_PASSED" data-train-direction="from_barnham" class="crossing-button crossing-watch-train">Train from Barnham</button>
+            <button type="button" data-watch-state="OPENING" class="crossing-button crossing-state-opening crossing-watch-opening">Opening</button>
           </div>
           <button id="crossing-watch-finish" class="crossing-button crossing-button--quiet" type="button">Finish session</button>
           <p id="crossing-watch-result" class="crossing-form-result" aria-live="polite"></p>

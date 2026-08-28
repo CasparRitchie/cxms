@@ -34,6 +34,8 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"Choose a familiar journey", response.data)
         self.assertIn(b"crossing-destination-select", response.data)
         self.assertIn(b"crossing-calibration-copy", response.data)
+        self.assertIn(b"Train from Chichester", response.data)
+        self.assertIn(b"Train from Barnham", response.data)
         css_response = self.client.get("/static/css/level-crossing.css")
         js_response = self.client.get("/static/js/level-crossing.js")
         self.assertEqual(css_response.status_code, 200)
@@ -375,6 +377,22 @@ class LevelCrossingObservationTests(unittest.TestCase):
         self.assertEqual(self.client.calls[0][0], "level_crossing_observations")
         self.assertIn("merge-duplicates", self.client.calls[0][3])
 
+    def test_directional_train_pass_is_stored_in_existing_note_field(self):
+        self.payload["trainDirection"] = "from_barnham"
+        self.payload["note"] = ""
+
+        row = self.store.build_row(self.payload, {})
+
+        self.assertEqual(row["state"], "TRAIN_PASSED")
+        self.assertEqual(row["note"], "Train from Barnham")
+
+    def test_rejects_train_direction_on_non_train_state(self):
+        self.payload["state"] = "OPEN"
+        self.payload["trainDirection"] = "from_chichester"
+
+        with self.assertRaises(ObservationValidationError):
+            self.store.build_row(self.payload, {})
+
     def test_rejects_unknown_crossing_and_old_timestamp(self):
         self.payload["crossingId"] = "made-up-crossing"
         with self.assertRaises(ObservationValidationError):
@@ -440,13 +458,14 @@ class LevelCrossingObservationTests(unittest.TestCase):
                 "descriptor": descriptor,
             }
 
-        def row(session_id, seconds, state, events=None):
+        def row(session_id, seconds, state, events=None, note=None):
             return {
                 "crossing_id": "whyke-road",
                 "state": state,
                 "observed_at": (start + timedelta(seconds=seconds)).isoformat(),
                 "event_kind": "watch",
                 "session_id": session_id,
+                "note": note,
                 "td_snapshot": {"status": "connected", "recentEvents": events or [], "activeBerths": {}},
             }
 
@@ -454,7 +473,7 @@ class LevelCrossingObservationTests(unittest.TestCase):
             row("session-aaaaaaaa", 0, "OPEN"),
             row("session-aaaaaaaa", 60, "CLOSING", [td_event(start + timedelta(seconds=50))]),
             row("session-aaaaaaaa", 80, "CLOSED"),
-            row("session-aaaaaaaa", 120, "TRAIN_PASSED", [td_event(start + timedelta(seconds=110), from_berth="0102", to_berth="0103")]),
+            row("session-aaaaaaaa", 120, "TRAIN_PASSED", [td_event(start + timedelta(seconds=110), from_berth="0102", to_berth="0103")], "Train from Barnham"),
             row("session-aaaaaaaa", 150, "OPENING", [td_event(start + timedelta(seconds=140), "CB", "0103", "", "")]),
             row("session-aaaaaaaa", 170, "OPEN"),
             row("session-bbbbbbbb", 600, "OPEN"),
@@ -476,6 +495,7 @@ class LevelCrossingObservationTests(unittest.TestCase):
         self.assertEqual(analysis["sessions"][1]["correctionsApplied"][0]["removedState"], "OPEN")
         self.assertEqual(analysis["sessions"][1]["correctionsApplied"][0]["followedBy"], "TRAIN_PASSED")
         self.assertEqual(analysis["sessions"][1]["sequence"].count("OPEN"), 2)
+        self.assertEqual(analysis["sessions"][0]["trainDirections"], ["from_barnham"])
         repeated = next(item for item in analysis["candidateSignals"] if item["signature"] == "CA:0101>0102")
         self.assertEqual(repeated["sessionCount"], 2)
         self.assertEqual(repeated["repeatStrength"], "promising")

@@ -17,6 +17,10 @@ CROSSINGS = {
 }
 STATES = {"OPEN", "CLOSING", "CLOSED", "OPENING", "TRAIN_PASSED"}
 EVENT_KINDS = {"quick", "watch"}
+TRAIN_DIRECTION_NOTES = {
+    "from_chichester": "Train from Chichester",
+    "from_barnham": "Train from Barnham",
+}
 IDENTIFIER = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
 BERTH_EVENT_TYPES = {"CA", "CB", "CC"}
 PHASE_STATES = {
@@ -97,6 +101,7 @@ class LevelCrossingObservationStore:
         state = str(payload.get("state", "")).strip().upper()
         event_kind = str(payload.get("eventKind", "quick")).strip().lower()
         note = str(payload.get("note", "")).strip()
+        train_direction = str(payload.get("trainDirection", "")).strip().lower()
 
         if not IDENTIFIER.fullmatch(observation_id):
             raise ObservationValidationError("Observation identifier is invalid.")
@@ -108,6 +113,10 @@ class LevelCrossingObservationStore:
             raise ObservationValidationError("Barrier state is not recognised.")
         if event_kind not in EVENT_KINDS:
             raise ObservationValidationError("Observation type is not recognised.")
+        if train_direction and (state != "TRAIN_PASSED" or train_direction not in TRAIN_DIRECTION_NOTES):
+            raise ObservationValidationError("Train direction is not recognised.")
+        if train_direction:
+            note = TRAIN_DIRECTION_NOTES[train_direction]
         if len(note) > 300:
             raise ObservationValidationError("Observation note is too long.")
 
@@ -250,7 +259,7 @@ class LevelCrossingObservationStore:
             "level_crossing_observations",
             "GET",
             query={
-                "select": "crossing_id,state,observed_at,event_kind,session_id,td_snapshot",
+                "select": "crossing_id,state,observed_at,event_kind,session_id,note,td_snapshot",
                 "crossing_id": f"eq.{crossing_id}",
                 "event_kind": "eq.watch",
                 "session_id": "not.is.null",
@@ -283,6 +292,12 @@ class LevelCrossingObservationStore:
             session_key = f"session-{session_number}"
             self._collect_td_candidates(effective, session_key, candidates)
             states = [item["state"] for item in effective]
+            train_directions = [
+                direction
+                for item in effective
+                for direction, label in TRAIN_DIRECTION_NOTES.items()
+                if item["state"] == "TRAIN_PASSED" and item.get("note") == label
+            ]
             td_linked = sum(self._snapshot_has_berth_events(item.get("td_snapshot")) for item in effective)
             duration = 0
             if len(raw_session) > 1:
@@ -293,6 +308,7 @@ class LevelCrossingObservationStore:
                 "effectiveObservationCount": len(effective),
                 "sequence": states,
                 "trainPasses": states.count("TRAIN_PASSED"),
+                "trainDirections": train_directions,
                 "durationSeconds": max(0, duration),
                 "tdLinkedObservations": td_linked,
                 "completeCycle": self._is_complete_cycle(states),

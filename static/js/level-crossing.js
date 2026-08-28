@@ -60,6 +60,10 @@
     OPENING: "Opening",
     TRAIN_PASSED: "Train passed"
   };
+  const trainDirectionLabels = {
+    from_chichester: "Train from Chichester",
+    from_barnham: "Train from Barnham"
+  };
 
   const elements = {
     destinationSelect: document.getElementById("crossing-destination-select"),
@@ -603,16 +607,18 @@
       .forEach((observation) => { void syncObservation(observation); });
   }
 
-  function recordObservation({ crossingId, state, eventKind = "quick", sessionId = "", note = "" }) {
+  function recordObservation({ crossingId, state, eventKind = "quick", sessionId = "", note = "", trainDirection = "" }) {
     const crossing = crossings.find(({ id }) => id === crossingId);
     if (!crossing || !observationLabels[state]) return null;
+    const directionLabel = state === "TRAIN_PASSED" ? trainDirectionLabels[trainDirection] || "" : "";
     const now = new Date();
     const observation = {
       id: makeId("obs"),
       crossingId,
       state,
       observedAt: now.toISOString(),
-      note: String(note).trim().slice(0, 300),
+      note: directionLabel || String(note).trim().slice(0, 300),
+      trainDirection: directionLabel ? trainDirection : "",
       eventKind,
       sessionId,
       prediction: serialisePrediction(crossing, now),
@@ -795,17 +801,20 @@
   elements.watchActive.addEventListener("click", (event) => {
     const state = event.target.dataset.watchState;
     if (!watchSession || !state) return;
+    const trainDirection = event.target.dataset.trainDirection || "";
     const observation = recordObservation({
       crossingId: watchSession.crossingId,
       state,
       eventKind: "watch",
-      sessionId: watchSession.id
+      sessionId: watchSession.id,
+      trainDirection
     });
     if (state === "TRAIN_PASSED") {
       watchSession.trainCount += 1;
       elements.watchTrainCount.textContent = String(watchSession.trainCount);
     }
-    elements.watchResult.textContent = `${observationLabels[state]} recorded at ${formatObservationTime(observation.observedAt)}.`;
+    const recordedLabel = trainDirectionLabels[trainDirection] || observationLabels[state];
+    elements.watchResult.textContent = `${recordedLabel} recorded at ${formatObservationTime(observation.observedAt)}.`;
   });
 
   elements.watchFinish.addEventListener("click", () => {
