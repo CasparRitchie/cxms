@@ -261,8 +261,6 @@
   const initialiseEntityControl = (control) => {
     if (control.dataset.entityInitialised) return;
 
-    control.dataset.entityInitialised = "true";
-
     const results = control.querySelector("[data-entity-results]");
     const selected = control.querySelector(
       "[data-selected-entities]",
@@ -275,7 +273,9 @@
       .closest("[data-review-block], [data-content-block]")
       ?.querySelector("[data-review-editor], [data-editor]");
 
-    if (!editor || !results || !selected) return;
+    if (!editor || !results || !selected || !suggestions) return;
+
+    control.dataset.entityInitialised = "true";
 
     editor
       .closest(".sew-working-editor")
@@ -1329,6 +1329,23 @@
   document
     .querySelectorAll("[data-entity-control]")
     .forEach(initialiseEntityControl);
+
+  // Ensure a newly added statistic is initialised before its first keystroke.
+  // The focus fallback also lets a partially constructed block retry instead
+  // of remaining inert after an early observer delivery.
+  document.addEventListener("focusin", (event) => {
+    const editor = event.target.closest?.("[data-review-editor], [data-editor]");
+    const block = editor?.closest("[data-review-block], [data-content-block]");
+    block
+      ?.querySelectorAll("[data-entity-control]")
+      .forEach(initialiseEntityControl);
+  });
+
+  document.addEventListener("sports-editorial:block-added", (event) => {
+    event.target
+      .querySelectorAll?.("[data-entity-control]")
+      .forEach(initialiseEntityControl);
+  });
 
   new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {

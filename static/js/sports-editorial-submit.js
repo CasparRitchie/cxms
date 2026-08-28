@@ -116,6 +116,7 @@
   document.querySelectorAll("[data-add-block]").forEach((button) => button.addEventListener("click", () => {
     const row = makeRow(button.dataset.addBlock);
     list.appendChild(row);
+    row.dispatchEvent(new CustomEvent("sports-editorial:block-added", { bubbles: true }));
     row.querySelector("[data-editor]").focus();
     renumber();
   }));
