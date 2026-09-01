@@ -1,5 +1,6 @@
 import json
 import re
+from copy import deepcopy
 from datetime import date
 from io import BytesIO
 
@@ -79,6 +80,46 @@ def _invalid_review_entity_links(form_data, submission):
         if not valid:
             invalid.append(entity.get("name") or entity_id)
     return invalid
+
+
+def _review_form_preview(submission, form_data, parsed_dates=None):
+    """Redisplay a rejected review without persisting or discarding its edits."""
+    preview = deepcopy(submission)
+    parsed_dates = parsed_dates or {}
+    for field in (
+        "title", "amp_id", "client_name", "competition", "event_name", "gender",
+        "location", "season_code", "publication_deadline", "researcher_deadline",
+        "researcher_user_id", "sub_editor_user_id", "working_notes", "unused_stats",
+    ):
+        if field in form_data:
+            preview[field] = form_data.get(field, "")
+    if "event_date" in form_data:
+        preview["event_date"] = parsed_dates.get("event_date") or form_data.get("event_date", "")
+    if "fis_event_ids" in form_data:
+        preview["fis_event_ids"] = _event_ids_from_form(" ".join(form_data.getlist("fis_event_ids")))
+
+    existing = {block["id"]: block for block in preview.get("stats", [])}
+    block_ids = form_data.getlist("content_id")
+    block_types = form_data.getlist("content_type")
+    if block_ids:
+        blocks = []
+        for index, block_id in enumerate(block_ids):
+            kind = block_types[index] if index < len(block_types) else "stat"
+            kind = "section" if kind == "heading" else kind
+            block = deepcopy(existing.get(block_id) or {
+                "id": block_id, "stat_text": "", "edited_text": "", "entity_ids": [],
+                "entity_mentions": {}, "entity_ranges": {}, "tags": [],
+            })
+            block["content_type"] = kind
+            block["sort_order"] = index
+            block["edited_text"] = sanitise_rich_text(
+                form_data.get(f"edited_text_{block_id}", block.get("edited_text") or block.get("stat_text", ""))
+            )
+            accepted = form_data.get(f"accepted_{block_id}") == "1"
+            block["accepted_at"] = (block.get("accepted_at") or "pending") if accepted else None
+            blocks.append(block)
+        preview["stats"] = blocks
+    return preview
 
 
 @blueprint.app_context_processor
@@ -734,6 +775,8 @@ def search_entities():
 @blueprint.route("/submissions/<submission_id>", methods=["GET", "POST"])
 def detail(submission_id):
     submission = _submission_or_404(submission_id)
+    rejected_form = None
+    rejected_dates = {}
     if request.method == "POST":
         _require_sub_editor()
         user, lock_token = _require_owned_lock(submission_id)
@@ -761,8 +804,8 @@ def detail(submission_id):
         elif requested_status in ("approved", "exported"):
             review_ids = request.form.getlist("content_id") or [block["id"] for block in submission.get("stats", [])]
             review_types = request.form.getlist("content_type") or [block.get("content_type", "stat") for block in submission.get("stats", [])]
-            if any(kind == "stat" and request.form.get(f"accepted_{block_id}") != "1" for block_id, kind in zip(review_ids, review_types)):
-                valid, message = False, "Accept and lock every statistic before approval."
+            if any(kind in ("stat", "section", "heading") and request.form.get(f"accepted_{block_id}") != "1" for block_id, kind in zip(review_ids, review_types)):
+                valid, message = False, "Accept and lock every statistic and sub-heading before approval."
             else:
                 invalid_entities = _invalid_review_entity_links(request.form, submission)
                 if invalid_entities:
@@ -771,6 +814,8 @@ def detail(submission_id):
             valid, message = False, "Add instructions explaining what the researcher needs to change."
         if not valid:
             flash(message, "error")
+            rejected_form = request.form.copy()
+            rejected_dates = parsed_dates
         else:
             mutable_form = request.form.copy()
             for field_name, parsed_value in parsed_dates.items():
@@ -792,6 +837,8 @@ def detail(submission_id):
     editable_role = role in ("sub_editor", "supervisor")
     wants_edit = request.args.get("edit") == "1"
     refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and wants_edit and submission["status"] != "exported" else (repository.get_submission(submission_id), repository.get_edit_lock(submission_id))
+    if rejected_form is not None:
+        refreshed = _review_form_preview(refreshed, rejected_form, rejected_dates)
     owns_lock = bool(edit_lock and edit_lock["owner_id"] == (current_user() or {}).get("id"))
     if owns_lock:
         _remember_lock(submission_id, edit_lock)
@@ -908,8 +955,8 @@ def fis_publish(submission_id):
     submission = _submission_or_404(submission_id)
     if submission["status"] not in ("approved", "exported"):
         abort(403, description="Approve the submission in CXMS before publishing to FIS.")
-    if any(block.get("content_type") == "stat" and not block.get("accepted_at") for block in submission.get("stats", [])):
-        abort(409, description="Accept and lock every statistic before publishing to FIS.")
+    if any(block.get("content_type") in ("stat", "section", "heading") and not block.get("accepted_at") for block in submission.get("stats", [])):
+        abort(409, description="Accept and lock every statistic and sub-heading before publishing to FIS.")
     previous = repository.get_fis_publication(submission_id) or {}
     config = fis_configuration()
     try:

@@ -47,11 +47,10 @@
 
     const normaliseText = (value) => value.replace(/\s+/g, " ").trim();
 
-    const normaliseMarkup = (value) =>
-      value
-        .replace(/\s+/g, " ")
-        .replace(/> </g, "><")
-        .trim();
+    // Do not collapse or trim whitespace here. Spaces, line breaks and
+    // backspaces are editorial changes and must trigger re-review.
+    const comparableMarkup = (value) =>
+      value.replace(/\r\n?/g, "\n");
 
     const editorMarkup = () => {
       const clone = editor.cloneNode(true);
@@ -63,7 +62,7 @@
       return clone.innerHTML;
     };
 
-    const sessionStartMarkup = normaliseMarkup(editorMarkup());
+    const sessionStartMarkup = comparableMarkup(editorMarkup());
 
     const tokenise = (value) =>
       normaliseText(value).match(/\S+\s*/g) || [];
@@ -165,11 +164,11 @@
         }
       }
 
-      const currentMarkup = normaliseMarkup(editorMarkup());
+      const currentMarkup = comparableMarkup(editorMarkup());
       const changedThisSession =
         sessionStartMarkup !== currentMarkup;
       const differsFromResearcher =
-        normaliseMarkup(original.innerHTML) !== currentMarkup;
+        comparableMarkup(original.innerHTML) !== currentMarkup;
 
       block.classList.toggle(
         "has-changes",
@@ -206,7 +205,7 @@
       ) {
         diff.append(
           document.createTextNode(
-            "Formatting changed; wording is unchanged.",
+            "Whitespace or formatting changed; visible wording is otherwise unchanged.",
           ),
         );
       } else {
@@ -1453,13 +1452,13 @@
   };
 
   const updateAcceptanceSummary = () => {
-    const statistics = [
+    const contentBlocks = [
       ...document.querySelectorAll(
-        "[data-review-block][data-block-type='stat']",
+        "[data-review-block]",
       ),
     ];
 
-    const accepted = statistics.filter(
+    const accepted = contentBlocks.filter(
       (block) =>
         block.dataset.accepted === "1",
     ).length;
@@ -1479,7 +1478,7 @@
 
     if (statCount) {
       statCount.textContent =
-        String(statistics.length);
+        String(contentBlocks.length);
     }
   };
 
@@ -1521,18 +1520,17 @@
       "[data-remove-review-block]",
     );
 
-    if (
-      remove &&
-      window.confirm(
-        "Remove this block from the stat sheet?",
-      )
-    ) {
-      remove
-        .closest("[data-review-block]")
-        .remove();
+    if (remove) {
+      const blockToRemove = remove.closest("[data-review-block]");
+      const removalConfirmed =
+        blockToRemove.dataset.blockType === "section" ||
+        window.confirm("Remove this statistic from the stat sheet?");
 
-      renumberReviewBlocks();
-      updateAcceptanceSummary();
+      if (removalConfirmed) {
+        blockToRemove.remove();
+        renumberReviewBlocks();
+        updateAcceptanceSummary();
+      }
     }
   });
 
@@ -1556,7 +1554,7 @@
 
       if (
         !window.confirm(
-          "Validate entity links, then accept and lock every statistic?",
+          "Validate entity links, then accept and lock every statistic and sub-heading?",
         )
       ) {
         return;
@@ -1564,7 +1562,7 @@
 
       document
         .querySelectorAll(
-          "[data-review-block][data-block-type='stat']",
+          "[data-review-block]",
         )
         .forEach((block) => {
           setAccepted(block, true);
@@ -1655,8 +1653,7 @@
     const block = document.createElement("article");
 
     block.className =
-      `sew-stat-card sew-stat-card--${type}` +
-      `${type === "stat" ? " needs-review" : ""}`;
+      `sew-stat-card sew-stat-card--${type} needs-review`;
 
     block.dataset.reviewBlock = "";
     block.dataset.blockType = type;
@@ -1691,21 +1688,16 @@
         `
         : "";
 
-    const acceptedInput =
-      type === "stat"
-        ? `
+    const acceptedInput = `
           <input
             type="hidden"
             name="accepted_${id}"
             value="0"
             data-accepted-input
           >
-        `
-        : "";
+        `;
 
-    const accept =
-      type === "stat"
-        ? `
+    const accept = `
           <button
             class="sew-button sew-button--primary sew-button--small"
             type="button"
@@ -1713,8 +1705,7 @@
           >
             Accept and lock
           </button>
-        `
-        : "";
+        `;
 
     block.innerHTML = `
       <header>
@@ -1723,11 +1714,7 @@
             class="sew-validation"
             data-review-status
           >
-            ${
-              type === "section"
-                ? "Sub-heading · editable"
-                : "Needs review"
-            }
+            Needs review
           </span>
           ${accept}
           <button

@@ -245,7 +245,7 @@ class DemoSportsEditorialRepository:
                 stat_id = stat["id"]
                 stat["edited_text"] = sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", stat.get("edited_text") or stat.get("stat_text", "")))
                 stat["editor_comment"] = form_data.get(f"editor_comment_{stat_id}", "").strip()
-                accepted = stat.get("content_type") == "stat" and form_data.get(f"accepted_{stat_id}") == "1"
+                accepted = stat.get("content_type") in ("stat", "section", "heading") and form_data.get(f"accepted_{stat_id}") == "1"
                 stat["accepted_at"] = _now() if accepted else None
                 stat["accepted_by_user_id"] = (current_user() or {}).get("id") if accepted else None
                 stat["tags"] = [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()]
@@ -633,7 +633,7 @@ class SupabaseSportsEditorialRepository:
         allowed_ids = {entity["id"] for entity in self.get_entities_by_ids(requested_entity_ids)}
         for stat in item["stats"]:
             stat_id = stat["id"]
-            accepted = stat.get("content_type") == "stat" and form_data.get(f"accepted_{stat_id}") == "1"
+            accepted = stat.get("content_type") in ("stat", "section", "heading") and form_data.get(f"accepted_{stat_id}") == "1"
             edited_text = sanitise_rich_text(form_data.get(f"edited_text_{stat_id}", stat.get("edited_text") or stat.get("stat_text", "")))
             self.client.request("sports_editorial_stats", "PATCH", query={"id": f"eq.{stat_id}"}, payload={"sort_order": stat.get("sort_order", 0), "content_type": stat.get("content_type", "stat"), "edited_text": edited_text, "editor_comment": form_data.get(f"editor_comment_{stat_id}", "").strip(), "tags": [tag.strip().lower() for tag in form_data.get(f"tags_{stat_id}", "").split(",") if tag.strip()], "accepted_at": _now() if accepted else None, "accepted_by_user_id": user.get("id") if accepted else None, "updated_at": _now()}, prefer="return=minimal")
             selected, mentions, ranges = _submitted_entity_links(

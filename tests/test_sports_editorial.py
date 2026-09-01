@@ -964,7 +964,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Accept and lock every statistic", response.data)
         self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "in_review")
 
-    def test_sub_headings_do_not_require_explicit_acceptance(self):
+    def test_sub_headings_require_explicit_acceptance(self):
         self.set_sub_editor()
         sheet = repository.get_submission("demo-submission-kronplatz")
         data = {"status": "approved", "fis_event_ids": "55596"}
@@ -974,9 +974,64 @@ class SportsEditorialPilotTests(unittest.TestCase):
             data[f"edited_text_{block['id']}"] = block.get("edited_text") or block["stat_text"]
             if block["content_type"] == "stat":
                 data[f"accepted_{block['id']}"] = "1"
+        response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-kronplatz", data=data, follow_redirects=True)
+        self.assertIn(b"Accept and lock every statistic and sub-heading", response.data)
+        self.assertNotEqual(repository.get_submission("demo-submission-kronplatz")["status"], "approved")
+
+        for block in sheet["stats"]:
+            data[f"accepted_{block['id']}"] = "1"
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-kronplatz", data=data)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(repository.get_submission("demo-submission-kronplatz")["status"], "approved")
+
+    def test_failed_approval_preserves_unsaved_editor_wording_without_persisting_it(self):
+        self.set_sub_editor()
+        sheet = repository.get_submission("demo-submission-submitted")
+        block = sheet["stats"][0]
+        unsaved = "Unsaved correction with  two spaces"
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={
+                "status": "approved", "fis_event_ids": "55596",
+                "content_id": block["id"], "content_type": "stat",
+                f"edited_text_{block['id']}": unsaved,
+                f"accepted_{block['id']}": "0",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(unsaved.encode(), response.data)
+        stored = repository.get_submission("demo-submission-submitted")["stats"][0]
+        self.assertNotEqual(stored.get("edited_text"), unsaved)
+        self.assertIsNone(stored.get("accepted_at"))
+
+    def test_unlocking_a_block_forces_reacceptance_even_without_wording_changes(self):
+        self.set_sub_editor()
+        sheet = repository.get_submission("demo-submission-kronplatz")
+        block = next(item for item in sheet["stats"] if item["content_type"] == "stat")
+        block["accepted_at"] = datetime.now(timezone.utc).isoformat()
+        repository._submissions = [
+            sheet if item["id"] == sheet["id"] else item
+            for item in repository._submissions
+        ]
+        response = self.client.post(
+            f"/workspace/sports-editorial/submissions/{sheet['id']}",
+            data={
+                "status": "in_review", "fis_event_ids": "55596",
+                "content_id": block["id"], "content_type": "stat",
+                f"edited_text_{block['id']}": block.get("edited_text") or block["stat_text"],
+                f"accepted_{block['id']}": "0",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        updated = next(item for item in repository.get_submission(sheet["id"])["stats"] if item["id"] == block["id"])
+        self.assertIsNone(updated["accepted_at"])
+
+    def test_review_script_tracks_whitespace_and_only_confirms_stat_removal(self):
+        script = Path("static/js/sports-editorial-review.js").read_text()
+        self.assertIn("Spaces, line breaks and", script)
+        self.assertIn('dataset.blockType === "section"', script)
+        self.assertIn("Remove this statistic from the stat sheet?", script)
+        self.assertNotIn("Remove this block from the stat sheet?", script)
 
     def test_sub_editor_can_add_remove_and_reorder_blocks(self):
         self.set_sub_editor()
