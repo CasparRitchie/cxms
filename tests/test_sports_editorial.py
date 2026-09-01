@@ -65,6 +65,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_status_transition_validation(self):
         self.assertTrue(validate_status_transition("submitted", "approved")[0])
         self.assertFalse(validate_status_transition("draft", "approved")[0])
+        self.assertFalse(validate_status_transition("approved", "in_review")[0])
+        self.assertTrue(validate_status_transition("approved", "draft")[0])
+        self.assertTrue(validate_status_transition("exported", "draft")[0])
         self.assertFalse(validate_status_transition("submitted", "made_up")[0])
 
     def test_json_transformation_prefers_edited_text_and_links_entities(self):
@@ -701,6 +704,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         state = repository.get_fis_publication("demo-submission-approved")
         self.assertEqual(state["status"], "published")
         self.assertEqual(state["version"], 1)
+        published_view = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved?edit=1")
+        self.assertIn(b"Published FIS", published_view.data)
+        self.assertIn(b"sew-final-state--exported", published_view.data)
+        self.assertNotIn(b'contenteditable="true"', published_view.data)
 
         self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-publish")
         unchanged = repository.get_fis_publication("demo-submission-approved")
@@ -716,6 +723,18 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.set_sub_editor()
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted/fis-publish")
         self.assertEqual(response.status_code, 403)
+
+    def test_editing_published_fis_withdraws_then_acquires_in_progress_lock(self):
+        self.set_sub_editor()
+        self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-publish")
+        response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/edit")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "draft")
+        self.assertEqual(repository.get_fis_publication("demo-submission-approved")["status"], "withdrawn")
+        self.assertEqual(repository.get_edit_lock("demo-submission-approved")["owner_id"], "demo-user")
+        audit = repository.list_audit_events("demo-submission-approved")[-1]
+        self.assertEqual(audit["action"], "returned_to_in_progress")
+        self.assertTrue(audit["details"]["withdrawal_performed"])
 
     def test_live_fis_mode_requires_configuration(self):
         with patch.dict(os.environ, {"FIS_API_MODE": "live", "FIS_API_BASE_URL": "", "FIS_API_TOKEN": ""}, clear=False):
@@ -761,18 +780,21 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
 
-    def test_accepted_statistic_places_unlock_in_card_header(self):
+    def test_approved_statistic_places_final_lock_in_card_header(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved?edit=1")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Accepted \xc2\xb7 locked</span><button class="sew-button sew-button--danger sew-button--small" type="button" data-toggle-accepted', response.data)
+        self.assertIn(b"Accepted \xc2\xb7 locked", response.data)
+        self.assertIn(b"sew-final-lock", response.data)
+        self.assertNotIn(b"data-toggle-accepted", response.data)
         self.assertNotIn(b'class="sew-review-actions"', response.data)
 
     def test_unaccepted_statistic_places_accept_and_lock_in_card_header(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Needs review</span><button class="sew-button sew-button--primary sew-button--small" type="button" data-toggle-accepted', response.data)
+        self.assertIn(b"Needs review", response.data)
+        self.assertIn(b'data-toggle-accepted>Accept and lock</button>', response.data)
 
     def test_only_drag_handles_are_draggable_so_original_wording_is_selectable(self):
         self.set_sub_editor()
@@ -782,14 +804,38 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'class="sew-drag" title="Drag to reorder" draggable="true"', response.data)
         self.assertIn(b'class="sew-rendered-content"', response.data)
 
-    def test_sub_editor_gets_explicit_review_actions_instead_of_status_dropdown(self):
+    def test_sub_editor_gets_simplified_review_actions_instead_of_status_dropdown(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Current stage: In Sub Edit", response.data)
-        self.assertIn(b'value="changes_requested">Request changes', response.data)
+        self.assertNotIn(b'value="changes_requested">Request changes', response.data)
+        self.assertNotIn(b"Instructions for the researcher", response.data)
         self.assertIn(b'value="approved">Approve stat sheet', response.data)
         self.assertNotIn(b"<span>Workflow status</span><select", response.data)
+
+    def test_sub_edit_declutters_link_controls_and_checks_links_per_statistic(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b">Linked<", response.data)
+        self.assertIn(b"sew-entity-autocomplete--inline-only", response.data)
+        self.assertIn(b"data-selected-entities hidden", response.data)
+        self.assertIn(b"data-check-block-entities", response.data)
+        self.assertNotIn(b"data-check-entities", response.data)
+        self.assertIn(b'fis-preview" target="_blank" rel="noopener"', response.data)
+        self.assertIn(b"data-track-note-change", response.data)
+        script = Path("static/js/sports-editorial-review.js").read_text()
+        self.assertNotIn('<span class="sew-cell-label">Linked</span>', script)
+        self.assertIn('closest("[data-review-block], [data-content-block]")', script)
+        self.assertIn("const initialValue = field.value", script)
+
+    def test_phase_b_styles_remove_purple_changed_border_and_hide_link_chips(self):
+        stylesheet = Path("static/css/sports-editorial-workspace.css").read_text()
+        self.assertNotIn(".sew-stat-card.has-changes", stylesheet)
+        self.assertIn(".sew-entity-autocomplete--inline-only", stylesheet)
+        self.assertIn(".sew-selected-entities[hidden]", stylesheet)
+        self.assertIn("#d9f4f1", stylesheet)
 
     def test_request_changes_requires_feedback_and_reopens_researcher_editing(self):
         self.set_sub_editor()
@@ -815,14 +861,38 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(feedback.encode(), researcher_view.data)
         self.assertIn(b"Continue research", researcher_view.data)
 
-    def test_approved_sheet_offers_fis_json_without_publish_action(self):
+    def test_approved_sheet_is_read_only_and_offers_edit_and_fis_json(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved?edit=1")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Approved and ready for JSON", response.data)
-        self.assertIn(b"Review FIS JSON", response.data)
-        self.assertIn(b"Return to sub-edit", response.data)
+        self.assertIn(b"sew-final-state--approved", response.data)
+        self.assertIn(b"This version is read-only", response.data)
+        self.assertIn(b">Edit</button>", response.data)
+        self.assertIn(b"FIS JSON preview", response.data)
+        self.assertNotIn(b"Return to sub-edit", response.data)
+        self.assertNotIn(b"Add statistic", response.data)
+        self.assertNotIn(b"data-remove-review-block", response.data)
+        self.assertNotIn(b'contenteditable="true"', response.data)
         self.assertNotIn(b"Simulate publish", response.data)
+
+    def test_approved_sheet_rejects_direct_review_post_and_edit_returns_to_in_progress(self):
+        self.set_sub_editor()
+        direct = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-approved",
+            data={"status": "in_review"},
+        )
+        self.assertEqual(direct.status_code, 409)
+        self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "approved")
+
+        edit = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/edit")
+        self.assertEqual(edit.status_code, 302)
+        self.assertTrue(edit.headers["Location"].endswith("/research"))
+        self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "draft")
+        self.assertEqual(repository.get_edit_lock("demo-submission-approved")["owner_id"], "demo-user")
+        audit = repository.list_audit_events("demo-submission-approved")[-1]
+        self.assertEqual(audit["action"], "returned_to_in_progress")
+        self.assertEqual(audit["details"]["previous_status"], "approved")
+        self.assertFalse(audit["details"]["withdrawal_performed"])
 
     def test_create_stat_sheet_action_is_on_sub_editor_queue(self):
         self.set_sub_editor()

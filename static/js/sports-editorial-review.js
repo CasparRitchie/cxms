@@ -157,7 +157,8 @@
         if (headerActions) {
           headerActions.insertBefore(
             badge,
-            headerActions.querySelector("[data-remove-review-block]"),
+            headerActions.querySelector("[data-toggle-accepted]") ||
+              headerActions.querySelector("[data-remove-review-block]"),
           );
         } else {
           block.querySelector("header")?.appendChild(badge);
@@ -1569,11 +1570,12 @@
         });
     });
 
-  document
-    .querySelector("[data-check-entities]")
-    ?.addEventListener("click", () => {
+  document.addEventListener("click", (event) => {
+    const checkLinks = event.target.closest("[data-check-block-entities]");
+    if (!checkLinks) return;
+    const block = checkLinks.closest("[data-review-block], [data-content-block]");
       const chips = [
-        ...document.querySelectorAll(
+        ...block.querySelectorAll(
           "[data-entity-id]",
         ),
       ];
@@ -1602,7 +1604,7 @@
       });
 
       window.alert(
-        `${chips.length - invalid.length} entity links have canonical IDs. ` +
+        `${chips.length - invalid.length} links in this statistic have canonical IDs. ` +
           `${invalid.length} need attention.` +
           `${links.length ? ` Opened ${links.length} source pages.` : ""}`,
       );
@@ -1664,15 +1666,15 @@
       type === "stat"
         ? `
           <div
-            class="sew-entity-autocomplete"
+            class="sew-entity-autocomplete sew-entity-autocomplete--inline-only"
             data-entity-control
             data-field-name="entity_ids_${id}"
             data-mention-prefix="entity_mention_${id}_"
           >
-            <span class="sew-cell-label">Linked</span>
             <div
               class="sew-selected-entities"
               data-selected-entities
+              hidden
             ></div>
             <div
               class="sew-entity-suggestions"
@@ -1716,6 +1718,7 @@
           >
             Needs review
           </span>
+          ${type === "stat" ? `<button class="sew-button sew-button--small" type="button" data-check-block-entities>Check links</button>` : ""}
           ${accept}
           <button
             class="sew-button sew-button--danger sew-button--small"
@@ -2002,6 +2005,14 @@
       formDirty = true;
     },
   );
+
+  document.querySelectorAll("[data-track-note-change]").forEach((field) => {
+    const initialValue = field.value;
+    const badge = field.closest("label")?.querySelector("[data-note-change]");
+    field.addEventListener("input", () => {
+      if (badge) badge.hidden = field.value === initialValue;
+    });
+  });
 
   renumberReviewBlocks();
   updateAcceptanceSummary();

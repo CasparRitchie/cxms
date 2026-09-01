@@ -779,6 +779,8 @@ def detail(submission_id):
     rejected_dates = {}
     if request.method == "POST":
         _require_sub_editor()
+        if submission["status"] in ("approved", "exported"):
+            abort(409, description="Use Edit to return this sheet to In Progress before making changes.")
         user, lock_token = _require_owned_lock(submission_id)
         requested_status = request.form.get("status", submission["status"])
         raw_event_ids = " ".join(request.form.getlist("fis_event_ids"))
@@ -835,15 +837,16 @@ def detail(submission_id):
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     role = (current_user() or {}).get("role", "researcher")
     editable_role = role in ("sub_editor", "supervisor")
+    final_state = submission["status"] in ("approved", "exported")
     wants_edit = request.args.get("edit") == "1"
-    refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and wants_edit and submission["status"] != "exported" else (repository.get_submission(submission_id), repository.get_edit_lock(submission_id))
+    refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and wants_edit and not final_state else (repository.get_submission(submission_id), None if final_state else repository.get_edit_lock(submission_id))
     if rejected_form is not None:
         refreshed = _review_form_preview(refreshed, rejected_form, rejected_dates)
     owns_lock = bool(edit_lock and edit_lock["owner_id"] == (current_user() or {}).get("id"))
     if owns_lock:
         _remember_lock(submission_id, edit_lock)
     entity_map = _entities_by_id(refreshed)
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=editable_role and owns_lock, can_start_review=editable_role and refreshed["status"] != "exported" and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor") and refreshed["status"] in ("draft", "changes_requested"), edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=editable_role and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
 
 
 @blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])
@@ -998,9 +1001,10 @@ def edit_published(submission_id):
     _require_sub_editor()
     submission = _submission_or_404(submission_id)
     publication = repository.get_fis_publication(submission_id) or {}
-    if submission.get("status") != "exported" and publication.get("status") != "published":
-        abort(409, description="Only a published stat sheet needs to be taken back into edit.")
-    if publication.get("status") == "published":
+    if submission.get("status") not in ("approved", "exported") and publication.get("status") != "published":
+        abort(409, description="Only an Approved or Published FIS stat sheet can be returned to In Progress.")
+    withdrawal_performed = publication.get("status") == "published"
+    if withdrawal_performed:
         try:
             withdrawn = get_fis_client().withdraw(submission.get("fis_external_id") or f"cxms-{submission_id}", previous=publication)
             repository.save_fis_publication(submission_id, withdrawn)
@@ -1008,11 +1012,15 @@ def edit_published(submission_id):
             _flash_fis_error(exc)
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
     repository.set_submission_status(submission_id, "draft")
-    repository.record_audit_event(submission_id, current_user() or {}, "returned_to_in_progress", {
+    user = current_user() or {}
+    repository.record_audit_event(submission_id, user, "returned_to_in_progress", {
         "previous_status": submission.get("status"),
-        "withdrawal_performed": publication.get("status") == "published",
+        "withdrawal_performed": withdrawal_performed,
     })
-    flash("The published sheet is now In Progress. Edit it, then submit it for sub edit.", "success")
+    _submission, edit_lock = repository.acquire_edit_lock(submission_id, user)
+    if edit_lock and edit_lock.get("owner_id") == user.get("id"):
+        _remember_lock(submission_id, edit_lock)
+    flash("The sheet is now In Progress. Edit it, then submit it for sub edit.", "success")
     return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id))
 
 
