@@ -1027,11 +1027,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIsNone(updated["accepted_at"])
 
     def test_review_script_tracks_whitespace_and_only_confirms_stat_removal(self):
-        script = Path("static/js/sports-editorial-review.js").read_text()
-        self.assertIn("Spaces, line breaks and", script)
-        self.assertIn('dataset.blockType === "section"', script)
-        self.assertIn("Remove this statistic from the stat sheet?", script)
-        self.assertNotIn("Remove this block from the stat sheet?", script)
+        review_script = Path("static/js/sports-editorial-review.js").read_text()
+        research_script = Path("static/js/sports-editorial-submit.js").read_text()
+        self.assertIn("Spaces, line breaks and", review_script)
+        self.assertIn('dataset.blockType === "section"', review_script)
+        self.assertIn('block.dataset.type === "stat"', research_script)
+        for script in (review_script, research_script):
+            self.assertIn("Remove this statistic from the stat sheet?", script)
+            self.assertNotIn("Remove this block from the stat sheet?", script)
 
     def test_sub_editor_can_add_remove_and_reorder_blocks(self):
         self.set_sub_editor()

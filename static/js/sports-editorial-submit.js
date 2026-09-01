@@ -136,8 +136,13 @@
   });
   list.addEventListener("click", (event) => {
     if (!event.target.matches("[data-remove-stat]")) return;
-    if (list.children.length === 1) list.querySelector("[data-editor]").innerHTML = "";
-    else event.target.closest("[data-content-block]").remove();
+    const block = event.target.closest("[data-content-block]");
+    if (
+      block.dataset.type === "stat" &&
+      !window.confirm("Remove this statistic from the stat sheet?")
+    ) return;
+    if (list.children.length === 1) block.querySelector("[data-editor]").innerHTML = "";
+    else block.remove();
     renumber();
   });
   list.addEventListener("mousedown", (event) => {
