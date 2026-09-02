@@ -1,14 +1,15 @@
 VALID_STATUSES = ("draft", "submitted", "in_review", "changes_requested", "approved", "exported")
+ACTIVE_STATUSES = ("draft", "in_review", "approved", "exported")
 VALID_ENTITY_TYPES = ("athlete", "country", "event", "competition")
 VALID_CONTENT_TYPES = ("stat", "section", "heading")
-STATUS_LABELS = {"draft": "In Progress", "submitted": "Submitted", "in_review": "In Sub Edit", "changes_requested": "Changes Requested", "approved": "Approved", "exported": "Published FIS"}
+STATUS_LABELS = {"draft": "In Progress", "submitted": "In Sub Edit", "in_review": "In Sub Edit", "changes_requested": "In Progress", "approved": "Approved", "exported": "Published FIS"}
 
 from .formatting import rich_text_to_plain
 
 STATUS_TRANSITIONS = {
-    "draft": {"draft", "submitted"},
+    "draft": {"draft", "in_review"},
     "submitted": {"submitted", "in_review", "changes_requested", "approved"},
-    "in_review": {"in_review", "changes_requested", "approved"},
+    "in_review": {"in_review", "draft", "approved"},
     "changes_requested": {"changes_requested", "submitted", "in_review"},
     "approved": {"approved", "exported", "draft"},
     "exported": {"exported", "draft"},

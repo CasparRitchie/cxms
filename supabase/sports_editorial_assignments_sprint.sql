@@ -22,7 +22,7 @@ set editorial_role = 'researcher'
 where editorial_role = 'journalist';
 alter table public.sports_editorial_memberships
   add constraint sports_editorial_memberships_editorial_role_check
-  check (editorial_role in ('researcher', 'sub_editor', 'supervisor'));
+  check (editorial_role in ('researcher', 'sub_editor', 'supervisor', 'fis_specialist'));
 
 update public.sports_editorial_stats set content_type = 'section' where content_type = 'heading';
 alter table public.sports_editorial_stats
@@ -36,7 +36,7 @@ create index if not exists sports_editorial_submissions_researcher_idx
 create index if not exists sports_editorial_submissions_sub_editor_idx
   on public.sports_editorial_submissions(workspace_id, sub_editor_user_id, status, updated_at desc);
 
-crcreate or replace function public.sports_editorial_provision_user(
+create or replace function public.sports_editorial_provision_user(
   p_workspace_id uuid,
   p_email text,
   p_full_name text,
@@ -58,7 +58,8 @@ begin
   if p_editorial_role not in (
     'researcher',
     'sub_editor',
-    'supervisor'
+    'supervisor',
+    'fis_specialist'
   ) then
     raise exception 'Invalid Sports Editorial role';
   end if;

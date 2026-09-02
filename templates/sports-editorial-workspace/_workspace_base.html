@@ -21,7 +21,7 @@
     </nav>
     <div class="sew-header-actions">
       {% if endpoint == 'sports_editorial_workspace.queue' and workspace_role in ['sub_editor', 'supervisor'] %}<a class="sew-button sew-button--primary sew-create-sheet" href="{{ url_for('sports_editorial_workspace.submit') }}"><span aria-hidden="true">＋</span> Create stat sheet</a>{% endif %}
-      {% if workspace_auth_mode == 'workspace' and (workspace_role == 'supervisor' or workspace_account_role in ['owner', 'admin']) %}
+      {% if workspace_auth_mode == 'workspace' and workspace_role == 'supervisor' %}
       <details class="sew-header-menu">
         <summary>Manage</summary>
         <nav aria-label="Workspace administration">
@@ -39,6 +39,7 @@
         <option value="researcher" {% if workspace_role == 'researcher' %}selected{% endif %}>Researcher</option>
         <option value="sub_editor" {% if workspace_role == 'sub_editor' %}selected{% endif %}>Sub-editor</option>
         <option value="supervisor" {% if workspace_role == 'supervisor' %}selected{% endif %}>Supervisor</option>
+        <option value="fis_specialist" {% if workspace_role == 'fis_specialist' %}selected{% endif %}>FIS specialist</option>
       </select>
       </form>{% else %}<form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.logout') }}"><span>{{ workspace_user }} · {{ workspace_role|replace('_', ' ')|title }}</span><button class="sew-button sew-button--small" type="submit">Sign out</button></form>{% endif %}
       <button class="sew-theme-toggle" type="button" aria-label="Switch to light mode" aria-pressed="false">

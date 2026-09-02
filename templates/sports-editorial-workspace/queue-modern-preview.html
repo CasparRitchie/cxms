@@ -42,7 +42,7 @@
 
 <section class="sew-queue-selection-bar" aria-label="Stat sheet selection and allocation">
   <strong><span data-selected-count>0</span> of {{ result_count }} visible stat sheets selected</strong>
-  <div class="sew-actions"><button class="sew-button" type="button" data-select-all>Select all visible</button><button class="sew-button" type="button" data-clear-selection disabled>Clear selection</button>{% if workspace_role in ['sub_editor','supervisor'] %}<button class="sew-button sew-button--primary" type="button" data-open-allocation="researcher_user_id" disabled>Allocate researcher</button><button class="sew-button sew-button--primary" type="button" data-open-allocation="sub_editor_user_id" disabled>Allocate sub-editor</button>{% endif %}</div>
+  <div class="sew-actions"><button class="sew-button" type="button" data-select-all>Select all visible</button><button class="sew-button" type="button" data-clear-selection disabled>Clear selection</button>{% if workspace_role == 'supervisor' %}<button class="sew-button sew-button--primary" type="button" data-open-allocation="researcher_user_id" disabled>Allocate researcher</button><button class="sew-button sew-button--primary" type="button" data-open-allocation="sub_editor_user_id" disabled>Allocate sub-editor</button>{% endif %}</div>
 </section>
 
 <section class="sew-card sew-table-card sew-queue-table-card sew-modern-queue-preview">
@@ -60,7 +60,7 @@
   </table>
 </section>
 
-{% if workspace_role in ['sub_editor','supervisor'] %}
+{% if workspace_role == 'supervisor' %}
 {% for assignment_field, title, allowed_roles in [('researcher_user_id','Allocate researcher',['researcher']),('sub_editor_user_id','Allocate sub-editor',['sub_editor','supervisor'])] %}
 <dialog class="sew-allocation-dialog" data-allocation-dialog="{{ assignment_field }}"><form method="post" action="{{ url_for('sports_editorial_workspace.bulk_assign_queue') }}"><input type="hidden" name="assignment_field" value="{{ assignment_field }}"><input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}"><header><h2>{{ title }}</h2><button type="button" data-close-allocation aria-label="Close">×</button></header><p><strong data-dialog-selection-count>0</strong> stat sheets selected.</p><label class="sew-field"><span>Select person</span><select name="user_id" required><option value="">Choose a person</option>{% for user in assignment_users if user.editorial_role in allowed_roles %}<option value="{{ user.id }}">{{ user.full_name or user.email }}</option>{% endfor %}</select></label><footer><button class="sew-button sew-button--primary" type="submit" name="assignment_action" value="allocate">Allocate</button><button class="sew-button sew-button--danger" type="submit" name="assignment_action" value="unallocate" formnovalidate>Unallocate</button><button class="sew-button" type="button" data-close-allocation>Cancel</button></footer></form></dialog>
 {% endfor %}

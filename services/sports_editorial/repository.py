@@ -209,7 +209,7 @@ class DemoSportsEditorialRepository:
                     changed = not existing or kind != existing.get("content_type") or clean != (existing.get("edited_text") or existing.get("stat_text") or "") or set(entity_ids) != set(existing.get("entity_ids", [])) or mentions != existing.get("entity_mentions", {}) or entity_ranges != existing.get("entity_ranges", {})
                     blocks.append({"id": block_id, "sort_order": index, "content_type": kind, "stat_text": clean if changed else existing.get("stat_text", clean), "edited_text": "" if changed else existing.get("edited_text", ""), "editor_comment": "", "accepted_at": None if changed else existing.get("accepted_at"), "accepted_by_user_id": None if changed else existing.get("accepted_by_user_id"), "entity_ids": entity_ids, "entity_mentions": mentions, "entity_ranges": entity_ranges, "tags": existing.get("tags", [])})
             item["stats"] = blocks
-            item["status"] = "submitted" if submit else "draft"
+            item["status"] = "in_review" if submit else "draft"
             item["submitted_at"] = _now() if submit else item.get("submitted_at")
             item["updated_at"] = _now()
             item["last_modified_by"] = user.get("full_name") or user.get("email") or "Workspace user"
@@ -553,7 +553,7 @@ class SupabaseSportsEditorialRepository:
         from .auth import current_user
         user = current_user() or {}
         now = _now()
-        changes = {"event_date": form_data.get("event_date") or None, "working_notes": form_data.get("working_notes", "").strip(), "unused_stats": form_data.get("unused_stats", "").strip(), "status": "submitted" if submit else "draft", "updated_at": now, "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
+        changes = {"event_date": form_data.get("event_date") or None, "working_notes": form_data.get("working_notes", "").strip(), "unused_stats": form_data.get("unused_stats", "").strip(), "status": "in_review" if submit else "draft", "updated_at": now, "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
         if submit:
             changes["submitted_at"] = now
         query = {"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}

@@ -13,7 +13,7 @@
 <p class="sew-message sew-message--notice"><strong>Demonstration data:</strong> no stored classifications match this view, so the pilot dataset is shown. It is not an authoritative FIS record.</p>
 {% endif %}
 
-{% if workspace_role == 'supervisor' or workspace_account_role in ['owner','admin'] %}
+{% if workspace_role == 'supervisor' %}
 <section class="sew-card sew-import-panel">
   <div><h2>Controlled FIS refresh</h2><p>Imports completed missing competitions only, sequentially, with at least 1.5 seconds between calls. Each run is capped at five races.</p></div>
   <form method="post" action="{{ url_for('sports_editorial_workspace.import_stat_results') }}">

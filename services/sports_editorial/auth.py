@@ -53,6 +53,20 @@ def require_editor():
     return user
 
 
+def require_supervisor():
+    user = current_user()
+    if not user or user.get("role") != "supervisor":
+        abort(403, description="Supervisor access is required.")
+    return user
+
+
+def require_reviewer():
+    user = current_user()
+    if not user or user.get("role") not in ("sub_editor", "supervisor", "fis_specialist"):
+        abort(403, description="Sub-editor, Supervisor or FIS specialist access is required.")
+    return user
+
+
 def authenticate(email, password):
     import bcrypt
     client = SupabaseRestClient()
@@ -83,10 +97,7 @@ def require_workspace_admin():
 
 
 def require_editorial_user_admin():
-    user = current_user()
-    if not user or (user.get("role") != "supervisor" and user.get("workspace_role") not in ("owner", "admin")):
-        abort(403, description="Supervisor or workspace administrator access is required.")
-    return user
+    return require_supervisor()
 
 
 def list_workspace_users(workspace_id):
@@ -109,8 +120,8 @@ def list_workspace_users(workspace_id):
 
 def provision_workspace_user(workspace_id, email, full_name, temporary_password, editorial_role):
     import bcrypt
-    if editorial_role not in ("researcher", "sub_editor", "supervisor"):
-        raise ValueError("Choose Researcher, Sub-editor or Supervisor access.")
+    if editorial_role not in ("researcher", "sub_editor", "supervisor", "fis_specialist"):
+        raise ValueError("Choose Researcher, Sub-editor, Supervisor or FIS specialist access.")
     normalised_email = str(email or "").strip().lower()
     if "@" not in normalised_email:
         raise ValueError("Enter a valid email address.")
@@ -122,8 +133,8 @@ def provision_workspace_user(workspace_id, email, full_name, temporary_password,
 
 
 def update_workspace_editorial_user(workspace_id, user_id, full_name, editorial_role, is_active):
-    if editorial_role not in ("researcher", "sub_editor", "supervisor"):
-        raise ValueError("Choose Researcher, Sub-editor or Supervisor access.")
+    if editorial_role not in ("researcher", "sub_editor", "supervisor", "fis_specialist"):
+        raise ValueError("Choose Researcher, Sub-editor, Supervisor or FIS specialist access.")
     client = SupabaseRestClient()
     rows = client.request("sports_editorial_memberships", query={
         "select": "user_id", "workspace_id": f"eq.{workspace_id}",

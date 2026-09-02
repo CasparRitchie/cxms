@@ -236,15 +236,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(entry_page.status_code, 200)
         self.assertIn(b'class="sew-stats-builder" data-stats-list', entry_page.data)
         saved = self.client.post(f"/workspace/sports-editorial/submissions/{submission_id}/research", data={
-            "event_date": "13-Oct-2026", "content_type": ["section", "stat"],
+            "content_type": ["section", "stat"],
             "content_html": ["Race scenarios", "A researched statistic."],
             "working_notes": "Source: internal workbook", "unused_stats": "Reserve statistic", "action": "submit",
         })
         self.assertEqual(saved.status_code, 302)
         sheet = repository.get_submission(submission_id)
-        self.assertEqual(sheet["status"], "submitted")
+        self.assertEqual(sheet["status"], "in_review")
         self.assertEqual(sheet["season_code"], 2026)
-        self.assertEqual(sheet["event_date"], "2026-10-13")
+        self.assertEqual(sheet["event_date"], "2026-10-12")
         self.assertEqual([block["content_type"] for block in sheet["stats"]], ["section", "stat"])
         self.assertEqual(self.client.get(f"/workspace/sports-editorial/submissions/{submission_id}/research").status_code, 403)
         exported = build_pilot_export(sheet, {})
@@ -363,7 +363,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         })
         self.assertEqual(response.status_code, 302)
         submission_id = response.headers["Location"].rsplit("/", 1)[-1]
-        self.assertEqual(repository.get_submission(submission_id)["status"], "submitted")
+        self.assertEqual(repository.get_submission(submission_id)["status"], "in_review")
 
         self.set_sub_editor()
         blocks = repository.get_submission(submission_id)["stats"]
@@ -753,7 +753,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_review_rejects_non_numeric_fis_event_id(self):
-        self.set_sub_editor()
+        self.set_role("supervisor")
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "submitted", "fis_event_ids": "DemoCalendarID00001x"}, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"must contain digits only", response.data)
@@ -775,7 +775,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_save_and_close_returns_to_stat_sheet_queue(self):
         self.set_sub_editor()
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={
-            "status": "submitted", "fis_event_ids": "55596", "save_action": "close",
+            "status": "in_review", "fis_event_ids": "55596", "save_action": "close",
         })
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
@@ -837,28 +837,17 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(".sew-selected-entities[hidden]", stylesheet)
         self.assertIn("#d9f4f1", stylesheet)
 
-    def test_request_changes_requires_feedback_and_reopens_researcher_editing(self):
+    def test_return_to_in_progress_reopens_researcher_editing_without_instructions(self):
         self.set_sub_editor()
-        missing_feedback = self.client.post(
-            "/workspace/sports-editorial/submissions/demo-submission-submitted",
-            data={"status": "changes_requested", "fis_event_ids": "55596"},
-            follow_redirects=True,
-        )
-        self.assertIn(b"Add instructions explaining what the researcher needs to change", missing_feedback.data)
-        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "in_review")
-
-        feedback = "Please replace the final statistic and confirm its source."
         response = self.client.post(
             "/workspace/sports-editorial/submissions/demo-submission-submitted",
-            data={"status": "changes_requested", "fis_event_ids": "55596", "editor_notes": feedback},
+            data={"status": "draft", "fis_event_ids": "55596"},
             follow_redirects=True,
         )
-        self.assertIn(b"Changes requested", response.data)
-        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "changes_requested")
-        self.assertEqual(repository.get_submission("demo-submission-submitted")["editor_notes"], feedback)
+        self.assertIn(b"returned to In Progress", response.data)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "draft")
         self.set_role("researcher")
         researcher_view = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
-        self.assertIn(feedback.encode(), researcher_view.data)
         self.assertIn(b"Continue research", researcher_view.data)
 
     def test_approved_sheet_is_read_only_and_offers_edit_and_fis_json(self):
@@ -907,13 +896,13 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_queue_has_permanently_visible_filters_without_redundant_status_banner(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/queue?status=submitted&competition=FIS+World+Cup&sort=event_name:asc")
+        response = self.client.get("/workspace/sports-editorial/queue?status=in_review&competition=FIS+World+Cup&sort=event_name:asc")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'<section class="sew-queue-filter-panel sew-queue-filter-panel--always-open"', response.data)
         self.assertIn(b'data-filter-field="competition"', response.data)
         self.assertIn(b'data-filter-field="status"', response.data)
         self.assertIn(b'class="sew-card sew-table-card sew-queue-table-card"', response.data)
-        self.assertIn(b'type="checkbox" name="status" value="submitted" checked', response.data)
+        self.assertIn(b'type="checkbox" name="status" value="in_review" checked', response.data)
         self.assertIn(b"Type to narrow", response.data)
         self.assertIn(b"Apply filters", response.data)
         self.assertIn(b"Reset filters", response.data)
@@ -928,15 +917,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_queue_accepts_multiple_values_for_one_filter(self):
         self.set_sub_editor()
-        response = self.client.get("/workspace/sports-editorial/queue?status=submitted&status=approved")
+        response = self.client.get("/workspace/sports-editorial/queue?status=in_review&status=approved")
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(b">560001</td>", response.data)
+        self.assertIn(b">560001</td>", response.data)
         self.assertIn(b">560002</td>", response.data)
         self.assertIn(b">560003</td>", response.data)
         self.assertIn(b"<summary><span>Status</span><b>2 selected</b></summary>", response.data)
-        self.assertIn(b'value="submitted" checked', response.data)
+        self.assertIn(b'value="in_review" checked', response.data)
         self.assertIn(b'value="approved" checked', response.data)
-        self.assertIn(b"status=submitted&amp;status=approved", response.data)
+        self.assertIn(b"status=in_review&amp;status=approved", response.data)
 
     def test_queue_uses_open_buttons_and_plain_selectable_rows(self):
         self.set_sub_editor()
@@ -950,8 +939,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'data-submission-id="demo-submission-kronplatz"', response.data)
         self.assertNotIn(b'aria-describedby="queue-interaction-help"', response.data)
         self.assertIn(b"Client Event ID", response.data)
-        self.assertIn(b"Allocate researcher", response.data)
-        self.assertIn(b"Allocate sub-editor", response.data)
+        self.assertNotIn(b"Allocate researcher", response.data)
+        self.assertNotIn(b"Allocate sub-editor", response.data)
         self.assertIn(b"Select all visible", response.data)
 
     def test_researcher_queue_keeps_filters_visible_without_selection_controls(self):
@@ -978,7 +967,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Enhanced stat sheet view", response.data)
         self.assertIn(b'aria-label="Filter by Competition"', response.data)
         self.assertIn(b'data-row-select', response.data)
-        self.assertIn(b"Allocate researcher", response.data)
+        self.assertNotIn(b"Allocate researcher", response.data)
         self.assertIn(b'data-current-view="enhanced"', response.data)
         standard = self.client.get("/workspace/sports-editorial/queue?status=submitted")
         self.assertIn(b'data-current-view="standard"', standard.data)
@@ -993,11 +982,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'<details class="sew-card sew-core-data sew-core-summary" open>', response.data)
         self.assertIn(b"<strong>Core stat-sheet data</strong>", response.data)
         self.assertIn(b'class="sew-core-summary__body"', response.data)
-        self.assertIn(b'<span>Title</span><input name="title"', response.data)
+        self.assertNotIn(b'<span>Title</span><input name="title"', response.data)
+        self.assertIn(b'<span>Competition</span><strong>FIS World Cup</strong>', response.data)
         self.assertNotIn(b'type="date" name="event_date" value="None"', response.data)
 
-    def test_sub_editor_can_bulk_allocate_and_unallocate_researchers(self):
-        self.set_sub_editor()
+    def test_supervisor_can_bulk_allocate_and_unallocate_researchers(self):
+        self.set_role("supervisor")
         selected = ["demo-submission-kronplatz", "demo-submission-submitted"]
         response = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
             "submission_id": selected,
@@ -1018,6 +1008,40 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         for submission_id in selected:
             self.assertIsNone(repository.get_submission(submission_id)["researcher_user_id"])
+
+    def test_sub_editor_cannot_allocate_or_edit_core_data(self):
+        self.set_sub_editor()
+        denied_allocation = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
+            "submission_id": "demo-submission-submitted",
+            "assignment_field": "researcher_user_id",
+            "assignment_action": "unallocate",
+        })
+        self.assertEqual(denied_allocation.status_code, 403)
+
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        original_title = repository.get_submission("demo-submission-submitted")["title"]
+        denied_core_edit = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"status": "in_review", "title": "Forged title"},
+        )
+        self.assertEqual(denied_core_edit.status_code, 403)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["title"], original_title)
+
+    def test_supervisor_can_edit_core_data_and_sees_allocation_controls(self):
+        self.set_role("supervisor")
+        page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        self.assertIn(b'<span>Title</span><input name="title"', page.data)
+        queue = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(b"Allocate researcher", queue.data)
+        self.assertIn(b"Allocate sub-editor", queue.data)
+
+    def test_researcher_and_sub_editor_cannot_import_official_results(self):
+        for role in ("researcher", "sub_editor"):
+            self.set_role(role)
+            self.assertEqual(
+                self.client.post("/workspace/sports-editorial/stat-insights/import").status_code,
+                403,
+            )
 
     def test_researcher_cannot_bulk_allocate_stat_sheets(self):
         self.set_role("researcher")
@@ -1142,7 +1166,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(repository.get_submission(created["id"])["status"], "draft")
         self.client.post(f"/workspace/sports-editorial/submissions/{created['id']}/research", data={
             "action": "submit", "content_id": [b["id"] for b in blocks], "content_type": ["stat", "stat"],
-            "content_html": ["First corrected", "Second"], "event_date": "01-Jan-2026",
+            "content_html": ["First corrected", "Second"],
         })
         revised = repository.get_submission(created["id"])
         self.assertIsNone(revised["stats"][0]["accepted_at"])
@@ -1167,7 +1191,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b"Only Race Date is editable", response.data)
         self.assertNotIn(b"Race Date <em>Editable</em>", response.data)
-        self.assertIn(b'<span>Race Date</span><span class="sew-date-control">', response.data)
+        self.assertNotIn(b'<span>Race Date</span><span class="sew-date-control">', response.data)
+        self.assertIn(b'<span>Race Date</span><strong>27-Oct-2026</strong>', response.data)
 
     def test_queue_open_routes_directly_to_the_role_appropriate_editor(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")
@@ -1196,7 +1221,6 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "/workspace/sports-editorial/submissions/demo-submission-kronplatz/research",
             data={
                 "action": "draft",
-                "event_date": "27-Oct-2026",
                 "content_id": [block["id"] for block in submission["stats"]],
                 "content_type": [block["content_type"] for block in submission["stats"]],
                 "content_html": [block["stat_text"] for block in submission["stats"]],
@@ -1397,7 +1421,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         read_only = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
         self.assertEqual(read_only.status_code, 200)
         self.assertIsNone(repository.get_edit_lock("demo-submission-submitted"))
-        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "submitted")
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "in_review")
         editing = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(editing.status_code, 200)
         self.assertEqual(repository.get_edit_lock("demo-submission-submitted")["owner_id"], "demo-user")
@@ -1442,6 +1466,20 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "workspace-id", "new-supervisor@example.test", "New Supervisor",
             "temporary-passphrase", "supervisor",
         )
+
+    def test_fis_specialist_can_review_and_publish_but_not_create_or_force_unlock(self):
+        self.set_role("fis_specialist")
+        self.assertEqual(self.client.get("/workspace/sports-editorial/submit").status_code, 403)
+        review = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        self.assertEqual(review.status_code, 200)
+        self.assertIn(b"Save sub-edit", review.data)
+        self.assertEqual(
+            self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted/force-unlock").status_code,
+            403,
+        )
+        preview = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved/fis-preview")
+        self.assertEqual(preview.status_code, 200)
+        self.assertIn(b"Simulate publication", preview.data)
 
     def test_fis_calendar_parser_deduplicates_event_links(self):
         html = '''

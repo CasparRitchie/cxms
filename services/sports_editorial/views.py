@@ -11,8 +11,8 @@ from .formatting import render_entity_links, render_entity_tags, sanitise_rich_t
 from .fis_client import FisApiError, fis_configuration, get_fis_client
 from .fis_export import FisPayloadValidationError, build_fis_payload
 from .repository import repository
-from .validation import VALID_ENTITY_TYPES, VALID_STATUSES, STATUS_LABELS, validate_status_transition, validate_submission
-from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_editor, require_editorial_user_admin, require_workspace_admin, update_workspace_editorial_user
+from .validation import ACTIVE_STATUSES, VALID_ENTITY_TYPES, VALID_STATUSES, STATUS_LABELS, validate_status_transition, validate_submission
+from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_editor, require_reviewer, require_editorial_user_admin, require_supervisor, update_workspace_editorial_user
 from .supabase_rest import SupabaseError
 from .calendar import RepositoryCalendarProvider
 from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
@@ -28,7 +28,7 @@ from .edit_locks import lock_timeout_seconds, parse_timestamp
 
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
-VALID_ROLES = ("researcher", "sub_editor", "supervisor")
+VALID_ROLES = ("researcher", "sub_editor", "supervisor", "fis_specialist")
 
 
 @blueprint.before_request
@@ -65,6 +65,35 @@ def _season_code(raw_value, event_ids, event_date):
         year, month = (int(part) for part in event_date.split("-")[:2])
         return year + 1 if month >= 7 else year
     return None
+
+
+CORE_DATA_FIELDS = {
+    "title", "amp_id", "client_name", "competition", "event_name", "gender",
+    "location", "season_code", "event_date", "fis_event_ids",
+    "publication_deadline", "researcher_deadline", "researcher_user_id",
+    "sub_editor_user_id",
+}
+
+
+def _attempts_core_data_change(form_data, submission):
+    """Permit stale forms to echo core values, but never let non-supervisors alter them."""
+    for field in CORE_DATA_FIELDS:
+        if field not in form_data:
+            continue
+        if field == "fis_event_ids":
+            submitted = _event_ids_from_form(" ".join(form_data.getlist(field)))
+            if submitted != list(submission.get(field) or []):
+                return True
+            continue
+        submitted = str(form_data.get(field, "")).strip()
+        stored = submission.get(field)
+        if field in ("event_date", "publication_deadline", "researcher_deadline"):
+            parsed, error = parse_display_date(submitted, field.replace("_", " ").title())
+            if error or (parsed or "") != (stored or ""):
+                return True
+        elif submitted != ("" if stored is None else str(stored)):
+            return True
+    return False
 
 
 def _invalid_review_entity_links(form_data, submission):
@@ -200,7 +229,7 @@ def update_user(user_id):
 def calendar():
     if auth_configuration()["mode"] != "workspace":
         abort(404)
-    require_workspace_admin()
+    require_supervisor()
     season_code = request.form.get("season_code", "2027") if request.method == "POST" else request.args.get("season_code", "2027")
     if request.method == "POST":
         try:
@@ -218,7 +247,7 @@ def calendar():
 def athletes():
     if auth_configuration()["mode"] != "workspace":
         abort(404)
-    require_workspace_admin()
+    require_supervisor()
     season_code = request.form.get("season_code", "2027") if request.method == "POST" else request.args.get("season_code", "2027")
     if request.method == "POST":
         try:
@@ -238,7 +267,7 @@ def athletes():
 def competitions():
     if auth_configuration()["mode"] != "workspace":
         abort(404)
-    require_workspace_admin()
+    require_supervisor()
     if request.method == "POST":
         try:
             imported, failures = fetch_alpine_competitions(_calendar_events())
@@ -257,7 +286,7 @@ def competitions():
 def refresh_entities(step):
     if auth_configuration()["mode"] != "workspace":
         abort(404)
-    require_workspace_admin()
+    require_supervisor()
     season_code = request.form.get("season_code", "2027")
     try:
         if step == "events":
@@ -299,6 +328,10 @@ def _calendar_events():
 
 def _require_sub_editor():
     return require_editor()
+
+
+def _require_reviewer():
+    return require_reviewer()
 
 
 def _flash_fis_error(exc):
@@ -407,11 +440,7 @@ def stat_insights():
 
 @blueprint.post("/stat-insights/import")
 def import_stat_results():
-    user = current_user() or {}
-    if auth_configuration()["mode"] == "workspace":
-        require_workspace_admin()
-    elif user.get("role") != "supervisor":
-        abort(403, description="Supervisor access is required to refresh official results.")
+    require_supervisor()
     limit = min(max(int(request.form.get("limit", "5")) if request.form.get("limit", "5").isdigit() else 5, 1), 5)
     season = request.form.get("season", "").strip()
     requested_ids = list(dict.fromkeys(re.findall(r"\d+", request.form.get("race_ids", ""))))[:limit]
@@ -463,6 +492,7 @@ def _assignment_users():
             {"id": "demo-test-user-2", "full_name": "Test User 2", "editorial_role": "researcher"},
             {"id": "demo-sub-editor", "full_name": "Nick L.", "editorial_role": "sub_editor"},
             {"id": "demo-supervisor", "full_name": "Supervisor Demo", "editorial_role": "supervisor"},
+            {"id": "demo-fis-specialist", "full_name": "FIS Specialist Demo", "editorial_role": "fis_specialist"},
         ]
     user = current_user() or {}
     return list_workspace_users(user.get("workspace_id"))
@@ -496,7 +526,7 @@ def submit():
     if request.method == "POST":
         values["content_html"] = [sanitise_rich_text(value) for value in request.form.getlist("content_html")]
         action = request.form.get("action", "draft")
-        status = "submitted" if action == "submit" else "draft"
+        status = "in_review" if action == "submit" else "draft"
         sport = request.form.get("sport", "").strip()
         competition = request.form.get("competition", "").strip()
         event_name = request.form.get("event_name", "").strip()
@@ -685,7 +715,7 @@ def queue():
     for item in submissions:
         if item["status"] == "draft" or (role == "researcher" and item["status"] == "changes_requested"):
             item["queue_url"] = url_for("sports_editorial_workspace.research", submission_id=item["id"])
-        elif role in ("sub_editor", "supervisor") and item["status"] != "exported":
+        elif role in ("sub_editor", "supervisor", "fis_specialist") and item["status"] != "exported":
             item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], edit=1)
         else:
             item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"])
@@ -695,7 +725,7 @@ def queue():
         options=options,
         assignment_users=users,
         filters=filters,
-        statuses=VALID_STATUSES,
+        statuses=ACTIVE_STATUSES,
         active_filters=active_filters,
         filter_fields=filter_fields,
         visible_filter_fields=visible_filter_fields,
@@ -715,7 +745,7 @@ def queue():
 
 @blueprint.post("/queue/bulk-assign")
 def bulk_assign_queue():
-    actor = require_editor()
+    actor = require_supervisor()
     submission_ids = list(dict.fromkeys(value for value in request.form.getlist("submission_id") if value))
     assignment_field = request.form.get("assignment_field", "")
     assignment_action = request.form.get("assignment_action", "allocate")
@@ -778,12 +808,16 @@ def detail(submission_id):
     rejected_form = None
     rejected_dates = {}
     if request.method == "POST":
-        _require_sub_editor()
+        _require_reviewer()
         if submission["status"] in ("approved", "exported"):
             abort(409, description="Use Edit to return this sheet to In Progress before making changes.")
         user, lock_token = _require_owned_lock(submission_id)
+        if user.get("role") != "supervisor" and _attempts_core_data_change(request.form, submission):
+            abort(403, description="Supervisor access is required to edit core stat-sheet data.")
         requested_status = request.form.get("status", submission["status"])
-        raw_event_ids = " ".join(request.form.getlist("fis_event_ids"))
+        raw_event_ids = (" ".join(request.form.getlist("fis_event_ids"))
+                         if user.get("role") == "supervisor"
+                         else " ".join(str(value) for value in submission.get("fis_event_ids", [])))
         event_ids = _event_ids_from_form(raw_event_ids)
         valid, message = validate_status_transition(submission["status"], requested_status)
         parsed_dates = {}
@@ -792,7 +826,7 @@ def detail(submission_id):
             ("researcher_deadline", "Researcher Deadline"),
             ("publication_deadline", "Publication Deadline"),
         ):
-            if field_name in request.form:
+            if user.get("role") == "supervisor" and field_name in request.form:
                 parsed_dates[field_name], error = parse_display_date(request.form.get(field_name), label)
                 if error:
                     valid, message = False, error
@@ -812,21 +846,23 @@ def detail(submission_id):
                 invalid_entities = _invalid_review_entity_links(request.form, submission)
                 if invalid_entities:
                     valid, message = False, "Fix entity links without valid FIS IDs before approval: " + ", ".join(invalid_entities)
-        if valid and requested_status == "changes_requested" and not request.form.get("editor_notes", "").strip():
-            valid, message = False, "Add instructions explaining what the researcher needs to change."
         if not valid:
             flash(message, "error")
             rejected_form = request.form.copy()
             rejected_dates = parsed_dates
         else:
             mutable_form = request.form.copy()
+            if user.get("role") != "supervisor":
+                for field_name in CORE_DATA_FIELDS:
+                    mutable_form.pop(field_name, None)
+                mutable_form["fis_event_ids"] = raw_event_ids
             for field_name, parsed_value in parsed_dates.items():
                 mutable_form[field_name] = parsed_value
             repository.update_review(submission_id, mutable_form, requested_status)
-            if requested_status in ("changes_requested", "approved", "exported") or request.form.get("save_action") == "close":
+            if requested_status in ("draft", "approved", "exported") or request.form.get("save_action") == "close":
                 repository.release_edit_lock(submission_id, user["id"], lock_token)
             workflow_messages = {
-                "changes_requested": "Changes requested. The stat sheet is editable by the assigned researcher again.",
+                "draft": "Stat sheet returned to In Progress for further research.",
                 "approved": "Stat sheet approved. The FIS JSON is ready to review.",
                 "in_review": "Stat sheet is now in sub edit.",
             }
@@ -836,7 +872,7 @@ def detail(submission_id):
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id, edit=1))
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     role = (current_user() or {}).get("role", "researcher")
-    editable_role = role in ("sub_editor", "supervisor")
+    editable_role = role in ("sub_editor", "supervisor", "fis_specialist")
     final_state = submission["status"] in ("approved", "exported")
     wants_edit = request.args.get("edit") == "1"
     refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and wants_edit and not final_state else (repository.get_submission(submission_id), None if final_state else repository.get_edit_lock(submission_id))
@@ -846,13 +882,13 @@ def detail(submission_id):
     if owns_lock:
         _remember_lock(submission_id, edit_lock)
     entity_map = _entities_by_id(refreshed)
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=VALID_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=editable_role and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=editable_role and owns_lock and not final_state, can_edit_core=role == "supervisor" and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
 
 
 @blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])
 def research(submission_id):
     user = current_user() or {}
-    if user.get("role") not in ("researcher", "sub_editor", "supervisor"):
+    if user.get("role") not in ("researcher", "sub_editor", "supervisor", "fis_specialist"):
         abort(403, description="Editorial access is required.")
     submission = _submission_or_404(submission_id)
     if submission["status"] not in ("draft", "changes_requested"):
@@ -864,7 +900,12 @@ def research(submission_id):
     if request.method == "POST":
         user, lock_token = _require_owned_lock(submission_id)
         action = request.form.get("action", "draft")
-        parsed_date, date_error = parse_display_date(request.form.get("event_date"), "Race Date")
+        if user.get("role") != "supervisor" and "event_date" in request.form:
+            abort(403, description="Supervisor access is required to edit core stat-sheet data.")
+        parsed_date, date_error = parse_display_date(
+            request.form.get("event_date") if user.get("role") == "supervisor" else format_display_date(submission.get("event_date")),
+            "Race Date",
+        )
         if date_error:
             flash(date_error, "error")
             entity_map = _entities_by_id(submission)
@@ -954,7 +995,7 @@ def publication_preview(submission_id):
 
 @blueprint.post("/submissions/<submission_id>/fis-publish")
 def fis_publish(submission_id):
-    _require_sub_editor()
+    _require_reviewer()
     submission = _submission_or_404(submission_id)
     if submission["status"] not in ("approved", "exported"):
         abort(403, description="Approve the submission in CXMS before publishing to FIS.")
@@ -978,7 +1019,7 @@ def fis_publish(submission_id):
 
 @blueprint.post("/submissions/<submission_id>/fis-withdraw")
 def fis_withdraw(submission_id):
-    _require_sub_editor()
+    _require_reviewer()
     submission = _submission_or_404(submission_id)
     previous = repository.get_fis_publication(submission_id)
     if not previous or previous.get("status") != "published":
@@ -998,7 +1039,7 @@ def fis_withdraw(submission_id):
 
 @blueprint.post("/submissions/<submission_id>/edit")
 def edit_published(submission_id):
-    _require_sub_editor()
+    _require_reviewer()
     submission = _submission_or_404(submission_id)
     publication = repository.get_fis_publication(submission_id) or {}
     if submission.get("status") not in ("approved", "exported") and publication.get("status") != "published":
@@ -1051,7 +1092,7 @@ def json_preview(submission_id):
 
 @blueprint.route("/exports/<submission_id>.json")
 def download_json(submission_id):
-    _require_sub_editor()
+    _require_reviewer()
     submission = _submission_or_404(submission_id)
     if submission["status"] not in ("approved", "exported"):
         abort(403, description="Only approved submissions can be downloaded.")

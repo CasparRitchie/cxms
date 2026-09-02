@@ -8,7 +8,7 @@ create table if not exists public.sports_editorial_memberships (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null,
   user_id uuid not null,
-  editorial_role text not null check (editorial_role in ('researcher', 'sub_editor', 'supervisor')),
+  editorial_role text not null check (editorial_role in ('researcher', 'sub_editor', 'supervisor', 'fis_specialist')),
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   unique (workspace_id, user_id)
@@ -137,7 +137,7 @@ declare
   v_user_id uuid;
   v_existing boolean := false;
 begin
-  if p_editorial_role not in ('researcher', 'sub_editor', 'supervisor') then
+  if p_editorial_role not in ('researcher', 'sub_editor', 'supervisor', 'fis_specialist') then
     raise exception 'Invalid Sports Editorial role';
   end if;
 

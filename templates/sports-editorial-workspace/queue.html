@@ -62,7 +62,7 @@
   <div class="sew-actions">
     <button class="sew-button" type="button" data-select-all>Select all visible</button>
     <button class="sew-button" type="button" data-clear-selection disabled>Clear selection</button>
-    {% if workspace_role in ['sub_editor','supervisor'] %}
+    {% if workspace_role == 'supervisor' %}
     <button class="sew-button sew-button--primary" type="button" data-open-allocation="researcher_user_id" disabled>Allocate researcher</button>
     <button class="sew-button sew-button--primary" type="button" data-open-allocation="sub_editor_user_id" disabled>Allocate sub-editor</button>
     {% endif %}
@@ -101,7 +101,7 @@
   </table>
 </section>
 
-{% if workspace_role in ['sub_editor','supervisor'] %}
+{% if workspace_role == 'supervisor' %}
 {% for assignment_field, title, allowed_roles in [('researcher_user_id','Allocate researcher',['researcher']),('sub_editor_user_id','Allocate sub-editor',['sub_editor','supervisor'])] %}
 <dialog class="sew-allocation-dialog" data-allocation-dialog="{{ assignment_field }}">
   <form method="post" action="{{ url_for('sports_editorial_workspace.bulk_assign_queue') }}">
