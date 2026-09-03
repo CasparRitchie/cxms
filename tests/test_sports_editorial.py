@@ -1322,6 +1322,88 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(retained_lock["token"], original_lock["token"])
         self.assertEqual(retained_lock["version"], original_lock["version"])
 
+    def test_research_autosave_preserves_workflow_stage_and_lock(self):
+        repository.set_submission_status("demo-submission-kronplatz", "changes_requested")
+        submission = repository.get_submission("demo-submission-kronplatz")
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        original_lock = repository.get_edit_lock("demo-submission-kronplatz")
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-kronplatz/research",
+            data={
+                "autosave": "1",
+                "working_notes": "Saved quietly",
+                "content_id": [block["id"] for block in submission["stats"]],
+                "content_type": [block["content_type"] for block in submission["stats"]],
+                "content_html": [block["stat_text"] for block in submission["stats"]],
+                "lock_token": original_lock["token"],
+                "lock_version": original_lock["version"],
+            },
+            headers={"Accept": "application/json"},
+        )
+        saved = repository.get_submission("demo-submission-kronplatz")
+        retained_lock = repository.get_edit_lock("demo-submission-kronplatz")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["ok"])
+        self.assertEqual(saved["status"], "changes_requested")
+        self.assertEqual(saved["working_notes"], "Saved quietly")
+        self.assertEqual(retained_lock["token"], original_lock["token"])
+        self.assertEqual(retained_lock["version"], original_lock["version"])
+
+    def test_sub_editor_autosave_cannot_approve_or_change_stage(self):
+        self.set_sub_editor()
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        lock = repository.get_edit_lock("demo-submission-submitted")
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={
+                "autosave": "1",
+                "status": "approved",
+                "lock_token": lock["token"],
+                "lock_version": lock["version"],
+            },
+            headers={"Accept": "application/json"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["ok"])
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "in_review")
+
+    def test_autosave_rejects_a_displaced_stale_lock(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        old = repository.get_edit_lock("demo-submission-kronplatz")
+        repository.release_edit_lock("demo-submission-kronplatz", force=True)
+        repository.acquire_edit_lock(
+            "demo-submission-kronplatz", {"id": "other-editor", "full_name": "Other Editor"}
+        )
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-kronplatz/research",
+            data={
+                "autosave": "1",
+                "working_notes": "Must not persist",
+                "lock_token": old["token"],
+                "lock_version": old["version"],
+            },
+            headers={"Accept": "application/json"},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertNotEqual(
+            repository.get_submission("demo-submission-kronplatz").get("working_notes"),
+            "Must not persist",
+        )
+
+    def test_autosave_ui_is_debounced_and_preserves_explicit_submit(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        self.assertIn(b"data-autosave-form", page.data)
+        self.assertIn(b"data-autosave-status", page.data)
+        script = Path("static/js/sports-editorial-edit-lock.js").read_text(encoding="utf-8")
+        self.assertIn('scheduleAutosave(800)', script)
+        self.assertIn('body.set("autosave", "1")', script)
+        self.assertIn('body.delete("action")', script)
+        self.assertIn('body.delete("status")', script)
+        self.assertIn('response.status === 409', script)
+        self.assertIn('autosaveController?.abort()', script)
+
     def test_edit_lock_acquisition_is_atomic_and_owner_can_reopen(self):
         users = [
             {"id": "editor-a", "full_name": "Editor A"},

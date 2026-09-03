@@ -809,13 +809,14 @@ def detail(submission_id):
     rejected_form = None
     rejected_dates = {}
     if request.method == "POST":
+        is_autosave = request.form.get("autosave") == "1"
         _require_reviewer()
         if submission["status"] in ("approved", "exported"):
             abort(409, description="Use Edit to return this sheet to In Progress before making changes.")
         user, lock_token = _require_owned_lock(submission_id)
         if user.get("role") != "supervisor" and _attempts_core_data_change(request.form, submission):
             abort(403, description="Supervisor access is required to edit core stat-sheet data.")
-        requested_status = request.form.get("status", submission["status"])
+        requested_status = submission["status"] if is_autosave else request.form.get("status", submission["status"])
         raw_event_ids = (" ".join(request.form.getlist("fis_event_ids"))
                          if user.get("role") == "supervisor"
                          else " ".join(str(value) for value in submission.get("fis_event_ids", [])))
@@ -848,6 +849,8 @@ def detail(submission_id):
                 if invalid_entities:
                     valid, message = False, "Fix entity links without valid FIS IDs before approval: " + ", ".join(invalid_entities)
         if not valid:
+            if is_autosave:
+                return jsonify({"ok": False, "error": message}), 400
             flash(message, "error")
             rejected_form = request.form.copy()
             rejected_dates = parsed_dates
@@ -859,7 +862,12 @@ def detail(submission_id):
                 mutable_form["fis_event_ids"] = raw_event_ids
             for field_name, parsed_value in parsed_dates.items():
                 mutable_form[field_name] = parsed_value
-            repository.update_review(submission_id, mutable_form, requested_status)
+            renewed_lock = repository.heartbeat_edit_lock(submission_id, user["id"], lock_token) if is_autosave else None
+            if is_autosave and not renewed_lock:
+                return jsonify({"ok": False, "error": "Your editing lock has expired or been replaced. Your changes were not saved."}), 409
+            repository.update_review(submission_id, mutable_form, requested_status, preserve_status=is_autosave)
+            if is_autosave:
+                return jsonify({"ok": True, "saved_at": renewed_lock["last_active_at"], "lock": _lock_display(renewed_lock)})
             if requested_status in ("draft", "approved", "exported") or request.form.get("save_action") == "close":
                 repository.release_edit_lock(submission_id, user["id"], lock_token)
             workflow_messages = {
@@ -899,8 +907,9 @@ def research(submission_id):
     if owns_lock:
         _remember_lock(submission_id, edit_lock)
     if request.method == "POST":
+        is_autosave = request.form.get("autosave") == "1"
         user, lock_token = _require_owned_lock(submission_id)
-        action = request.form.get("action", "draft")
+        action = "draft" if is_autosave else request.form.get("action", "draft")
         if user.get("role") != "supervisor" and "event_date" in request.form:
             abort(403, description="Supervisor access is required to edit core stat-sheet data.")
         parsed_date, date_error = parse_display_date(
@@ -908,6 +917,8 @@ def research(submission_id):
             "Race Date",
         )
         if date_error:
+            if is_autosave:
+                return jsonify({"ok": False, "error": date_error}), 400
             flash(date_error, "error")
             entity_map = _entities_by_id(submission)
             return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date), 400
@@ -916,7 +927,12 @@ def research(submission_id):
         content = [{"content_type": kind, "content_html": sanitise_rich_text(value)} for kind, value in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))]
         errors = validate_submission({"title": submission["title"], "sport": submission["sport"], "fis_event_ids": submission.get("fis_event_ids", []), "content": content}, submitting=action == "submit")
         if not errors:
-            repository.update_research(submission_id, mutable_form, submit=action == "submit")
+            renewed_lock = repository.heartbeat_edit_lock(submission_id, user["id"], lock_token) if is_autosave else None
+            if is_autosave and not renewed_lock:
+                return jsonify({"ok": False, "error": "Your editing lock has expired or been replaced. Your changes were not saved."}), 409
+            repository.update_research(submission_id, mutable_form, submit=action == "submit", preserve_status=is_autosave)
+            if is_autosave:
+                return jsonify({"ok": True, "saved_at": renewed_lock["last_active_at"], "lock": _lock_display(renewed_lock)})
             if action == "submit" or request.form.get("save_action") == "close":
                 repository.release_edit_lock(submission_id, user["id"], lock_token)
             flash("Stat sheet submitted for sub edit." if action == "submit" else "Research saved.", "success")
@@ -925,6 +941,8 @@ def research(submission_id):
             if action == "submit":
                 return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
             return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id))
+        if is_autosave:
+            return jsonify({"ok": False, "error": errors[0], "errors": errors}), 400
         for error in errors:
             flash(error, "error")
     entity_map = _entities_by_id(submission)

@@ -7,6 +7,7 @@
   const releaseUrl = form.dataset.lockReleaseUrl;
   const closeUrl = form.dataset.closeUrl;
   const closeDialog = form.querySelector("[data-close-dialog]");
+  const autosaveStatus = form.querySelector("[data-autosave-status]");
   const timeoutMs = Number(form.dataset.lockTimeout || 3600) * 1000;
   const warningAfterMs = 45 * 60 * 1000;
   let lastHeartbeat = 0;
@@ -17,10 +18,24 @@
   let submitting = false;
   let releaseRequested = false;
   let expiryWarning;
+  let autosaveTimer;
+  let autosaveController;
+  let autosaveRunning = false;
+  let autosaveAgain = false;
+  let changeRevision = 0;
+
+  const setAutosaveStatus = (message, state = "") => {
+    if (!autosaveStatus) return;
+    autosaveStatus.textContent = message;
+    autosaveStatus.dataset.state = state;
+  };
 
   const setReadOnly = (message) => {
     if (lost) return;
     lost = true;
+    clearTimeout(autosaveTimer);
+    autosaveController?.abort();
+    setAutosaveStatus("Editing lock lost — changes not saved", "error");
     form.querySelectorAll("button[type='submit'], input, textarea, select").forEach((control) => {
       if (control.type !== "hidden") control.disabled = true;
     });
@@ -61,6 +76,67 @@
     }
   };
 
+  const scheduleAutosave = (delay = 5000) => {
+    if (!form.hasAttribute("data-autosave-form") || lost || submitting || !dirty) return;
+    clearTimeout(autosaveTimer);
+    setAutosaveStatus("Unsaved changes", "pending");
+    autosaveTimer = setTimeout(() => autosave(), delay);
+  };
+
+  const autosave = async () => {
+    clearTimeout(autosaveTimer);
+    if (lost || submitting || !dirty) return;
+    if (autosaveRunning) {
+      autosaveAgain = true;
+      return;
+    }
+    autosaveRunning = true;
+    autosaveAgain = false;
+    const savingRevision = changeRevision;
+    setAutosaveStatus("Saving…", "saving");
+    const body = new FormData(form);
+    body.set("autosave", "1");
+    body.delete("action");
+    body.delete("status");
+    body.delete("save_action");
+    autosaveController = new AbortController();
+    try {
+      const response = await fetch(form.action || window.location.href, {
+        method: "POST",
+        body,
+        headers: {Accept: "application/json", "X-Requested-With": "XMLHttpRequest"},
+        signal: autosaveController.signal,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 409) {
+        setReadOnly(payload.error || "Your editing lock is no longer valid.");
+        return;
+      }
+      if (!response.ok || !payload.ok) {
+        setAutosaveStatus(payload.error || "Autosave failed — changes remain in this browser", "error");
+        return;
+      }
+      if (changeRevision === savingRevision) {
+        dirty = false;
+        setAutosaveStatus("All changes saved", "saved");
+      } else {
+        setAutosaveStatus("Unsaved changes", "pending");
+        autosaveAgain = true;
+      }
+      if (payload.lock?.expires_at) {
+        expiresAt = Date.parse(payload.lock.expires_at) || expiresAt;
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        setAutosaveStatus("Offline — changes not yet saved", "error");
+      }
+    } finally {
+      autosaveRunning = false;
+      autosaveController = null;
+      if (autosaveAgain && !lost && !submitting) scheduleAutosave(800);
+    }
+  };
+
   const release = async (keepalive = false) => {
     if (!token || !releaseUrl || releaseRequested) return;
     releaseRequested = true;
@@ -79,9 +155,12 @@
 
   const markDirty = (event) => {
     if (event.target.closest("[data-close-dialog]")) return;
+    if (event.target.closest("[data-entity-results], [data-entity-suggestions], [data-link-review]")) return;
     dirty = true;
+    changeRevision += 1;
     lastActivity = Date.now();
     heartbeat();
+    scheduleAutosave();
   };
   form.addEventListener("input", markDirty);
   form.addEventListener("change", markDirty);
@@ -92,9 +171,15 @@
   form.addEventListener("click", (event) => {
     if (event.target.closest("[data-toggle-accepted], [data-accept-all], [data-remove-review-block], [data-add-review-block], [data-remove-stat], [data-add-block], [data-remove-entity]")) {
       dirty = true;
+      changeRevision += 1;
       lastActivity = Date.now();
       heartbeat();
+      scheduleAutosave(1200);
     }
+  });
+  form.addEventListener("focusout", (event) => {
+    if (!dirty || event.target.closest("[data-entity-results], [data-entity-suggestions]")) return;
+    scheduleAutosave(800);
   });
   form.addEventListener("keydown", (event) => {
     if (event.key !== "Tab") {
@@ -105,6 +190,8 @@
   form.addEventListener("submit", () => {
     submitting = true;
     dirty = false;
+    clearTimeout(autosaveTimer);
+    autosaveController?.abort();
   });
 
   window.addEventListener("beforeunload", (event) => {
