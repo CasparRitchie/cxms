@@ -1339,30 +1339,30 @@ html[data-sew-theme="light"] .sew-calendar-results button:hover,html[data-sew-th
 @media(max-width:850px){.sew-creation-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.sew-creation-grid{grid-template-columns:1fr}}
 
-/* Core data is one compact aquamarine surface; only editable controls are white. */
+/* Core data uses a restrained aquamarine tint; only editable controls are white. */
 .sew-core-data{
-  border-color:#35bfc2;
-  background:linear-gradient(13deg,#087b80,#18343a);
+  border-color:#397f82;
+  background:linear-gradient(13deg,#174b4e,#18282d);
 }
 .sew-creation-form .sew-core-data .sew-form-grid,
-.sew-creation-form .sew-core-data .sew-field{border-color:rgba(55,176,180,.65);background:transparent}
+.sew-creation-form .sew-core-data .sew-field{border-color:rgba(102,166,166,.55);background:transparent}
 .sew-creation-form .sew-core-data input:not([type="checkbox"]):not([readonly]),
 .sew-creation-form .sew-core-data select{border-color:#b9c5cc;background:#fff;color:#172033}
 .sew-creation-form .sew-core-data input[readonly]{border-color:rgba(185,197,204,.7);background:rgba(255,255,255,.28);color:var(--sew-ink)}
 .sew-document-editor .sew-core-data{
   --sew-core-surface:transparent;
-  --sew-core-line:#45b7ba;
-  --sew-core-label:#d6fffb;
+  --sew-core-line:#4b8587;
+  --sew-core-label:#d9efed;
   --sew-core-value:#fff;
   border-color:var(--sew-core-line);
-  background:linear-gradient(13deg,#087b80,#18343a);
+  background:linear-gradient(13deg,#174b4e,#18282d);
   color:var(--sew-core-value);
 }
 .sew-document-editor .sew-core-data>.sew-section-heading,
 .sew-document-editor .sew-core-summary>summary{
   margin:0;
   border:0;
-  background:#103f43;
+  background:#203f42;
   color:#fff;
 }
 .sew-document-editor .sew-core-data>.sew-section-heading{padding:7px 9px}
@@ -1398,20 +1398,21 @@ html[data-sew-theme="light"] .sew-calendar-results button:hover,html[data-sew-th
   color:#e5f8f6;
 }
 html[data-sew-theme="light"] .sew-core-data{
-  background:linear-gradient(13deg,#0ff5fb,#fff);
+  border-color:#a8d2cf;
+  background:linear-gradient(13deg,#d8f3f1,#fbfdfd);
 }
 html[data-sew-theme="light"] .sew-document-editor .sew-core-data{
   --sew-core-surface:transparent;
-  --sew-core-line:#83c5be;
-  --sew-core-label:#174f50;
+  --sew-core-line:#a8d2cf;
+  --sew-core-label:#315f60;
   --sew-core-value:#172033;
 }
 html[data-sew-theme="light"] .sew-document-editor .sew-core-data>.sew-section-heading,
 html[data-sew-theme="light"] .sew-document-editor .sew-core-summary>summary{
-  background:#4e9f9b;
-  color:#071f20;
+  background:#b7dedb;
+  color:#173d3e;
 }
-html[data-sew-theme="light"] .sew-document-editor .sew-core-summary>summary small{color:#123f40}
+html[data-sew-theme="light"] .sew-document-editor .sew-core-summary>summary small{color:#315f60}
 html[data-sew-theme="light"] .sew-document-editor fieldset:disabled .sew-core-data .sew-core-grid>.sew-field input,
 html[data-sew-theme="light"] .sew-document-editor fieldset:disabled .sew-core-data .sew-core-grid>.sew-field select{
   background:rgba(255,255,255,.42);
