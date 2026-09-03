@@ -1030,6 +1030,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b'<span>Title</span><input name="title"', response.data)
         self.assertIn(b'<span>Competition</span><strong>FIS World Cup</strong>', response.data)
         self.assertNotIn(b'type="date" name="event_date" value="None"', response.data)
+        stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
+        self.assertIn("--sew-core-surface:#154e52", stylesheet)
+        self.assertIn("--sew-core-surface:#bfe9e4", stylesheet)
+        self.assertIn("only editable controls are white", stylesheet)
+        self.assertIn("background:#fff;\n  color:#172033", stylesheet)
 
     def test_supervisor_can_bulk_allocate_and_unallocate_researchers(self):
         self.set_role("supervisor")

@@ -1267,6 +1267,73 @@ html[data-sew-theme="light"] .sew-calendar-results button:hover,html[data-sew-th
 @media(max-width:850px){.sew-creation-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.sew-creation-grid{grid-template-columns:1fr}}
 
+/* Core data is one compact turquoise surface; only editable controls are white. */
+.sew-document-editor .sew-core-data{
+  --sew-core-surface:#154e52;
+  --sew-core-line:#3f7f82;
+  --sew-core-label:#d6fffb;
+  --sew-core-value:#fff;
+  border-color:var(--sew-core-line);
+  background:var(--sew-core-surface);
+  color:var(--sew-core-value);
+}
+.sew-document-editor .sew-core-data>.sew-section-heading,
+.sew-document-editor .sew-core-summary>summary{
+  margin:0;
+  border:0;
+  background:#103f43;
+  color:#fff;
+}
+.sew-document-editor .sew-core-data>.sew-section-heading{padding:7px 9px}
+.sew-document-editor .sew-core-summary__body{padding:7px;background:var(--sew-core-surface)}
+.sew-document-editor .sew-core-data .sew-core-grid{
+  border-color:var(--sew-core-line);
+  background:var(--sew-core-surface);
+}
+.sew-document-editor .sew-core-data .sew-core-grid>div,
+.sew-document-editor .sew-core-data .sew-core-grid>.sew-field{
+  border-color:var(--sew-core-line);
+  background:transparent;
+  color:var(--sew-core-value);
+}
+.sew-document-editor .sew-core-data .sew-core-grid>div>span,
+.sew-document-editor .sew-core-data .sew-core-grid>.sew-field>span{
+  padding:0;
+  background:transparent;
+  color:var(--sew-core-label)!important;
+  font-weight:800;
+}
+.sew-document-editor .sew-core-data .sew-core-grid>div>strong{color:var(--sew-core-value)}
+.sew-document-editor .sew-core-data .sew-core-grid>.sew-field input,
+.sew-document-editor .sew-core-data .sew-core-grid>.sew-field select{
+  border-color:#b9c5cc;
+  background:#fff;
+  color:#172033;
+}
+.sew-document-editor fieldset:disabled .sew-core-data .sew-core-grid>.sew-field input,
+.sew-document-editor fieldset:disabled .sew-core-data .sew-core-grid>.sew-field select{
+  border-color:var(--sew-core-line);
+  background:rgba(255,255,255,.14);
+  color:#e5f8f6;
+}
+html[data-sew-theme="light"] .sew-document-editor .sew-core-data{
+  --sew-core-surface:#bfe9e4;
+  --sew-core-line:#83c5be;
+  --sew-core-label:#174f50;
+  --sew-core-value:#172033;
+}
+html[data-sew-theme="light"] .sew-document-editor .sew-core-data>.sew-section-heading,
+html[data-sew-theme="light"] .sew-document-editor .sew-core-summary>summary{
+  background:#4e9f9b;
+  color:#071f20;
+}
+html[data-sew-theme="light"] .sew-document-editor .sew-core-summary>summary small{color:#123f40}
+html[data-sew-theme="light"] .sew-document-editor fieldset:disabled .sew-core-data .sew-core-grid>.sew-field input,
+html[data-sew-theme="light"] .sew-document-editor fieldset:disabled .sew-core-data .sew-core-grid>.sew-field select{
+  background:rgba(255,255,255,.42);
+  color:#344054;
+}
+
 /* Structured Stat Insights: evidence-led research facts and conditional scenarios. */
 .sew-insight-filters{grid-template-columns:repeat(5,minmax(125px,1fr))}
 .sew-coverage-summary{display:flex;justify-content:space-between;gap:16px;align-items:start;margin-bottom:8px;border-color:rgba(135,168,255,.38)}
