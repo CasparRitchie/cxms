@@ -910,6 +910,20 @@ html[data-sew-theme="light"] .sew-entity-chip button[data-remove-entity] {
   display: none;
 }
 
+.sew-entity-suggestions>.sew-entity-loading {
+  padding:4px 6px;
+  border:1px solid #526176;
+  background:#182235;
+  color:#eef5ff;
+  font-weight:700;
+}
+
+html[data-sew-theme="light"] .sew-entity-suggestions>.sew-entity-loading {
+  border-color:#98a2b3;
+  background:#eef4ff;
+  color:#24344d;
+}
+
 .sew-inline-entity-options {
   display: grid;
   max-height: 190px;

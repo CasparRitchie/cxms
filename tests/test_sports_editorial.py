@@ -607,6 +607,21 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("lookup.value = initialQuery", script)
         self.assertIn("runSearch(false, initialQuery)", script)
         self.assertIn("Recently linked in this editing session", script)
+        self.assertIn(".replace(/[’']s$/i, \"\")", script)
+
+    def test_inline_athlete_suggestions_offer_linked_wording_variants(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("athleteWordingVariants", script)
+        self.assertIn('`${entity.name} (${identity})`', script)
+        self.assertIn('`${entity.name}\'s (${identity})`', script)
+        self.assertIn('addEntity(entity, "", false, wording)', script)
+        self.assertIn("insertedWording = replacementText || entity.name", script)
+
+    def test_inline_entity_messages_have_contrast_in_both_themes(self):
+        stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
+        self.assertIn(".sew-entity-suggestions>.sew-entity-loading", stylesheet)
+        self.assertIn("background:#182235", stylesheet)
+        self.assertIn("background:#eef4ff", stylesheet)
 
     def test_entity_unlink_is_explicit_in_research_and_review(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")

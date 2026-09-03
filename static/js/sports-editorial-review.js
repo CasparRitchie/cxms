@@ -597,7 +597,7 @@
       return null;
     };
 
-    const addEntity = (entity, mentionOverride = "", trustedPaste = false) => {
+    const addEntity = (entity, mentionOverride = "", trustedPaste = false, replacementText = "") => {
       if (!trustedPaste && !contextStillMatches(queryContext)) {
         closeResults("The selected wording changed. Select it again before linking.");
         editor.focus({ preventScroll: true });
@@ -633,14 +633,15 @@
       let annotationEnd = trustedPaste ? entity.annotation_end : activeContext?.end;
 
       if (activeContext?.replace) {
-        const replacement = document.createTextNode(entity.name);
+        const insertedWording = replacementText || entity.name;
+        const replacement = document.createTextNode(insertedWording);
         activeContext.range.deleteContents();
         activeContext.range.insertNode(replacement);
         activeContext.range.setStart(replacement, 0);
-        activeContext.range.setEnd(replacement, entity.name.length);
-        mentionText = entity.name;
+        activeContext.range.setEnd(replacement, insertedWording.length);
+        mentionText = insertedWording;
         annotationStart = textOffsetForPoint(replacement, 0);
-        annotationEnd = annotationStart + entity.name.length;
+        annotationEnd = annotationStart + insertedWording.length;
         const caret = document.createRange();
         caret.setStartAfter(replacement);
         caret.collapse(true);
@@ -913,9 +914,26 @@
     });
 
     const meaningfulSearchText = (selectedText) => selectedText
+      .trim()
       .replace(/\s*\([^)]*\)\s*$/, "")
+      .trim()
+      .replace(/[’']s$/i, "")
       .replace(/^[“\"']+|[”\"'.,;:!?]+$/g, "")
       .trim();
+
+    const athleteWordingVariants = (entity) => {
+      const identity = [entity.country_code, entity.ski_sponsor]
+        .filter(Boolean)
+        .join("/");
+      const variants = identity
+        ? [
+            `${entity.name} (${identity})`,
+            `${entity.name}'s (${identity})`,
+            entity.name,
+          ]
+        : [entity.name, `${entity.name}'s`];
+      return [...new Set(variants)];
+    };
 
     const openEntityLookup = (context) => {
       if (!context || !editor.isContentEditable) return;
@@ -1061,20 +1079,22 @@
               )
               .forEach((entity) => {
                 seen.add(entity.id);
-                const button = document.createElement("button");
-                button.id = `inline-entity-${crypto.randomUUID()}`;
-                button.type = "button";
-                button.setAttribute("role", "option");
-                button.setAttribute("aria-selected", "false");
-                button.tabIndex = -1;
-                const identity = [entity.country_code, entity.ski_sponsor].filter(Boolean).join(" / ");
-                button.textContent = `${entity.name}${identity ? ` (${identity})` : ""}`;
-                button.addEventListener("mousedown", (event) => event.preventDefault());
-                button.addEventListener("click", () => {
-                  queryContext = context;
-                  addEntity(entity);
+                athleteWordingVariants(entity).forEach((wording) => {
+                  const button = document.createElement("button");
+                  button.id = `inline-entity-${crypto.randomUUID()}`;
+                  button.type = "button";
+                  button.setAttribute("role", "option");
+                  button.setAttribute("aria-selected", "false");
+                  button.setAttribute("aria-label", `Insert and link ${wording}`);
+                  button.tabIndex = -1;
+                  button.textContent = wording;
+                  button.addEventListener("mousedown", (event) => event.preventDefault());
+                  button.addEventListener("click", () => {
+                    queryContext = context;
+                    addEntity(entity, "", false, wording);
+                  });
+                  options.appendChild(button);
                 });
-                options.appendChild(button);
               });
             hasMore = Boolean(payload.has_more);
             offset = payload.next_offset;
