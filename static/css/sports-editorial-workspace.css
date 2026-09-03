@@ -1267,14 +1267,23 @@ html[data-sew-theme="light"] .sew-calendar-results button:hover,html[data-sew-th
 @media(max-width:850px){.sew-creation-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.sew-creation-grid{grid-template-columns:1fr}}
 
-/* Core data is one compact turquoise surface; only editable controls are white. */
+/* Core data is one compact aquamarine surface; only editable controls are white. */
+.sew-core-data{
+  border-color:#35bfc2;
+  background:linear-gradient(13deg,#087b80,#18343a);
+}
+.sew-creation-form .sew-core-data .sew-form-grid,
+.sew-creation-form .sew-core-data .sew-field{border-color:rgba(55,176,180,.65);background:transparent}
+.sew-creation-form .sew-core-data input:not([type="checkbox"]):not([readonly]),
+.sew-creation-form .sew-core-data select{border-color:#b9c5cc;background:#fff;color:#172033}
+.sew-creation-form .sew-core-data input[readonly]{border-color:rgba(185,197,204,.7);background:rgba(255,255,255,.28);color:var(--sew-ink)}
 .sew-document-editor .sew-core-data{
-  --sew-core-surface:#154e52;
-  --sew-core-line:#3f7f82;
+  --sew-core-surface:transparent;
+  --sew-core-line:#45b7ba;
   --sew-core-label:#d6fffb;
   --sew-core-value:#fff;
   border-color:var(--sew-core-line);
-  background:var(--sew-core-surface);
+  background:linear-gradient(13deg,#087b80,#18343a);
   color:var(--sew-core-value);
 }
 .sew-document-editor .sew-core-data>.sew-section-heading,
@@ -1316,8 +1325,11 @@ html[data-sew-theme="light"] .sew-calendar-results button:hover,html[data-sew-th
   background:rgba(255,255,255,.14);
   color:#e5f8f6;
 }
+html[data-sew-theme="light"] .sew-core-data{
+  background:linear-gradient(13deg,#0ff5fb,#fff);
+}
 html[data-sew-theme="light"] .sew-document-editor .sew-core-data{
-  --sew-core-surface:#bfe9e4;
+  --sew-core-surface:transparent;
   --sew-core-line:#83c5be;
   --sew-core-label:#174f50;
   --sew-core-value:#172033;
