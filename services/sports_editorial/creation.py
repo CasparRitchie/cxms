@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 
@@ -89,6 +90,26 @@ def _metadata(event):
     return event.get("metadata") or {}
 
 
+def _calendar_location_label(event):
+    """Return a maintained canonical location label for a calendar event.
+
+    Imported calendar rows historically stored the complete event label in
+    ``name``. New imports should provide ``metadata.location_label``; this
+    conservative fallback keeps existing rows usable without asking templates
+    to parse FIS display strings.
+    """
+    canonical_id = str(event.get("canonical_id") or "")
+    metadata = _metadata(event)
+    override = _LOCAL_EVENT_OVERRIDES.get(canonical_id, {})
+    if override.get("location_label"):
+        return override["location_label"]
+    if str(metadata.get("location_label") or "").strip():
+        return str(metadata["location_label"]).strip()
+    name = str(event.get("name") or "").strip()
+    world_cup_location = re.split(r"\s+WC(?:\s|$)", name, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+    return world_cup_location or name
+
+
 def canonical_calendar_events(events):
     catalogue = []
     for event in events:
@@ -97,7 +118,7 @@ def canonical_calendar_events(events):
             continue
         metadata = _metadata(event)
         override = _LOCAL_EVENT_OVERRIDES.get(canonical_id, {})
-        location = override.get("location_label") or metadata.get("location_label") or event.get("name", "").strip()
+        location = _calendar_location_label(event)
         competition = override.get("competition")
         if not competition:
             category = str(metadata.get("category_code") or "").upper()
@@ -105,7 +126,8 @@ def canonical_calendar_events(events):
         catalogue.append({
             "canonical_id": canonical_id,
             "location": location,
-            "label": f"{location} — {canonical_id}",
+            "label": f"{event.get('name', '').strip() or location} — {canonical_id}",
+            "search_text": " ".join((location, event.get("name", ""), canonical_id)).strip(),
             "sport": "alpine_skiing" if str(metadata.get("discipline_code") or "").upper() == "AL" else "",
             "competition": competition,
             "season_code": metadata.get("season_code"),

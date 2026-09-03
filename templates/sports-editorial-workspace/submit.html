@@ -16,7 +16,7 @@
       <div class="sew-creation-column">
         <label class="sew-field"><span>Event</span><select name="event_name" data-event data-selected="{{ value('event_name') }}"><option value=""></option></select><small data-event-message hidden>No event choices are available for this Sport and Competition.</small></label>
         <label class="sew-field"><span>Gender</span><select name="gender"><option value=""></option>{% for code, label in [('W','Women'),('M','Men'),('X','Mixed / open')] %}<option value="{{ code }}" {% if value('gender') == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
-        <label class="sew-field"><span>Location</span><select name="calendar_event_id" data-calendar-event><option value=""></option>{% for event in calendar_events %}<option value="{{ event.canonical_id }}" data-sport="{{ event.sport }}" data-competition="{{ event.competition }}" data-season="{{ event.season_code }}" data-location="{{ event.location }}" {% if value('calendar_event_id') == event.canonical_id %}selected{% endif %}>{{ event.label }}</option>{% endfor %}</select></label>
+        <div class="sew-field sew-calendar-picker"><label for="calendar-event-search">Location</label><input id="calendar-event-search" name="calendar_event_query" type="search" autocomplete="off" value="{{ value('calendar_event_query') }}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="calendar-event-results" data-calendar-search><input type="hidden" name="calendar_event_id" value="{{ value('calendar_event_id') }}" data-calendar-event><div id="calendar-event-results" class="sew-calendar-results" role="listbox" data-calendar-results hidden></div><small data-calendar-message>Choose Sport, Competition and Season, then search the local FIS calendar.</small></div>
         <label class="sew-field"><span>Race Date (DD-MMM-YYYY)</span><span class="sew-date-control"><input name="event_date" autocomplete="off" value="{{ value('event_date') }}"><input type="date" aria-label="Choose race date" data-date-picker></span></label>
       </div>
       <div class="sew-creation-column">
@@ -35,6 +35,6 @@
   <input type="hidden" name="content_type" value=""><input type="hidden" name="content_html" value="">
   <div class="sew-form-actions"><a class="sew-button" href="{{ url_for('sports_editorial_workspace.queue') }}">Cancel</a><button class="sew-button sew-button--primary" type="submit" name="action" value="draft" data-create-button>Create stat sheet</button></div>
 </form>
-<script type="application/json" id="sports-editorial-creation-options">{{ creation_options_json|safe }}</script>
+<script type="application/json" id="sports-editorial-creation-options">{{ creation_browser_options|tojson }}</script>
 {% endblock %}
 {% block workspace_scripts %}<script src="{{ url_for('static', filename='js/sports-editorial-creation.js') }}" defer></script>{% endblock %}

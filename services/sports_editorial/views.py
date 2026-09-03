@@ -514,7 +514,7 @@ def switch_role():
 
 @blueprint.route("/submit", methods=["GET", "POST"])
 def submit():
-    _require_sub_editor()
+    require_supervisor()
     values = request.form.to_dict(flat=False) if request.method == "POST" else {}
     raw_calendar_events = _calendar_events()
     calendar_events = canonical_calendar_events(raw_calendar_events)
@@ -522,6 +522,7 @@ def submit():
     browser_options = {
         "competitions": {sport: list(items) for sport, items in options["competitions"].items()},
         "events": {f"{sport}|{competition}": list(items) for (sport, competition), items in options["events"].items()},
+        "calendar_events": calendar_events,
     }
     if request.method == "POST":
         values["content_html"] = [sanitise_rich_text(value) for value in request.form.getlist("content_html")]
@@ -597,7 +598,7 @@ def submit():
     return render_template(
         "sports-editorial-workspace/submit.html", values=values, calendar_events=calendar_events,
         assignment_users=_assignment_users(), creation_options=options,
-        creation_options_json=json.dumps(browser_options),
+        creation_browser_options=browser_options,
     )
 
 

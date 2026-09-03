@@ -32,8 +32,8 @@ def validate_submission(data, submitting=False):
     if submitting and valid_blocks and len(valid_blocks) != len(content):
         errors.append("Remove or complete empty content blocks before submitting.")
     event_ids = data.get("fis_event_ids") or []
-    if submitting and not event_ids:
-        errors.append("Select at least one FIS calendar event before submitting.")
+    # A calendar event may be allocated by a Supervisor during Sub Edit. The
+    # approval/publishing routes remain authoritative and reject a missing ID.
     if len(event_ids) > 10:
         errors.append("Select no more than 10 FIS calendar events.")
     return errors

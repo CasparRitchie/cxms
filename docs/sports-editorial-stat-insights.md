@@ -4,7 +4,7 @@
 
 `GET /workspace/sports-editorial/stat-insights` in `services/sports_editorial/views.py` reads the stored competition catalogue through `repository.list_result_competitions()`, then reads classifications through `repository.list_results()`. Season, gender and nation are applied in the route; venue, discipline and athlete text are applied by the compatible `build_stat_insights(rows, venue="", discipline="", athlete="")` service entry point. If no official rows are available, the route uses the isolated `demo_result_rows()` fixture and labels the page as demonstration data. The existing template renders filters, coverage, insight groups, totals, streaks and evidence.
 
-`POST /workspace/sports-editorial/stat-insights/import` is restricted to workspace owners/admins in workspace-auth mode and supervisors in demo mode. It selects completed, missing competition entities, caps a run at five, calls the FIS importer sequentially, and persists an import record plus classifications through `repository.save_result_import()`.
+`POST /workspace/sports-editorial/stat-insights/import` is restricted to Sports Editorial Supervisors in both workspace and demo modes. It selects completed, missing competition entities, caps a run at five, calls the FIS importer sequentially, and persists an import record plus classifications through `repository.save_result_import()`.
 
 Supabase uses `sports_editorial_result_imports` for race metadata/provenance and `sports_editorial_results` for athlete classifications. The unique keys are `(workspace_id, race_id)` and `(workspace_id, race_id, fis_code)`. The server service role is the only database role granted access; repository queries also apply workspace scoping.
 

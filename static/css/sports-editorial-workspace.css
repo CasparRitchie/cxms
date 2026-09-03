@@ -1248,6 +1248,17 @@ html[data-sew-theme="light"] .sew-entity-text-tag {
 .sew-creation-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .sew-creation-column{display:grid;align-content:start}
 .sew-creation-column>.sew-field{min-width:0}
+.sew-calendar-picker{position:relative;display:grid;gap:2px}
+.sew-calendar-picker>label{font-weight:700}
+.sew-calendar-picker>input[type="hidden"]{display:none}
+.sew-calendar-results{position:absolute;z-index:30;top:calc(100% - 18px);right:4px;left:4px;max-height:220px;overflow-y:auto;border:1px solid var(--sew-line);background:#111827;box-shadow:0 8px 18px rgba(0,0,0,.45)}
+.sew-calendar-results button,.sew-calendar-results p{display:block;width:100%;margin:0;padding:6px 7px;border:0;border-bottom:1px solid var(--sew-line);background:transparent;color:#f8fafc;text-align:left;font:inherit}
+.sew-calendar-results button{cursor:pointer}
+.sew-calendar-results button:hover,.sew-calendar-results button:focus-visible,.sew-calendar-results button.is-active{background:rgba(135,168,255,.2);outline:0}
+.sew-calendar-picker small{min-height:13px;color:var(--sew-muted)}
+html[data-sew-theme="light"] .sew-calendar-results{background:#fff}
+html[data-sew-theme="light"] .sew-calendar-results button,html[data-sew-theme="light"] .sew-calendar-results p{color:#172033}
+html[data-sew-theme="light"] .sew-calendar-results button:hover,html[data-sew-theme="light"] .sew-calendar-results button:focus-visible,html[data-sew-theme="light"] .sew-calendar-results button.is-active{background:#e7edf8}
 .sew-client-field{margin:0;border-right:1px solid var(--sew-line);border-bottom:1px solid var(--sew-line);border-left:0;border-top:0}
 .sew-client-field legend{padding:0}
 .sew-client-field label{display:flex;align-items:center;gap:6px;font-weight:400}

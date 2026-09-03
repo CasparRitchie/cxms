@@ -31,11 +31,11 @@ values
   ('WORKSPACE_UUID', 'APP_USER_UUID', 'sub_editor');
 ```
 
-Use `journalist` for a journalist account. A user needs an active `app_users` row, an existing `workspace_members` row, and an active sports membership.
+Use `researcher`, `sub_editor`, `fis_specialist`, or `supervisor` for the corresponding editorial account. A user needs an active `app_users` row, an existing `workspace_members` row, and an active sports membership.
 
-Workspace owners and admins can subsequently open **Users** in Sports Editorial to create pilot accounts. Existing NPS Me email addresses keep their current password; new addresses receive the temporary password entered by the administrator.
+Sports Editorial Supervisors can subsequently open **Users** to create pilot accounts. Existing NPS Me email addresses keep their current password; new addresses receive the temporary password entered by the Supervisor.
 
-Sports Editorial Supervisors can also manage Sports Editorial users even when
+Sports Editorial Supervisors manage Sports Editorial users even when
 their general workspace role is `member`. This is enforced by the backend, not
 only by navigation visibility. Supervisors can change editorial roles and
 deactivate editorial membership; historical users are retained rather than
