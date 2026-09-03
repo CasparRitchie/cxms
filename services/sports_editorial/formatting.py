@@ -4,15 +4,30 @@ import re
 from urllib.parse import urlparse
 
 
-ALLOWED_TAGS = {"strong", "b", "em", "i", "br"}
+ALLOWED_TAGS = {"strong", "b", "em", "i", "sup", "br"}
+
+
+def _safe_manual_href(attrs):
+    values = dict(attrs)
+    parsed = urlparse(str(values.get("href") or ""))
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return ""
+    return escape(parsed.geturl(), quote=True)
 
 
 class _SafeRichTextParser(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.parts = []
+        self.anchor_stack = []
 
     def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            href = _safe_manual_href(attrs)
+            self.anchor_stack.append(bool(href))
+            if href:
+                self.parts.append(f'<a href="{href}" target="_blank" rel="noopener" data-manual-link="true">')
+            return
         if tag in ALLOWED_TAGS:
             normalised = {"b": "strong", "i": "em"}.get(tag, tag)
             self.parts.append(f"<{normalised}>")
@@ -22,6 +37,10 @@ class _SafeRichTextParser(HTMLParser):
             self.parts.append("<br>")
 
     def handle_endtag(self, tag):
+        if tag == "a":
+            if self.anchor_stack and self.anchor_stack.pop():
+                self.parts.append("</a>")
+            return
         if tag in ALLOWED_TAGS and tag != "br":
             normalised = {"b": "strong", "i": "em"}.get(tag, tag)
             self.parts.append(f"</{normalised}>")
@@ -73,8 +92,15 @@ class _EntityOccurrenceRenderer(HTMLParser):
         self.replacements = sorted(replacements, key=lambda item: len(item["mention"]), reverse=True)
         self.published = published
         self.linked_entity_ids = set()
+        self.manual_anchor_stack = []
 
     def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            href = _safe_manual_href(attrs)
+            self.manual_anchor_stack.append(bool(href))
+            if href:
+                self.parts.append(f'<a href="{href}" target="_blank" rel="noopener" data-manual-link="true">')
+            return
         if tag in ALLOWED_TAGS:
             normalised = {"b": "strong", "i": "em"}.get(tag, tag)
             self.parts.append(f"<{normalised}>")
@@ -84,12 +110,16 @@ class _EntityOccurrenceRenderer(HTMLParser):
             self.parts.append("<br>")
 
     def handle_endtag(self, tag):
+        if tag == "a":
+            if self.manual_anchor_stack and self.manual_anchor_stack.pop():
+                self.parts.append("</a>")
+            return
         if tag in ALLOWED_TAGS and tag != "br":
             normalised = {"b": "strong", "i": "em"}.get(tag, tag)
             self.parts.append(f"</{normalised}>")
 
     def handle_data(self, data):
-        if not data or not self.replacements:
+        if not data or not self.replacements or any(self.manual_anchor_stack):
             self.parts.append(escape(data))
             return
         available = [item for item in self.replacements if item["id"] not in self.linked_entity_ids]

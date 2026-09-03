@@ -1256,7 +1256,9 @@ html[data-sew-theme="light"] .sew-final-state-notice strong {
 }
 
 .sew-entity-text-link,
-.sew-entity-text-tag {
+.sew-entity-text-tag,
+.sew-rich-editor a[data-manual-link],
+.sew-publish-preview a[data-manual-link] {
   border-bottom: 1px solid currentColor;
   color: var(--sew-blue);
   font-weight: 700;
@@ -1265,14 +1267,20 @@ html[data-sew-theme="light"] .sew-final-state-notice strong {
 
 .sew-entity-text-link:hover,
 .sew-entity-text-link:focus-visible,
-.sew-entity-text-tag:focus-visible {
+.sew-entity-text-tag:focus-visible,
+.sew-rich-editor a[data-manual-link]:hover,
+.sew-rich-editor a[data-manual-link]:focus-visible,
+.sew-publish-preview a[data-manual-link]:hover,
+.sew-publish-preview a[data-manual-link]:focus-visible {
   outline: 2px solid var(--sew-blue);
   outline-offset: 2px;
   text-decoration: underline;
 }
 
 html[data-sew-theme="light"] .sew-entity-text-link,
-html[data-sew-theme="light"] .sew-entity-text-tag {
+html[data-sew-theme="light"] .sew-entity-text-tag,
+html[data-sew-theme="light"] .sew-rich-editor a[data-manual-link],
+html[data-sew-theme="light"] .sew-publish-preview a[data-manual-link] {
   color: #244fb3;
 }
 

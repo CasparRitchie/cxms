@@ -54,6 +54,18 @@
       ".sew-original .sew-rendered-content",
     );
 
+    const toolbar = editor.closest(".sew-working-editor")?.querySelector(".sew-mini-toolbar");
+    if (toolbar && !toolbar.querySelector('[data-review-format="superscript"]')) {
+      const superscript = document.createElement("button");
+      superscript.type = "button";
+      superscript.dataset.reviewFormat = "superscript";
+      superscript.setAttribute("aria-label", "Superscript");
+      superscript.title = "Superscript";
+      superscript.innerHTML = "x<sup>2</sup>";
+      superscript.disabled = editor.contentEditable !== "true";
+      toolbar.insertBefore(superscript, toolbar.querySelector("[data-link-entity]"));
+    }
+
     const normaliseText = (value) => value.replace(/\s+/g, " ").trim();
 
     // Do not collapse or trim whitespace here. Spaces, line breaks and
@@ -522,6 +534,7 @@
       const states = {
         bold: document.queryCommandState("bold"),
         italic: document.queryCommandState("italic"),
+        superscript: document.queryCommandState("superscript"),
       };
       Object.entries(states).forEach(([format, active]) => {
         const button = toolbar.querySelector(`[data-format="${format}"], [data-review-format="${format}"]`);
@@ -1179,6 +1192,36 @@
       if (event.shiftKey) savedMentionContext = selectedMentionContext();
     });
 
+    const addManualLink = (context) => {
+      const entered = window.prompt("Enter the full web address for the selected text (https://…):", "https://");
+      if (entered === null) return;
+      const href = safeEntityUrl(entered.trim());
+      if (!href) {
+        window.alert("Enter a valid web address beginning with http:// or https://.");
+        return;
+      }
+      if (!contextStillMatches(context)) {
+        announce("The selected wording changed. Select it again before adding the link.");
+        return;
+      }
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.target = "_blank";
+      anchor.rel = "noopener";
+      anchor.dataset.manualLink = "true";
+      anchor.appendChild(context.range.extractContents());
+      context.range.insertNode(anchor);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      const caret = document.createRange();
+      caret.selectNodeContents(anchor);
+      caret.collapse(false);
+      selection?.addRange(caret);
+      editor.dispatchEvent(new Event("input", {bubbles: true}));
+      editor.focus({preventScroll: true});
+      announce("Web link added. Ctrl-click or Command-click it to check the destination.");
+    };
+
     editor.addEventListener("contextmenu", (event) => {
       const context = selectedMentionContext();
       if (!context) return;
@@ -1199,12 +1242,28 @@
         openEntityLookup(context);
       });
       menu.appendChild(action);
+
+      const manualAction = document.createElement("button");
+      manualAction.type = "button";
+      manualAction.textContent = "Add web link";
+      manualAction.addEventListener("click", () => {
+        menu.remove();
+        addManualLink(context);
+      });
+      menu.appendChild(manualAction);
       document.body.appendChild(menu);
       action.focus();
     });
 
     editor.addEventListener("click", (event) => {
       if (!event.ctrlKey && !event.metaKey) return;
+      const manualLink = event.target.closest?.("a[data-manual-link]");
+      if (manualLink) {
+        event.preventDefault();
+        const href = safeEntityUrl(manualLink.href);
+        if (href) window.open(href, "_blank", "noopener");
+        return;
+      }
       const linkedChip = annotationAtPoint(event.clientX, event.clientY) || annotationAtSelection();
       if (!linkedChip) return;
       event.preventDefault();
@@ -1864,6 +1923,8 @@
               >
                 <em>I</em>
               </button>
+
+              <button type="button" data-review-format="superscript" aria-label="Superscript" title="Superscript">x<sup>2</sup></button>
 
               ${type === "stat" ? `<button type="button" data-link-entity aria-label="Add entity link" title="Add entity link"><span aria-hidden="true">🔗</span></button>` : ""}
             </div>

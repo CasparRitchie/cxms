@@ -63,6 +63,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_rich_text_sanitisation(self):
         self.assertEqual(sanitise_rich_text('<strong>Safe</strong><script>alert(1)</script><a href="bad"> link</a>'), "<strong>Safe</strong>alert(1) link")
 
+    def test_superscript_and_manual_web_links_are_safely_sanitised(self):
+        rendered = sanitise_rich_text(
+            '<sup>st</sup> <a href="https://www.fis-ski.com/example" onclick="bad()">FIS</a> '
+            '<a href="javascript:alert(1)">unsafe</a>'
+        )
+        self.assertEqual(
+            rendered,
+            '<sup>st</sup> <a href="https://www.fis-ski.com/example" target="_blank" rel="noopener" data-manual-link="true">FIS</a> unsafe',
+        )
+
     def test_status_transition_validation(self):
         self.assertTrue(validate_status_transition("submitted", "approved")[0])
         self.assertFalse(validate_status_transition("draft", "approved")[0])
@@ -1542,6 +1552,34 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn('href="https://example.test/athletes/1"', rendered)
         self.assertIn("Pirovano", rendered)
         self.assertNotIn("javascript:", rendered)
+
+    def test_phase_g_superscript_and_manual_link_controls(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        self.assertIn(b'data-format="superscript"', page.data)
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn('superscript: document.queryCommandState("superscript")', script)
+        self.assertIn('manualAction.textContent = "Add web link"', script)
+        self.assertIn('anchor.dataset.manualLink = "true"', script)
+        self.assertIn('Enter a valid web address beginning with http:// or https://.', script)
+
+    def test_manual_link_is_preserved_without_nesting_an_entity_link(self):
+        block = {
+            "entity_ids": ["athlete"],
+            "entity_mentions": {"athlete": "Laura Pirovano"},
+        }
+        entities = {
+            "athlete": {
+                "canonical_url": "https://www.fis-ski.com/athlete/123",
+            }
+        }
+        rendered = render_entity_links(
+            '<a href="https://example.com/profile">Laura Pirovano</a> was first.',
+            block,
+            entities,
+        )
+        self.assertIn('data-manual-link="true">Laura Pirovano</a>', rendered)
+        self.assertNotIn('data-entity-ref="athlete"', rendered)
         self.assertNotIn("<script>", rendered)
 
     def test_country_publication_links_exact_saved_wording_only_with_valid_url(self):

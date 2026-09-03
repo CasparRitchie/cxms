@@ -61,6 +61,8 @@
             <em>I</em>
           </button>
 
+          <button type="button" data-format="superscript" aria-label="Superscript" title="Superscript">x<sup>2</sup></button>
+
           ${type === "stat" ? `<button type="button" data-link-entity aria-label="Add entity link" title="Add entity link"><span aria-hidden="true">🔗</span></button>` : ""}
         </div>
 
