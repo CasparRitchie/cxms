@@ -606,7 +606,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("meaningfulSearchText", script)
         self.assertIn("lookup.value = initialQuery", script)
         self.assertIn("runSearch(false, initialQuery)", script)
-        self.assertIn("Recently linked in this editing session", script)
+        self.assertIn('recentLabel.textContent = "Recent"', script)
         self.assertIn(".replace(/[’']s$/i, \"\")", script)
 
     def test_inline_athlete_suggestions_offer_linked_wording_variants(self):
@@ -622,6 +622,28 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(".sew-entity-suggestions>.sew-entity-loading", stylesheet)
         self.assertIn("background:#182235", stylesheet)
         self.assertIn("background:#eef4ff", stylesheet)
+
+    def test_recent_entities_are_compact_separate_and_limited_to_eight(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
+        self.assertIn("recents.slice(0, 8)", script)
+        self.assertIn('aria-label", "Recent entity links"', script)
+        self.assertIn('recentLabel.textContent = "Recent"', script)
+        self.assertIn(".sew-entity-recents__label", stylesheet)
+        self.assertIn("border-bottom:2px solid #526176", stylesheet)
+
+    def test_link_check_uses_accessible_panel_and_modifier_click_opens_one_source(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("safeEntityUrl", script)
+        self.assertIn('panel.dataset.linkReview = ""', script)
+        self.assertIn('panel.setAttribute("aria-label", "Entity links in this statistic")', script)
+        self.assertIn('link.textContent = "Open source"', script)
+        self.assertIn('close.textContent = "Close link check"', script)
+        self.assertIn("event.ctrlKey", script)
+        self.assertIn("event.metaKey", script)
+        self.assertIn("annotationAtPoint(event.clientX, event.clientY)", script)
+        self.assertNotIn("links.forEach((url)", script)
+        self.assertNotIn("Opened ${links.length} source pages", script)
 
     def test_entity_unlink_is_explicit_in_research_and_review(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")

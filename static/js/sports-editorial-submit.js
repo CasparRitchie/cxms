@@ -95,7 +95,7 @@
       >
     </div>
 
-    ${type === "stat" ? `<button class="sew-button sew-button--small sew-stat-link-check" type="button" data-check-block-entities>Check links</button>` : ""}
+    ${type === "stat" ? `<button class="sew-button sew-button--small sew-stat-link-check" type="button" data-check-block-entities aria-expanded="false">Check links</button>` : ""}
     ${entityControl}
   </div>
 

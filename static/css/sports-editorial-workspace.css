@@ -640,7 +640,8 @@ html[data-sew-theme="light"] .sew-mini-toolbar button[aria-pressed="true"] {
 }
 .sew-document-editor .sew-entity-autocomplete:has(
   [data-entity-id],
-  [data-entity-suggestions]:not(:empty)
+  [data-entity-suggestions]:not(:empty),
+  [data-link-review]
 ){
   max-height:240px;
   margin-top:2px;
@@ -979,6 +980,62 @@ html[data-sew-theme="light"] .sew-entity-suggestions>.sew-entity-loading {
   color: var(--sew-ink);
   background: rgba(135,168,255,.1);
 }
+
+.sew-entity-recents{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:2px;
+  margin:3px 7px 5px;
+  padding:0 0 5px;
+  border-bottom:2px solid #526176;
+}
+.sew-entity-recents__label{
+  grid-column:1/-1;
+  padding:2px 0;
+  color:#dce7f5;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.sew-entity-results .sew-entity-recents button{
+  padding:3px 5px;
+  overflow:hidden;
+  border:1px solid var(--sew-line);
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+html[data-sew-theme="light"] .sew-entity-recents{border-bottom-color:#98a2b3}
+html[data-sew-theme="light"] .sew-entity-recents__label{color:#344054}
+
+.sew-link-review{
+  grid-column:2;
+  display:grid;
+  gap:4px;
+  margin-top:4px;
+  padding:6px;
+  border:1px solid #526176;
+  background:#111827;
+  color:#eef5ff;
+}
+.sew-link-review__row{
+  display:grid;
+  grid-template-columns:minmax(120px,1fr) auto auto;
+  align-items:center;
+  gap:7px;
+  padding:4px 0;
+  border-top:1px solid var(--sew-line);
+}
+.sew-link-review__row>span{min-width:0;overflow-wrap:anywhere;font-weight:700}
+.sew-link-review__row small{color:#c8d4e5}
+.sew-link-review__row a{color:#9ec5ff;font-weight:800}
+.sew-link-review__row a:hover,.sew-link-review__row a:focus-visible{outline:2px solid #87a8ff;outline-offset:2px;text-decoration:underline}
+.sew-link-review__warning{color:#ffc1c1!important;font-weight:800}
+.sew-link-review>.sew-button{justify-self:end}
+html[data-sew-theme="light"] .sew-link-review{border-color:#98a2b3;background:#f6f8fb;color:#172033}
+html[data-sew-theme="light"] .sew-link-review__row small{color:#475467}
+html[data-sew-theme="light"] .sew-link-review__row a{color:#244fb3}
+@media(max-width:560px){.sew-link-review{grid-column:1}.sew-link-review__row{grid-template-columns:1fr}.sew-entity-recents{grid-template-columns:1fr}}
 
 .sew-stat-input .sew-stat-field > [data-block-label] {
   grid-column: 1;

@@ -4,6 +4,15 @@
   const sheetClipboardToken = crypto.randomUUID();
   const recentEntityKey = `sew-entity-recents:${window.location.pathname}`;
 
+  const safeEntityUrl = (value) => {
+    try {
+      const url = new URL(value);
+      return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+    } catch (_error) {
+      return "";
+    }
+  };
+
   const readRecentEntities = () => {
     try {
       return JSON.parse(sessionStorage.getItem(recentEntityKey) || "[]");
@@ -16,7 +25,7 @@
     const recents = readRecentEntities().filter((item) => item.id !== entity.id);
     recents.unshift(entity);
     try {
-      sessionStorage.setItem(recentEntityKey, JSON.stringify(recents.slice(0, 6)));
+      sessionStorage.setItem(recentEntityKey, JSON.stringify(recents.slice(0, 8)));
     } catch (_error) {
       // Linking must continue even when browser storage is unavailable.
     }
@@ -497,6 +506,16 @@
       }) || null;
     };
 
+    const annotationAtPoint = (clientX, clientY) => {
+      const range = document.caretRangeFromPoint?.(clientX, clientY);
+      if (!range || !editor.contains(range.startContainer)) return null;
+      const offset = textOffsetForPoint(range.startContainer, range.startOffset);
+      return [...selected.querySelectorAll("[data-entity-id]")].find((chip) => {
+        const annotation = ensureChipRange(chip, true);
+        return annotation && offset >= annotation.start && offset <= annotation.end;
+      }) || null;
+    };
+
     function updateToolbarState() {
       const toolbar = editor.closest(".sew-working-editor")?.querySelector(".sew-mini-toolbar");
       if (!toolbar) return;
@@ -968,11 +987,13 @@
 
       const recent = document.createElement("div");
       recent.className = "sew-entity-recents";
+      recent.setAttribute("role", "group");
+      recent.setAttribute("aria-label", "Recent entity links");
       const recentEntities = readRecentEntities();
       if (recentEntities.length) {
         const recentLabel = document.createElement("span");
-        recentLabel.className = "sew-entity-loading";
-        recentLabel.textContent = "Recently linked in this editing session";
+        recentLabel.className = "sew-entity-recents__label";
+        recentLabel.textContent = "Recent";
         recent.appendChild(recentLabel);
         recentEntities.forEach((entity) => {
           const button = document.createElement("button");
@@ -1180,6 +1201,19 @@
       menu.appendChild(action);
       document.body.appendChild(menu);
       action.focus();
+    });
+
+    editor.addEventListener("click", (event) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      const linkedChip = annotationAtPoint(event.clientX, event.clientY) || annotationAtSelection();
+      if (!linkedChip) return;
+      event.preventDefault();
+      const url = safeEntityUrl(linkedChip.dataset.entityUrl);
+      if (!url) {
+        announce("This entity does not have a source URL to open.");
+        return;
+      }
+      window.open(url, "_blank", "noopener");
     });
 
     editor.addEventListener("keydown", (event) => {
@@ -1594,40 +1628,78 @@
     const checkLinks = event.target.closest("[data-check-block-entities]");
     if (!checkLinks) return;
     const block = checkLinks.closest("[data-review-block], [data-content-block]");
-      const chips = [
-        ...block.querySelectorAll(
-          "[data-entity-id]",
-        ),
-      ];
+    const control = block?.querySelector("[data-entity-control]");
+    if (!control) return;
+    const existing = control.querySelector("[data-link-review]");
+    if (existing) {
+      existing.remove();
+      checkLinks.setAttribute("aria-expanded", "false");
+      checkLinks.removeAttribute("aria-controls");
+      return;
+    }
 
-      const invalid = chips.filter(
-        (chip) => !chip.dataset.canonicalId,
-      );
+    const chips = [...control.querySelectorAll("[data-entity-id]")];
+    const panel = document.createElement("section");
+    panel.className = "sew-link-review";
+    panel.dataset.linkReview = "";
+    panel.id = `link-review-${crypto.randomUUID()}`;
+    panel.setAttribute("aria-label", "Entity links in this statistic");
+    panel.setAttribute("aria-live", "polite");
 
-      const links = [
-        ...new Set(
-          chips
-            .map(
-              (chip) =>
-                chip.dataset.entityUrl,
-            )
-            .filter(Boolean),
-        ),
-      ];
+    const heading = document.createElement("strong");
+    heading.textContent = `Entity links · ${chips.length}`;
+    panel.appendChild(heading);
 
-      links.forEach((url) => {
-        window.open(
-          url,
-          "_blank",
-          "noopener",
-        );
-      });
+    if (!chips.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No entity links have been added to this statistic.";
+      panel.appendChild(empty);
+    }
 
-      window.alert(
-        `${chips.length - invalid.length} links in this statistic have canonical IDs. ` +
-          `${invalid.length} need attention.` +
-          `${links.length ? ` Opened ${links.length} source pages.` : ""}`,
-      );
+    chips.forEach((chip) => {
+      const row = document.createElement("div");
+      row.className = "sew-link-review__row";
+      const identity = document.createElement("span");
+      const mention = chip.querySelector("input[name^='entity_mention_']")?.value;
+      identity.textContent = mention || chip.dataset.entityName || "Linked entity";
+      row.appendChild(identity);
+
+      const canonicalId = chip.dataset.canonicalId;
+      const url = safeEntityUrl(chip.dataset.entityUrl);
+      const status = document.createElement("small");
+      status.textContent = canonicalId ? `FIS ID ${canonicalId}` : "Missing canonical FIS ID";
+      status.className = canonicalId ? "" : "sew-link-review__warning";
+      row.appendChild(status);
+
+      if (url) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = "Open source";
+        row.appendChild(link);
+      } else {
+        const unavailable = document.createElement("small");
+        unavailable.textContent = "No source URL";
+        row.appendChild(unavailable);
+      }
+      panel.appendChild(row);
+    });
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "sew-button sew-button--small";
+    close.textContent = "Close link check";
+    close.addEventListener("click", () => {
+      panel.remove();
+      checkLinks.setAttribute("aria-expanded", "false");
+      checkLinks.removeAttribute("aria-controls");
+      checkLinks.focus();
+    });
+    panel.appendChild(close);
+    control.appendChild(panel);
+    checkLinks.setAttribute("aria-expanded", "true");
+    checkLinks.setAttribute("aria-controls", panel.id);
     });
 
   document
@@ -1738,7 +1810,7 @@
           >
             Needs review
           </span>
-          ${type === "stat" ? `<button class="sew-button sew-button--small" type="button" data-check-block-entities>Check links</button>` : ""}
+          ${type === "stat" ? `<button class="sew-button sew-button--small" type="button" data-check-block-entities aria-expanded="false">Check links</button>` : ""}
           ${accept}
           <button
             class="sew-button sew-button--danger sew-button--small"
