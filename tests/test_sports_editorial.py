@@ -660,9 +660,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("const selectedText = range.toString()", selection_context)
         self.assertIn("const leadingWhitespace", selection_context)
         self.assertIn("const trailingWhitespace", selection_context)
-        self.assertIn("const trimmedRange = rangeFromOffsets(start, end)", selection_context)
+        self.assertIn("? rangeFromOffsets(start, end)", selection_context)
+        self.assertIn(": range.cloneRange()", selection_context)
+        self.assertIn("const text = selectedText.trim()", selection_context)
         self.assertIn("range: trimmedRange", selection_context)
-        self.assertNotIn("range: range.cloneRange()", selection_context)
 
     def test_entity_lookup_prefills_search_and_starts_immediately(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
@@ -792,6 +793,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("const canonicalEditorText", script)
         entity_editor = script[script.index("const initialiseEntityControl"):script.index("const setAccepted")]
         self.assertNotIn("editor.innerText", entity_editor)
+        self.assertIn("annotationStart = canonicalEditorText().indexOf(mentionText)", entity_editor)
 
     def test_unlocking_an_existing_stat_reenables_the_entity_link_button(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")

@@ -674,8 +674,10 @@
         const trailingWhitespace = selectedText.match(/\s*$/)?.[0].length || 0;
         const start = textOffsetForPoint(range.startContainer, range.startOffset) + leadingWhitespace;
         const end = textOffsetForPoint(range.endContainer, range.endOffset) - trailingWhitespace;
-        const trimmedRange = rangeFromOffsets(start, end);
-        const text = trimmedRange?.toString() || "";
+        const trimmedRange = leadingWhitespace || trailingWhitespace
+          ? rangeFromOffsets(start, end)
+          : range.cloneRange();
+        const text = selectedText.trim();
 
         return trimmedRange && text.length >= 2 && text.length <= 80
           ? {
@@ -748,6 +750,14 @@
       } else if (!trustedPaste && activeContext?.range) {
         annotationStart = textOffsetForPoint(activeContext.range.startContainer, activeContext.range.startOffset);
         annotationEnd = textOffsetForPoint(activeContext.range.endContainer, activeContext.range.endOffset);
+      }
+
+      if (!trustedPaste) {
+        // Entity output deliberately links the first exact occurrence. Resolve
+        // that occurrence from the same canonical text model used for saving,
+        // rather than relying on contenteditable caret offsets after Enter.
+        annotationStart = canonicalEditorText().indexOf(mentionText);
+        annotationEnd = annotationStart + mentionText.length;
       }
 
       if (!Number.isInteger(annotationStart)) annotationStart = canonicalEditorText().indexOf(mentionText);
