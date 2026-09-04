@@ -635,8 +635,9 @@
       return null;
     };
 
-    const addEntity = (entity, mentionOverride = "", trustedPaste = false, replacementText = "") => {
-      if (!trustedPaste && !contextStillMatches(queryContext)) {
+    const addEntity = (entity, mentionOverride = "", trustedPaste = false, replacementText = "", contextOverride = null) => {
+      const linkContext = contextOverride || queryContext;
+      if (!trustedPaste && !contextStillMatches(linkContext)) {
         closeResults("The selected wording changed. Select it again before linking.");
         editor.focus({ preventScroll: true });
         return;
@@ -665,7 +666,7 @@
         return;
       }
 
-      const activeContext = queryContext;
+      const activeContext = linkContext;
       let mentionText = mentionOverride || activeContext?.text || entity.name;
       let annotationStart = trustedPaste ? entity.annotation_start : activeContext?.start;
       let annotationEnd = trustedPaste ? entity.annotation_end : activeContext?.end;
@@ -938,18 +939,20 @@
 
     const addRecentEntity = async (cachedEntity, button) => {
       const identity = cachedEntity.canonical_id || cachedEntity.name;
+      const recentContext = queryContext;
+      const cachedType = cachedEntity.type || cachedEntity.entity_type || "";
       if (!identity) return;
       button.disabled = true;
       announce(`Checking recent link “${cachedEntity.name}”…`);
       try {
-        const type = cachedEntity.type ? `&type=${encodeURIComponent(cachedEntity.type)}` : "";
+        const type = cachedType ? `&type=${encodeURIComponent(cachedType)}` : "";
         const response = await fetch(
           `/workspace/sports-editorial/entities/search?q=${encodeURIComponent(identity)}${type}`,
         );
         if (!response.ok) throw new Error("Recent entity lookup failed");
         const payload = await response.json();
         const currentEntity = payload.results.find((entity) =>
-          entity.type === cachedEntity.type && (
+          (!cachedType || entity.type === cachedType) && (
             (cachedEntity.canonical_id && entity.canonical_id === cachedEntity.canonical_id) ||
             entity.id === cachedEntity.id
           )
@@ -958,7 +961,7 @@
           announce(`The recent link “${cachedEntity.name}” is no longer in the local catalogue. Search for it again.`);
           return;
         }
-        addEntity(currentEntity);
+        addEntity(currentEntity, "", false, "", recentContext);
       } catch (_error) {
         announce("The recent link could not be checked. Search for it again before linking.");
       } finally {

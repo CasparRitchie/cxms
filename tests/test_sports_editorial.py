@@ -605,7 +605,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_entity_lookup_is_bound_to_the_exact_current_selection(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         self.assertIn("Selected wording:", script)
-        self.assertIn("contextStillMatches(queryContext)", script)
+        self.assertIn("contextStillMatches(linkContext)", script)
         self.assertIn('document.addEventListener("selectionchange"', script)
         self.assertIn("sameRange(selection.getRangeAt(0), queryContext.range)", script)
         self.assertIn("The selected wording changed", script)
@@ -659,8 +659,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         self.assertIn("const addRecentEntity = async", script)
         self.assertIn("cachedEntity.canonical_id || cachedEntity.name", script)
+        self.assertIn("const recentContext = queryContext", script)
+        self.assertIn("cachedEntity.type || cachedEntity.entity_type", script)
         self.assertIn("entity.canonical_id === cachedEntity.canonical_id", script)
-        self.assertIn("addEntity(currentEntity)", script)
+        self.assertIn('addEntity(currentEntity, "", false, "", recentContext)', script)
         self.assertIn("addRecentEntity(entity, button)", script)
         self.assertNotIn('button.addEventListener("click", () => addEntity(entity));\n          recent.appendChild(button)', script)
 
