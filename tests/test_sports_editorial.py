@@ -791,6 +791,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn('item.tagName === "BR"', range_helpers)
         self.assertIn("current.nodeType === Node.TEXT_NODE ? current.data.length : 1", range_helpers)
         self.assertIn("const canonicalEditorText", script)
+        self.assertIn("const firstExactMentionRange", script)
+        self.assertIn("const resolved = firstExactMentionRange(mention)", script)
+        self.assertIn("const range = annotation?.range", script)
         entity_editor = script[script.index("const initialiseEntityControl"):script.index("const setAccepted")]
         self.assertNotIn("editor.innerText", entity_editor)
         self.assertIn("annotationStart = canonicalEditorText().indexOf(mentionText)", entity_editor)

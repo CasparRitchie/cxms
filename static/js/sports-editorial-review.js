@@ -425,6 +425,46 @@
       return parts.join("");
     };
 
+    const firstExactMentionRange = (mention) => {
+      const start = canonicalEditorText().indexOf(mention);
+      if (start < 0) return null;
+      const end = start + mention.length;
+      const walker = document.createTreeWalker(
+        editor,
+        NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+        {
+          acceptNode: (item) =>
+            item.nodeType === Node.TEXT_NODE || item.tagName === "BR"
+              ? NodeFilter.FILTER_ACCEPT
+              : NodeFilter.FILTER_SKIP,
+        },
+      );
+      let position = 0;
+      let startPoint = null;
+      let endPoint = null;
+      let current;
+      while ((current = walker.nextNode())) {
+        if (current.nodeType !== Node.TEXT_NODE) {
+          position += 1;
+          continue;
+        }
+        const nodeEnd = position + current.data.length;
+        if (!startPoint && start >= position && start <= nodeEnd) {
+          startPoint = {node: current, offset: start - position};
+        }
+        if (end >= position && end <= nodeEnd) {
+          endPoint = {node: current, offset: end - position};
+          if (startPoint) break;
+        }
+        position = nodeEnd;
+      }
+      if (!startPoint || !endPoint) return null;
+      const range = document.createRange();
+      range.setStart(startPoint.node, startPoint.offset);
+      range.setEnd(endPoint.node, endPoint.offset);
+      return {range, start, end};
+    };
+
     const textOffsetForPoint = (node, offset) => {
       const walker = document.createTreeWalker(
         editor,
@@ -492,21 +532,12 @@
     const ensureChipRange = (chip, allowStale = false) => {
       const inputs = rangeInputs(chip);
       const mention = inputs.mention?.value.trim() || "";
-      let start = Number.parseInt(inputs.start?.value, 10);
-      let end = Number.parseInt(inputs.end?.value, 10);
       if (!mention) return null;
-      if (allowStale && Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end > start) {
-        return { start, end, mention, inputs };
-      }
-      const editorText = canonicalEditorText();
-      if (!Number.isInteger(start) || !Number.isInteger(end) || editorText.slice(start, end) !== mention) {
-        start = editorText.indexOf(mention);
-        end = start + mention.length;
-      }
-      if (start < 0 || editorText.slice(start, end) !== mention) return null;
-      if (inputs.start) inputs.start.value = String(start);
-      if (inputs.end) inputs.end.value = String(end);
-      return { start, end, mention, inputs };
+      const resolved = firstExactMentionRange(mention);
+      if (!resolved) return null;
+      if (inputs.start) inputs.start.value = String(resolved.start);
+      if (inputs.end) inputs.end.value = String(resolved.end);
+      return { ...resolved, mention, inputs };
     };
 
     const refreshMentionHighlights = () => {
@@ -530,7 +561,7 @@
 
       chips.forEach((chip) => {
         const annotation = ensureChipRange(chip);
-        const range = annotation && rangeFromOffsets(annotation.start, annotation.end);
+        const range = annotation?.range;
         if (range) ranges.push(range);
       });
 
