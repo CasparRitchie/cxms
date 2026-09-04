@@ -406,6 +406,25 @@
       end: chip.querySelector("input[name^='entity_end_']"),
     });
 
+    const canonicalEditorText = () => {
+      const walker = document.createTreeWalker(
+        editor,
+        NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+        {
+          acceptNode: (item) =>
+            item.nodeType === Node.TEXT_NODE || item.tagName === "BR"
+              ? NodeFilter.FILTER_ACCEPT
+              : NodeFilter.FILTER_SKIP,
+        },
+      );
+      const parts = [];
+      let current;
+      while ((current = walker.nextNode())) {
+        parts.push(current.nodeType === Node.TEXT_NODE ? current.data : "\n");
+      }
+      return parts.join("");
+    };
+
     const textOffsetForPoint = (node, offset) => {
       const walker = document.createTreeWalker(
         editor,
@@ -479,11 +498,12 @@
       if (allowStale && Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end > start) {
         return { start, end, mention, inputs };
       }
-      if (!Number.isInteger(start) || !Number.isInteger(end) || editor.innerText.slice(start, end) !== mention) {
-        start = editor.innerText.indexOf(mention);
+      const editorText = canonicalEditorText();
+      if (!Number.isInteger(start) || !Number.isInteger(end) || editorText.slice(start, end) !== mention) {
+        start = editorText.indexOf(mention);
         end = start + mention.length;
       }
-      if (start < 0 || editor.innerText.slice(start, end) !== mention) return null;
+      if (start < 0 || editorText.slice(start, end) !== mention) return null;
       if (inputs.start) inputs.start.value = String(start);
       if (inputs.end) inputs.end.value = String(end);
       return { start, end, mention, inputs };
@@ -583,10 +603,10 @@
       if (linkButton) linkButton.title = linked ? "Unlink selected entity" : "Add entity link";
     }
 
-    let previousEditorText = editor.innerText;
+    let previousEditorText = canonicalEditorText();
 
     const validateMentionTags = () => {
-      const currentText = editor.innerText;
+      const currentText = canonicalEditorText();
       let prefix = 0;
       while (prefix < previousEditorText.length && prefix < currentText.length && previousEditorText[prefix] === currentText[prefix]) prefix += 1;
       let suffix = 0;
@@ -690,7 +710,7 @@
         existingChip &&
         (
           !existingMention ||
-          !editor.innerText.includes(existingMention)
+          !canonicalEditorText().includes(existingMention)
         )
       ) {
         existingChip.remove();
@@ -730,7 +750,7 @@
         annotationEnd = textOffsetForPoint(activeContext.range.endContainer, activeContext.range.endOffset);
       }
 
-      if (!Number.isInteger(annotationStart)) annotationStart = editor.innerText.indexOf(mentionText);
+      if (!Number.isInteger(annotationStart)) annotationStart = canonicalEditorText().indexOf(mentionText);
       if (!Number.isInteger(annotationEnd)) annotationEnd = annotationStart + mentionText.length;
 
       const chip = document.createElement("span");
@@ -1470,7 +1490,7 @@
       }
       if (payload.token !== sheetClipboardToken || !Array.isArray(payload.links)) return;
       const pastedText = event.clipboardData.getData("text/plain");
-      const pasteStart = selectedOffsets()?.start ?? editor.innerText.length;
+      const pasteStart = selectedOffsets()?.start ?? canonicalEditorText().length;
       event.preventDefault();
       event.stopImmediatePropagation();
       document.execCommand("insertText", false, pastedText);

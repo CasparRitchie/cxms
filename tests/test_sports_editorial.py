@@ -789,6 +789,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT", range_helpers)
         self.assertIn('item.tagName === "BR"', range_helpers)
         self.assertIn("current.nodeType === Node.TEXT_NODE ? current.data.length : 1", range_helpers)
+        self.assertIn("const canonicalEditorText", script)
+        entity_editor = script[script.index("const initialiseEntityControl"):script.index("const setAccepted")]
+        self.assertNotIn("editor.innerText", entity_editor)
 
     def test_unlocking_an_existing_stat_reenables_the_entity_link_button(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
