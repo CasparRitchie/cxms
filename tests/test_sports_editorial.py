@@ -11,7 +11,7 @@ from werkzeug.datastructures import MultiDict
 from app import app
 from services.sports_editorial.demo_data import fresh_demo_data
 from services.sports_editorial.json_export import build_pilot_export
-from services.sports_editorial.formatting import sanitise_rich_text
+from services.sports_editorial.formatting import rich_text_to_plain, sanitise_rich_text
 from services.sports_editorial.fis_client import FisApiError, LiveFisClient, get_fis_client
 from services.sports_editorial.fis_export import FisPayloadValidationError, build_fis_payload
 from services.sports_editorial.fis_calendar import parse_calendar_events
@@ -511,7 +511,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
                 self.assertEqual(saved["entity_mentions"]["entity-country-ch"], mention)
                 self.assertIn(mention, saved["stat_text"])
 
-    def test_exact_entity_range_is_saved_and_forged_range_is_rejected(self):
+    def test_exact_entity_range_is_saved_and_mismatched_range_is_canonicalised(self):
         submission = repository.get_submission("demo-submission-kronplatz")
         block = next(item for item in submission["stats"] if item["content_type"] == "stat")
         wording = "First Camille Rast then Camille Rast (SUI/Head)."
@@ -537,18 +537,53 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
         saved = update(start, start + len(mention))
         self.assertEqual(saved["entity_ranges"]["entity-athlete-rast"], {"start": start, "end": start + len(mention)})
-        rejected = update(0, len(mention))
-        self.assertNotIn("entity-athlete-rast", rejected["entity_ids"])
+        canonicalised = update(0, len(mention))
+        self.assertIn("entity-athlete-rast", canonicalised["entity_ids"])
+        self.assertEqual(
+            canonicalised["entity_ranges"]["entity-athlete-rast"],
+            {"start": start, "end": start + len(mention)},
+        )
+
+    def test_entity_range_survives_existing_rich_text_offset_differences(self):
+        submission = repository.get_submission("demo-submission-kronplatz")
+        block = next(item for item in submission["stats"] if item["content_type"] == "stat")
+        wording = "Opening line<br><strong>Camille Rast</strong> won."
+        mention = "Camille Rast"
+        canonical_start = rich_text_to_plain(wording).index(mention)
+        form = MultiDict([
+            ("event_date", submission["event_date"]),
+            ("content_id", block["id"]),
+            ("content_type", "stat"),
+            ("content_html", wording),
+            (f"entity_ids_{block['id']}", "entity-athlete-rast"),
+            (f"entity_mention_{block['id']}_entity-athlete-rast", mention),
+            (f"entity_start_{block['id']}_entity-athlete-rast", str(canonical_start + 1)),
+            (f"entity_end_{block['id']}_entity-athlete-rast", str(canonical_start + 1 + len(mention))),
+        ])
+        with app.test_request_context("/"), patch(
+            "services.sports_editorial.auth.current_user",
+            return_value={"id": "demo-user", "full_name": "Jamie Laurent", "role": "researcher"},
+        ):
+            saved = repository.update_research(submission["id"], form)["stats"][0]
+        self.assertEqual(
+            saved["entity_ranges"]["entity-athlete-rast"],
+            {"start": canonical_start, "end": canonical_start + len(mention)},
+        )
 
     def test_country_mention_text_saves_during_sub_edit(self):
         submission = repository.get_submission("demo-submission-submitted")
         block = next(item for item in submission["stats"] if item["content_type"] == "stat")
+        wording = "Opening line<br>Camille Rast represents Switzerland."
+        mention = "Switzerland"
+        canonical_start = rich_text_to_plain(wording).index(mention)
         form = MultiDict([
             ("content_id", block["id"]),
             ("content_type", "stat"),
-            (f"edited_text_{block['id']}", "Camille Rast represents Switzerland."),
+            (f"edited_text_{block['id']}", wording),
             (f"entity_ids_{block['id']}", "entity-country-ch"),
-            (f"entity_mention_{block['id']}_entity-country-ch", "Switzerland"),
+            (f"entity_mention_{block['id']}_entity-country-ch", mention),
+            (f"entity_start_{block['id']}_entity-country-ch", str(canonical_start + 1)),
+            (f"entity_end_{block['id']}_entity-country-ch", str(canonical_start + 1 + len(mention))),
         ])
         with app.test_request_context("/"), patch(
             "services.sports_editorial.auth.current_user",
@@ -557,7 +592,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
             updated = repository.update_review(submission["id"], form, "in_review")
         self.assertEqual(
             updated["stats"][0]["entity_mentions"]["entity-country-ch"],
-            "Switzerland",
+            mention,
+        )
+        self.assertEqual(
+            updated["stats"][0]["entity_ranges"]["entity-country-ch"],
+            {"start": canonical_start, "end": canonical_start + len(mention)},
         )
 
     def test_deleted_linked_wording_removes_research_entity_relationship(self):

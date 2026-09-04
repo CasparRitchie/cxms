@@ -41,7 +41,15 @@ def _submitted_entity_links(form_data, block_id, allowed_ids, rich_text):
                 if start < end <= len(plain_text) and plain_text[start:end] == mention:
                     ranges[entity_id] = {"start": start, "end": end}
                 else:
-                    continue
+                    # contenteditable offsets can differ after existing rich
+                    # text is sanitised (most notably around line breaks).
+                    # Never trust the mismatched client range: resolve the
+                    # confirmed wording to its first exact occurrence, which
+                    # is also the publication rule for repeated names.
+                    start = plain_text.find(mention)
+                    if start < 0:
+                        continue
+                    ranges[entity_id] = {"start": start, "end": start + len(mention)}
             else:
                 start = plain_text.find(mention)
                 if start < 0:
