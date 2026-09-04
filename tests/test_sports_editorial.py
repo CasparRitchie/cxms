@@ -747,6 +747,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("annotationAtSelection", script)
         self.assertIn("chip.dataset.extendingAnnotation", script)
 
+    def test_unlocking_an_existing_stat_reenables_the_entity_link_button(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        accepted_controls = script[script.index("const setAccepted"):script.index("const updateAcceptanceSummary")]
+        self.assertIn('"[data-link-entity]"', accepted_controls)
+        self.assertIn("control.disabled = accepted", accepted_controls)
+
     def test_fis_payload_matches_v1_shape(self):
         submissions, entities = fresh_demo_data()
         payload = build_fis_payload(submissions[0], {item["id"]: item for item in entities})

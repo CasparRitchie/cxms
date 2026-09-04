@@ -1586,6 +1586,7 @@
       .querySelectorAll(
         [
           "[data-review-format]",
+          "[data-link-entity]",
           "[data-remove-entity]",
           "[data-entity-type]",
           "[data-entity-search]",
