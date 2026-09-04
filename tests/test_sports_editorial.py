@@ -600,6 +600,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         self.assertIn("chip.remove();", script)
         self.assertIn("existingChip = null;", script)
+        self.assertIn("!existingMention ||", script)
         self.assertIn("unwrapMentionTags(editor);\n    validateMentionTags();", script)
 
     def test_entity_lookup_is_bound_to_the_exact_current_selection(self):

@@ -653,8 +653,10 @@
 
       if (
         existingChip &&
-        existingMention &&
-        !editor.innerText.includes(existingMention)
+        (
+          !existingMention ||
+          !editor.innerText.includes(existingMention)
+        )
       ) {
         existingChip.remove();
         existingChip = null;
