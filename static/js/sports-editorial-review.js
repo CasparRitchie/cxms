@@ -407,6 +407,24 @@
     });
 
     const textOffsetForPoint = (node, offset) => {
+      const walker = document.createTreeWalker(
+        editor,
+        NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+        {
+          acceptNode: (item) =>
+            item.nodeType === Node.TEXT_NODE || item.tagName === "BR"
+              ? NodeFilter.FILTER_ACCEPT
+              : NodeFilter.FILTER_SKIP,
+        },
+      );
+      let position = 0;
+      let current;
+      while ((current = walker.nextNode())) {
+        if (current === node) return position + offset;
+        position += current.nodeType === Node.TEXT_NODE ? current.data.length : 1;
+      }
+      // Selection boundaries normally resolve to text nodes. Retain a safe
+      // fallback for browser-created element boundaries.
       const range = document.createRange();
       range.selectNodeContents(editor);
       range.setEnd(node, offset);
@@ -416,23 +434,40 @@
     const rangeFromOffsets = (start, end) => {
       if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start) return null;
       const range = document.createRange();
-      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      const walker = document.createTreeWalker(
+        editor,
+        NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+        {
+          acceptNode: (item) =>
+            item.nodeType === Node.TEXT_NODE || item.tagName === "BR"
+              ? NodeFilter.FILTER_ACCEPT
+              : NodeFilter.FILTER_SKIP,
+        },
+      );
+      let startPoint = null;
+      let endPoint = null;
       let position = 0;
-      let startSet = false;
-      let node;
-      while ((node = walker.nextNode())) {
-        const next = position + node.data.length;
-        if (!startSet && start >= position && start <= next) {
-          range.setStart(node, Math.min(start - position, node.data.length));
-          startSet = true;
+      let current;
+      while ((current = walker.nextNode())) {
+        if (current.nodeType !== Node.TEXT_NODE) {
+          position += 1;
+          continue;
         }
-        if (startSet && end >= position && end <= next) {
-          range.setEnd(node, Math.min(end - position, node.data.length));
-          return range;
+        const nodeStart = position;
+        const nodeEnd = nodeStart + current.data.length;
+        if (!startPoint && start >= nodeStart && start <= nodeEnd) {
+          startPoint = { node: current, offset: start - nodeStart };
         }
-        position = next;
+        if (end >= nodeStart && end <= nodeEnd) {
+          endPoint = { node: current, offset: end - nodeStart };
+          if (startPoint) break;
+        }
+        position = nodeEnd;
       }
-      return null;
+      if (!startPoint || !endPoint) return null;
+      range.setStart(startPoint.node, startPoint.offset);
+      range.setEnd(endPoint.node, endPoint.offset);
+      return range;
     };
 
     const ensureChipRange = (chip, allowStale = false) => {

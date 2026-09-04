@@ -785,6 +785,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn('setAttribute("aria-pressed"', script)
         self.assertIn("annotationAtSelection", script)
         self.assertIn("chip.dataset.extendingAnnotation", script)
+        range_helpers = script[script.index("const textOffsetForPoint"):script.index("const ensureChipRange")]
+        self.assertIn("NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT", range_helpers)
+        self.assertIn('item.tagName === "BR"', range_helpers)
+        self.assertIn("current.nodeType === Node.TEXT_NODE ? current.data.length : 1", range_helpers)
 
     def test_unlocking_an_existing_stat_reenables_the_entity_link_button(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
