@@ -614,15 +614,21 @@
       const range = selection.getRangeAt(0);
 
       if (!range.collapsed) {
-        const text = range.toString().trim();
+        const selectedText = range.toString();
+        const leadingWhitespace = selectedText.match(/^\s*/)?.[0].length || 0;
+        const trailingWhitespace = selectedText.match(/\s*$/)?.[0].length || 0;
+        const start = textOffsetForPoint(range.startContainer, range.startOffset) + leadingWhitespace;
+        const end = textOffsetForPoint(range.endContainer, range.endOffset) - trailingWhitespace;
+        const trimmedRange = rangeFromOffsets(start, end);
+        const text = trimmedRange?.toString() || "";
 
-        return text.length >= 2 && text.length <= 80
+        return trimmedRange && text.length >= 2 && text.length <= 80
           ? {
               text,
-              range: range.cloneRange(),
+              range: trimmedRange,
               replace: false,
-              start: textOffsetForPoint(range.startContainer, range.startOffset),
-              end: textOffsetForPoint(range.endContainer, range.endOffset),
+              start,
+              end,
             }
           : null;
       }

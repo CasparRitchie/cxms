@@ -611,6 +611,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("The selected wording changed", script)
         self.assertIn("The selection changed", script)
 
+    def test_entity_lookup_trims_the_selection_range_before_saving_offsets(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        selection_context = script[
+            script.index("const selectedMentionContext"):
+            script.index("const addEntity")
+        ]
+        self.assertIn("const selectedText = range.toString()", selection_context)
+        self.assertIn("const leadingWhitespace", selection_context)
+        self.assertIn("const trailingWhitespace", selection_context)
+        self.assertIn("const trimmedRange = rangeFromOffsets(start, end)", selection_context)
+        self.assertIn("range: trimmedRange", selection_context)
+        self.assertNotIn("range: range.cloneRange()", selection_context)
+
     def test_entity_lookup_prefills_search_and_starts_immediately(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         self.assertIn("meaningfulSearchText", script)
