@@ -936,6 +936,36 @@
       }, 250);
     };
 
+    const addRecentEntity = async (cachedEntity, button) => {
+      const identity = cachedEntity.canonical_id || cachedEntity.name;
+      if (!identity) return;
+      button.disabled = true;
+      announce(`Checking recent link “${cachedEntity.name}”…`);
+      try {
+        const type = cachedEntity.type ? `&type=${encodeURIComponent(cachedEntity.type)}` : "";
+        const response = await fetch(
+          `/workspace/sports-editorial/entities/search?q=${encodeURIComponent(identity)}${type}`,
+        );
+        if (!response.ok) throw new Error("Recent entity lookup failed");
+        const payload = await response.json();
+        const currentEntity = payload.results.find((entity) =>
+          entity.type === cachedEntity.type && (
+            (cachedEntity.canonical_id && entity.canonical_id === cachedEntity.canonical_id) ||
+            entity.id === cachedEntity.id
+          )
+        );
+        if (!currentEntity) {
+          announce(`The recent link “${cachedEntity.name}” is no longer in the local catalogue. Search for it again.`);
+          return;
+        }
+        addEntity(currentEntity);
+      } catch (_error) {
+        announce("The recent link could not be checked. Search for it again before linking.");
+      } finally {
+        if (button.isConnected) button.disabled = false;
+      }
+    };
+
     results.id =
       results.id ||
       `entity-results-${crypto.randomUUID()}`;
@@ -1018,7 +1048,7 @@
           const button = document.createElement("button");
           button.type = "button";
           button.textContent = entity.name;
-          button.addEventListener("click", () => addEntity(entity));
+          button.addEventListener("click", () => addRecentEntity(entity, button));
           recent.appendChild(button);
         });
       }

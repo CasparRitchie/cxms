@@ -655,6 +655,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(".sew-entity-recents__label", stylesheet)
         self.assertIn("border-bottom:2px solid #526176", stylesheet)
 
+    def test_recent_entity_is_resolved_against_the_current_catalogue_before_linking(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("const addRecentEntity = async", script)
+        self.assertIn("cachedEntity.canonical_id || cachedEntity.name", script)
+        self.assertIn("entity.canonical_id === cachedEntity.canonical_id", script)
+        self.assertIn("addEntity(currentEntity)", script)
+        self.assertIn("addRecentEntity(entity, button)", script)
+        self.assertNotIn('button.addEventListener("click", () => addEntity(entity));\n          recent.appendChild(button)', script)
+
     def test_link_check_uses_accessible_panel_and_modifier_click_opens_one_source(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         self.assertIn("safeEntityUrl", script)
