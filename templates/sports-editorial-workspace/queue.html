@@ -62,7 +62,7 @@
   <div class="sew-actions">
     <button class="sew-button" type="button" data-select-all>Select all visible</button>
     <button class="sew-button" type="button" data-clear-selection disabled>Clear selection</button>
-    {% if workspace_role == 'supervisor' %}
+    {% if workspace_role in ['sub_editor','supervisor'] %}
     <button class="sew-button sew-button--primary" type="button" data-open-allocation="researcher_user_id" disabled>Allocate researcher</button>
     <button class="sew-button sew-button--primary" type="button" data-open-allocation="sub_editor_user_id" disabled>Allocate sub-editor</button>
     {% endif %}
@@ -76,6 +76,7 @@
   <table class="sew-table sew-queue-table">
     <thead><tr class="sew-column-headings">
       <th>Open</th>
+      {{ column_heading('Status','status') }}
       {{ column_heading('AMP ID','amp_id') }}
       {{ column_heading('Client','client_name') }}
       {{ column_heading('Sport','sport') }}
@@ -88,7 +89,6 @@
       {{ column_heading('Client Event ID','fis_event_ids') }}
       {{ column_heading('Publication Deadline','publication_deadline') }}
       {{ column_heading('Researcher Deadline','researcher_deadline') }}
-      {{ column_heading('Status','status') }}
       {{ column_heading('Researcher','researcher_name') }}
       {{ column_heading('Sub-editor','sub_editor_name') }}
       {{ column_heading('Last Modified','updated_at') }}
@@ -96,12 +96,12 @@
     </tr></thead>
     <tbody>{% for item in submissions %}<tr class="sew-queue-row" data-submission-id="{{ item.id }}" tabindex="0" aria-selected="false">
       <td><label class="sew-row-select"><input type="checkbox" data-row-select aria-label="Select {{ item.title }}"></label> <a class="sew-button sew-button--primary sew-button--small sew-open-sheet" href="{{ item.queue_url }}">Open</a></td>
-      <td>{{ item.amp_id|default('—', true) }}</td><td>{{ item.client_name|default('FIS', true) }}</td><td>ALP</td><td>{{ item.competition|default('—', true) }}</td><td>{{ item.event_name|default('—', true) }}</td><td>{{ item.gender|default('—', true) }}</td><td>{{ item.location|default('—', true) }}</td><td>{{ item.season_code|default('—', true) }}</td><td>{{ item.event_date|default('—', true) }}</td><td>{{ item.fis_event_ids|join(', ') or '—' }}</td><td>{{ item.publication_deadline|default('—', true) }}</td><td>{{ item.researcher_deadline|default('—', true) }}</td><td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td><td>{{ item.researcher_name|default(item.author_name, true) }}</td><td>{{ item.sub_editor_name|default('Unassigned', true) }}</td><td>{{ item.updated_at[:10] }}</td><td>{{ item.last_modified_by|default(item.author_name, true) }}</td>
+      <td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td><td>{{ item.amp_id|default('—', true) }}</td><td>{{ item.client_name|default('FIS', true) }}</td><td>ALP</td><td>{{ item.competition|default('—', true) }}</td><td>{{ item.event_name|default('—', true) }}</td><td>{{ item.gender|default('—', true) }}</td><td>{{ item.location|default('—', true) }}</td><td>{{ item.season_code|default('—', true) }}</td><td>{{ item.event_date|default('—', true) }}</td><td>{{ item.fis_event_ids|join(', ') or '—' }}</td><td>{{ item.publication_deadline|default('—', true) }}</td><td>{{ item.researcher_deadline|default('—', true) }}</td><td>{{ item.researcher_name|default(item.author_name, true) }}</td><td>{{ item.sub_editor_name|default('Unassigned', true) }}</td><td>{{ item.updated_at[:10] }}</td><td>{{ item.last_modified_by|default(item.author_name, true) }}</td>
     </tr>{% else %}<tr><td colspan="18" class="sew-empty">No stat sheets match these filters.</td></tr>{% endfor %}</tbody>
   </table>
 </section>
 
-{% if workspace_role == 'supervisor' %}
+{% if workspace_role in ['sub_editor','supervisor'] %}
 {% for assignment_field, title, allowed_roles in [('researcher_user_id','Allocate researcher',['researcher']),('sub_editor_user_id','Allocate sub-editor',['sub_editor','supervisor'])] %}
 <dialog class="sew-allocation-dialog" data-allocation-dialog="{{ assignment_field }}">
   <form method="post" action="{{ url_for('sports_editorial_workspace.bulk_assign_queue') }}">

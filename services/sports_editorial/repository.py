@@ -231,7 +231,7 @@ class DemoSportsEditorialRepository:
             item["editor_notes"] = form_data.get("editor_notes", "").strip()
             item["fis_submission_notes"] = form_data.get("fis_submission_notes", "").strip()
             item["fis_event_ids"] = _event_ids_from_form(form_data)
-            for field in ("title", "amp_id", "client_name", "competition", "event_name", "gender", "location", "season_code", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "researcher_name", "sub_editor_user_id", "sub_editor_name", "working_notes", "unused_stats"):
+            for field in ("title", "sport", "client_name", "competition", "event_name", "gender", "location", "season_code", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "researcher_name", "sub_editor_user_id", "sub_editor_name", "working_notes", "unused_stats"):
                 if field in form_data:
                     item[field] = form_data.get(field, "").strip() or None
             if item.get("season_code"):
@@ -664,7 +664,7 @@ class SupabaseSportsEditorialRepository:
         changes = {"editor_notes": form_data.get("editor_notes", "").strip(), "fis_submission_notes": form_data.get("fis_submission_notes", "").strip(), "fis_event_ids": event_ids, "updated_at": _now(), "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
         if not preserve_status:
             changes["status"] = requested_status
-        for field in ("title", "amp_id", "client_name", "competition", "event_name", "gender", "location", "season_code", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "sub_editor_user_id", "working_notes", "unused_stats"):
+        for field in ("title", "sport", "client_name", "competition", "event_name", "gender", "location", "season_code", "event_date", "publication_deadline", "researcher_deadline", "researcher_user_id", "sub_editor_user_id", "working_notes", "unused_stats"):
             if field in form_data:
                 changes[field] = form_data.get(field) or None
         if changes.get("season_code"):

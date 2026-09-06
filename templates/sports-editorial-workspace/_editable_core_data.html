@@ -1,0 +1,21 @@
+<label class="sew-field sew-field--wide"><span>Title</span><input name="title" value="{{ submission.title }}"></label>
+<div><span>AMP ID</span><strong>{{ submission.amp_id|default('—', true) }}</strong></div>
+<label class="sew-field"><span>Client</span><input name="client_name" value="{{ submission.client_name|default('FIS', true) }}"></label>
+<label class="sew-field"><span>Sport</span><select name="sport" data-core-sport>{% for sport in creation_options.sports if sport.enabled %}<option value="{{ sport.value }}" {% if submission.sport == sport.value %}selected{% endif %}>{{ sport.label }}</option>{% endfor %}</select></label>
+<label class="sew-field"><span>Competition</span><input name="competition" value="{{ submission.competition }}" data-core-competition></label>
+<label class="sew-field"><span>Event</span><input name="event_name" value="{{ submission.event_name }}"></label>
+<label class="sew-field"><span>Gender</span><select name="gender">{% for code,label in [('W','Women'),('M','Men'),('X','Mixed / open')] %}<option value="{{ code }}" {% if submission.gender == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<div class="sew-field sew-calendar-picker" data-review-calendar-picker>
+  <label for="review-calendar-event-search">Location</label>
+  <input id="review-calendar-event-search" name="calendar_event_query" type="search" autocomplete="off" value="{{ submission.location|default('', true) }}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="review-calendar-event-results" data-calendar-search>
+  <input type="hidden" name="calendar_event_id" value="{{ submission.fis_event_ids[0] if submission.fis_event_ids else '' }}" data-calendar-event>
+  <div id="review-calendar-event-results" class="sew-calendar-results" role="listbox" data-calendar-results hidden></div>
+  <small data-calendar-message>Search the compatible local FIS calendar. Clear Location to leave the sheet unallocated.</small>
+</div>
+<label class="sew-field"><span>Season</span><input type="text" name="season_code" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" value="{{ submission.season_code|default('', true) }}" data-core-season></label>
+<label class="sew-field"><span>Race Date</span><span class="sew-date-control"><input type="text" name="event_date" value="{{ format_display_date(submission.event_date) }}" placeholder="04-Dec-2026" pattern="\d{2}-[A-Za-z]{3}-\d{4}"><input type="date" aria-label="Choose race date" data-date-picker value="{{ submission.event_date|default('', true) }}"></span></label>
+<div><span>FIS Calendar Event ID</span><strong data-client-event-id>{{ submission.fis_event_ids|join(', ') or '—' }}</strong></div>
+<label class="sew-field"><span>Publication Deadline</span><span class="sew-date-control"><input type="text" name="publication_deadline" value="{{ format_display_date(submission.publication_deadline) }}" placeholder="04-Dec-2026" pattern="\d{2}-[A-Za-z]{3}-\d{4}"><input type="date" aria-label="Choose publication deadline" data-date-picker value="{{ submission.publication_deadline|default('', true) }}"></span></label>
+<label class="sew-field"><span>Researcher Deadline</span><span class="sew-date-control"><input type="text" name="researcher_deadline" value="{{ format_display_date(submission.researcher_deadline) }}" placeholder="04-Dec-2026" pattern="\d{2}-[A-Za-z]{3}-\d{4}"><input type="date" aria-label="Choose researcher deadline" data-date-picker value="{{ submission.researcher_deadline|default('', true) }}"></span></label>
+<label class="sew-field"><span>Researcher</span><select name="researcher_user_id"><option value="">Unassigned</option>{% for user in assignment_users if user.editorial_role == 'researcher' %}<option value="{{ user.id }}" {% if submission.researcher_user_id == user.id %}selected{% endif %}>{{ user.full_name or user.email }}</option>{% endfor %}</select></label>
+<label class="sew-field"><span>Sub-editor</span><select name="sub_editor_user_id"><option value="">Unassigned</option>{% for user in assignment_users if user.editorial_role in ['sub_editor','supervisor'] %}<option value="{{ user.id }}" {% if submission.sub_editor_user_id == user.id %}selected{% endif %}>{{ user.full_name or user.email }}</option>{% endfor %}</select></label>

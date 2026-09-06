@@ -51,7 +51,7 @@ def _invalid_event_id_tokens(value):
 def _season_code(raw_value, event_ids, event_date):
     raw_value = str(raw_value or "").strip()
     if raw_value:
-        return int(raw_value) if raw_value.isdigit() and 2000 <= int(raw_value) <= 2100 else None
+        return int(raw_value) if re.fullmatch(r"\d{4}", raw_value) and 2000 <= int(raw_value) <= 2100 else None
     requested = {str(event_id) for event_id in event_ids}
     seasons = {
         int(event.get("metadata", {}).get("season_code"))
@@ -68,7 +68,7 @@ def _season_code(raw_value, event_ids, event_date):
 
 
 CORE_DATA_FIELDS = {
-    "title", "amp_id", "client_name", "competition", "event_name", "gender",
+    "title", "sport", "client_name", "competition", "event_name", "gender",
     "location", "season_code", "event_date", "fis_event_ids",
     "publication_deadline", "researcher_deadline", "researcher_user_id",
     "sub_editor_user_id",
@@ -116,7 +116,7 @@ def _review_form_preview(submission, form_data, parsed_dates=None):
     preview = deepcopy(submission)
     parsed_dates = parsed_dates or {}
     for field in (
-        "title", "amp_id", "client_name", "competition", "event_name", "gender",
+        "title", "amp_id", "sport", "client_name", "competition", "event_name", "gender",
         "location", "season_code", "publication_deadline", "researcher_deadline",
         "researcher_user_id", "sub_editor_user_id", "working_notes", "unused_stats",
     ):
@@ -746,7 +746,7 @@ def queue():
 
 @blueprint.post("/queue/bulk-assign")
 def bulk_assign_queue():
-    actor = require_supervisor()
+    actor = require_editor()
     submission_ids = list(dict.fromkeys(value for value in request.form.getlist("submission_id") if value))
     assignment_field = request.form.get("assignment_field", "")
     assignment_action = request.form.get("assignment_action", "allocate")
@@ -814,12 +814,16 @@ def detail(submission_id):
         if submission["status"] in ("approved", "exported"):
             abort(409, description="Use Edit to return this sheet to In Progress before making changes.")
         user, lock_token = _require_owned_lock(submission_id)
-        if user.get("role") != "supervisor" and _attempts_core_data_change(request.form, submission):
-            abort(403, description="Supervisor access is required to edit core stat-sheet data.")
+        can_edit_core = user.get("role") in ("sub_editor", "supervisor")
+        if "amp_id" in request.form:
+            abort(403, description="AMP ID is system controlled and cannot be changed.")
+        if not can_edit_core and _attempts_core_data_change(request.form, submission):
+            abort(403, description="Sub-editor or Supervisor access is required to edit core data.")
         requested_status = submission["status"] if is_autosave else request.form.get("status", submission["status"])
-        raw_event_ids = (" ".join(request.form.getlist("fis_event_ids"))
-                         if user.get("role") == "supervisor"
-                         else " ".join(str(value) for value in submission.get("fis_event_ids", [])))
+        # Client Event ID is never accepted directly from review request data.
+        # Editable roles select a local catalogue record and the server resolves
+        # both its canonical location and numeric identifier below.
+        raw_event_ids = " ".join(str(value) for value in submission.get("fis_event_ids", []))
         event_ids = _event_ids_from_form(raw_event_ids)
         valid, message = validate_status_transition(submission["status"], requested_status)
         parsed_dates = {}
@@ -828,18 +832,36 @@ def detail(submission_id):
             ("researcher_deadline", "Researcher Deadline"),
             ("publication_deadline", "Publication Deadline"),
         ):
-            if user.get("role") == "supervisor" and field_name in request.form:
+            if can_edit_core and field_name in request.form:
                 parsed_dates[field_name], error = parse_display_date(request.form.get(field_name), label)
                 if error:
                     valid, message = False, error
                     break
-        if _invalid_event_id_tokens(raw_event_ids):
+        if not can_edit_core and _invalid_event_id_tokens(raw_event_ids):
             valid, message = False, "FIS calendar event IDs must contain digits only, for example 123456."
-        elif request.form.get("season_code", "").strip() and _season_code(request.form.get("season_code"), event_ids, parsed_dates.get("event_date", request.form.get("event_date"))) is None:
+        elif can_edit_core and request.form.get("sport", submission.get("sport")) != "alpine_skiing":
+            valid, message = False, "This release currently supports Alpine Skiing core data only."
+        elif "season_code" in request.form and _season_code(request.form.get("season_code"), event_ids, parsed_dates.get("event_date", request.form.get("event_date"))) is None:
             valid, message = False, "Season must be the four-digit year in which the season ends, for example 2027."
-        elif requested_status in ("approved", "exported") and not event_ids:
+        elif can_edit_core and "calendar_event_id" in request.form:
+            calendar_id = request.form.get("calendar_event_id", "").strip()
+            current_ids = [str(value) for value in submission.get("fis_event_ids") or []]
+            if calendar_id:
+                selected_event, calendar_error = resolve_calendar_event(
+                    _calendar_events(), calendar_id,
+                    request.form.get("sport", submission.get("sport", "")).strip(),
+                    request.form.get("competition", submission.get("competition", "")).strip(),
+                    _season_code(request.form.get("season_code"), event_ids, parsed_dates.get("event_date", submission.get("event_date"))),
+                )
+                if calendar_error and calendar_id not in current_ids:
+                    valid, message = False, calendar_error
+                elif not calendar_error:
+                    event_ids = [int(selected_event["canonical_id"])]
+            else:
+                event_ids = []
+        if valid and requested_status in ("approved", "exported") and not event_ids:
             valid, message = False, "Select at least one FIS calendar event before approval."
-        elif requested_status in ("approved", "exported"):
+        elif valid and requested_status in ("approved", "exported"):
             review_ids = request.form.getlist("content_id") or [block["id"] for block in submission.get("stats", [])]
             review_types = request.form.getlist("content_type") or [block.get("content_type", "stat") for block in submission.get("stats", [])]
             if any(kind in ("stat", "section", "heading") and request.form.get(f"accepted_{block_id}") != "1" for block_id, kind in zip(review_ids, review_types)):
@@ -856,10 +878,14 @@ def detail(submission_id):
             rejected_dates = parsed_dates
         else:
             mutable_form = request.form.copy()
-            if user.get("role") != "supervisor":
+            if not can_edit_core:
                 for field_name in CORE_DATA_FIELDS:
                     mutable_form.pop(field_name, None)
                 mutable_form["fis_event_ids"] = raw_event_ids
+            else:
+                mutable_form["fis_event_ids"] = " ".join(str(value) for value in event_ids)
+                selected = next((item for item in canonical_calendar_events(_calendar_events()) if item["canonical_id"] in {str(value) for value in event_ids}), None)
+                mutable_form["location"] = selected["location"] if selected else ""
             for field_name, parsed_value in parsed_dates.items():
                 mutable_form[field_name] = parsed_value
             renewed_lock = repository.heartbeat_edit_lock(submission_id, user["id"], lock_token) if is_autosave else None
@@ -891,7 +917,8 @@ def detail(submission_id):
     if owns_lock:
         _remember_lock(submission_id, edit_lock)
     entity_map = _entities_by_id(refreshed)
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=_calendar_events(), assignment_users=_assignment_users(), can_review=editable_role and owns_lock and not final_state, can_edit_core=role == "supervisor" and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
+    calendar_events = canonical_calendar_events(_calendar_events())
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=calendar_events, assignment_users=_assignment_users(), creation_options=creation_options(), can_review=editable_role and owns_lock and not final_state, can_edit_core=role in ("sub_editor", "supervisor") and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
 
 
 @blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])
@@ -910,10 +937,8 @@ def research(submission_id):
         is_autosave = request.form.get("autosave") == "1"
         user, lock_token = _require_owned_lock(submission_id)
         action = "draft" if is_autosave else request.form.get("action", "draft")
-        if user.get("role") != "supervisor" and "event_date" in request.form:
-            abort(403, description="Supervisor access is required to edit core stat-sheet data.")
         parsed_date, date_error = parse_display_date(
-            request.form.get("event_date") if user.get("role") == "supervisor" else format_display_date(submission.get("event_date")),
+            request.form.get("event_date", format_display_date(submission.get("event_date"))),
             "Race Date",
         )
         if date_error:

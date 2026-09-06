@@ -926,11 +926,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "approved"})
         self.assertEqual(response.status_code, 403)
 
-    def test_review_rejects_non_numeric_fis_event_id(self):
+    def test_review_ignores_forged_fis_event_id(self):
         self.set_role("supervisor")
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "submitted", "fis_event_ids": "DemoCalendarID00001x"}, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"must contain digits only", response.data)
+        self.assertNotIn(b"must contain digits only", response.data)
         self.assertEqual(repository.get_submission("demo-submission-submitted")["fis_event_ids"], [55596])
 
     def test_publication_wording_is_editable_for_sub_editor(self):
@@ -1113,8 +1113,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'data-submission-id="demo-submission-kronplatz"', response.data)
         self.assertNotIn(b'aria-describedby="queue-interaction-help"', response.data)
         self.assertIn(b"Client Event ID", response.data)
-        self.assertNotIn(b"Allocate researcher", response.data)
-        self.assertNotIn(b"Allocate sub-editor", response.data)
+        self.assertIn(b"Allocate researcher", response.data)
+        self.assertIn(b"Allocate sub-editor", response.data)
+        self.assertLess(response.data.index(b"sort=status:asc"), response.data.index(b"sort=amp_id:asc"))
         self.assertIn(b"Select all visible", response.data)
 
     def test_researcher_queue_keeps_filters_visible_without_selection_controls(self):
@@ -1141,7 +1142,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Enhanced stat sheet view", response.data)
         self.assertIn(b'aria-label="Filter by Competition"', response.data)
         self.assertIn(b'data-row-select', response.data)
-        self.assertNotIn(b"Allocate researcher", response.data)
+        self.assertIn(b"Allocate researcher", response.data)
         self.assertIn(b'data-current-view="enhanced"', response.data)
         standard = self.client.get("/workspace/sports-editorial/queue?status=submitted")
         self.assertIn(b'data-current-view="standard"', standard.data)
@@ -1154,10 +1155,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz?edit=1")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'<details class="sew-card sew-core-data sew-core-summary" open>', response.data)
-        self.assertIn(b"<strong>Core stat-sheet data</strong>", response.data)
+        self.assertIn(b"<strong>Core Data</strong>", response.data)
+        self.assertNotIn(b"Operational metadata and assignments", response.data)
         self.assertIn(b'class="sew-core-summary__body"', response.data)
-        self.assertNotIn(b'<span>Title</span><input name="title"', response.data)
-        self.assertIn(b'<span>Competition</span><strong>FIS World Cup</strong>', response.data)
+        self.assertIn(b'<span>Title</span><input name="title"', response.data)
+        self.assertIn(b'name="calendar_event_query" type="search"', response.data)
+        self.assertIn(b'<span>FIS Calendar Event ID</span><strong data-client-event-id>', response.data)
+        self.assertNotIn(b'name="amp_id"', response.data)
+        self.assertNotIn(b'name="fis_event_ids"', response.data)
         self.assertNotIn(b'type="date" name="event_date" value="None"', response.data)
         stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
         self.assertIn("background:linear-gradient(13deg,#174b4e,#18282d)", stylesheet)
@@ -1189,23 +1194,31 @@ class SportsEditorialPilotTests(unittest.TestCase):
         for submission_id in selected:
             self.assertIsNone(repository.get_submission(submission_id)["researcher_user_id"])
 
-    def test_sub_editor_cannot_allocate_or_edit_core_data(self):
+    def test_sub_editor_can_allocate_and_edit_core_data(self):
         self.set_sub_editor()
-        denied_allocation = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
+        allocation = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
             "submission_id": "demo-submission-submitted",
             "assignment_field": "researcher_user_id",
-            "assignment_action": "unallocate",
+            "assignment_action": "allocate",
+            "user_id": "demo-researcher-2",
         })
-        self.assertEqual(denied_allocation.status_code, 403)
+        self.assertEqual(allocation.status_code, 302)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["researcher_user_id"], "demo-researcher-2")
 
         self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
-        original_title = repository.get_submission("demo-submission-submitted")["title"]
-        denied_core_edit = self.client.post(
+        core_edit = self.client.post(
             "/workspace/sports-editorial/submissions/demo-submission-submitted",
-            data={"status": "in_review", "title": "Forged title"},
+            data={
+                "status": "in_review", "title": "Updated by sub-editor",
+                "sport": "alpine_skiing", "competition": "FIS World Cup",
+                "season_code": "2026", "calendar_event_id": "55595",
+            },
         )
-        self.assertEqual(denied_core_edit.status_code, 403)
-        self.assertEqual(repository.get_submission("demo-submission-submitted")["title"], original_title)
+        self.assertEqual(core_edit.status_code, 302)
+        updated = repository.get_submission("demo-submission-submitted")
+        self.assertEqual(updated["title"], "Updated by sub-editor")
+        self.assertEqual(updated["location"], "Kranjska Gora")
+        self.assertEqual(updated["fis_event_ids"], [55595])
 
     def test_supervisor_can_edit_core_data_and_sees_allocation_controls(self):
         self.set_role("supervisor")
@@ -1214,6 +1227,55 @@ class SportsEditorialPilotTests(unittest.TestCase):
         queue = self.client.get("/workspace/sports-editorial/queue")
         self.assertIn(b"Allocate researcher", queue.data)
         self.assertIn(b"Allocate sub-editor", queue.data)
+
+    def test_core_identifiers_cannot_be_overridden_and_calendar_is_validated(self):
+        self.set_sub_editor()
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        amp_override = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"status": "in_review", "amp_id": "999999"},
+        )
+        self.assertEqual(amp_override.status_code, 403)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["amp_id"], "560002")
+
+        unknown_event = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={
+                "status": "in_review", "sport": "alpine_skiing",
+                "competition": "FIS World Cup", "season_code": "2026",
+                "calendar_event_id": "99999", "fis_event_ids": "99999",
+            }, follow_redirects=True,
+        )
+        self.assertIn(b"Select a known Client Event ID", unknown_event.data)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["fis_event_ids"], [55596])
+
+        forged_id_only = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"status": "in_review", "fis_event_ids": "55595"},
+        )
+        self.assertEqual(forged_id_only.status_code, 302)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["fis_event_ids"], [55596])
+
+    def test_review_season_requires_four_digits(self):
+        self.set_sub_editor()
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"status": "in_review", "season_code": "27"},
+            follow_redirects=True,
+        )
+        self.assertIn(b"Season must be the four-digit year", response.data)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["season_code"], 2026)
+
+    def test_review_calendar_picker_filters_locally_and_resets_selection(self):
+        self.set_sub_editor()
+        page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        self.assertIn(b'id="sports-editorial-review-calendar-options"', page.data)
+        self.assertIn(b'data-review-calendar-picker', page.data)
+        script = Path("static/js/sports-editorial-review-calendar.js").read_text(encoding="utf-8")
+        self.assertIn("const compatible = () => events.filter", script)
+        self.assertIn("clearSelection(true)", script)
+        self.assertIn('active.scrollIntoView({ block: "nearest" })', script)
 
     def test_researcher_and_sub_editor_cannot_import_official_results(self):
         for role in ("researcher", "sub_editor"):
@@ -1371,8 +1433,21 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b"Only Race Date is editable", response.data)
         self.assertNotIn(b"Race Date <em>Editable</em>", response.data)
-        self.assertNotIn(b'<span>Race Date</span><span class="sew-date-control">', response.data)
-        self.assertIn(b'<span>Race Date</span><strong>27-Oct-2026</strong>', response.data)
+        self.assertIn(b'<span>Race Date</span><span class="sew-date-control">', response.data)
+        self.assertIn(b'name="event_date" value="27-Oct-2026"', response.data)
+
+    def test_researcher_can_update_race_date(self):
+        repository.set_submission_status("demo-submission-kronplatz", "draft")
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-kronplatz/research",
+            data={
+                "action": "draft", "event_date": "03-Nov-2026",
+                "content_type": "stat", "content_html": "A retained statistic.",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(repository.get_submission("demo-submission-kronplatz")["event_date"], "2026-11-03")
 
     def test_queue_open_routes_directly_to_the_role_appropriate_editor(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")
