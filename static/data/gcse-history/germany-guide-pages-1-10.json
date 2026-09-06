@@ -1,0 +1,181 @@
+{
+  "source": "User-provided AQA Germany revision guide, first ten photographed pages; content paraphrased and restructured for revision use.",
+  "subtopicEnhancements": {
+    "kaiser-government": {
+      "extraFacts": [
+        "The German Empire was created in 1871 after Prussia united many German-speaking states.",
+        "The Kaiser held ultimate authority and appointed the Chancellor and ministers.",
+        "The Bundesrat represented the German states, while the Reichstag was elected by adult men over 25.",
+        "The Reichstag could debate and vote on laws, but it did not control the government in the way a modern UK parliament does."
+      ],
+      "extraKeywords": ["German Empire", "1871", "adult male suffrage"],
+      "retrievalQuestions": [
+        "When was the German Empire created?",
+        "Which German state dominated the creation of Germany?",
+        "Who appointed the Chancellor?",
+        "What was the difference between the Bundesrat and the Reichstag?"
+      ],
+      "examLinks": [
+        "Be ready to explain why Germany had some democratic features but was still strongly authoritarian.",
+        "A strong answer distinguishes elected representation from real control over the government."
+      ]
+    },
+    "industrialisation-socialism": {
+      "extraFacts": [
+        "Wilhelm II became Kaiser in 1888, when rapid industrial growth was transforming Germany.",
+        "By 1913 Germany was producing more iron and steel than Britain and roughly as much coal.",
+        "Industrial growth made many factory owners wealthy, while many workers faced low wages and poor working conditions.",
+        "Trade unions and the SPD grew as workers demanded political influence and better conditions.",
+        "Some socialists favoured reform through parliament, while communists wanted much more radical change."
+      ],
+      "extraKeywords": ["trade unions", "working class", "social democracy", "communism"],
+      "retrievalQuestions": [
+        "Why did industrialisation increase support for socialism?",
+        "What did the SPD want to change?",
+        "How did moderate socialists differ from communists?"
+      ],
+      "examLinks": [
+        "Link industrial growth to both Germany's strength and rising social tension.",
+        "Do not assume that a large SPD vote meant the SPD controlled the government."
+      ]
+    },
+    "navy-laws": {
+      "extraFacts": [
+        "Militarism was deeply influential in Imperial Germany and the Kaiser admired military power.",
+        "Weltpolitik aimed to increase German power and overseas influence.",
+        "A series of Navy Laws between 1898 and 1912 expanded the German fleet.",
+        "Building a larger navy and army required higher taxation and borrowing, adding to government debt."
+      ],
+      "extraKeywords": ["militarism", "empire", "taxation", "government debt"],
+      "retrievalQuestions": [
+        "What was Weltpolitik?",
+        "Why did the Kaiser want a larger navy?",
+        "How did naval expansion create domestic problems?"
+      ],
+      "examLinks": [
+        "For consequence questions, connect military expansion to taxation, debt and political tension at home."
+      ]
+    },
+    "first-world-war": {
+      "extraFacts": [
+        "By 1918 the war had badly damaged Germany's economy and living standards.",
+        "War production reduced the supply of ordinary consumer goods and shortages encouraged a black market.",
+        "Food shortages and inflation hit workers hard, while some businesses profited from wartime contracts.",
+        "Around two million German soldiers died during the First World War.",
+        "Women took on more industrial work during the war, disrupting older social expectations.",
+        "Strikes and political unrest increased as war weariness spread.",
+        "A naval mutiny at Kiel in late October 1918 helped trigger wider revolt and workers' and soldiers' councils.",
+        "Kaiser Wilhelm II abdicated on 9 November 1918 and the armistice was signed on 11 November."
+      ],
+      "extraKeywords": ["black market", "inflation", "war weariness", "workers' councils", "armistice"],
+      "retrievalQuestions": [
+        "Give one economic, one social and one political impact of the First World War on Germany.",
+        "Why did unrest increase in 1918?",
+        "What happened at Kiel?",
+        "When did Kaiser Wilhelm II abdicate?"
+      ],
+      "examLinks": [
+        "For an impact question, separate economic, social and political consequences.",
+        "Use the Kiel mutiny and abdication to show how wartime problems contributed directly to the collapse of monarchy."
+      ]
+    },
+    "weimar-crises": {
+      "extraFacts": [
+        "The Weimar Republic introduced a much more democratic constitution after the Kaiser abdicated.",
+        "The President was elected for seven years and appointed the Chancellor.",
+        "Proportional representation made votes translate fairly into seats but often produced coalition governments.",
+        "Article 48 allowed the President to use emergency powers, a weakness that later became increasingly important.",
+        "The Treaty of Versailles imposed territorial losses, military restrictions, reparations and the war-guilt clause on Germany.",
+        "Reparations were fixed at 132 billion gold marks in 1921.",
+        "When Germany fell behind with payments, French and Belgian forces occupied the Ruhr in January 1923.",
+        "The government backed passive resistance and printed money to support striking workers, accelerating hyperinflation.",
+        "Hyperinflation wiped out many people's savings, while some borrowers found debts became easier to repay.",
+        "The Spartacist uprising, Kapp Putsch and Munich Putsch showed that the republic faced threats from both left and right."
+      ],
+      "extraKeywords": ["war-guilt clause", "reparations", "passive resistance", "coalition", "seven-year term"],
+      "retrievalQuestions": [
+        "What powers did the President have under the Weimar Constitution?",
+        "Why could proportional representation be both a strength and a weakness?",
+        "What were the main terms of the Treaty of Versailles?",
+        "Why did France and Belgium occupy the Ruhr in 1923?",
+        "Why did passive resistance contribute to hyperinflation?",
+        "Name one left-wing and two right-wing challenges to Weimar democracy."
+      ],
+      "examLinks": [
+        "When judging the Weimar Constitution, balance democratic strengths against structural weaknesses such as coalition instability and Article 48.",
+        "For hyperinflation, explain the chain: reparations pressure → Ruhr occupation → passive resistance → money printing → rapid loss of currency value."
+      ],
+      "extraMisconceptions": [
+        {
+          "triggers": ["treaty of versailles caused hyperinflation by itself", "versailles alone caused hyperinflation"],
+          "correction": "Versailles created financial pressure, but the immediate 1923 hyperinflation crisis was intensified by the Ruhr occupation, passive resistance and the government's decision to print money."
+        }
+      ]
+    },
+    "stresemann-recovery": {
+      "extraFacts": [
+        "Stresemann ended passive resistance in the Ruhr and helped stabilise the currency with the Rentenmark.",
+        "The Dawes Plan of 1924 restructured reparations and brought substantial American loans into Germany.",
+        "The Locarno Treaties of 1925 improved relations with western European powers.",
+        "Germany joined the League of Nations in 1926.",
+        "The Young Plan of 1929 reduced the overall reparations burden and extended repayment.",
+        "The mid-1920s saw a cultural revival in art, film, literature and nightlife, especially in major cities.",
+        "Recovery remained vulnerable because Germany relied heavily on US loans and political extremism had not disappeared."
+      ],
+      "extraKeywords": ["cultural revival", "Golden Age", "US loans"],
+      "retrievalQuestions": [
+        "How did Stresemann help stabilise Germany after 1923?",
+        "What did the Dawes Plan do?",
+        "How did Germany's international position improve between 1924 and 1929?",
+        "Why was recovery still fragile?"
+      ],
+      "examLinks": [
+        "Avoid describing the 1920s as a complete recovery: economic and diplomatic gains were real, but important weaknesses remained."
+      ]
+    },
+    "depression-nazi-growth": {
+      "extraFacts": [
+        "Before the Depression the Nazis were a fringe party: in the 1928 Reichstag election they won only 12 seats.",
+        "The Depression caused mass unemployment and bank and business failures, undermining confidence in moderate politicians.",
+        "By 1932 German unemployment was around six million.",
+        "Fear of communism helped the Nazis appeal to some middle-class voters, farmers and business owners.",
+        "Hitler's speaking style, Goebbels' propaganda and the image of an organised, disciplined movement helped attract support.",
+        "The Nazis promised jobs, strong leadership, national revival and rejection of Versailles.",
+        "The SA gave the party a visible street presence and intimidated opponents.",
+        "Nazi support rose sharply after 1929, though it did not rise continuously and the party never won a majority in a free Reichstag election."
+      ],
+      "extraKeywords": ["1928 election", "mass unemployment", "Goebbels", "fear of communism", "SA"],
+      "retrievalQuestions": [
+        "How many Reichstag seats did the Nazis win in 1928?",
+        "Why did the Depression make extremist parties more attractive?",
+        "Give three reasons why Nazi propaganda was effective.",
+        "Which social groups could be attracted by fear of communism?"
+      ],
+      "examLinks": [
+        "For questions on Nazi growth, combine economic crisis with Nazi organisation, Hitler's appeal, propaganda and fear of communism.",
+        "Do not treat the Depression as a single automatic cause of Hitler becoming Chancellor."
+      ]
+    },
+    "hitler-appointed": {
+      "extraFacts": [
+        "The Nazis became the largest Reichstag party in July 1932 but still lacked a majority.",
+        "Nazi support fell in the November 1932 election, although they remained the largest party.",
+        "Political deadlock and repeated changes of Chancellor weakened confidence in parliamentary government.",
+        "Franz von Papen believed Hitler could be controlled within a cabinet dominated by conservative politicians.",
+        "President Hindenburg finally appointed Hitler Chancellor on 30 January 1933.",
+        "Different groups supported the Nazis for different reasons, including fear of communism, promises of order and jobs, nationalism and hostility to Versailles."
+      ],
+      "extraKeywords": ["political deadlock", "conservative elites", "January 1933"],
+      "retrievalQuestions": [
+        "Why did the Nazis still need political deals after becoming the largest party?",
+        "What role did Papen play in Hitler's appointment?",
+        "Why did Hindenburg eventually agree to appoint Hitler?",
+        "Why is it inaccurate to say Hitler was elected Chancellor?"
+      ],
+      "examLinks": [
+        "Separate Nazi popularity from the political manoeuvring that actually produced Hitler's appointment.",
+        "A high-level explanation compares electoral support, Weimar political failure and conservative miscalculation."
+      ]
+    }
+  }
+}
