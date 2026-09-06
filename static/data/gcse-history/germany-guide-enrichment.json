@@ -1,0 +1,136 @@
+{
+  "sourceNote": "Structured factual enrichment from the user's AQA Germany revision material; phrasing has been rewritten for the app.",
+  "topics": {
+    "kaiser-government": {
+      "keyFacts": [
+        "Germany was unified in 1871 under Prussian leadership and Wilhelm I became the first Kaiser.",
+        "The Kaiser controlled the armed forces and appointed the Chancellor and government ministers.",
+        "The Reichstag was elected by adult men over 25, while the Bundesrat represented the German states.",
+        "The Kaiser could ignore Reichstag advice and dissolve it, limiting parliamentary power."
+      ]
+    },
+    "industrialisation-socialism": {
+      "keyFacts": [
+        "Industrialisation made Germany a major producer of iron and steel by 1913.",
+        "Rapid urban growth created overcrowding, poor housing and difficult working conditions for many workers.",
+        "The SPD demanded political and social reform and became the largest Reichstag party in 1912.",
+        "Industrial growth strengthened Germany but also increased social and political tensions."
+      ]
+    },
+    "navy-laws": {
+      "keyFacts": [
+        "Weltpolitik aimed to increase Germany's international power and influence.",
+        "Navy Laws between 1898 and 1912 expanded the fleet and helped trigger rivalry with Britain.",
+        "Naval expansion was expensive and contributed to government debt and taxation pressures."
+      ]
+    },
+    "first-world-war": {
+      "keyFacts": [
+        "The First World War caused severe food shortages, inflation and falling living standards in Germany.",
+        "The Allied blockade reduced imports and contributed to malnutrition and civilian hardship.",
+        "By autumn 1918 Germany faced military defeat, mutiny and political unrest.",
+        "The armistice ended fighting on 11 November 1918 after the Kaiser's abdication."
+      ]
+    },
+    "weimar-crises": {
+      "keyFacts": [
+        "The Weimar Republic began in 1919 with an elected President, Chancellor, Reichstag and proportional representation.",
+        "Proportional representation widened representation but often produced coalition governments.",
+        "The Treaty of Versailles imposed territorial losses, military restrictions and reparations on Germany.",
+        "The Spartacist uprising challenged the new republic from the left in January 1919.",
+        "The Kapp Putsch challenged it from the right in March 1920 and failed after a general strike.",
+        "In 1923 occupation of the Ruhr and passive resistance helped trigger hyperinflation."
+      ]
+    },
+    "stresemann-recovery": {
+      "keyFacts": [
+        "Stresemann ended passive resistance in the Ruhr and introduced a new currency to stabilise Germany.",
+        "The Dawes Plan brought American loans and made reparations payments more manageable.",
+        "The Young Plan reduced the annual burden and extended the payment period, but reparations continued.",
+        "Stresemann's foreign policy improved Germany's international position through Locarno and League of Nations membership.",
+        "Recovery remained vulnerable because German prosperity relied heavily on US credit."
+      ]
+    },
+    "depression-nazi-growth": {
+      "keyFacts": [
+        "After 1929 US loans were withdrawn and unemployment rose to about six million by 1932.",
+        "The Depression weakened confidence in coalition government and increased support for extremist parties.",
+        "Nazi propaganda was adapted to different audiences and promised work, order, national revival and opposition to communism.",
+        "Hitler's speaking, modern campaigning and the SA helped the Nazis build support, although SA violence also alarmed voters.",
+        "The Nazis won 230 Reichstag seats in July 1932 but fell to 196 in November 1932."
+      ]
+    },
+    "hitler-appointed": {
+      "keyFacts": [
+        "Hindenburg initially resisted appointing Hitler Chancellor.",
+        "Papen and other conservatives believed they could control Hitler inside a cabinet dominated by non-Nazis.",
+        "Hitler became Chancellor on 30 January 1933 through appointment rather than a direct popular vote."
+      ]
+    },
+    "dictatorship-1933-34": {
+      "keyFacts": [
+        "The Reichstag Fire Decree removed key civil liberties and made it easier to arrest communist and other opponents.",
+        "The Enabling Act allowed Hitler's government to legislate without normal parliamentary approval.",
+        "The Nazis dismantled trade unions, opposition parties and independent political organisations during 1933.",
+        "The Night of the Long Knives removed Röhm and leading SA figures and reassured the army.",
+        "After Hindenburg died in August 1934 the army swore a personal oath of loyalty to Hitler."
+      ]
+    },
+    "control-propaganda-terror": {
+      "keyFacts": [
+        "Goebbels coordinated Nazi propaganda through newspapers, radio, cinema, rallies, posters and cultural organisations.",
+        "Cheap radios and public loudspeakers helped spread Nazi messages to a mass audience.",
+        "Censorship restricted hostile newspapers, books, music, theatre and art.",
+        "The SS, Gestapo, police, courts and concentration camps created overlapping systems of surveillance and repression.",
+        "The Gestapo depended substantially on denunciations rather than having enough officers to watch everyone.",
+        "The first concentration camp at Dachau opened in 1933, initially holding many political opponents."
+      ],
+      "misconceptions": [
+        {"triggers":["nazis controlled germany only through propaganda"],"correction":"Propaganda was important, but Nazi control also relied on censorship, the SS, Gestapo, courts, concentration camps and the removal of political opposition."}
+      ]
+    },
+    "economy-workers": {
+      "keyFacts": [
+        "The National Labour Service (RAD) put young men into compulsory work schemes and later became part of preparations for war.",
+        "Public works, rearmament and conscription all contributed to the fall in recorded unemployment.",
+        "Schacht's New Plan controlled imports and promoted trade arrangements to conserve foreign currency.",
+        "From 1936 Göring's Four Year Plan prioritised rearmament and self-sufficiency in preparation for war.",
+        "Synthetic substitutes and domestic production were encouraged to reduce dependence on imported raw materials.",
+        "Workers lost free trade unions and strikes but were offered schemes such as Strength Through Joy."
+      ]
+    },
+    "youth-women-churches": {
+      "keyFacts": [
+        "Nazi policy initially encouraged women to marry, have children and focus on family life.",
+        "Marriage loans and awards for large families were used to encourage births, while policy changed as wartime labour needs grew.",
+        "Education was reshaped around Nazi ideas: textbooks and curricula stressed race, nationalism, obedience and physical fitness.",
+        "Membership of Nazi youth organisations expanded rapidly and became compulsory in 1939.",
+        "The Hitler Youth prepared boys for military roles while the League of German Maidens emphasised fitness, domestic skills and motherhood.",
+        "The Nazis signed a Concordat with the Catholic Church in 1933 but relations later deteriorated.",
+        "The Confessing Church opposed Nazi attempts to dominate Protestant Christianity."
+      ],
+      "misconceptions": [
+        {"triggers":["all german young people supported hitler youth"],"correction":"Hitler Youth membership became compulsory, but some young Germans resisted or joined alternative groups such as the Edelweiss Pirates and Swing Youth."}
+      ]
+    },
+    "persecution-holocaust": {
+      "keyFacts": [
+        "Nazi racial policy persecuted Jews and other groups the regime labelled racially or socially undesirable.",
+        "The Nuremberg Laws of 1935 removed German citizenship from Jews and prohibited marriage between Jews and non-Jewish Germans.",
+        "Kristallnacht in November 1938 involved widespread attacks on Jewish homes, businesses and synagogues and mass arrests.",
+        "Other victims included Roma and Sinti people, disabled people, homosexual men and Jehovah's Witnesses.",
+        "During the war persecution escalated into deportation, ghettos, mass shootings and systematic mass murder."
+      ]
+    },
+    "opposition-resistance": {
+      "keyFacts": [
+        "Opposition ranged from private non-compliance to organised resistance and assassination attempts.",
+        "Swing Youth rejected Nazi cultural conformity and listened to jazz and swing music.",
+        "The Edelweiss Pirates rejected Hitler Youth regimentation; some groups later undertook more active resistance.",
+        "The White Rose, including Hans and Sophie Scholl, distributed anti-Nazi leaflets before members were arrested and executed in 1943.",
+        "Church figures including Martin Niemöller and Dietrich Bonhoeffer opposed aspects of Nazi rule.",
+        "On 20 July 1944 Claus von Stauffenberg planted a bomb intended to kill Hitler; Hitler survived and the conspirators were punished."
+      ]
+    }
+  }
+}
