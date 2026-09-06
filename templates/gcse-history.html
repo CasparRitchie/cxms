@@ -42,65 +42,31 @@
   </section>
 
   <section class="tab-panel" id="topics-panel" role="tabpanel" hidden>
-    <div class="section-intro">
-      <p class="section-kicker">KNOWLEDGE STORE</p>
-      <h2>Germany topic library</h2>
-      <p>Browse the explanations, key facts, vocabulary and misconception corrections used by the assessor.</p>
-    </div>
-    <div class="filter-row">
-      <input id="topic-search" type="search" placeholder="Search people, events or themes…" aria-label="Search topics">
-      <select id="topic-group-filter" aria-label="Filter by Germany section"><option value="all">All Germany sections</option></select>
-    </div>
+    <div class="section-intro"><p class="section-kicker">KNOWLEDGE STORE</p><h2>Germany topic library</h2><p>Browse the explanations, key facts, vocabulary and misconception corrections used by the assessor.</p></div>
+    <div class="filter-row"><input id="topic-search" type="search" placeholder="Search people, events or themes…" aria-label="Search topics"><select id="topic-group-filter" aria-label="Filter by Germany section"><option value="all">All Germany sections</option></select></div>
     <div class="topic-grid" id="topic-grid"></div>
   </section>
 
   <section class="tab-panel" id="questions-panel" role="tabpanel" hidden>
-    <div class="section-intro">
-      <p class="section-kicker">EXAM TECHNIQUE</p>
-      <h2>Question coach</h2>
-      <p>Understand the evidence, analysis and judgement each question requires.</p>
-    </div>
-    <div class="question-layout">
-      <aside class="question-list" id="question-list"></aside>
-      <article class="question-guide card" id="question-guide"></article>
-    </div>
+    <div class="section-intro"><p class="section-kicker">EXAM TECHNIQUE</p><h2>Question coach</h2><p>Understand the evidence, analysis and judgement each question requires.</p></div>
+    <div class="question-layout"><aside class="question-list" id="question-list"></aside><article class="question-guide card" id="question-guide"></article></div>
   </section>
 
   <section class="tab-panel" id="practice-panel" role="tabpanel" hidden>
-    <div class="section-intro">
-      <p class="section-kicker">GROUNDED PRACTICE</p>
-      <h2>Write an answer and improve it</h2>
-      <p>The assessor compares the response with the selected Germany knowledge pack and known misconceptions.</p>
-    </div>
+    <div class="section-intro"><p class="section-kicker">GROUNDED PRACTICE</p><h2>Write an answer and improve it</h2><p>The assessor compares the response with the selected Germany knowledge pack and known misconceptions.</p></div>
     <div class="practice-layout">
       <form class="practice-form card" id="practice-form">
-        <label>Topic<select id="practice-topic"></select></label>
-        <label>Question type<select id="practice-question"></select></label>
-        <label>Your question<textarea id="practice-prompt" rows="3" readonly aria-readonly="true"></textarea></label>
-        <div class="prompt-actions">
-          <button type="button" class="secondary-button" id="generate-question">Generate practice question</button>
-          <span id="target-time"></span>
-        </div>
-        <label>Your answer<textarea id="student-answer" rows="14" placeholder="Write your answer here…"></textarea></label>
-        <div class="answer-meta"><span id="word-count">0 words</span><span id="answer-autosave">Uses selected knowledge pack</span></div>
-        <button type="submit" class="primary-button">Get grounded feedback</button>
+        <label>Topic<select id="practice-topic"></select></label><label>Question type<select id="practice-question"></select></label><label>Your question<textarea id="practice-prompt" rows="3" readonly aria-readonly="true"></textarea></label>
+        <div class="prompt-actions"><button type="button" class="secondary-button" id="generate-question">Generate practice question</button><span id="target-time"></span></div>
+        <label>Your answer<textarea id="student-answer" rows="14" placeholder="Write your answer here…"></textarea></label><div class="answer-meta"><span id="word-count">0 words</span><span id="answer-autosave">Uses selected knowledge pack</span></div><button type="submit" class="primary-button">Get grounded feedback</button>
       </form>
-      <aside class="feedback-panel card" id="feedback-panel">
-        <div class="empty-state"><strong>Your feedback will appear here</strong><p>It will separate factual corrections, accurate knowledge, missing evidence and exam technique.</p></div>
-      </aside>
+      <aside class="feedback-panel card" id="feedback-panel"><div class="empty-state"><strong>Your feedback will appear here</strong><p>It will separate factual corrections, accurate knowledge, missing evidence and exam technique.</p></div></aside>
     </div>
   </section>
 
   <section class="tab-panel" id="revision-panel" role="tabpanel" hidden>
-    <div class="section-intro">
-      <p class="section-kicker">TARGETED REVISION</p>
-      <h2>Revision dashboard</h2>
-      <p>Rate confidence for each Germany subtopic and use answer feedback to decide what to revise next.</p>
-    </div>
-    <div class="dashboard-grid">
-      <div class="card"><h3>My confidence</h3><div id="confidence-list"></div></div>
-      <div class="card"><h3>Recommended next steps</h3><div id="revision-recommendations"></div></div>
-    </div>
+    <div class="section-intro"><p class="section-kicker">TARGETED REVISION</p><h2>Revision dashboard</h2><p>Rate confidence for each Germany subtopic and use answer feedback to decide what to revise next.</p></div>
+    <div class="dashboard-grid"><div class="card"><h3>My confidence</h3><div id="confidence-list"></div></div><div class="card"><h3>Recommended next steps</h3><div id="revision-recommendations"></div></div></div>
   </section>
 
   <footer class="history-note"><p>Independent revision helper based on the published AQA GCSE History (8145) specification. Not endorsed by AQA. Feedback is formative and should be checked against current teacher and AQA materials.</p></footer>
@@ -109,24 +75,12 @@
 
 {% block scripts %}
   <script>
-    document.querySelectorAll('.history-tabs .tab').forEach(function (button) {
-      button.addEventListener('click', function () {
-        document.querySelectorAll('.history-tabs .tab').forEach(function (item) {
-          var active = item === button;
-          item.classList.toggle('active', active);
-          item.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
-        document.querySelectorAll('.history-app .tab-panel').forEach(function (panel) {
-          var active = panel.id === button.dataset.tab + '-panel';
-          panel.hidden = !active;
-          panel.classList.toggle('active', active);
-        });
-      });
-    });
+    document.querySelectorAll('.history-tabs .tab').forEach(function (button) { button.addEventListener('click', function () { document.querySelectorAll('.history-tabs .tab').forEach(function (item) { var active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-selected',active?'true':'false');});document.querySelectorAll('.history-app .tab-panel').forEach(function(panel){var active=panel.id===button.dataset.tab+'-panel';panel.hidden=!active;panel.classList.toggle('active',active);});});});
   </script>
-  <script src="{{ url_for('static', filename='js/gcse-history-guide-loader-v1.js') }}?v=1"></script>
+  <script src="{{ url_for('static', filename='js/gcse-history-guide-loader-v1.js') }}?v=2"></script>
   <script src="{{ url_for('static', filename='js/gcse-history-v5.js') }}?v=6"></script>
   <script src="{{ url_for('static', filename='js/gcse-history-guide-ui-v1.js') }}?v=1"></script>
   <script src="{{ url_for('static', filename='js/gcse-history-game-v1.js') }}?v=2"></script>
+  <script src="{{ url_for('static', filename='js/gcse-history-quick-recall-v1.js') }}?v=1"></script>
   <script src="{{ url_for('static', filename='js/gcse-history-mobile-v1.js') }}?v=1"></script>
 {% endblock %}
