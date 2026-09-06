@@ -357,6 +357,31 @@ html[data-sew-theme="light"] .sew-queue-table-card::-webkit-scrollbar-thumb{back
 .sew-queue-table .sew-column-headings>th:first-child,
 .sew-queue-table .sew-column-headings>th:nth-child(2){z-index:7}
 
+/* Compact queue columns before introducing user-managed resizing. */
+.sew-queue-table{width:1446px;min-width:100%;table-layout:fixed}
+.sew-queue-table th,.sew-queue-table td{padding:3px 4px;font-size:10px;line-height:1.15}
+.sew-queue-table th{font-size:9px;letter-spacing:.025em}
+.sew-queue-table td{white-space:normal;overflow-wrap:anywhere}
+.sew-queue-table .sew-status{white-space:nowrap;font-size:9px}
+.sew-queue-table .sew-open-sheet{min-height:20px;padding:2px 5px;font-size:9px}
+.sew-queue-table .sew-row-select{margin-right:2px}
+.sew-queue-table col.sew-col-select{width:34px}
+.sew-queue-table col.sew-col-open{width:84px}
+.sew-queue-table col.sew-col-status{width:88px}
+.sew-queue-table col.sew-col-amp{width:70px}
+.sew-queue-table col.sew-col-client{width:48px}
+.sew-queue-table col.sew-col-sport{width:44px}
+.sew-queue-table col.sew-col-competition{width:108px}
+.sew-queue-table col.sew-col-event{width:84px}
+.sew-queue-table col.sew-col-gender{width:48px}
+.sew-queue-table col.sew-col-location{width:110px}
+.sew-queue-table col.sew-col-season{width:54px}
+.sew-queue-table col.sew-col-date{width:78px}
+.sew-queue-table col.sew-col-event-id{width:74px}
+.sew-queue-table col.sew-col-deadline{width:90px}
+.sew-queue-table col.sew-col-person{width:100px}
+.sew-queue-table col.sew-col-modified{width:80px}
+
 /* Stage 6: full-width editorial cards with queue-like density and horizontal controls. */
 .sew-content-list{display:grid;gap:3px}
 .sew-content-list>.sew-stat-card{min-width:0;margin:0;border-radius:0;background:var(--sew-card);box-shadow:0 1px 0 rgba(0,0,0,.08)}
