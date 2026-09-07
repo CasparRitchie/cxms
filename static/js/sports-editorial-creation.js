@@ -125,7 +125,7 @@
       closeCalendarResults();
       return;
     }
-    matches.slice(0, 50).forEach((item, index) => {
+    matches.forEach((item, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.id = `calendar-event-option-${index}`;

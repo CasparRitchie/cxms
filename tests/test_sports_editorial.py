@@ -1104,6 +1104,13 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("replaceOptions(competition", script)
         self.assertIn("replaceOptions(eventName, []", script)
         self.assertIn('const key = `${sport.value}|||${competition.value}`', script)
+        self.assertIn("matches.forEach((item, index)", script)
+        self.assertNotIn("matches.slice(0, 50)", script)
+
+    def test_creation_calendar_picker_shows_every_compatible_local_result(self):
+        script = Path("static/js/sports-editorial-creation.js").read_text(encoding="utf-8")
+        self.assertIn("matches.forEach((item, index)", script)
+        self.assertNotIn("matches.slice(0, 50)", script)
 
     def test_acceptance_copy_and_orphan_link_behaviour_is_explicit(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
