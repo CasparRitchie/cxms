@@ -762,7 +762,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
             paste_handler.index('editor.dispatchEvent(new Event("input", { bubbles: true }));'),
             paste_handler.index("payload.links\n        .filter"),
         )
-        self.assertIn("Copied entity links were retained within this stat sheet", script)
+        self.assertIn("application/x-cxms-entity-links+json", script)
+        self.assertIn("payload.token !== sheetClipboardToken", script)
 
     def test_recognised_entity_suggestion_requires_deliberate_activation(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
@@ -1010,12 +1011,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b"data-toggle-accepted", response.data)
         self.assertNotIn(b'class="sew-review-actions"', response.data)
 
-    def test_unaccepted_statistic_places_accept_and_lock_in_card_header(self):
+    def test_unaccepted_statistic_places_accept_in_card_header(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Needs review", response.data)
-        self.assertIn(b'data-toggle-accepted>Accept and lock</button>', response.data)
+        self.assertIn(b'data-toggle-accepted>Accept</button>', response.data)
 
     def test_only_drag_handles_are_draggable_so_original_wording_is_selectable(self):
         self.set_sub_editor()
@@ -1058,6 +1059,65 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"data-entity-control", response.data)
         self.assertIn(b"data-selected-entities hidden", response.data)
         self.assertIn(b'contenteditable="false"', response.data)
+
+    def test_stat_insights_navigation_is_supervisor_only(self):
+        for role in ("researcher", "sub_editor", "fis_specialist"):
+            self.set_role(role)
+            response = self.client.get("/workspace/sports-editorial/queue")
+            self.assertNotIn(b">Stat Insights</a>", response.data)
+        self.set_role("supervisor")
+        response = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(b">Stat Insights</a>", response.data)
+
+    def test_editable_core_uses_controlled_client_competition_and_event_fields(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        self.assertIn(b'<select name="client_name">', response.data)
+        self.assertIn(b'<select name="competition" data-core-competition>', response.data)
+        self.assertIn(b'<select name="event_name" data-core-event>', response.data)
+        self.assertNotIn(b'<input name="competition"', response.data)
+        self.assertNotIn(b'<input name="event_name"', response.data)
+
+    def test_review_rejects_uncontrolled_core_choices(self):
+        self.set_sub_editor()
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"client_name": "Another customer"},
+            follow_redirects=True,
+        )
+        self.assertIn(b"Select a supported Client", response.data)
+
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={
+                "sport": "alpine_skiing",
+                "competition": "FIS World Cup",
+                "event_name": "Unsupported race",
+            },
+            follow_redirects=True,
+        )
+        self.assertIn(b"Select an Event available", response.data)
+
+    def test_review_choice_script_resets_dependent_dropdowns(self):
+        script = Path("static/js/sports-editorial-review-calendar.js").read_text(encoding="utf-8")
+        self.assertIn("replaceOptions(competition", script)
+        self.assertIn("replaceOptions(eventName, []", script)
+        self.assertIn('const key = `${sport.value}|||${competition.value}`', script)
+
+    def test_acceptance_copy_and_orphan_link_behaviour_is_explicit(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("Accept and lock every statistic and sub-heading - are you sure?", script)
+        self.assertIn("updatedMention.trim().length < 2", script)
+        stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
+        self.assertIn('.sew-rich-editor[contenteditable="false"]{cursor:text', stylesheet)
+
+    def test_publication_preview_has_estimated_page_guides(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted/publication-preview")
+        self.assertIn(b"data-preview-page-status", response.data)
+        self.assertIn(b"data-publication-preview", response.data)
+        self.assertIn(b"sports-editorial-publication-preview.js", response.data)
 
     def test_sub_edit_declutters_link_controls_and_checks_links_per_statistic(self):
         self.set_sub_editor()
@@ -1187,7 +1247,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Allocate researcher", response.data)
         self.assertIn(b"Allocate sub-editor", response.data)
         self.assertLess(response.data.index(b"sort=status:asc"), response.data.index(b"sort=amp_id:asc"))
-        self.assertIn(b"Select all visible", response.data)
+        self.assertIn(b"Select All", response.data)
 
     def test_researcher_queue_keeps_filters_visible_without_selection_controls(self):
         response = self.client.get("/workspace/sports-editorial/queue")

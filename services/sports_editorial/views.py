@@ -856,9 +856,23 @@ def detail(submission_id):
             valid, message = False, "FIS calendar event IDs must contain digits only, for example 123456."
         elif can_edit_core and request.form.get("sport", submission.get("sport")) != "alpine_skiing":
             valid, message = False, "This release currently supports Alpine Skiing core data only."
-        elif "season_code" in request.form and _season_code(request.form.get("season_code"), event_ids, parsed_dates.get("event_date", request.form.get("event_date"))) is None:
+        elif can_edit_core and "client_name" in request.form and request.form.get("client_name") != "FIS":
+            valid, message = False, "Select a supported Client."
+        elif can_edit_core:
+            submitted_sport = request.form.get("sport", submission.get("sport", "")).strip()
+            submitted_competition = request.form.get("competition", submission.get("competition", "")).strip()
+            submitted_event = request.form.get("event_name", submission.get("event_name", "")).strip()
+            unchanged_legacy = (
+                submitted_sport == submission.get("sport")
+                and submitted_competition == submission.get("competition")
+                and submitted_event == submission.get("event_name")
+            )
+            controlled_errors = validate_choice_combination(submitted_sport, submitted_competition, submitted_event)
+            if controlled_errors and not unchanged_legacy:
+                valid, message = False, controlled_errors[0]
+        if valid and "season_code" in request.form and _season_code(request.form.get("season_code"), event_ids, parsed_dates.get("event_date", request.form.get("event_date"))) is None:
             valid, message = False, "Season must be the four-digit year in which the season ends, for example 2027."
-        elif can_edit_core and "calendar_event_id" in request.form:
+        elif valid and can_edit_core and "calendar_event_id" in request.form:
             calendar_id = request.form.get("calendar_event_id", "").strip()
             current_ids = [str(value) for value in submission.get("fis_event_ids") or []]
             if calendar_id:
@@ -934,7 +948,12 @@ def detail(submission_id):
         _remember_lock(submission_id, edit_lock)
     entity_map = _entities_by_id(refreshed)
     calendar_events = canonical_calendar_events(_calendar_events())
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=calendar_events, assignment_users=_assignment_users(), creation_options=creation_options(), can_review=editable_role and owns_lock and not final_state, can_edit_core=role in ("sub_editor", "supervisor") and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url)
+    choices = creation_options()
+    core_choice_options = {
+        "competitions": {sport: list(values) for sport, values in choices["competitions"].items()},
+        "events": {f"{sport}|||{competition}": list(values) for (sport, competition), values in choices["events"].items()},
+    }
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=calendar_events, assignment_users=_assignment_users(), creation_options=choices, core_choice_options=core_choice_options, can_review=editable_role and owns_lock and not final_state, can_edit_core=role in ("sub_editor", "supervisor") and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url)
 
 
 @blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])

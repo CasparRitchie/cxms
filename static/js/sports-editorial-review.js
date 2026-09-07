@@ -687,7 +687,9 @@
           }
 
           const updatedMention = currentText.slice(start, end).trimEnd();
-          if (!updatedMention) {
+          // A single surviving character is not a meaningful entity mention.
+          // Drop it rather than retaining a misleading orphaned link.
+          if (updatedMention.trim().length < 2) {
             chip.remove();
             return;
           }
@@ -1682,7 +1684,7 @@
 
     toggle.textContent = accepted
       ? "Unlock"
-      : "Accept and lock";
+      : "Accept";
 
     toggle.classList.toggle(
       "sew-button--danger",
@@ -1822,7 +1824,7 @@
 
       if (
         !window.confirm(
-          "Validate entity links, then accept and lock every statistic and sub-heading?",
+          "Accept and lock every statistic and sub-heading - are you sure?",
         )
       ) {
         return;
@@ -2040,7 +2042,7 @@
             type="button"
             data-toggle-accepted
           >
-            Accept and lock
+            Accept
           </button>
         `;
 

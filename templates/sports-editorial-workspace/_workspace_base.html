@@ -3,7 +3,7 @@
 {% block body_class %} sew-page{% endblock %}
 {% block head_extra %}
 <script>document.documentElement.dataset.sewTheme=localStorage.getItem('cxms-sports-editorial-theme')||'dark';</script>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial-workspace.css', v='workflow-header-1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial-workspace.css', v='locked-links-pages-1') }}">
 {% endblock %}
 {% block site_header %}{% endblock %}
 {% block site_footer %}{% endblock %}
@@ -17,7 +17,7 @@
     </div>
     <nav class="sew-primary-nav" aria-label="Sports editorial">
       <a href="{{ url_for('sports_editorial_workspace.queue') }}" {% if stat_sheets_active %}class="is-active" aria-current="page"{% endif %}>All Stat Sheets</a>
-      <a href="{{ url_for('sports_editorial_workspace.stat_insights') }}" {% if not stat_sheets_active %}class="is-active" aria-current="page"{% endif %}>Stat Insights</a>
+      {% if workspace_role == 'supervisor' %}<a href="{{ url_for('sports_editorial_workspace.stat_insights') }}" {% if not stat_sheets_active %}class="is-active" aria-current="page"{% endif %}>Stat Insights</a>{% endif %}
     </nav>
     <div class="sew-header-actions">
       {% if endpoint == 'sports_editorial_workspace.queue' and workspace_role == 'supervisor' %}<a class="sew-button sew-button--primary sew-create-sheet" href="{{ url_for('sports_editorial_workspace.submit') }}"><span aria-hidden="true">＋</span> Create stat sheet</a>{% endif %}

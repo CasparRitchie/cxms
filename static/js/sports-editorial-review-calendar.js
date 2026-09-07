@@ -2,9 +2,11 @@
   const form = document.querySelector("[data-review-form]");
   const picker = form?.querySelector("[data-review-calendar-picker]");
   const optionsElement = document.querySelector("#sports-editorial-review-calendar-options");
-  if (!form || !picker || !optionsElement) return;
+  const choicesElement = document.querySelector("#sports-editorial-core-choice-options");
+  if (!form || !picker || !optionsElement || !choicesElement) return;
 
   const events = JSON.parse(optionsElement.textContent);
+  const choices = JSON.parse(choicesElement.textContent);
   const search = picker.querySelector("[data-calendar-search]");
   const selectedId = picker.querySelector("[data-calendar-event]");
   const results = picker.querySelector("[data-calendar-results]");
@@ -12,8 +14,25 @@
   const idDisplay = form.querySelector("[data-client-event-id]");
   const sport = form.querySelector("[data-core-sport]");
   const competition = form.querySelector("[data-core-competition]");
+  const eventName = form.querySelector("[data-core-event]");
   const season = form.querySelector("[data-core-season]");
   let activeIndex = -1;
+
+  const replaceOptions = (select, values, emptyLabel) => {
+    const options = [new Option(emptyLabel, "")];
+    values.forEach((value) => options.push(new Option(value, value)));
+    select.replaceChildren(...options);
+  };
+
+  sport.addEventListener("change", () => {
+    replaceOptions(competition, choices.competitions[sport.value] || [], "Choose Competition");
+    replaceOptions(eventName, [], "None available");
+  });
+  competition.addEventListener("change", () => {
+    const key = `${sport.value}|||${competition.value}`;
+    const values = choices.events[key] || [];
+    replaceOptions(eventName, values, values.length ? "None" : "None available");
+  });
 
   const compatible = () => events.filter((item) => (
     item.sport === sport.value
