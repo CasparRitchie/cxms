@@ -29,6 +29,13 @@ from .edit_locks import lock_timeout_seconds, parse_timestamp
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
 VALID_ROLES = ("researcher", "sub_editor", "supervisor", "fis_specialist")
+QUEUE_PATH_PATTERN = re.compile(r"^/workspace/sports-editorial/queue(?:/modern-preview)?(?:\?|$)")
+
+
+def _queue_return_url(value=""):
+    """Return only a local Sports Editorial queue URL supplied by the queue."""
+    candidate = str(value or "").strip()
+    return candidate if QUEUE_PATH_PATTERN.match(candidate) else url_for("sports_editorial_workspace.queue")
 
 
 @blueprint.before_request
@@ -367,6 +374,12 @@ def _remember_lock(submission_id, lock):
     session["sports_editorial_edit_locks"] = held
 
 
+def _forget_lock(submission_id):
+    held = dict(session.get("sports_editorial_edit_locks") or {})
+    held.pop(submission_id, None)
+    session["sports_editorial_edit_locks"] = held
+
+
 def _require_owned_lock(submission_id):
     user = current_user() or {}
     remembered = (session.get("sports_editorial_edit_locks") or {}).get(submission_id, {})
@@ -611,6 +624,7 @@ def confirmation(submission_id):
 @blueprint.route("/queue")
 def queue():
     queue_endpoint = request.endpoint
+    queue_return_url = request.full_path.rstrip("?")
     filter_fields = (
         "amp_id", "client_name", "sport", "competition", "event_name", "gender", "location",
         "season_code", "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status",
@@ -715,11 +729,11 @@ def queue():
     role = (current_user() or {}).get("role", "researcher")
     for item in submissions:
         if item["status"] == "draft" or (role == "researcher" and item["status"] == "changes_requested"):
-            item["queue_url"] = url_for("sports_editorial_workspace.research", submission_id=item["id"])
+            item["queue_url"] = url_for("sports_editorial_workspace.research", submission_id=item["id"], return_to=queue_return_url)
         elif role in ("sub_editor", "supervisor", "fis_specialist") and item["status"] != "exported":
-            item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], edit=1)
+            item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], edit=1, return_to=queue_return_url)
         else:
-            item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"])
+            item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], return_to=queue_return_url)
     return render_template(
         "sports-editorial-workspace/queue-modern-preview.html" if queue_endpoint.endswith("modern_queue_preview") else "sports-editorial-workspace/queue.html",
         submissions=submissions,
@@ -806,6 +820,7 @@ def search_entities():
 @blueprint.route("/submissions/<submission_id>", methods=["GET", "POST"])
 def detail(submission_id):
     submission = _submission_or_404(submission_id)
+    queue_return_url = _queue_return_url(request.values.get("return_to"))
     rejected_form = None
     rejected_dates = {}
     if request.method == "POST":
@@ -896,15 +911,16 @@ def detail(submission_id):
                 return jsonify({"ok": True, "saved_at": renewed_lock["last_active_at"], "lock": _lock_display(renewed_lock)})
             if requested_status in ("draft", "approved", "exported") or request.form.get("save_action") == "close":
                 repository.release_edit_lock(submission_id, user["id"], lock_token)
+                _forget_lock(submission_id)
             workflow_messages = {
                 "draft": "Stat sheet returned to In Progress for further research.",
                 "approved": "Stat sheet approved. The FIS JSON is ready to review.",
                 "in_review": "Stat sheet is now in sub edit.",
             }
             flash(workflow_messages.get(requested_status, "Review changes saved."), "success")
-            if request.form.get("save_action") == "close":
-                return redirect(url_for("sports_editorial_workspace.queue"))
-            return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id, edit=1))
+            if request.form.get("save_action") == "close" or requested_status != submission["status"]:
+                return redirect(queue_return_url)
+            return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id, edit=1, return_to=queue_return_url))
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     role = (current_user() or {}).get("role", "researcher")
     editable_role = role in ("sub_editor", "supervisor", "fis_specialist")
@@ -918,7 +934,7 @@ def detail(submission_id):
         _remember_lock(submission_id, edit_lock)
     entity_map = _entities_by_id(refreshed)
     calendar_events = canonical_calendar_events(_calendar_events())
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=calendar_events, assignment_users=_assignment_users(), creation_options=creation_options(), can_review=editable_role and owns_lock and not final_state, can_edit_core=role in ("sub_editor", "supervisor") and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=calendar_events, assignment_users=_assignment_users(), creation_options=creation_options(), can_review=editable_role and owns_lock and not final_state, can_edit_core=role in ("sub_editor", "supervisor") and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url)
 
 
 @blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])
@@ -927,6 +943,7 @@ def research(submission_id):
     if user.get("role") not in ("researcher", "sub_editor", "supervisor", "fis_specialist"):
         abort(403, description="Editorial access is required.")
     submission = _submission_or_404(submission_id)
+    queue_return_url = _queue_return_url(request.values.get("return_to"))
     if submission["status"] not in ("draft", "changes_requested"):
         abort(403, description="This stat sheet is locked while it is in sub edit or publication.")
     submission, edit_lock = repository.acquire_edit_lock(submission_id, user)
@@ -946,7 +963,7 @@ def research(submission_id):
                 return jsonify({"ok": False, "error": date_error}), 400
             flash(date_error, "error")
             entity_map = _entities_by_id(submission)
-            return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date), 400
+            return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url), 400
         mutable_form = request.form.copy()
         mutable_form["event_date"] = parsed_date
         content = [{"content_type": kind, "content_html": sanitise_rich_text(value)} for kind, value in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))]
@@ -960,18 +977,19 @@ def research(submission_id):
                 return jsonify({"ok": True, "saved_at": renewed_lock["last_active_at"], "lock": _lock_display(renewed_lock)})
             if action == "submit" or request.form.get("save_action") == "close":
                 repository.release_edit_lock(submission_id, user["id"], lock_token)
+                _forget_lock(submission_id)
             flash("Stat sheet submitted for sub edit." if action == "submit" else "Research saved.", "success")
             if request.form.get("save_action") == "close":
-                return redirect(url_for("sports_editorial_workspace.queue"))
+                return redirect(queue_return_url)
             if action == "submit":
-                return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
-            return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id))
+                return redirect(queue_return_url)
+            return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id, return_to=queue_return_url))
         if is_autosave:
             return jsonify({"ok": False, "error": errors[0], "errors": errors}), 400
         for error in errors:
             flash(error, "error")
     entity_map = _entities_by_id(submission)
-    return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date)
+    return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url)
 
 
 @blueprint.post("/submissions/<submission_id>/edit-lock/heartbeat")
@@ -1095,18 +1113,15 @@ def edit_published(submission_id):
             repository.save_fis_publication(submission_id, withdrawn)
         except FisApiError as exc:
             _flash_fis_error(exc)
-            return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id))
+            return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id, return_to=_queue_return_url(request.form.get("return_to"))))
     repository.set_submission_status(submission_id, "draft")
     user = current_user() or {}
     repository.record_audit_event(submission_id, user, "returned_to_in_progress", {
         "previous_status": submission.get("status"),
         "withdrawal_performed": withdrawal_performed,
     })
-    _submission, edit_lock = repository.acquire_edit_lock(submission_id, user)
-    if edit_lock and edit_lock.get("owner_id") == user.get("id"):
-        _remember_lock(submission_id, edit_lock)
-    flash("The sheet is now In Progress. Edit it, then submit it for sub edit.", "success")
-    return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id))
+    flash("The sheet is now In Progress and available from All stat sheets.", "success")
+    return redirect(_queue_return_url(request.form.get("return_to")))
 
 
 @blueprint.post("/submissions/<submission_id>/entities")

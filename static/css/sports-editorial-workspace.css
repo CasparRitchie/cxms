@@ -1293,10 +1293,11 @@ html[data-sew-theme="light"] .sew-final-state-notice strong {
 .sew-entity-text-tag,
 .sew-rich-editor a[data-manual-link],
 .sew-publish-preview a[data-manual-link] {
-  border-bottom: 1px solid currentColor;
-  color: var(--sew-blue);
+  color: #315fcc;
   font-weight: 700;
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
 }
 
 .sew-entity-text-link:hover,
@@ -1324,6 +1325,20 @@ html[data-sew-theme="light"] .sew-publish-preview a[data-manual-link] {
   text-decoration: underline;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 2px;
+}
+
+/* Keep every editing and workflow action visible in one sticky header. */
+.sew-document-editor .sew-document-bar{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.sew-document-bar__left,.sew-document-bar__right{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.sew-document-bar__identity{display:grid;min-width:max-content;margin-left:3px}
+.sew-document-bar__identity span{color:var(--sew-muted)}
+.sew-document-bar__right{margin-left:auto;justify-content:flex-end}
+.sew-document-bar__right .sew-save-status{padding:3px 6px;border:1px solid currentColor;background:rgba(255,210,125,.1)}
+.sew-publish-preview .sew-entity-text-link,
+.sew-publish-preview a[data-manual-link]{color:#244fb3!important;text-decoration:underline!important}
+@media(max-width:760px){
+  .sew-document-bar__identity{order:3;width:100%;margin-left:0}
+  .sew-document-bar__right{margin-left:0}
 }
 
 .sew-preview-page{background:#eef1f5}

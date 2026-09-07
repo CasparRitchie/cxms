@@ -197,6 +197,7 @@
   list.addEventListener("dragend", () => {
     dragged = null;
     renumber();
+    form.dispatchEvent(new Event("change", { bubbles: true }));
   });
   renumber();
 })();

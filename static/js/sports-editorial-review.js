@@ -1572,7 +1572,7 @@
             annotation_end: pasteStart + entity.relative_end,
           }, entity.mention, true);
         });
-      announce("Copied entity links were retained within this stat sheet.");
+      announce("Copied entity links were retained within this stat.");
     }, true);
 
     document.addEventListener(
@@ -1852,6 +1852,8 @@
     }
 
     const chips = [...control.querySelectorAll("[data-entity-id]")];
+    const editor = block.querySelector("[data-review-editor], [data-editor]");
+    const manualLinks = [...(editor?.querySelectorAll("a[data-manual-link]") || [])];
     const panel = document.createElement("section");
     panel.className = "sew-link-review";
     panel.dataset.linkReview = "";
@@ -1860,10 +1862,10 @@
     panel.setAttribute("aria-live", "polite");
 
     const heading = document.createElement("strong");
-    heading.textContent = `Entity links · ${chips.length}`;
+    heading.textContent = `Links · ${chips.length + manualLinks.length}`;
     panel.appendChild(heading);
 
-    if (!chips.length) {
+    if (!chips.length && !manualLinks.length) {
       const empty = document.createElement("p");
       empty.textContent = "No entity links have been added to this statistic.";
       panel.appendChild(empty);
@@ -1894,6 +1896,34 @@
       } else {
         const unavailable = document.createElement("small");
         unavailable.textContent = "No source URL";
+        row.appendChild(unavailable);
+      }
+      panel.appendChild(row);
+    });
+
+    manualLinks.forEach((manualLink) => {
+      const row = document.createElement("div");
+      row.className = "sew-link-review__row";
+      const identity = document.createElement("span");
+      identity.textContent = manualLink.textContent || "Web link";
+      row.appendChild(identity);
+
+      const status = document.createElement("small");
+      status.textContent = "Manually added web link";
+      row.appendChild(status);
+
+      const url = safeEntityUrl(manualLink.href);
+      if (url) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = "Open source";
+        row.appendChild(link);
+      } else {
+        const unavailable = document.createElement("small");
+        unavailable.className = "sew-link-review__warning";
+        unavailable.textContent = "Invalid web address";
         row.appendChild(unavailable);
       }
       panel.appendChild(row);
@@ -2198,6 +2228,7 @@
     () => {
       draggedReviewBlock = null;
       renumberReviewBlocks();
+      reviewForm?.dispatchEvent(new Event("change", { bubbles: true }));
     },
   );
 

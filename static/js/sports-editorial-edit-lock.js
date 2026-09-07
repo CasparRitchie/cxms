@@ -21,6 +21,7 @@
 
   const setSaveStatus = (message, state = "") => {
     if (!saveStatus) return;
+    saveStatus.hidden = false;
     saveStatus.textContent = message;
     saveStatus.dataset.state = state;
   };

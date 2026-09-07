@@ -719,6 +719,24 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("annotationAtPoint(event.clientX, event.clientY)", script)
         self.assertNotIn("links.forEach((url)", script)
         self.assertNotIn("Opened ${links.length} source pages", script)
+        self.assertIn('querySelectorAll("a[data-manual-link]")', script)
+        self.assertIn('status.textContent = "Manually added web link"', script)
+        self.assertIn("chips.length + manualLinks.length", script)
+
+    def test_dragging_blocks_marks_changed_without_rebuilding_link_metadata(self):
+        research_script = Path("static/js/sports-editorial-submit.js").read_text(encoding="utf-8")
+        review_script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        research_drag = research_script[research_script.index('list.addEventListener("dragstart"'):research_script.index("renumber();\n})();")]
+        review_drag = review_script[review_script.index('reviewList?.addEventListener(\n    "dragstart"'):review_script.index("const reviewForm = document.querySelector")]
+        self.assertIn('form.dispatchEvent(new Event("change", { bubbles: true }))', research_drag)
+        self.assertIn('reviewForm?.dispatchEvent(new Event("change", { bubbles: true }))', review_drag)
+        self.assertNotIn("replaceChildren", research_drag)
+        self.assertNotIn("replaceChildren", review_drag)
+
+    def test_publication_preview_links_are_explicitly_blue_and_underlined(self):
+        stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
+        self.assertIn(".sew-publish-preview .sew-entity-text-link", stylesheet)
+        self.assertIn("color:#244fb3!important;text-decoration:underline!important", stylesheet)
 
     def test_entity_unlink_is_explicit_in_research_and_review(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")
@@ -898,14 +916,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted/fis-publish")
         self.assertEqual(response.status_code, 403)
 
-    def test_editing_published_fis_withdraws_then_acquires_in_progress_lock(self):
+    def test_editing_published_fis_withdraws_then_returns_to_queue_unlocked(self):
         self.set_sub_editor()
         self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-publish")
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/edit")
         self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
         self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "draft")
         self.assertEqual(repository.get_fis_publication("demo-submission-approved")["status"], "withdrawn")
-        self.assertEqual(repository.get_edit_lock("demo-submission-approved")["owner_id"], "demo-user")
+        self.assertIsNone(repository.get_edit_lock("demo-submission-approved"))
         audit = repository.list_audit_events("demo-submission-approved")[-1]
         self.assertEqual(audit["action"], "returned_to_in_progress")
         self.assertTrue(audit["details"]["withdrawal_performed"])
@@ -954,6 +973,34 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
 
+    def test_queue_filters_survive_close_save_close_and_status_changes(self):
+        filtered_queue = "/workspace/sports-editorial/queue?status=in_review&location=Flachau&sort=event_date:asc"
+        self.set_sub_editor()
+        page = self.client.get(filtered_queue)
+        self.assertIn(b"return_to=/workspace/sports-editorial/queue?status%3Din_review", page.data)
+
+        save_close = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"status": "in_review", "save_action": "close", "return_to": filtered_queue},
+        )
+        self.assertEqual(save_close.headers["Location"], filtered_queue)
+
+        repository.release_edit_lock("demo-submission-submitted", force=True)
+        returned = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"status": "draft", "return_to": filtered_queue},
+        )
+        self.assertEqual(returned.status_code, 302, returned.data)
+        self.assertEqual(returned.headers["Location"], filtered_queue)
+
+    def test_unsafe_queue_return_url_is_rejected(self):
+        self.set_sub_editor()
+        response = self.client.post(
+            "/workspace/sports-editorial/submissions/demo-submission-submitted",
+            data={"status": "in_review", "save_action": "close", "return_to": "https://example.test/steal"},
+        )
+        self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
+
     def test_approved_statistic_places_final_lock_in_card_header(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved?edit=1")
@@ -987,6 +1034,30 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b"Instructions for the researcher", response.data)
         self.assertIn(b'value="approved">Approve stat sheet', response.data)
         self.assertNotIn(b"<span>Workflow status</span><select", response.data)
+
+    def test_workflow_actions_are_in_the_sticky_header_in_requested_order(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        page = response.data.decode()
+        header = page[page.index('<div class="sew-document-bar">'):page.index('<article class="sew-publication-canvas">')]
+        for label in ("Close", "Add sub-heading", "Add statistic", "Save", "Save &amp; close", "Pub. Prev.", "Accept all", "Edit", "Approve stat sheet"):
+            self.assertIn(label, header)
+        self.assertLess(header.index("Close"), header.index("Add sub-heading"))
+        self.assertLess(header.index("Add sub-heading"), header.index("Add statistic"))
+        self.assertLess(header.index("Save"), header.index("Pub. Prev."))
+        self.assertLess(header.index("Pub. Prev."), header.index("Accept all"))
+        self.assertLess(header.index("Accept all"), header.index(">Edit</button>"))
+        self.assertLess(header.index(">Edit</button>"), header.index("Approve stat sheet"))
+        workflow = page[page.index('class="sew-card sew-workflow-decision"'):page.index('class="sew-card sew-unpublished')]
+        self.assertNotIn("type=\"submit\"", workflow)
+
+    def test_final_state_keeps_entity_metadata_available_for_link_checks(self):
+        self.set_sub_editor()
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved")
+        self.assertIn(b"data-check-block-entities", response.data)
+        self.assertIn(b"data-entity-control", response.data)
+        self.assertIn(b"data-selected-entities hidden", response.data)
+        self.assertIn(b'contenteditable="false"', response.data)
 
     def test_sub_edit_declutters_link_controls_and_checks_links_per_statistic(self):
         self.set_sub_editor()
@@ -1049,9 +1120,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
         edit = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/edit")
         self.assertEqual(edit.status_code, 302)
-        self.assertTrue(edit.headers["Location"].endswith("/research"))
+        self.assertTrue(edit.headers["Location"].endswith("/workspace/sports-editorial/queue"))
         self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "draft")
-        self.assertEqual(repository.get_edit_lock("demo-submission-approved")["owner_id"], "demo-user")
+        self.assertIsNone(repository.get_edit_lock("demo-submission-approved"))
         audit = repository.list_audit_events("demo-submission-approved")[-1]
         self.assertEqual(audit["action"], "returned_to_in_progress")
         self.assertEqual(audit["details"]["previous_status"], "approved")
@@ -1453,7 +1524,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         repository.set_submission_status("demo-submission-kronplatz", "draft")
         researcher_queue = self.client.get("/workspace/sports-editorial/queue")
         self.assertIn(
-            b'href="/workspace/sports-editorial/submissions/demo-submission-kronplatz/research"',
+            b'href="/workspace/sports-editorial/submissions/demo-submission-kronplatz/research?return_to=',
             researcher_queue.data,
         )
         opened = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
@@ -1463,7 +1534,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.set_sub_editor()
         sub_editor_queue = self.client.get("/workspace/sports-editorial/queue")
         self.assertIn(
-            b'href="/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1"',
+            b'/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1&amp;return_to=',
             sub_editor_queue.data,
         )
 
@@ -1485,7 +1556,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         )
         retained_lock = repository.get_edit_lock("demo-submission-kronplatz")
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers["Location"].endswith("/research"))
+        self.assertIn("/research?return_to=", response.headers["Location"])
         self.assertEqual(retained_lock["token"], original_lock["token"])
         self.assertEqual(retained_lock["version"], original_lock["version"])
 
@@ -1702,7 +1773,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"data-row-select", response.data)
         repository.set_submission_status("demo-submission-kronplatz", "draft")
         preview_link = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
-        self.assertIn(b"Publication preview", preview_link.data)
+        self.assertIn(b"Pub. Prev.", preview_link.data)
         preview = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/publication-preview")
         self.assertEqual(preview.status_code, 200)
 
@@ -1857,7 +1928,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(self.client.get("/workspace/sports-editorial/submit").status_code, 403)
         review = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(review.status_code, 200)
-        self.assertIn(b"Save sub-edit", review.data)
+        self.assertIn(b'data-save-draft>Save</button>', review.data)
         self.assertEqual(
             self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted/force-unlock").status_code,
             403,
