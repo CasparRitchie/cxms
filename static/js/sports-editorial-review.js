@@ -650,13 +650,29 @@
       selected
         .querySelectorAll("[data-entity-id]")
         .forEach((chip) => {
-          const annotation = ensureChipRange(chip, true);
-          if (!annotation) {
-            if (rangeInputs(chip).mention?.value) chip.remove();
-            return;
+          const inputs = rangeInputs(chip);
+          const mention = inputs.mention?.value.trim() || "";
+          let start = Number.parseInt(inputs.start?.value, 10);
+          let end = Number.parseInt(inputs.end?.value, 10);
+
+          // Reconcile the edit against the range from the previous editor
+          // value. Looking for the old wording in the new value first would
+          // incorrectly unlink legitimate edits inside a mention, such as
+          // changing "Lindsey Vonn (USA)" to "Lindsey Vonn (USA/Atomic)".
+          const previousRangeIsValid = mention &&
+            Number.isInteger(start) && Number.isInteger(end) &&
+            start >= 0 && end > start &&
+            previousEditorText.slice(start, end) === mention;
+          if (!previousRangeIsValid) {
+            const resolved = firstExactMentionRange(mention);
+            if (!resolved) {
+              if (mention) chip.remove();
+              return;
+            }
+            start = resolved.start;
+            end = resolved.end;
           }
 
-          let { start, end } = annotation;
           if (oldEnd <= start) {
             start += delta;
             end += delta;
@@ -676,9 +692,9 @@
             return;
           }
           end = start + updatedMention.length;
-          annotation.inputs.mention.value = updatedMention;
-          annotation.inputs.start.value = String(start);
-          annotation.inputs.end.value = String(end);
+          inputs.mention.value = updatedMention;
+          inputs.start.value = String(start);
+          inputs.end.value = String(end);
 
         });
 

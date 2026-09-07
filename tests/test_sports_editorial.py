@@ -1558,18 +1558,31 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "Must not persist",
         )
 
-    def test_autosave_ui_is_debounced_and_preserves_explicit_submit(self):
+    def test_background_autosave_is_disabled_and_keyboard_save_is_explicit(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")
         page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
-        self.assertIn(b"data-autosave-form", page.data)
-        self.assertIn(b"data-autosave-status", page.data)
+        self.assertNotIn(b"data-autosave-form", page.data)
+        self.assertNotIn(b"data-autosave-status", page.data)
+        self.assertIn(b"data-save-status", page.data)
+        self.assertIn(b"data-save-draft", page.data)
         script = Path("static/js/sports-editorial-edit-lock.js").read_text(encoding="utf-8")
-        self.assertIn('scheduleAutosave(800)', script)
-        self.assertIn('body.set("autosave", "1")', script)
-        self.assertIn('body.delete("action")', script)
-        self.assertIn('body.delete("status")', script)
-        self.assertIn('response.status === 409', script)
-        self.assertIn('autosaveController?.abort()', script)
+        self.assertNotIn("scheduleAutosave", script)
+        self.assertNotIn('body.set("autosave", "1")', script)
+        self.assertIn("event.ctrlKey || event.metaKey", script)
+        self.assertIn('event.key.toLowerCase() === "s"', script)
+        self.assertIn('form.requestSubmit(saveButton)', script)
+        self.assertIn('const saveButton = form.querySelector("[data-save-draft]:not(:disabled)")', script)
+
+    def test_linked_range_reconciles_text_edits_before_exact_match_cleanup(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        validation = script[script.index("const validateMentionTags"):script.index("const selectedMentionContext")]
+        self.assertIn("previousEditorText.slice(start, end) === mention", validation)
+        self.assertIn("end = Math.max(start, end + delta)", validation)
+        self.assertIn("inputs.mention.value = updatedMention", validation)
+        self.assertGreater(
+            validation.index("const resolved = firstExactMentionRange(mention)"),
+            validation.index("const previousRangeIsValid"),
+        )
 
     def test_edit_lock_acquisition_is_atomic_and_owner_can_reopen(self):
         users = [
