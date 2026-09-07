@@ -1365,6 +1365,11 @@ html[data-sew-theme="light"] .sew-publish-preview a[data-manual-link] {
 .sew-calendar-picker{position:relative;display:grid;gap:2px}
 .sew-calendar-picker>label{font-weight:700}
 .sew-calendar-picker>input[type="hidden"]{display:none}
+.sew-core-grid>[data-review-calendar-picker]{grid-template-columns:max-content minmax(0,1fr)}
+.sew-core-grid>[data-review-calendar-picker]>label{grid-row:1;grid-column:1;color:var(--sew-core-label);font-size:9px;font-weight:800;text-transform:uppercase;white-space:nowrap}
+.sew-core-grid>[data-review-calendar-picker]>label:after{content:":"}
+.sew-core-grid>[data-review-calendar-picker]>input[type="search"]{grid-row:1;grid-column:2;min-width:0;width:100%}
+.sew-core-grid>[data-review-calendar-picker]>small{grid-row:2;grid-column:1/-1;min-width:0}
 .sew-calendar-results{position:absolute;z-index:30;top:calc(100% - 18px);right:4px;left:4px;max-height:220px;overflow-y:auto;border:1px solid var(--sew-line);background:#111827;box-shadow:0 8px 18px rgba(0,0,0,.45)}
 .sew-calendar-results button,.sew-calendar-results p{display:block;width:100%;margin:0;padding:6px 7px;border:0;border-bottom:1px solid var(--sew-line);background:transparent;color:#f8fafc;text-align:left;font:inherit}
 .sew-calendar-results button{cursor:pointer}
@@ -1373,6 +1378,15 @@ html[data-sew-theme="light"] .sew-publish-preview a[data-manual-link] {
 html[data-sew-theme="light"] .sew-calendar-results{background:#fff}
 html[data-sew-theme="light"] .sew-calendar-results button,html[data-sew-theme="light"] .sew-calendar-results p{color:#172033}
 html[data-sew-theme="light"] .sew-calendar-results button:hover,html[data-sew-theme="light"] .sew-calendar-results button:focus-visible,html[data-sew-theme="light"] .sew-calendar-results button.is-active{background:#e7edf8}
+@media(max-width:560px){
+  .sew-core-grid>[data-review-calendar-picker]{grid-template-columns:1fr}
+  .sew-core-grid>[data-review-calendar-picker]>label,
+  .sew-core-grid>[data-review-calendar-picker]>input[type="search"],
+  .sew-core-grid>[data-review-calendar-picker]>small{grid-column:1}
+  .sew-core-grid>[data-review-calendar-picker]>label{grid-row:1}
+  .sew-core-grid>[data-review-calendar-picker]>input[type="search"]{grid-row:2}
+  .sew-core-grid>[data-review-calendar-picker]>small{grid-row:3}
+}
 .sew-client-field{margin:0;border-right:1px solid var(--sew-line);border-bottom:1px solid var(--sew-line);border-left:0;border-top:0}
 .sew-client-field legend{padding:0}
 .sew-client-field label{display:flex;align-items:center;gap:6px;font-weight:400}

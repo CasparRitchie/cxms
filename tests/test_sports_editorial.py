@@ -1573,6 +1573,13 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn('form.requestSubmit(saveButton)', script)
         self.assertIn('const saveButton = form.querySelector("[data-save-draft]:not(:disabled)")', script)
 
+    def test_review_location_control_keeps_label_and_search_together(self):
+        stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
+        self.assertIn(".sew-core-grid>[data-review-calendar-picker]>label{grid-row:1;grid-column:1", stylesheet)
+        self.assertIn('.sew-core-grid>[data-review-calendar-picker]>input[type="search"]{grid-row:1;grid-column:2', stylesheet)
+        self.assertIn(".sew-core-grid>[data-review-calendar-picker]>small{grid-row:2;grid-column:1/-1", stylesheet)
+        self.assertIn(".sew-core-grid>[data-review-calendar-picker]{grid-template-columns:1fr}", stylesheet)
+
     def test_linked_range_reconciles_text_edits_before_exact_match_cleanup(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         validation = script[script.index("const validateMentionTags"):script.index("const selectedMentionContext")]
