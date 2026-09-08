@@ -21,7 +21,7 @@
           {% if filter_field == 'status' %}
             {% for value in statuses %}<label><input type="checkbox" name="{{ filter_field }}" value="{{ value }}" {% if value in filters[filter_field] %}checked{% endif %}><span>{{ status_labels[value] }}</span></label>{% endfor %}
           {% elif filter_field in ['researcher_user_id','sub_editor_user_id'] %}
-            {% for user in assignment_users if (filter_field == 'researcher_user_id' and user.editorial_role == 'researcher') or (filter_field == 'sub_editor_user_id' and user.editorial_role in ['sub_editor','supervisor']) %}<label><input type="checkbox" name="{{ filter_field }}" value="{{ user.id }}" {% if user.id in filters[filter_field] %}checked{% endif %}><span>{{ user.full_name or user.email }}</span></label>{% endfor %}
+            {% for user in assignment_users if (filter_field == 'researcher_user_id' and user.editorial_role in research_assignment_roles) or (filter_field == 'sub_editor_user_id' and user.editorial_role in sub_editor_assignment_roles) %}<label><input type="checkbox" name="{{ filter_field }}" value="{{ user.id }}" {% if user.id in filters[filter_field] %}checked{% endif %}><span>{{ user.full_name or user.email }}</span></label>{% endfor %}
           {% else %}
             {% for value in options[filter_field] %}<label><input type="checkbox" name="{{ filter_field }}" value="{{ value }}" {% if value in filters[filter_field] %}checked{% endif %}><span>{{ value|replace('_',' ')|title if filter_field == 'sport' else value }}</span></label>{% endfor %}
           {% endif %}
@@ -62,7 +62,7 @@
 </section>
 
 {% if workspace_role in ['sub_editor','supervisor'] %}
-{% for assignment_field, title, allowed_roles in [('researcher_user_id','Allocate researcher',['researcher']),('sub_editor_user_id','Allocate sub-editor',['sub_editor','supervisor'])] %}
+{% for assignment_field, title, allowed_roles in [('researcher_user_id','Allocate researcher',research_assignment_roles),('sub_editor_user_id','Allocate sub-editor',sub_editor_assignment_roles)] %}
 <dialog class="sew-allocation-dialog" data-allocation-dialog="{{ assignment_field }}"><form method="post" action="{{ url_for('sports_editorial_workspace.bulk_assign_queue') }}"><input type="hidden" name="assignment_field" value="{{ assignment_field }}"><input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}"><header><h2>{{ title }}</h2><button type="button" data-close-allocation aria-label="Close">×</button></header><p><strong data-dialog-selection-count>0</strong> stat sheets selected.</p><label class="sew-field"><span>Select person</span><select name="user_id" required><option value="">Choose a person</option>{% for user in assignment_users if user.editorial_role in allowed_roles %}<option value="{{ user.id }}">{{ user.full_name or user.email }}</option>{% endfor %}</select></label><footer><button class="sew-button sew-button--primary" type="submit" name="assignment_action" value="allocate">Allocate</button><button class="sew-button sew-button--danger" type="submit" name="assignment_action" value="unallocate" formnovalidate>Unallocate</button><button class="sew-button" type="button" data-close-allocation>Cancel</button></footer></form></dialog>
 {% endfor %}
 {% endif %}

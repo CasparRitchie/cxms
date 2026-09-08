@@ -1350,6 +1350,45 @@ class SportsEditorialPilotTests(unittest.TestCase):
         for submission_id in selected:
             self.assertIsNone(repository.get_submission(submission_id)["researcher_user_id"])
 
+    def test_sub_editors_and_supervisors_can_be_assigned_as_researchers(self):
+        self.set_role("supervisor")
+        creation = self.client.get("/workspace/sports-editorial/submit")
+        page = creation.data.decode()
+        self.assertEqual(page.count('value="demo-sub-editor"'), 2)
+        self.assertEqual(page.count('value="demo-supervisor"'), 2)
+        self.assertEqual(page.count('value="demo-researcher-2"'), 1)
+        self.assertNotIn('value="demo-fis-specialist"', page)
+
+        for user_id in ("demo-sub-editor", "demo-supervisor"):
+            response = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
+                "submission_id": "demo-submission-submitted",
+                "assignment_field": "researcher_user_id",
+                "assignment_action": "allocate",
+                "user_id": user_id,
+            })
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(repository.get_submission("demo-submission-submitted")["researcher_user_id"], user_id)
+
+    def test_sub_editor_assignment_remains_limited_to_sub_editors_and_supervisors(self):
+        self.set_role("supervisor")
+        for user_id in ("demo-sub-editor", "demo-supervisor"):
+            response = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
+                "submission_id": "demo-submission-submitted",
+                "assignment_field": "sub_editor_user_id",
+                "assignment_action": "allocate",
+                "user_id": user_id,
+            })
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(repository.get_submission("demo-submission-submitted")["sub_editor_user_id"], user_id)
+
+        rejected = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={
+            "submission_id": "demo-submission-submitted",
+            "assignment_field": "sub_editor_user_id",
+            "assignment_action": "allocate",
+            "user_id": "demo-researcher-2",
+        })
+        self.assertEqual(rejected.status_code, 400)
+
     def test_sub_editor_can_allocate_and_edit_core_data(self):
         self.set_sub_editor()
         allocation = self.client.post("/workspace/sports-editorial/queue/bulk-assign", data={

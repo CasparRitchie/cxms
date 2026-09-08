@@ -23,7 +23,7 @@
         {% if field == 'status' %}
           {% for value in statuses %}<label><input type="checkbox" name="{{ field }}" value="{{ value }}" {% if value in filters[field] %}checked{% endif %}><span>{{ status_labels[value] }}</span></label>{% endfor %}
         {% elif field in ['researcher_user_id', 'sub_editor_user_id'] %}
-          {% for user in assignment_users if (field == 'researcher_user_id' and user.editorial_role == 'researcher') or (field == 'sub_editor_user_id' and user.editorial_role in ['sub_editor','supervisor']) %}<label><input type="checkbox" name="{{ field }}" value="{{ user.id }}" {% if user.id in filters[field] %}checked{% endif %}><span>{{ user.full_name or user.email }}</span></label>{% endfor %}
+          {% for user in assignment_users if (field == 'researcher_user_id' and user.editorial_role in research_assignment_roles) or (field == 'sub_editor_user_id' and user.editorial_role in sub_editor_assignment_roles) %}<label><input type="checkbox" name="{{ field }}" value="{{ user.id }}" {% if user.id in filters[field] %}checked{% endif %}><span>{{ user.full_name or user.email }}</span></label>{% endfor %}
         {% else %}
           {% for value in options[field] %}<label><input type="checkbox" name="{{ field }}" value="{{ value }}" {% if value in filters[field] %}checked{% endif %}><span>{{ value|replace('_',' ')|title if field == 'sport' else value }}</span></label>{% endfor %}
         {% endif %}
@@ -103,7 +103,7 @@
 </section>
 
 {% if workspace_role in ['sub_editor','supervisor'] %}
-{% for assignment_field, title, allowed_roles in [('researcher_user_id','Allocate researcher',['researcher']),('sub_editor_user_id','Allocate sub-editor',['sub_editor','supervisor'])] %}
+{% for assignment_field, title, allowed_roles in [('researcher_user_id','Allocate researcher',research_assignment_roles),('sub_editor_user_id','Allocate sub-editor',sub_editor_assignment_roles)] %}
 <dialog class="sew-allocation-dialog" data-allocation-dialog="{{ assignment_field }}">
   <form method="post" action="{{ url_for('sports_editorial_workspace.bulk_assign_queue') }}">
     <input type="hidden" name="assignment_field" value="{{ assignment_field }}">

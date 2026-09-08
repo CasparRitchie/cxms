@@ -29,6 +29,8 @@ from .edit_locks import lock_timeout_seconds, parse_timestamp
 
 blueprint = Blueprint("sports_editorial_workspace", __name__, url_prefix="/workspace/sports-editorial")
 VALID_ROLES = ("researcher", "sub_editor", "supervisor", "fis_specialist")
+RESEARCH_ASSIGNMENT_ROLES = ("researcher", "sub_editor", "supervisor")
+SUB_EDITOR_ASSIGNMENT_ROLES = ("sub_editor", "supervisor")
 QUEUE_PATH_PATTERN = re.compile(r"^/workspace/sports-editorial/queue(?:/modern-preview)?(?:\?|$)")
 
 
@@ -162,7 +164,7 @@ def _review_form_preview(submission, form_data, parsed_dates=None):
 def workspace_context():
     user = current_user() or {}
     mode = auth_configuration()["mode"]
-    return {"workspace_role": user.get("role", "researcher"), "workspace_account_role": user.get("workspace_role", "member"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode, "status_labels": STATUS_LABELS}
+    return {"workspace_role": user.get("role", "researcher"), "workspace_account_role": user.get("workspace_role", "member"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode, "status_labels": STATUS_LABELS, "research_assignment_roles": RESEARCH_ASSIGNMENT_ROLES, "sub_editor_assignment_roles": SUB_EDITOR_ASSIGNMENT_ROLES}
 
 
 @blueprint.route("/login", methods=["GET", "POST"])
@@ -601,6 +603,12 @@ def submit():
             "season_code": season_code,
         }
         users_by_id = {item["id"]: item for item in _assignment_users()}
+        researcher = users_by_id.get(data["researcher_user_id"]) if data["researcher_user_id"] else None
+        sub_editor = users_by_id.get(data["sub_editor_user_id"]) if data["sub_editor_user_id"] else None
+        if data["researcher_user_id"] and (not researcher or researcher.get("editorial_role") not in RESEARCH_ASSIGNMENT_ROLES):
+            errors.append("Choose an active Researcher, Sub-editor or Supervisor for Researcher assignment.")
+        if data["sub_editor_user_id"] and (not sub_editor or sub_editor.get("editorial_role") not in SUB_EDITOR_ASSIGNMENT_ROLES):
+            errors.append("Choose an active Sub-editor or Supervisor for Sub-editor assignment.")
         data["researcher_name"] = users_by_id.get(data["researcher_user_id"], {}).get("full_name", "")
         data["sub_editor_name"] = users_by_id.get(data["sub_editor_user_id"], {}).get("full_name", "")
         if not errors:
@@ -768,8 +776,8 @@ def bulk_assign_queue():
     if not submission_ids:
         abort(400, description="Select at least one stat sheet.")
     required_roles = {
-        "researcher_user_id": {"researcher"},
-        "sub_editor_user_id": {"sub_editor", "supervisor"},
+        "researcher_user_id": set(RESEARCH_ASSIGNMENT_ROLES),
+        "sub_editor_user_id": set(SUB_EDITOR_ASSIGNMENT_ROLES),
     }
     if assignment_field not in required_roles:
         abort(400, description="Choose Researcher or Sub-editor allocation.")
@@ -851,6 +859,18 @@ def detail(submission_id):
                 parsed_dates[field_name], error = parse_display_date(request.form.get(field_name), label)
                 if error:
                     valid, message = False, error
+                    break
+        if valid and can_edit_core:
+            assignable_users = {item["id"]: item for item in _assignment_users()}
+            for field_name, allowed_roles, field_label in (
+                ("researcher_user_id", RESEARCH_ASSIGNMENT_ROLES, "Researcher"),
+                ("sub_editor_user_id", SUB_EDITOR_ASSIGNMENT_ROLES, "Sub-editor"),
+            ):
+                if field_name not in request.form or not request.form.get(field_name, "").strip():
+                    continue
+                assigned = assignable_users.get(request.form.get(field_name))
+                if not assigned or assigned.get("editorial_role") not in allowed_roles:
+                    valid, message = False, f"Choose an active user eligible for {field_label} assignment."
                     break
         if not can_edit_core and _invalid_event_id_tokens(raw_event_ids):
             valid, message = False, "FIS calendar event IDs must contain digits only, for example 123456."
