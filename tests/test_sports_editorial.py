@@ -1026,6 +1026,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'class="sew-drag" title="Drag to reorder" draggable="true"', response.data)
         self.assertIn(b'class="sew-rendered-content"', response.data)
 
+    def test_reordering_refreshes_visible_entity_highlights_in_both_editors(self):
+        review = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        research = Path("static/js/sports-editorial-submit.js").read_text(encoding="utf-8")
+        self.assertIn('control.addEventListener("sew:refresh-entity-highlights", scheduleMentionHighlights)', review)
+        self.assertIn('document.addEventListener("sew:content-reordered"', review)
+        self.assertIn('document.dispatchEvent(new Event("sew:content-reordered"))', review)
+        self.assertIn('document.dispatchEvent(new Event("sew:content-reordered"))', research)
+        self.assertIn("refreshMentionHighlights()", review)
+
     def test_sub_editor_gets_simplified_review_actions_instead_of_status_dropdown(self):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")

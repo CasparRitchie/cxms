@@ -198,6 +198,7 @@
     dragged = null;
     renumber();
     form.dispatchEvent(new Event("change", { bubbles: true }));
+    document.dispatchEvent(new Event("sew:content-reordered"));
   });
   renumber();
 })();

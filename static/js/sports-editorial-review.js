@@ -581,6 +581,11 @@
       });
     };
 
+    // Moving an existing content block does not re-run its initialiser. Rebuild
+    // its live CSS Highlight ranges once the browser has placed it at the new
+    // DOM position so linked wording remains visibly blue and underlined.
+    control.addEventListener("sew:refresh-entity-highlights", scheduleMentionHighlights);
+
     const selectedOffsets = () => {
       const selection = window.getSelection();
       if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return null;
@@ -2231,6 +2236,7 @@
       draggedReviewBlock = null;
       renumberReviewBlocks();
       reviewForm?.dispatchEvent(new Event("change", { bubbles: true }));
+      document.dispatchEvent(new Event("sew:content-reordered"));
     },
   );
 
@@ -2345,6 +2351,14 @@
       formDirty = true;
     },
   );
+
+  document.addEventListener("sew:content-reordered", () => {
+    requestAnimationFrame(() => {
+      document.querySelectorAll("[data-entity-control]").forEach((control) => {
+        control.dispatchEvent(new Event("sew:refresh-entity-highlights"));
+      });
+    });
+  });
 
   document.querySelectorAll("[data-track-note-change]").forEach((field) => {
     const initialValue = field.value;
