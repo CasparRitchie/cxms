@@ -783,6 +783,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn('button.addEventListener("click"', script)
         self.assertNotIn("addEntity(entity);\n          suggestions.replaceChildren", script)
 
+    def test_completed_autocomplete_does_not_lookup_inserted_surname_again(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("let suppressNextRecognition = false", script)
+        self.assertIn("recognitionController?.abort()", script)
+        self.assertIn("suppressNextRecognition = true", script)
+        self.assertIn("if (suppressNextRecognition)", script)
+        replacement = script[script.index("if (activeContext?.replace)"):script.index("} else if (!trustedPaste", script.index("if (activeContext?.replace)"))]
+        self.assertNotIn('dispatchEvent(new Event("input"', replacement)
+
     def test_new_statistic_initialises_entity_suggestions_before_typing(self):
         submit_script = Path("static/js/sports-editorial-submit.js").read_text(encoding="utf-8")
         review_script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")

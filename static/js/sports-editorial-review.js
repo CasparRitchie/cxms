@@ -312,6 +312,7 @@
     let recognitionTimer;
     let recognitionController;
     let recognitionActiveIndex = -1;
+    let suppressNextRecognition = false;
 
     const highlightKey = crypto.randomUUID();
 
@@ -800,7 +801,6 @@
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(caret);
-        editor.dispatchEvent(new Event("input", { bubbles: true }));
       } else if (!trustedPaste && activeContext?.range) {
         annotationStart = textOffsetForPoint(activeContext.range.startContainer, activeContext.range.startOffset);
         annotationEnd = textOffsetForPoint(activeContext.range.endContainer, activeContext.range.endOffset);
@@ -892,6 +892,17 @@
 
       closeResults();
       scheduleMentionHighlights();
+
+      // Completing an explicit entity insertion must not immediately treat
+      // the inserted surname as a fresh typing prefix (for example, looking
+      // up “Budrow” after inserting and linking “James Budrow”).
+      clearTimeout(recognitionTimer);
+      recognitionController?.abort();
+      recognitionController = null;
+      recognitionActiveIndex = -1;
+      suggestions.replaceChildren();
+      editor.removeAttribute("aria-activedescendant");
+      suppressNextRecognition = true;
 
       editor.dispatchEvent(
         new Event("input", { bubbles: true }),
@@ -1101,6 +1112,10 @@
       validateMentionTags();
       if (queryContext) {
         closeResults("The wording changed, so the previous lookup was cancelled.");
+      }
+      if (suppressNextRecognition) {
+        suppressNextRecognition = false;
+        return;
       }
       scheduleRecognisedEntitySuggestion();
     });
