@@ -87,6 +87,7 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
         errors.append("The FIS external ID must be a stable lowercase slug of 3–100 characters.")
     discipline_code = submission.get("fis_discipline_code") or DISCIPLINE_CODES.get(submission.get("sport"))
     event_ids = _parse_event_ids(submission.get("fis_event_ids"))
+    submission_notes = str(submission.get("fis_submission_notes") or "").strip()
     if not submission.get("title"):
         errors.append("FIS requires a sheet title.")
     elif len(submission["title"]) > 255:
@@ -99,6 +100,8 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
         errors.append("Add at least one FIS calendar event ID.")
     if len(event_ids) > 10:
         errors.append("FIS accepts at most 10 event IDs per sheet.")
+    if len(submission_notes) > 2000:
+        errors.append("The note to the FIS media team must be 2,000 characters or fewer.")
     if calendar_events is not None and event_ids:
         known = {str(event.get("canonical_id")): event for event in calendar_events}
         selected = [known.get(str(event_id)) for event_id in event_ids]
@@ -181,6 +184,8 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
         "eventIds": event_ids,
         "sections": sections,
     }
+    if submission_notes:
+        payload["notes"] = submission_notes
     if expected_version is not None:
         payload["expectedVersion"] = expected_version
     if organisation_uuid:

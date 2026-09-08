@@ -96,8 +96,9 @@ class LiveFisClient:
         return self._request("GET", "/media/stat-sheets")
 
     def get(self, external_id):
+        suffix = f"?organisationUuid={quote(self.organisation_uuid, safe='')}" if self.organisation_uuid else ""
         try:
-            return self._request("GET", f"/media/stat-sheets/{quote(external_id, safe='')}")
+            return self._request("GET", f"/media/stat-sheets/{quote(external_id, safe='')}{suffix}")
         except FisApiError as exc:
             if exc.status_code == 404:
                 return None
@@ -122,14 +123,16 @@ class LiveFisClient:
                 {"currentSchemaVersion": remote["schemaVersion"]},
             )
         outgoing = dict(payload)
+        outgoing.pop("expectedVersion", None)
         if remote and remote.get("version") is not None:
             outgoing["expectedVersion"] = remote["version"]
-        elif previous and previous.get("version") is not None:
-            outgoing["expectedVersion"] = previous["version"]
         return self._request("PUT", f"/media/stat-sheets/{quote(external_id, safe='')}", outgoing)
 
     def withdraw(self, external_id, previous=None):
-        self._assert_safe()
+        previous = previous or {}
+        event_ids = list(previous.get("eventIds") or [])
+        event_ids.extend(event.get("eventId") for event in previous.get("events") or [] if event.get("eventId") is not None)
+        self._assert_safe({"eventIds": event_ids})
         suffix = f"?organisationUuid={quote(self.organisation_uuid, safe='')}" if self.organisation_uuid else ""
         return self._request("DELETE", f"/media/stat-sheets/{quote(external_id, safe='')}{suffix}")
 

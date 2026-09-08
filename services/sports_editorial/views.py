@@ -417,11 +417,18 @@ def _flash_fis_error(exc):
             flash(message, "error")
         return
     flash(f"FIS request failed ({exc.status_code}): {exc}", "error")
+    if exc.details.get("code"):
+        flash(f"FIS error code: {exc.details['code']}.", "error")
     for path, messages in (exc.details.get("errors") or {}).items():
         for message in messages if isinstance(messages, list) else [messages]:
             flash(f"{path}: {message}", "error")
-    if exc.details.get("currentVersion") is not None:
-        flash(f"FIS currently has version {exc.details['currentVersion']}. Reload, review the latest sheet and try again.", "error")
+    if "currentVersion" in exc.details:
+        if exc.details["currentVersion"] is None:
+            flash("FIS does not currently hold this stat sheet. Retry it as a new submission without a previous version.", "error")
+        else:
+            flash(f"FIS currently has version {exc.details['currentVersion']}. Reload, review the latest sheet and try again.", "error")
+    if exc.details.get("closesAt"):
+        flash(f"The FIS submission window closed at {exc.details['closesAt']}.", "error")
     if exc.details.get("retryAfter"):
         flash(f"FIS has rate-limited requests. Try again after {exc.details['retryAfter']} seconds.", "error")
 

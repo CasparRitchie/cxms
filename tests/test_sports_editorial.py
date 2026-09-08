@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+from flask import session
 from werkzeug.datastructures import MultiDict
 
 from app import app
@@ -919,8 +920,18 @@ class SportsEditorialPilotTests(unittest.TestCase):
             payload["sections"][0]["items"][0]["text"],
             "{{athlete:516562|Camille Rast}} won. Camille Rast celebrated.",
         )
-        self.assertNotIn("notes", payload)
+        self.assertEqual(payload["notes"], "V2 corrects a result.")
         self.assertNotIn("Internal only", json.dumps(payload))
+
+    def test_fis_payload_rejects_submission_note_over_contract_limit(self):
+        submission = {
+            "id": "sheet-1", "title": "Linked sheet", "sport": "alpine_skiing",
+            "fis_event_ids": [62716], "fis_submission_notes": "x" * 2001,
+            "stats": [{"id": "stat-1", "sort_order": 0, "stat_text": "Linked fact", "entity_ids": []}],
+        }
+        with self.assertRaises(FisPayloadValidationError) as context:
+            build_fis_payload(submission, {})
+        self.assertIn("2,000", str(context.exception))
 
     def test_fis_preflight_rejects_contract_limits(self):
         submission = {
@@ -941,6 +952,53 @@ class SportsEditorialPilotTests(unittest.TestCase):
                 client.publish("wc-al-w-test-2027", {"eventIds": [62716]})
         self.assertEqual(context.exception.status_code, 409)
         self.assertIn("schema version 2", str(context.exception))
+
+    def test_live_client_uses_organisation_for_single_sheet_get(self):
+        client = LiveFisClient(
+            "https://fis.invalid", "token",
+            organisation_uuid="1d253cbb-cc01-43db-bed0-45513117a651",
+        )
+        with patch.object(client, "_request", return_value={}) as request:
+            client.get("amp-alp-test")
+        self.assertEqual(
+            request.call_args.args,
+            ("GET", "/media/stat-sheets/amp-alp-test?organisationUuid=1d253cbb-cc01-43db-bed0-45513117a651"),
+        )
+
+    def test_live_client_omits_mock_version_when_remote_sheet_does_not_exist(self):
+        client = LiveFisClient("https://fis.invalid", "token", safe_event_ids=[62716], live_enabled=True)
+        with patch.object(client, "get", return_value=None), patch.object(client, "_request", return_value={}) as request:
+            client.publish(
+                "amp-alp-w-test-2027", {"eventIds": [62716], "expectedVersion": 4},
+                previous={"version": 4, "status": "published"},
+            )
+        self.assertNotIn("expectedVersion", request.call_args.args[2])
+
+    def test_live_client_uses_remote_version_when_replacing_sheet(self):
+        client = LiveFisClient("https://fis.invalid", "token", safe_event_ids=[62716], live_enabled=True)
+        with patch.object(client, "get", return_value={"schemaVersion": 1, "version": 7}), patch.object(client, "_request", return_value={}) as request:
+            client.publish("amp-alp-w-test-2027", {"eventIds": [62716]}, previous={"version": 4})
+        self.assertEqual(request.call_args.args[2]["expectedVersion"], 7)
+
+    def test_live_client_withdrawal_requires_allowed_publication_events(self):
+        client = LiveFisClient("https://fis.invalid", "token", safe_event_ids=[62716], live_enabled=True)
+        with patch.object(client, "_request", return_value={}) as request:
+            client.withdraw("amp-alp-w-test-2027", previous={"events": [{"eventId": 62716}]})
+        self.assertEqual(request.call_args.args[0], "DELETE")
+        with self.assertRaises(FisApiError) as context:
+            client.withdraw("amp-alp-w-other-2027", previous={"events": [{"eventId": 99999}]})
+        self.assertEqual(context.exception.status_code, 403)
+
+    def test_fis_error_flashes_machine_code_closing_time_and_new_sheet_conflict(self):
+        error = FisApiError("The given data was invalid.", 422, {
+            "code": "EVENT_CLOSED", "closesAt": "2026-09-08T16:57:50Z", "currentVersion": None,
+        })
+        with app.test_request_context("/"):
+            sports_editorial_views._flash_fis_error(error)
+            messages = [message for _category, message in session["_flashes"]]
+        self.assertTrue(any("EVENT_CLOSED" in message for message in messages))
+        self.assertTrue(any("2026-09-08T16:57:50Z" in message for message in messages))
+        self.assertTrue(any("does not currently hold" in message for message in messages))
 
     def test_mock_fis_publish_and_withdraw(self):
         self.set_role("supervisor")
@@ -1031,6 +1089,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
+        self.assertIn(b'name="fis_submission_notes"', response.data)
+        self.assertIn(b'maxlength="2000"', response.data)
         self.assertIn(b'contenteditable="true"', response.data)
         self.assertIn(b'aria-label="Statistic wording"', response.data)
         self.assertIn(b"View original researcher wording", response.data)
