@@ -20,6 +20,7 @@ from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
 from .fis_athletes import FisAthleteError, fetch_alpine_athletes
 from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_competitions
 from .stat_insights import build_stat_insights, demo_result_rows
+from .dashboard_metrics import build_dashboard_metrics
 from .fis_results import FisResultError, fetch_alpine_results
 from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
@@ -466,7 +467,13 @@ def _require_owned_lock(submission_id):
 @blueprint.route("")
 @blueprint.route("/")
 def dashboard():
-    return redirect(url_for("sports_editorial_workspace.queue"))
+    user = current_user() or {}
+    if user.get("role") != "supervisor":
+        return redirect(url_for("sports_editorial_workspace.queue"))
+    metrics = build_dashboard_metrics(
+        repository.list_submissions(include_inactive=True), _assignment_users()
+    )
+    return render_template("sports-editorial-workspace/dashboard.html", metrics=metrics)
 
 
 @blueprint.get("/stat-insights")
@@ -706,7 +713,7 @@ def queue():
     filter_fields = (
         "amp_id", "client_name", "sport", "competition", "event_name", "gender", "location",
         "season_code", "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status",
-        "researcher_user_id", "sub_editor_user_id", "updated_at", "last_modified_by",
+        "researcher_user_id", "sub_editor_user_id", "race_status", "updated_at", "last_modified_by",
     )
     filters = {
         field: list(dict.fromkeys(value.strip() for value in request.args.getlist(field) if value.strip()))
@@ -755,6 +762,7 @@ def queue():
         "fis_event_ids": "Client event ID", "publication_deadline": "Publication deadline",
         "researcher_deadline": "Researcher deadline", "status": "Status",
         "researcher_user_id": "Researcher", "sub_editor_user_id": "Sub-editor",
+        "race_status": "Race status",
         "updated_at": "Last modified", "last_modified_by": "Last modified by",
     }
     active_filters = []

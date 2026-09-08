@@ -1,14 +1,65 @@
 {% extends "sports-editorial-workspace/_workspace_base.html" %}
-{% block workspace_title %}Editorial workspace{% endblock %}
+{% block workspace_title %}Dashboard Beta{% endblock %}
 {% block workspace_content %}
-<section class="sew-hero">
-  <div><p class="sew-kicker">Working pilot</p><h1>Sports statistics, from research to publication.</h1><p>Open the stat sheets available to your role and move them through the editorial workflow.</p></div>
-  <div class="sew-actions"><a class="sew-button sew-button--primary" href="{{ url_for('sports_editorial_workspace.queue') }}">Open stat sheets</a>{% if workspace_role in ['sub_editor', 'supervisor'] %}<a class="sew-button" href="{{ url_for('sports_editorial_workspace.submit') }}">Create stat sheet</a>{% endif %}</div>
+<div class="sew-page-heading sew-dashboard-heading">
+  <p class="sew-kicker">Management overview <span class="sew-beta-badge">Beta</span></p>
+  <h1>Stat-sheet dashboard</h1>
+  <p>Live operational information from the current Sports Editorial workspace. Upcoming means the next {{ metrics.upcoming_days }} days.</p>
+</div>
+
+<section class="sew-dashboard-summary" aria-label="Stat-sheet summary">
+  <a href="{{ url_for('sports_editorial_workspace.queue') }}"><strong>{{ metrics.summary.total }}</strong><span>Total active sheets</span></a>
+  <a href="#upcoming"><strong>{{ metrics.summary.upcoming }}</strong><span>Upcoming races</span></a>
+  <a href="#attention"><strong>{{ metrics.summary.pending_upcoming }}</strong><span>Upcoming and pending</span></a>
+  <a href="{{ url_for('sports_editorial_workspace.queue', status='fis_review') }}"><strong>{{ metrics.summary.fis_review }}</strong><span>Awaiting FIS review</span></a>
+  <a href="{{ url_for('sports_editorial_workspace.queue', status='exported') }}"><strong>{{ metrics.summary.completed_this_week }}</strong><span>Published this week</span></a>
+  <a href="#attention"><strong>{{ metrics.summary.unallocated }}</strong><span>Without researcher</span></a>
+  <a href="{{ url_for('sports_editorial_workspace.queue', race_status='cancelled') }}"><strong>{{ metrics.summary.cancelled }}</strong><span>Cancelled races</span></a>
+  <a href="#people"><strong>{{ metrics.summary.users }}</strong><span>Active users</span></a>
 </section>
-<section class="sew-metrics" aria-label="Queue summary">
-  <article><strong>{{ counts.submitted }}</strong><span>Waiting</span></article><article><strong>{{ counts.in_review }}</strong><span>In review</span></article><article><strong>{{ counts.changes_requested }}</strong><span>Changes requested</span></article><article><strong>{{ counts.approved }}</strong><span>Approved</span></article>
+
+<div class="sew-dashboard-grid sew-dashboard-grid--workflow">
+  <section class="sew-card">
+    <div class="sew-section-heading"><div><h2>Workflow</h2><p>Current active library by editorial stage.</p></div></div>
+    <div class="sew-workflow-bars">
+      {% for stage in metrics.workflow %}
+      <a href="{{ url_for('sports_editorial_workspace.queue', status=stage.statuses) }}">
+        <span><strong>{{ stage.label }}</strong><em>{{ stage.count }} · {{ stage.percent }}%</em></span>
+        <i style="--sew-progress:{{ stage.percent }}%"><b class="sew-visually-hidden">{{ stage.percent }} percent</b></i>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="sew-card sew-dashboard-pulse">
+    <div class="sew-section-heading"><div><h2>This week</h2><p>Based on recorded sheet updates.</p></div></div>
+    <dl><div><dt>Published to FIS</dt><dd>{{ metrics.summary.completed_this_week }}</dd></div><div><dt>Races cancelled</dt><dd>{{ metrics.summary.cancelled_this_week }}</dd></div></dl>
+    <p class="sew-dashboard-note">Beta note: dedicated workflow timestamps will make historical trend reporting more precise in a later phase.</p>
+  </section>
+</div>
+
+<section class="sew-card sew-dashboard-table" id="upcoming">
+  <div class="sew-section-heading"><div><h2>Upcoming events</h2><p>Race dates from today through the next {{ metrics.upcoming_days }} days.</p></div><a href="{{ url_for('sports_editorial_workspace.queue') }}">All stat sheets</a></div>
+  <div class="sew-table-card"><table class="sew-table"><thead><tr><th>Date</th><th>Stat sheet</th><th>Event</th><th>Location</th><th>Researcher</th><th>Status</th></tr></thead><tbody>
+  {% for item in metrics.upcoming %}<tr><td>{{ item.event_date }}</td><td><a href="{{ url_for('sports_editorial_workspace.detail', submission_id=item.id) }}"><strong>{{ item.title }}</strong></a><small>{{ item.days_until }} day{{ '' if item.days_until == 1 else 's' }}</small></td><td>{{ item.event_name|default('—', true) }}</td><td>{{ item.location|default('—', true) }}</td><td>{{ item.researcher_name|default('Unassigned', true) }}</td><td><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></td></tr>
+  {% else %}<tr><td colspan="6" class="sew-empty">No races fall within this window.</td></tr>{% endfor %}
+  </tbody></table></div>
 </section>
-<section class="sew-section"><div class="sew-section-heading"><div><p class="sew-kicker">Editorial work</p><h2>Recent stat sheets</h2></div><a href="{{ url_for('sports_editorial_workspace.queue') }}">View all</a></div>
-  <div class="sew-list">{% for item in submissions %}<a class="sew-list-row" href="{{ url_for('sports_editorial_workspace.detail', submission_id=item.id) }}"><div><strong>{{ item.title }}</strong><span>{{ item.sport|replace('_', ' ')|title }} · {{ item.event_name }}</span></div><span class="sew-status sew-status--{{ item.status }}">{{ status_labels[item.status] }}</span></a>{% endfor %}</div>
+
+<div class="sew-dashboard-grid" id="attention">
+  <section class="sew-card sew-dashboard-attention">
+    <div class="sew-section-heading"><div><h2>Attention required</h2><p>Operational exceptions worth checking.</p></div></div>
+    <div class="sew-dashboard-list">{% for item in metrics.attention %}<a href="{{ url_for('sports_editorial_workspace.detail', submission_id=item.id) }}"><span><strong>{{ item.title }}</strong><small>{{ item.location|default('No location', true) }} · {{ item.event_date|default('No race date', true) }}</small></span><em>{{ item.attention_reasons|join(' · ') }}</em></a>{% else %}<p>No current exceptions.</p>{% endfor %}</div>
+  </section>
+  <section class="sew-card" id="people">
+    <div class="sew-section-heading"><div><h2>People and workload</h2><p>Current active-sheet allocation.</p></div></div>
+    <div class="sew-dashboard-rankings"><div><h3>Researchers</h3>{% for item in metrics.breakdowns.researchers %}<p><span>{{ item.label }}</span><strong>{{ item.count }}</strong></p>{% endfor %}</div><div><h3>Sub-editors</h3>{% for item in metrics.breakdowns.sub_editors %}<p><span>{{ item.label }}</span><strong>{{ item.count }}</strong></p>{% endfor %}</div></div>
+  </section>
+</div>
+
+<section class="sew-card">
+  <div class="sew-section-heading"><div><h2>Library breakdown</h2><p>Most common values in the active stat-sheet library.</p></div></div>
+  <div class="sew-dashboard-rankings sew-dashboard-rankings--wide">
+    {% for title, items in [('Events', metrics.breakdowns.events), ('Locations', metrics.breakdowns.locations), ('Seasons', metrics.breakdowns.seasons), ('Users by role', metrics.user_roles)] %}<div><h3>{{ title }}</h3>{% for item in items %}<p><span>{{ item.label|replace('_', ' ')|title }}</span><strong>{{ item.count }}</strong></p>{% endfor %}</div>{% endfor %}
+  </div>
 </section>
 {% endblock %}

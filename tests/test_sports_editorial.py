@@ -2,7 +2,7 @@ import json
 import os
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -23,6 +23,7 @@ from services.sports_editorial.repository import SupabaseSportsEditorialReposito
 from services.sports_editorial.stat_insights import build_editorial_discoveries, build_perspective_insights, build_stat_insights, demo_result_rows, group_editorial_discoveries
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 from services.sports_editorial.creation import canonical_calendar_events, parse_display_date
+from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
 from services.sports_editorial import views as sports_editorial_views
 from services.sports_editorial.formatting import render_entity_links
 
@@ -56,6 +57,48 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(validate_submission({"title": "Pack", "content": [{"content_type": "stat", "content_html": "One fact"}]}, submitting=True), [])
         self.assertEqual(validate_submission({"title": "Pack", "fis_event_ids": [12345], "content": [{"content_type": "stat", "content_html": "One fact"}]}, submitting=True), [])
         self.assertIn("Alpine Skiing", validate_submission({"title": "Pack", "sport": "ski_jumping", "content": [{"content_type": "stat", "content_html": "One fact"}]})[0])
+
+    def test_dashboard_metrics_cover_workflow_upcoming_and_attention(self):
+        sheets = [
+            {"id": "one", "title": "Upcoming", "status": "draft", "is_active": True,
+             "event_date": "2026-09-12", "researcher_deadline": "2026-09-07",
+             "researcher_user_id": None, "fis_event_ids": [], "race_status": "scheduled",
+             "researcher_name": "Unassigned", "sub_editor_name": "Editor", "event_name": "Slalom",
+             "location": "Levi", "season_code": 2027, "updated_at": "2026-09-08T08:00:00+00:00"},
+            {"id": "two", "title": "Published", "status": "exported", "is_active": True,
+             "event_date": "2026-09-10", "researcher_user_id": "researcher", "fis_event_ids": [123],
+             "race_status": "cancelled", "researcher_name": "Researcher", "sub_editor_name": "Editor",
+             "event_name": "Downhill", "location": "Bormio", "season_code": 2027,
+             "updated_at": "2026-09-07T08:00:00+00:00"},
+            {"id": "hidden", "title": "Inactive", "status": "fis_review", "is_active": False},
+        ]
+        metrics = build_dashboard_metrics(
+            sheets, [{"editorial_role": "supervisor", "is_active": True}],
+            today=date(2026, 9, 8),
+        )
+        self.assertEqual(metrics["summary"]["total"], 2)
+        self.assertEqual(metrics["summary"]["upcoming"], 2)
+        self.assertEqual(metrics["summary"]["pending_upcoming"], 1)
+        self.assertEqual(metrics["summary"]["completed_this_week"], 1)
+        self.assertEqual(metrics["summary"]["cancelled"], 1)
+        self.assertIn("No researcher", metrics["attention"][0]["attention_reasons"])
+
+    def test_dashboard_beta_is_supervisor_only_and_stat_insights_is_labelled_beta(self):
+        self.set_role("researcher")
+        redirected = self.client.get("/workspace/sports-editorial/")
+        self.assertEqual(redirected.status_code, 302)
+        self.assertTrue(redirected.headers["Location"].endswith("/workspace/sports-editorial/queue"))
+
+        self.set_role("supervisor")
+        dashboard = self.client.get("/workspace/sports-editorial/")
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertIn(b"Stat-sheet dashboard", dashboard.data)
+        self.assertIn(b"Dashboard <span class=\"sew-beta-badge\">Beta</span>", dashboard.data)
+        self.assertIn(b"Upcoming events", dashboard.data)
+        self.assertIn(b"Attention required", dashboard.data)
+
+        insights = self.client.get("/workspace/sports-editorial/stat-insights")
+        self.assertIn(b"Historical race insights \xe2\x80\x94 Beta", insights.data)
 
     def test_readable_amp_external_id(self):
         self.assertEqual(build_fis_external_id({"gender": "W", "event_name": "Giant Slalom", "location": "Val d’Isère", "event_date": "2026-10-27"}), "amp-alp-w-giant-slalom-val-disere-2026")
@@ -1112,7 +1155,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             self.assertNotIn(b">Stat Insights</a>", response.data)
         self.set_role("supervisor")
         response = self.client.get("/workspace/sports-editorial/queue")
-        self.assertIn(b">Stat Insights</a>", response.data)
+        self.assertIn(b">Stat Insights <span class=\"sew-beta-badge\">Beta</span></a>", response.data)
 
     def test_editable_core_uses_controlled_client_competition_and_event_fields(self):
         self.set_sub_editor()
