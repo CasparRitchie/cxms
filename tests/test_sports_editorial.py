@@ -998,6 +998,24 @@ class SportsEditorialPilotTests(unittest.TestCase):
                 client.publish("amp-alp-w-test-place-2026", {"eventIds": [55596]})
             self.assertEqual(context.exception.status_code, 503)
 
+    def test_live_fis_client_routes_all_api_methods_through_fixie(self):
+        with patch("services.sports_editorial.fis_client.build_opener") as build:
+            response = build.return_value.open.return_value.__enter__.return_value
+            response.read.side_effect = [b'{"data": []}', b'{"status": "published"}', b""]
+            client = LiveFisClient(
+                "https://fis.invalid", "token", safe_event_ids=[55596],
+                live_enabled=True, proxy_url="http://fixie:secret@proxy.invalid:80",
+            )
+
+            self.assertEqual(client._request("GET", "/media/stat-sheets"), {"data": []})
+            self.assertEqual(client._request("PUT", "/media/stat-sheets/test", {"eventIds": [55596]}), {"status": "published"})
+            self.assertEqual(client._request("DELETE", "/media/stat-sheets/test"), {})
+
+            proxy_handler = build.call_args.args[0]
+            self.assertEqual(proxy_handler.proxies["https"], "http://fixie:secret@proxy.invalid:80")
+            methods = [call.args[0].get_method() for call in build.return_value.open.call_args_list]
+            self.assertEqual(methods, ["GET", "PUT", "DELETE"])
+
     def test_journalist_cannot_change_editorial_status(self):
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-submitted", data={"status": "approved"})
         self.assertEqual(response.status_code, 403)

@@ -5,7 +5,7 @@ from hashlib import sha256
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener, urlopen
 
 
 class FisApiError(RuntimeError):
@@ -28,6 +28,7 @@ def fis_configuration():
         "organisation_uuid": os.getenv("FIS_ORGANISATION_UUID", "").strip() or None,
         "safe_event_ids": safe_event_ids,
         "live_enabled": live_enabled,
+        "proxy_configured": bool(os.getenv("FIXIE_URL", "").strip()),
         "live_ready": bool(base_url and token and live_enabled and safe_event_ids),
     }
 
@@ -61,7 +62,7 @@ class MockFisClient:
 class LiveFisClient:
     mode = "live"
 
-    def __init__(self, base_url, token, organisation_uuid=None, safe_event_ids=None, live_enabled=False, timeout=5):
+    def __init__(self, base_url, token, organisation_uuid=None, safe_event_ids=None, live_enabled=False, timeout=5, proxy_url=None):
         if not base_url or not token:
             raise FisApiError("Live FIS mode is not configured. Add the API base URL and token.", 503)
         self.base_url = base_url
@@ -70,12 +71,14 @@ class LiveFisClient:
         self.safe_event_ids = set(safe_event_ids or [])
         self.live_enabled = live_enabled
         self.timeout = timeout
+        self.opener = build_opener(ProxyHandler({"http": proxy_url, "https": proxy_url})) if proxy_url else None
 
     def _request(self, method, path, payload=None):
         data = json.dumps(payload).encode("utf-8") if payload is not None else None
         request = Request(f"{self.base_url}{path}", data=data, method=method, headers={"Authorization": f"Bearer {self.token}", "Accept": "application/json", "Content-Type": "application/json"})
         try:
-            with urlopen(request, timeout=self.timeout) as response:
+            open_request = self.opener.open if self.opener else urlopen
+            with open_request(request, timeout=self.timeout) as response:
                 body = response.read()
                 return json.loads(body) if body else {}
         except HTTPError as exc:
@@ -134,5 +137,9 @@ class LiveFisClient:
 def get_fis_client():
     config = fis_configuration()
     if config["mode"] == "live":
-        return LiveFisClient(config["base_url"], config["token"], config["organisation_uuid"], config["safe_event_ids"], config["live_enabled"])
+        return LiveFisClient(
+            config["base_url"], config["token"], config["organisation_uuid"],
+            config["safe_event_ids"], config["live_enabled"],
+            proxy_url=os.getenv("FIXIE_URL", "").strip() or None,
+        )
     return MockFisClient()
