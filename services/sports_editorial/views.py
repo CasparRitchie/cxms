@@ -3,6 +3,7 @@ import re
 from copy import deepcopy
 from datetime import date
 from io import BytesIO
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from flask import Blueprint, abort, flash, jsonify, make_response, redirect, render_template, request, send_file, session, url_for
 
@@ -38,6 +39,15 @@ def _queue_return_url(value=""):
     """Return only a local Sports Editorial queue URL supplied by the queue."""
     candidate = str(value or "").strip()
     return candidate if QUEUE_PATH_PATTERN.match(candidate) else url_for("sports_editorial_workspace.queue")
+
+
+def _queue_highlight_url(value, submission_id):
+    """Add a one-use visual return marker without changing queue filters."""
+    base = _queue_return_url(value)
+    parts = urlsplit(base)
+    query = [(key, item) for key, item in parse_qsl(parts.query, keep_blank_values=True) if key != "highlight"]
+    query.append(("highlight", submission_id))
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 @blueprint.before_request
@@ -632,7 +642,10 @@ def confirmation(submission_id):
 @blueprint.route("/queue")
 def queue():
     queue_endpoint = request.endpoint
-    queue_return_url = request.full_path.rstrip("?")
+    clean_query_args = request.args.to_dict(flat=False)
+    requested_highlight = str(request.args.get("highlight") or "").strip()
+    clean_query_args.pop("highlight", None)
+    queue_return_url = url_for(queue_endpoint, **clean_query_args)
     filter_fields = (
         "amp_id", "client_name", "sport", "competition", "event_name", "gender", "location",
         "season_code", "event_date", "fis_event_ids", "publication_deadline", "researcher_deadline", "status",
@@ -692,7 +705,7 @@ def queue():
         for value in filters[field]:
             display_value = STATUS_LABELS.get(value, value) if field == "status" else user_names.get(value, value)
             remaining_values = [selected for selected in filters[field] if selected != value]
-            remove_args = request.args.to_dict(flat=False)
+            remove_args = {key: list(values) for key, values in clean_query_args.items()}
             if remaining_values:
                 remove_args[field] = remaining_values
             else:
@@ -708,7 +721,7 @@ def queue():
     sort_urls = {}
     sort_add_urls = {}
     for field in sortable:
-        sort_args = request.args.to_dict(flat=False)
+        sort_args = {key: list(values) for key, values in clean_query_args.items()}
         primary_direction = sort_criteria[0][1] if sort_criteria[0][0] == field else "desc"
         sort_args["sort"] = f"{field}:{'desc' if primary_direction == 'asc' else 'asc'}"
         sort_args.pop("direction", None)
@@ -720,20 +733,23 @@ def queue():
         ]
         if existing is None:
             added.append((field, "asc"))
-        add_args = request.args.to_dict(flat=False)
+        add_args = {key: list(values) for key, values in clean_query_args.items()}
         add_args["sort"] = ",".join(f"{sort_field}:{direction}" for sort_field, direction in added)
         add_args.pop("direction", None)
         sort_add_urls[field] = url_for(queue_endpoint, **add_args)
     reset_args = {"sort": sort_value}
     reset_filters_url = url_for(queue_endpoint, **reset_args)
-    clear_sort_args = request.args.to_dict(flat=False)
+    clear_sort_args = {key: list(values) for key, values in clean_query_args.items()}
     clear_sort_args.pop("sort", None)
     clear_sort_args.pop("direction", None)
     clear_sort_url = url_for(queue_endpoint, **clear_sort_args)
-    view_args = request.args.to_dict(flat=False)
+    view_args = {key: list(values) for key, values in clean_query_args.items()}
     standard_view_url = url_for("sports_editorial_workspace.queue", **view_args)
     enhanced_view_url = url_for("sports_editorial_workspace.modern_queue_preview", **view_args)
     queue_view = "enhanced" if queue_endpoint.endswith("modern_queue_preview") else "standard"
+    known_submission_ids = {item["id"] for item in all_submissions}
+    recent_submission_id = requested_highlight if requested_highlight in known_submission_ids else ""
+    recent_submission_visible = bool(recent_submission_id and any(item["id"] == recent_submission_id for item in submissions))
     role = (current_user() or {}).get("role", "researcher")
     for item in submissions:
         if item["status"] == "draft" or (role == "researcher" and item["status"] == "changes_requested"):
@@ -763,6 +779,9 @@ def queue():
         queue_view=queue_view,
         result_count=len(submissions),
         total_count=len(all_submissions),
+        queue_return_url=queue_return_url,
+        recent_submission_id=recent_submission_id if recent_submission_visible else "",
+        recent_submission_hidden=bool(recent_submission_id and not recent_submission_visible),
     )
 
 
@@ -953,7 +972,7 @@ def detail(submission_id):
             }
             flash(workflow_messages.get(requested_status, "Review changes saved."), "success")
             if request.form.get("save_action") == "close" or requested_status != submission["status"]:
-                return redirect(queue_return_url)
+                return redirect(_queue_highlight_url(queue_return_url, submission_id))
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id, edit=1, return_to=queue_return_url))
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     role = (current_user() or {}).get("role", "researcher")
@@ -973,7 +992,7 @@ def detail(submission_id):
         "competitions": {sport: list(values) for sport, values in choices["competitions"].items()},
         "events": {f"{sport}|||{competition}": list(values) for (sport, competition), values in choices["events"].items()},
     }
-    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=calendar_events, assignment_users=_assignment_users(), creation_options=choices, core_choice_options=core_choice_options, can_review=editable_role and owns_lock and not final_state, can_edit_core=role in ("sub_editor", "supervisor") and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url)
+    return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=calendar_events, assignment_users=_assignment_users(), creation_options=choices, core_choice_options=core_choice_options, can_review=editable_role and owns_lock and not final_state, can_edit_core=role in ("sub_editor", "supervisor") and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url, queue_highlight_url=_queue_highlight_url(queue_return_url, submission_id))
 
 
 @blueprint.route("/submissions/<submission_id>/research", methods=["GET", "POST"])
@@ -1002,7 +1021,7 @@ def research(submission_id):
                 return jsonify({"ok": False, "error": date_error}), 400
             flash(date_error, "error")
             entity_map = _entities_by_id(submission)
-            return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url), 400
+            return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url, queue_highlight_url=_queue_highlight_url(queue_return_url, submission_id)), 400
         mutable_form = request.form.copy()
         mutable_form["event_date"] = parsed_date
         content = [{"content_type": kind, "content_html": sanitise_rich_text(value)} for kind, value in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))]
@@ -1019,16 +1038,16 @@ def research(submission_id):
                 _forget_lock(submission_id)
             flash("Stat sheet submitted for sub edit." if action == "submit" else "Research saved.", "success")
             if request.form.get("save_action") == "close":
-                return redirect(queue_return_url)
+                return redirect(_queue_highlight_url(queue_return_url, submission_id))
             if action == "submit":
-                return redirect(queue_return_url)
+                return redirect(_queue_highlight_url(queue_return_url, submission_id))
             return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id, return_to=queue_return_url))
         if is_autosave:
             return jsonify({"ok": False, "error": errors[0], "errors": errors}), 400
         for error in errors:
             flash(error, "error")
     entity_map = _entities_by_id(submission)
-    return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url)
+    return render_template("sports-editorial-workspace/research.html", submission=submission, entities_by_id=entity_map, render_entity_tags=render_entity_tags, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url, queue_highlight_url=_queue_highlight_url(queue_return_url, submission_id))
 
 
 @blueprint.post("/submissions/<submission_id>/edit-lock/heartbeat")
@@ -1160,7 +1179,7 @@ def edit_published(submission_id):
         "withdrawal_performed": withdrawal_performed,
     })
     flash("The sheet is now In Progress and available from All stat sheets.", "success")
-    return redirect(_queue_return_url(request.form.get("return_to")))
+    return redirect(_queue_highlight_url(request.form.get("return_to"), submission_id))
 
 
 @blueprint.post("/submissions/<submission_id>/entities")

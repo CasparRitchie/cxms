@@ -931,7 +931,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-publish")
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/edit")
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
+        self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue?highlight=demo-submission-approved"))
         self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "draft")
         self.assertEqual(repository.get_fis_publication("demo-submission-approved")["status"], "withdrawn")
         self.assertIsNone(repository.get_edit_lock("demo-submission-approved"))
@@ -981,7 +981,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "status": "in_review", "fis_event_ids": "55596", "save_action": "close",
         })
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
+        self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue?highlight=demo-submission-submitted"))
 
     def test_queue_filters_survive_close_save_close_and_status_changes(self):
         filtered_queue = "/workspace/sports-editorial/queue?status=in_review&location=Flachau&sort=event_date:asc"
@@ -993,7 +993,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "/workspace/sports-editorial/submissions/demo-submission-submitted",
             data={"status": "in_review", "save_action": "close", "return_to": filtered_queue},
         )
-        self.assertEqual(save_close.headers["Location"], filtered_queue)
+        self.assertIn("status=in_review", save_close.headers["Location"])
+        self.assertIn("location=Flachau", save_close.headers["Location"])
+        self.assertIn("sort=event_date%3Aasc", save_close.headers["Location"])
+        self.assertIn("highlight=demo-submission-submitted", save_close.headers["Location"])
 
         repository.release_edit_lock("demo-submission-submitted", force=True)
         returned = self.client.post(
@@ -1001,7 +1004,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
             data={"status": "draft", "return_to": filtered_queue},
         )
         self.assertEqual(returned.status_code, 302, returned.data)
-        self.assertEqual(returned.headers["Location"], filtered_queue)
+        self.assertIn("status=in_review", returned.headers["Location"])
+        self.assertIn("highlight=demo-submission-submitted", returned.headers["Location"])
 
     def test_unsafe_queue_return_url_is_rejected(self):
         self.set_sub_editor()
@@ -1009,7 +1013,26 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "/workspace/sports-editorial/submissions/demo-submission-submitted",
             data={"status": "in_review", "save_action": "close", "return_to": "https://example.test/steal"},
         )
-        self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue"))
+        self.assertTrue(response.headers["Location"].endswith("/workspace/sports-editorial/queue?highlight=demo-submission-submitted"))
+
+    def test_recently_worked_sheet_is_highlighted_without_being_selected(self):
+        self.set_sub_editor()
+        for path in ("/workspace/sports-editorial/queue", "/workspace/sports-editorial/queue/modern-preview"):
+            response = self.client.get(f"{path}?status=in_review&highlight=demo-submission-submitted")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'class="sew-queue-row is-recent"', response.data)
+            self.assertIn(b'data-recently-worked', response.data)
+            self.assertIn(b'aria-selected="false"', response.data)
+            self.assertIn(b'data-clean-queue-url=', response.data)
+
+    def test_recently_worked_sheet_notice_respects_filters(self):
+        self.set_sub_editor()
+        response = self.client.get(
+            "/workspace/sports-editorial/queue?status=approved&highlight=demo-submission-submitted"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"The stat sheet you just worked on is outside the current filtered results.", response.data)
+        self.assertNotIn(b'data-submission-id="demo-submission-submitted" data-recently-worked', response.data)
 
     def test_approved_statistic_places_final_lock_in_card_header(self):
         self.set_sub_editor()
@@ -1205,7 +1228,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
         edit = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/edit")
         self.assertEqual(edit.status_code, 302)
-        self.assertTrue(edit.headers["Location"].endswith("/workspace/sports-editorial/queue"))
+        self.assertTrue(edit.headers["Location"].endswith("/workspace/sports-editorial/queue?highlight=demo-submission-approved"))
         self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "draft")
         self.assertIsNone(repository.get_edit_lock("demo-submission-approved"))
         audit = repository.list_audit_events("demo-submission-approved")[-1]

@@ -6,7 +6,10 @@
     try { preferredView = localStorage.getItem(storageKey) || ''; } catch (error) { preferredView = ''; }
     const currentView = viewSwitcher.dataset.currentView;
     if (currentView === 'standard' && preferredView === 'enhanced') {
-      window.location.replace(viewSwitcher.dataset.enhancedUrl);
+      const target = new URL(viewSwitcher.dataset.enhancedUrl, window.location.origin);
+      const highlight = new URL(window.location.href).searchParams.get('highlight');
+      if (highlight) target.searchParams.set('highlight', highlight);
+      window.location.replace(target.href);
       return;
     }
     viewSwitcher.querySelectorAll('[data-queue-view]').forEach(function (link) {
@@ -54,6 +57,20 @@
     });
   });
 
+  const recentReturn = document.querySelector('[data-recent-return]');
+  const recentRow = document.querySelector('[data-recently-worked]');
+  if (recentReturn) {
+    const cleanUrl = recentReturn.dataset.cleanQueueUrl;
+    if (cleanUrl && window.history && typeof window.history.replaceState === 'function') {
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  }
+  if (recentRow) {
+    window.requestAnimationFrame(function () {
+      recentRow.scrollIntoView({ block: 'center', inline: 'nearest' });
+    });
+  }
+
   const rows = Array.from(document.querySelectorAll('.sew-queue-row[data-submission-id][tabindex]'));
   if (!rows.length) return;
 
@@ -68,6 +85,7 @@
   let additiveDrag = false;
 
   function renderSelection() {
+    if (selected.size && recentRow) recentRow.classList.remove('is-recent');
     rows.forEach(function (row) {
       const isSelected = selected.has(row.dataset.submissionId);
       row.classList.toggle('is-selected', isSelected);
