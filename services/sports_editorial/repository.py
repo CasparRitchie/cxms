@@ -269,7 +269,7 @@ class DemoSportsEditorialRepository:
             item["updated_at"] = _now()
             user = current_user() or {}
             item["last_modified_by"] = user.get("full_name") or user.get("email") or "Workspace user"
-            if requested_status == "approved" and not item["approved_at"]:
+            if requested_status in ("approved", "fis_review") and not item["approved_at"]:
                 item["approved_at"] = item["updated_at"]
             return deepcopy(item)
 
@@ -289,7 +289,7 @@ class DemoSportsEditorialRepository:
         return deepcopy(item)
 
     def administer_submission(self, submission_id, changes):
-        allowed = {"status", "is_active", "race_status", "race_status_source", "fis_specialist_user_id", "fis_specialist_name"}
+        allowed = {"status", "is_active", "race_status", "race_status_source"}
         with self._lock:
             item = next(item for item in self._submissions if item["id"] == submission_id)
             item.update({key: value for key, value in changes.items() if key in allowed})
@@ -469,17 +469,15 @@ class SupabaseSportsEditorialRepository:
             by_submission.setdefault(stat["submission_id"], []).append(stat)
         for row in rows:
             row["stats"] = by_submission.get(row["id"], [])
-        user_ids = list(dict.fromkeys(value for row in rows for value in (row.get("researcher_user_id"), row.get("sub_editor_user_id"), row.get("fis_specialist_user_id")) if value))
+        user_ids = list(dict.fromkeys(value for row in rows for value in (row.get("researcher_user_id"), row.get("sub_editor_user_id")) if value))
         if user_ids:
             users = self.client.request("app_users", query={"select": "id,full_name,email", "id": f"in.({','.join(user_ids)})"})
             users_by_id = {item["id"]: item for item in users}
             for row in rows:
                 researcher = users_by_id.get(row.get("researcher_user_id"), {})
                 sub_editor = users_by_id.get(row.get("sub_editor_user_id"), {})
-                fis_specialist = users_by_id.get(row.get("fis_specialist_user_id"), {})
                 row["researcher_name"] = researcher.get("full_name") or researcher.get("email") or "Unassigned"
                 row["sub_editor_name"] = sub_editor.get("full_name") or sub_editor.get("email") or "Unassigned"
-                row["fis_specialist_name"] = fis_specialist.get("full_name") or fis_specialist.get("email") or "Unassigned"
                 row["last_modified_by"] = row.get("last_modified_by_name") or "—"
         return rows
 
@@ -685,7 +683,7 @@ class SupabaseSportsEditorialRepository:
                 changes[field] = form_data.get(field) or None
         if changes.get("season_code"):
             changes["season_code"] = int(changes["season_code"])
-        if requested_status == "approved" and not item.get("approved_at"):
+        if requested_status in ("approved", "fis_review") and not item.get("approved_at"):
             changes["approved_at"] = changes["updated_at"]
         self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload=changes, prefer="return=minimal")
         return self.get_submission(submission_id)
@@ -708,8 +706,6 @@ class SupabaseSportsEditorialRepository:
             "p_workspace_id": self._workspace(), "p_submission_id": submission_id,
             "p_status": changes.get("status"), "p_is_active": changes.get("is_active"),
             "p_race_status": changes.get("race_status"), "p_race_status_source": changes.get("race_status_source"),
-            "p_set_fis_specialist": "fis_specialist_user_id" in changes,
-            "p_fis_specialist_user_id": changes.get("fis_specialist_user_id"),
             "p_invalidate_lock": invalidate,
         })
         hydrated = self._hydrate(rows)

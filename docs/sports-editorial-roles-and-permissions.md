@@ -8,19 +8,18 @@ This table describes the active application permissions. Permissions are enforce
 | View assigned stat sheets | Yes | Yes | Yes | Yes |
 | Create new stat sheets | No | Yes | No | Yes |
 | Edit core stat-sheet data | No | No | No | Yes |
-| Edit own assigned sheets | Yes | Yes | During assigned FIS review | Yes |
+| Edit own assigned sheets | Yes | Yes | Any sheet awaiting FIS review, subject to its edit lock | Yes |
 | Edit any stat sheet | No | Yes, before FIS review | No | Yes |
 | Submit for sub-edit review | Yes | Yes | Yes | Yes |
 | Return a sheet to In Progress | No | Yes | Yes | Yes |
 | Approve for FIS review | No | Yes | No | Yes |
-| Final publish to FIS | No | No | Assigned sheets | Yes |
+| Final publish to FIS | No | No | Any sheet awaiting FIS review | Yes |
 | Withdraw from FIS review or Published FIS | No | Yes | No | Yes |
 | Allocate researchers | No | No | No | Yes |
 | Allocate sub-editors | No | No | No | Yes |
 | Manage users and permissions | No | No | No | Yes |
 | Inactivate/reactivate stat sheets | No | No | No | Yes |
 | Mark a race cancelled/reinstated | No | No | No | Yes |
-| Assign FIS specialists | No | No | No | Yes |
 | Force-unlock or take over a locked sheet | No | No | No | Yes |
 | Import official FIS results and catalogues | No | No | No | Yes |
 | Access Stat Insights | Read only | Yes | Yes | Yes |
@@ -30,15 +29,16 @@ This table describes the active application permissions. Permissions are enforce
 
 - **Researcher:** prepares content on assigned stat sheets and submits it for sub-edit. Core data is read-only.
 - **Sub-editor:** can open and edit any sheet, return work to In Progress, approve it, and perform emergency FIS publication or withdrawal. Core data and allocation remain Supervisor-only.
-- **FIS specialist:** can edit an explicitly assigned sheet during Awaiting FIS Review and perform its final FIS publication. The role cannot approve, withdraw, administer, allocate, import or override locks.
+- **FIS specialist:** can see every sheet in the workspace-wide Awaiting FIS Review queue. Opening one for editing acquires the same atomic lock used elsewhere, so only one specialist can edit it at a time. The role can perform final FIS publication but cannot approve, withdraw, administer, allocate, import or override locks.
 - **Supervisor:** has complete operational access, including core data, assignment, user administration, imports, and deliberate force-unlock/takeover.
 
 ## Workflow stages
 
-`In Progress` → `In Sub Edit` → `Approved` → `Awaiting FIS Review` → `Published FIS`
+`In Progress` → `In Sub Edit` → `Awaiting FIS Review` → `Published FIS`
 
 - Returning a sheet from `In Sub Edit` moves it back to `In Progress`.
-- AMP can withdraw an Awaiting FIS Review or Published FIS sheet to `In Sub Edit`; the assigned specialist loses editing access and any specialist lock is invalidated.
+- Approval automatically adds the sheet to the shared `Awaiting FIS Review` queue; there is no individual FIS Specialist allocation.
+- AMP can withdraw an Awaiting FIS Review or Published FIS sheet to `In Sub Edit`; specialist access is removed and any specialist lock is invalidated.
 - Editing an Approved sheet can still return it to `In Progress` for a wider correction and fresh research cycle.
 - Withdrawing or publishing uses the configured FIS boundary. The application must remain in mock mode until live FIS access is explicitly authorised and configured.
 

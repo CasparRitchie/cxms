@@ -282,18 +282,8 @@ def administer_stat_sheet(submission_id):
             abort(409, description="Withdraw this sheet through the FIS workflow before changing its internal status.")
         if requested not in ("draft", "in_review", "approved", "fis_review"):
             abort(400, description="Choose an available internal workflow status. Published FIS can only be set by a successful FIS publication.")
-        if requested == "fis_review" and not submission.get("fis_specialist_user_id"):
-            abort(409, description="Assign an FIS specialist before moving this sheet to FIS review.")
         changes["status"] = requested
         audit_action = "status_overridden"
-    elif action == "assign_fis_specialist":
-        specialist_id = request.form.get("fis_specialist_user_id") or None
-        users = {item["id"]: item for item in _assignment_users() if item.get("editorial_role") == "fis_specialist"}
-        if specialist_id and specialist_id not in users:
-            abort(400, description="Choose an active FIS specialist.")
-        changes["fis_specialist_user_id"] = specialist_id
-        changes["fis_specialist_name"] = (users.get(specialist_id) or {}).get("full_name") or "Unassigned"
-        audit_action = "fis_specialist_assigned"
     else:
         abort(400, description="Choose a stat-sheet administration action.")
     repository.administer_submission(submission_id, changes)
@@ -415,12 +405,9 @@ def _require_reviewer():
     return require_reviewer()
 
 
-def _is_assigned_fis_specialist(user, submission):
-    if user.get("role") != "fis_specialist":
-        return False
-    return submission.get("fis_specialist_user_id") == user.get("id") or (
-        auth_configuration()["mode"] == "demo" and submission.get("fis_specialist_user_id") == "demo-fis-specialist"
-    )
+def _is_fis_specialist(user):
+    """FIS review is a shared workspace queue; its edit lock selects one editor."""
+    return user.get("role") == "fis_specialist"
 
 
 def _flash_fis_error(exc):
@@ -824,7 +811,7 @@ def queue():
     for item in submissions:
         if item["status"] == "draft" or (role == "researcher" and item["status"] == "changes_requested"):
             item["queue_url"] = url_for("sports_editorial_workspace.research", submission_id=item["id"], return_to=queue_return_url)
-        elif item["status"] == "fis_review" and (role == "supervisor" or _is_assigned_fis_specialist(current_user() or {}, item)):
+        elif item["status"] == "fis_review" and (role == "supervisor" or _is_fis_specialist(current_user() or {})):
             item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], edit=1, return_to=queue_return_url)
         elif role in ("sub_editor", "supervisor") and item["status"] != "exported":
             item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], edit=1, return_to=queue_return_url)
@@ -926,8 +913,8 @@ def detail(submission_id):
         is_autosave = request.form.get("autosave") == "1"
         user = _require_reviewer()
         if submission["status"] == "fis_review":
-            if user.get("role") != "supervisor" and not _is_assigned_fis_specialist(user, submission):
-                abort(403, description="This sheet is assigned to another FIS specialist.")
+            if user.get("role") != "supervisor" and not _is_fis_specialist(user):
+                abort(403, description="FIS Specialist or Supervisor access is required.")
         elif user.get("role") == "fis_specialist":
             abort(403, description="FIS specialists can edit only sheets awaiting FIS review.")
         if submission["status"] in ("approved", "exported"):
@@ -939,6 +926,10 @@ def detail(submission_id):
         if not can_edit_core and _attempts_core_data_change(request.form, submission):
             abort(403, description="Sub-editor or Supervisor access is required to edit core data.")
         requested_status = submission["status"] if is_autosave else request.form.get("status", submission["status"])
+        # Older open tabs may still submit "approved". Approval now hands the
+        # sheet directly to the shared FIS Specialist queue.
+        if requested_status == "approved":
+            requested_status = "fis_review"
         # Client Event ID is never accepted directly from review request data.
         # Editable roles select a local catalogue record and the server resolves
         # both its canonical location and numeric identifier below.
@@ -1004,9 +995,9 @@ def detail(submission_id):
                     event_ids = [int(selected_event["canonical_id"])]
             else:
                 event_ids = []
-        if valid and requested_status in ("approved", "exported") and not event_ids:
+        if valid and requested_status in ("approved", "fis_review", "exported") and not event_ids:
             valid, message = False, "Select at least one FIS calendar event before approval."
-        elif valid and requested_status in ("approved", "exported"):
+        elif valid and requested_status in ("approved", "fis_review", "exported"):
             review_ids = request.form.getlist("content_id") or [block["id"] for block in submission.get("stats", [])]
             review_types = request.form.getlist("content_type") or [block.get("content_type", "stat") for block in submission.get("stats", [])]
             if any(kind in ("stat", "section", "heading") and request.form.get(f"accepted_{block_id}") != "1" for block_id, kind in zip(review_ids, review_types)):
@@ -1039,12 +1030,17 @@ def detail(submission_id):
             repository.update_review(submission_id, mutable_form, requested_status, preserve_status=is_autosave)
             if is_autosave:
                 return jsonify({"ok": True, "saved_at": renewed_lock["last_active_at"], "lock": _lock_display(renewed_lock)})
-            if requested_status in ("draft", "approved", "exported") or request.form.get("save_action") == "close":
+            if requested_status in ("draft", "approved", "fis_review", "exported") or request.form.get("save_action") == "close":
                 repository.release_edit_lock(submission_id, user["id"], lock_token)
                 _forget_lock(submission_id)
+            if requested_status == "fis_review" and submission.get("status") != "fis_review":
+                repository.record_audit_event(submission_id, user, "sent_to_fis_review", {
+                    "previous_status": submission.get("status"), "shared_pool": True,
+                })
             workflow_messages = {
                 "draft": "Stat sheet returned to In Progress for further research.",
                 "approved": "Stat sheet approved. The FIS JSON is ready to review.",
+                "fis_review": "Stat sheet approved and added to the FIS Specialist queue.",
                 "in_review": "Stat sheet is now in sub edit.",
             }
             flash(workflow_messages.get(requested_status, "Review changes saved."), "success")
@@ -1055,7 +1051,7 @@ def detail(submission_id):
     role = (current_user() or {}).get("role", "researcher")
     editable_role = (
         submission.get("status") == "fis_review"
-        and (role == "supervisor" or _is_assigned_fis_specialist(current_user() or {}, submission))
+        and (role == "supervisor" or _is_fis_specialist(current_user() or {}))
     ) or (submission.get("status") != "fis_review" and role in ("sub_editor", "supervisor"))
     final_state = submission["status"] in ("approved", "exported")
     wants_edit = request.args.get("edit") == "1"
@@ -1199,8 +1195,11 @@ def fis_publish(submission_id):
     submission = _submission_or_404(submission_id)
     if submission["status"] != "fis_review":
         abort(403, description="Send the approved sheet to FIS review before publishing.")
-    if user.get("role") != "supervisor" and not _is_assigned_fis_specialist(user, submission):
-        abort(403, description="Only the assigned FIS specialist or a Supervisor can publish this sheet.")
+    if user.get("role") != "supervisor" and not _is_fis_specialist(user):
+        abort(403, description="Only an FIS Specialist or Supervisor can publish this sheet.")
+    # Publishing is a write operation too. A second specialist must not publish
+    # while somebody else owns the sheet's editing lock.
+    _require_owned_lock(submission_id)
     if any(block.get("content_type") in ("stat", "section", "heading") and not block.get("accepted_at") for block in submission.get("stats", [])):
         abort(409, description="Accept and lock every statistic and sub-heading before publishing to FIS.")
     previous = repository.get_fis_publication(submission_id) or {}
@@ -1229,7 +1228,7 @@ def fis_withdraw(submission_id):
     submission = _submission_or_404(submission_id)
     previous = repository.get_fis_publication(submission_id)
     if submission.get("status") == "fis_review" and (not previous or previous.get("status") != "published"):
-        repository.administer_submission(submission_id, {"status": "in_review", "fis_specialist_user_id": None, "fis_specialist_name": "Unassigned"})
+        repository.administer_submission(submission_id, {"status": "in_review"})
         repository.record_audit_event(submission_id, user, "fis_review_withdrawn", {"previous_status": "fis_review"})
         flash("The FIS handoff was withdrawn and the sheet returned to In Sub Edit.", "success")
         return redirect(_queue_highlight_url(request.form.get("return_to"), submission_id))
@@ -1238,7 +1237,7 @@ def fis_withdraw(submission_id):
     try:
         publication = get_fis_client().withdraw(submission.get("fis_external_id") or f"cxms-{submission_id}", previous=previous)
         repository.save_fis_publication(submission_id, publication)
-        repository.administer_submission(submission_id, {"status": "in_review", "fis_specialist_user_id": None, "fis_specialist_name": "Unassigned"})
+        repository.administer_submission(submission_id, {"status": "in_review"})
         repository.record_audit_event(submission_id, current_user() or {}, "withdrawn", {
             "mode": fis_configuration()["mode"], "previous_status": submission.get("status"),
         })
@@ -1254,13 +1253,11 @@ def send_to_fis_review(submission_id):
     submission = _submission_or_404(submission_id)
     if submission.get("status") != "approved":
         abort(409, description="Only an Approved sheet can be sent to FIS review.")
-    if not submission.get("fis_specialist_user_id"):
-        abort(409, description="A Supervisor must assign an FIS specialist before this sheet can be sent for FIS review.")
     repository.administer_submission(submission_id, {"status": "fis_review"})
     repository.record_audit_event(submission_id, user, "sent_to_fis_review", {
-        "fis_specialist_user_id": submission.get("fis_specialist_user_id"),
+        "previous_status": "approved", "shared_pool": True,
     })
-    flash("Stat sheet sent to the assigned FIS specialist for final review.", "success")
+    flash("Stat sheet added to the shared FIS Specialist queue.", "success")
     return redirect(_queue_highlight_url(request.form.get("return_to"), submission_id))
 
 
@@ -1318,7 +1315,7 @@ def json_preview(submission_id):
 def download_json(submission_id):
     _require_reviewer()
     submission = _submission_or_404(submission_id)
-    if submission["status"] not in ("approved", "exported"):
+    if submission["status"] not in ("approved", "fis_review", "exported"):
         abort(403, description="Only approved submissions can be downloaded.")
     payload = build_pilot_export(submission, _entities_by_id(submission))
     data = json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")

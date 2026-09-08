@@ -6,8 +6,7 @@ alter table public.sports_editorial_submissions
   add column if not exists race_status text not null default 'scheduled',
   add column if not exists race_status_source text not null default 'manual',
   add column if not exists fis_race_status text,
-  add column if not exists fis_race_status_checked_at timestamptz,
-  add column if not exists fis_specialist_user_id uuid references public.app_users(id) on delete set null;
+  add column if not exists fis_race_status_checked_at timestamptz;
 
 alter table public.sports_editorial_submissions
   drop constraint if exists sports_editorial_submissions_race_status_check;
@@ -31,8 +30,6 @@ create or replace function public.sports_editorial_administer_submission(
   p_is_active boolean default null,
   p_race_status text default null,
   p_race_status_source text default null,
-  p_set_fis_specialist boolean default false,
-  p_fis_specialist_user_id uuid default null,
   p_invalidate_lock boolean default false
 )
 returns setof public.sports_editorial_submissions
@@ -47,7 +44,6 @@ begin
          is_active = coalesce(p_is_active, s.is_active),
          race_status = coalesce(p_race_status, s.race_status),
          race_status_source = coalesce(p_race_status_source, s.race_status_source),
-         fis_specialist_user_id = case when p_set_fis_specialist then p_fis_specialist_user_id else s.fis_specialist_user_id end,
          lock_user_id = case when p_invalidate_lock then null else s.lock_user_id end,
          lock_user_name = case when p_invalidate_lock then null else s.lock_user_name end,
          lock_token = case when p_invalidate_lock then null else s.lock_token end,
@@ -60,9 +56,9 @@ begin
 end;
 $$;
 
-revoke all on function public.sports_editorial_administer_submission(uuid,uuid,text,boolean,text,text,boolean,uuid,boolean)
+revoke all on function public.sports_editorial_administer_submission(uuid,uuid,text,boolean,text,text,boolean)
 from public, anon, authenticated;
-grant execute on function public.sports_editorial_administer_submission(uuid,uuid,text,boolean,text,text,boolean,uuid,boolean)
+grant execute on function public.sports_editorial_administer_submission(uuid,uuid,text,boolean,text,text,boolean)
 to service_role;
 
 alter table public.sports_editorial_audit_events

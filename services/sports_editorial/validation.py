@@ -8,8 +8,8 @@ from .formatting import rich_text_to_plain
 
 STATUS_TRANSITIONS = {
     "draft": {"draft", "in_review"},
-    "submitted": {"submitted", "in_review", "changes_requested", "approved"},
-    "in_review": {"in_review", "draft", "approved"},
+    "submitted": {"submitted", "in_review", "changes_requested", "approved", "fis_review"},
+    "in_review": {"in_review", "draft", "approved", "fis_review"},
     "changes_requested": {"changes_requested", "submitted", "in_review"},
     "approved": {"approved", "fis_review", "in_review", "draft"},
     "fis_review": {"fis_review", "in_review", "exported"},
