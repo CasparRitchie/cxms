@@ -67,6 +67,11 @@ def fresh_demo_data():
         submission.setdefault("researcher_deadline", "2026-10-24")
         submission.setdefault("working_notes", "")
         submission.setdefault("unused_stats", "")
+        submission.setdefault("is_active", True)
+        submission.setdefault("race_status", "scheduled")
+        submission.setdefault("race_status_source", "manual")
+        submission.setdefault("fis_specialist_user_id", None)
+        submission.setdefault("fis_specialist_name", "Unassigned")
         submission.setdefault("last_modified_by", submission.get("author_name", ""))
         if submission.get("status") in ("approved", "exported"):
             for block in submission.get("stats", []):

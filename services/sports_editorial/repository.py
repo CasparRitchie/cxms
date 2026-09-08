@@ -74,10 +74,12 @@ class DemoSportsEditorialRepository:
             self._fis_publications = {}
             self._result_imports, self._results, self._audit_events = [], [], []
 
-    def list_submissions(self, status="", sport="", order="newest"):
+    def list_submissions(self, status="", sport="", order="newest", include_inactive=False):
         from .auth import current_user
         user = current_user() or {}
         items = self._submissions
+        if not include_inactive:
+            items = [item for item in items if item.get("is_active", True)]
         if has_request_context() and user.get("role") == "researcher":
             items = [item for item in items if item.get("researcher_user_id") == user.get("id")]
         if status:
@@ -286,6 +288,16 @@ class DemoSportsEditorialRepository:
             item["updated_at"] = _now()
         return deepcopy(item)
 
+    def administer_submission(self, submission_id, changes):
+        allowed = {"status", "is_active", "race_status", "race_status_source", "fis_specialist_user_id", "fis_specialist_name"}
+        with self._lock:
+            item = next(item for item in self._submissions if item["id"] == submission_id)
+            item.update({key: value for key, value in changes.items() if key in allowed})
+            item["updated_at"] = _now()
+            if changes.get("is_active") is False or "status" in changes:
+                self.release_edit_lock(submission_id, force=True)
+            return deepcopy(item)
+
     def record_audit_event(self, submission_id, actor, action, details=None):
         event = {
             "id": str(uuid4()), "submission_id": submission_id,
@@ -457,22 +469,26 @@ class SupabaseSportsEditorialRepository:
             by_submission.setdefault(stat["submission_id"], []).append(stat)
         for row in rows:
             row["stats"] = by_submission.get(row["id"], [])
-        user_ids = list(dict.fromkeys(value for row in rows for value in (row.get("researcher_user_id"), row.get("sub_editor_user_id")) if value))
+        user_ids = list(dict.fromkeys(value for row in rows for value in (row.get("researcher_user_id"), row.get("sub_editor_user_id"), row.get("fis_specialist_user_id")) if value))
         if user_ids:
             users = self.client.request("app_users", query={"select": "id,full_name,email", "id": f"in.({','.join(user_ids)})"})
             users_by_id = {item["id"]: item for item in users}
             for row in rows:
                 researcher = users_by_id.get(row.get("researcher_user_id"), {})
                 sub_editor = users_by_id.get(row.get("sub_editor_user_id"), {})
+                fis_specialist = users_by_id.get(row.get("fis_specialist_user_id"), {})
                 row["researcher_name"] = researcher.get("full_name") or researcher.get("email") or "Unassigned"
                 row["sub_editor_name"] = sub_editor.get("full_name") or sub_editor.get("email") or "Unassigned"
+                row["fis_specialist_name"] = fis_specialist.get("full_name") or fis_specialist.get("email") or "Unassigned"
                 row["last_modified_by"] = row.get("last_modified_by_name") or "—"
         return rows
 
-    def list_submissions(self, status="", sport="", order="newest"):
+    def list_submissions(self, status="", sport="", order="newest", include_inactive=False):
         from .auth import current_user
         user = current_user() or {}
         query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": f"submitted_at.{'desc' if order != 'oldest' else 'asc'}.nullslast"}
+        if not include_inactive:
+            query["is_active"] = "eq.true"
         if user.get("role") == "researcher":
             query["researcher_user_id"] = f"eq.{user.get('id')}"
         if status:
@@ -685,6 +701,19 @@ class SupabaseSportsEditorialRepository:
     def set_submission_status(self, submission_id, status):
         self.client.request("sports_editorial_submissions", "PATCH", query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"}, payload={"status": status, "updated_at": _now()}, prefer="return=minimal")
         return self.get_submission(submission_id)
+
+    def administer_submission(self, submission_id, changes):
+        invalidate = changes.get("is_active") is False or "status" in changes
+        rows = self.client.request("rpc/sports_editorial_administer_submission", "POST", payload={
+            "p_workspace_id": self._workspace(), "p_submission_id": submission_id,
+            "p_status": changes.get("status"), "p_is_active": changes.get("is_active"),
+            "p_race_status": changes.get("race_status"), "p_race_status_source": changes.get("race_status_source"),
+            "p_set_fis_specialist": "fis_specialist_user_id" in changes,
+            "p_fis_specialist_user_id": changes.get("fis_specialist_user_id"),
+            "p_invalidate_lock": invalidate,
+        })
+        hydrated = self._hydrate(rows)
+        return hydrated[0] if hydrated else self.get_submission(submission_id)
 
     def record_audit_event(self, submission_id, actor, action, details=None):
         payload = {

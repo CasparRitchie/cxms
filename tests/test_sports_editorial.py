@@ -76,7 +76,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_status_transition_validation(self):
         self.assertTrue(validate_status_transition("submitted", "approved")[0])
         self.assertFalse(validate_status_transition("draft", "approved")[0])
-        self.assertFalse(validate_status_transition("approved", "in_review")[0])
+        self.assertTrue(validate_status_transition("approved", "in_review")[0])
         self.assertTrue(validate_status_transition("approved", "draft")[0])
         self.assertTrue(validate_status_transition("exported", "draft")[0])
         self.assertFalse(validate_status_transition("submitted", "made_up")[0])
@@ -896,11 +896,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("schema version 2", str(context.exception))
 
     def test_mock_fis_publish_and_withdraw(self):
-        self.set_sub_editor()
+        self.set_role("supervisor")
+        repository.administer_submission("demo-submission-approved", {"fis_specialist_user_id": "demo-fis-specialist", "fis_specialist_name": "FIS Specialist Demo"})
+        self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/send-to-fis-review")
         preview = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved/fis-preview")
         self.assertEqual(preview.status_code, 200)
         self.assertIn(b'&#34;schemaVersion&#34;: 1', preview.data)
 
+        self.set_role("fis_specialist")
         published = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-publish")
         self.assertEqual(published.status_code, 302)
         state = repository.get_fis_publication("demo-submission-approved")
@@ -911,15 +914,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"sew-final-state--exported", published_view.data)
         self.assertNotIn(b'contenteditable="true"', published_view.data)
 
-        self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-publish")
-        unchanged = repository.get_fis_publication("demo-submission-approved")
-        self.assertEqual(unchanged["version"], 1)
-        self.assertTrue(unchanged["unchanged"])
-
+        self.set_sub_editor()
         withdrawn = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-withdraw")
         self.assertEqual(withdrawn.status_code, 302)
         self.assertEqual(repository.get_fis_publication("demo-submission-approved")["status"], "withdrawn")
-        self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "draft")
+        self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "in_review")
 
     def test_unapproved_submission_cannot_publish_to_fis(self):
         self.set_sub_editor()
@@ -927,7 +926,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_editing_published_fis_withdraws_then_returns_to_queue_unlocked(self):
-        self.set_sub_editor()
+        self.set_role("supervisor")
+        repository.administer_submission("demo-submission-approved", {"status": "fis_review", "fis_specialist_user_id": "demo-fis-specialist"})
         self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-publish")
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/edit")
         self.assertEqual(response.status_code, 302)
@@ -1905,6 +1905,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
             migration,
         )
 
+    def test_stat_sheet_administration_migration_invalidates_locks_atomically(self):
+        migration = Path("supabase/sports_editorial_stat_sheet_administration.sql").read_text(encoding="utf-8")
+        self.assertIn("sports_editorial_administer_submission", migration)
+        self.assertIn("lock_token = case when p_invalidate_lock then null", migration)
+        self.assertIn("lock_version = case when p_invalidate_lock then coalesce(s.lock_version, 0) + 1", migration)
+        self.assertIn("'fis_review'", migration)
+        self.assertIn("to service_role", migration)
+
     def test_entity_linking_requires_deliberate_selected_text_action(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")
         page = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
@@ -2056,7 +2064,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIsNone(repository.get_edit_lock("demo-submission-submitted"))
 
     def test_publish_and_force_unlock_are_audited(self):
-        self.set_sub_editor()
+        self.set_role("supervisor")
+        repository.administer_submission("demo-submission-approved", {"status": "fis_review", "fis_specialist_user_id": "demo-fis-specialist"})
         self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-publish")
         self.assertEqual(repository.get_submission("demo-submission-approved")["status"], "exported")
         self.assertEqual(repository.list_audit_events("demo-submission-approved")[-1]["action"], "published")
@@ -2085,6 +2094,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         )
 
     def test_fis_specialist_can_review_and_publish_but_not_create_or_force_unlock(self):
+        repository.administer_submission("demo-submission-submitted", {"status": "fis_review", "fis_specialist_user_id": "demo-fis-specialist", "fis_specialist_name": "FIS Specialist Demo"})
+        repository.administer_submission("demo-submission-approved", {"status": "fis_review", "fis_specialist_user_id": "demo-fis-specialist", "fis_specialist_name": "FIS Specialist Demo"})
         self.set_role("fis_specialist")
         self.assertEqual(self.client.get("/workspace/sports-editorial/submit").status_code, 403)
         review = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
@@ -2097,6 +2108,53 @@ class SportsEditorialPilotTests(unittest.TestCase):
         preview = self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved/fis-preview")
         self.assertEqual(preview.status_code, 200)
         self.assertIn(b"Simulate publication", preview.data)
+
+    def test_only_supervisor_can_administer_inactive_and_cancelled_sheets(self):
+        self.set_sub_editor()
+        forbidden = self.client.post(
+            "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
+            data={"admin_action": "inactivate"},
+        )
+        self.assertEqual(forbidden.status_code, 403)
+        self.set_role("supervisor")
+        cancelled = self.client.post(
+            "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
+            data={"admin_action": "cancel_race"},
+        )
+        self.assertEqual(cancelled.status_code, 302)
+        queue = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(b"is-race-cancelled", queue.data)
+        inactive = self.client.post(
+            "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
+            data={"admin_action": "inactivate"},
+        )
+        self.assertEqual(inactive.status_code, 302)
+        self.assertNotIn(b'data-submission-id="demo-submission-submitted"', self.client.get("/workspace/sports-editorial/queue").data)
+        manage = self.client.get("/workspace/sports-editorial/manage/stat-sheets")
+        self.assertIn(b"Slalom preview notes", manage.data)
+        self.assertIn(b"Inactive", manage.data)
+
+    def test_fis_review_withdrawal_invalidates_specialist_lock_and_returns_to_sub_edit(self):
+        repository.administer_submission("demo-submission-approved", {
+            "status": "fis_review", "fis_specialist_user_id": "demo-fis-specialist",
+            "fis_specialist_name": "FIS Specialist Demo",
+        })
+        self.set_role("fis_specialist")
+        self.client.get("/workspace/sports-editorial/submissions/demo-submission-approved?edit=1")
+        lock = repository.get_edit_lock("demo-submission-approved")
+        self.assertIsNotNone(lock)
+        self.set_sub_editor()
+        withdrawn = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved/fis-withdraw")
+        self.assertEqual(withdrawn.status_code, 302)
+        submission = repository.get_submission("demo-submission-approved")
+        self.assertEqual(submission["status"], "in_review")
+        self.assertIsNone(submission["fis_specialist_user_id"])
+        self.assertIsNone(repository.get_edit_lock("demo-submission-approved"))
+        self.set_role("fis_specialist")
+        stale = self.client.post("/workspace/sports-editorial/submissions/demo-submission-approved", data={
+            "lock_token": lock["token"], "lock_version": lock["version"], "status": "fis_review",
+        })
+        self.assertEqual(stale.status_code, 403)
 
     def test_fis_calendar_parser_deduplicates_event_links(self):
         html = '''

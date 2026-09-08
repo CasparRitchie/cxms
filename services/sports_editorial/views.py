@@ -244,6 +244,68 @@ def update_user(user_id):
     return redirect(url_for("sports_editorial_workspace.users"))
 
 
+@blueprint.route("/manage/stat-sheets")
+def manage_stat_sheets():
+    require_supervisor()
+    query = request.args.get("q", "").strip().casefold()
+    submissions = repository.list_submissions(include_inactive=True)
+    if query:
+        submissions = [item for item in submissions if query in " ".join((
+            str(item.get("amp_id") or ""), str(item.get("title") or ""),
+            str(item.get("location") or ""), " ".join(map(str, item.get("fis_event_ids") or [])),
+        )).casefold()]
+    return render_template("sports-editorial-workspace/manage-stat-sheets.html", submissions=submissions, q=request.args.get("q", ""), assignment_users=_assignment_users())
+
+
+@blueprint.post("/manage/stat-sheets/<submission_id>")
+def administer_stat_sheet(submission_id):
+    supervisor = require_supervisor()
+    submission = _submission_or_404(submission_id)
+    action = request.form.get("admin_action", "")
+    changes = {}
+    audit_action = "stat_sheet_administered"
+    if action == "inactivate":
+        changes["is_active"] = False
+        audit_action = "stat_sheet_inactivated"
+    elif action == "reactivate":
+        changes["is_active"] = True
+        audit_action = "stat_sheet_reactivated"
+    elif action == "cancel_race":
+        changes.update({"race_status": "cancelled", "race_status_source": "manual"})
+        audit_action = "race_cancelled"
+    elif action == "reinstate_race":
+        changes.update({"race_status": "scheduled", "race_status_source": "manual"})
+        audit_action = "race_reinstated"
+    elif action == "change_status":
+        requested = request.form.get("status", "")
+        if submission.get("status") == "exported":
+            abort(409, description="Withdraw this sheet through the FIS workflow before changing its internal status.")
+        if requested not in ("draft", "in_review", "approved", "fis_review"):
+            abort(400, description="Choose an available internal workflow status. Published FIS can only be set by a successful FIS publication.")
+        if requested == "fis_review" and not submission.get("fis_specialist_user_id"):
+            abort(409, description="Assign an FIS specialist before moving this sheet to FIS review.")
+        changes["status"] = requested
+        audit_action = "status_overridden"
+    elif action == "assign_fis_specialist":
+        specialist_id = request.form.get("fis_specialist_user_id") or None
+        users = {item["id"]: item for item in _assignment_users() if item.get("editorial_role") == "fis_specialist"}
+        if specialist_id and specialist_id not in users:
+            abort(400, description="Choose an active FIS specialist.")
+        changes["fis_specialist_user_id"] = specialist_id
+        changes["fis_specialist_name"] = (users.get(specialist_id) or {}).get("full_name") or "Unassigned"
+        audit_action = "fis_specialist_assigned"
+    else:
+        abort(400, description="Choose a stat-sheet administration action.")
+    repository.administer_submission(submission_id, changes)
+    repository.record_audit_event(submission_id, supervisor, audit_action, {
+        "previous_status": submission.get("status"), "previous_active": submission.get("is_active", True),
+        "previous_race_status": submission.get("race_status", "scheduled"), "changes": changes,
+        "reason": request.form.get("reason", "").strip(),
+    })
+    flash("Stat sheet administration updated.", "success")
+    return redirect(url_for("sports_editorial_workspace.manage_stat_sheets", q=request.form.get("q", "")))
+
+
 @blueprint.route("/calendar", methods=["GET", "POST"])
 def calendar():
     if auth_configuration()["mode"] != "workspace":
@@ -351,6 +413,14 @@ def _require_sub_editor():
 
 def _require_reviewer():
     return require_reviewer()
+
+
+def _is_assigned_fis_specialist(user, submission):
+    if user.get("role") != "fis_specialist":
+        return False
+    return submission.get("fis_specialist_user_id") == user.get("id") or (
+        auth_configuration()["mode"] == "demo" and submission.get("fis_specialist_user_id") == "demo-fis-specialist"
+    )
 
 
 def _flash_fis_error(exc):
@@ -754,7 +824,9 @@ def queue():
     for item in submissions:
         if item["status"] == "draft" or (role == "researcher" and item["status"] == "changes_requested"):
             item["queue_url"] = url_for("sports_editorial_workspace.research", submission_id=item["id"], return_to=queue_return_url)
-        elif role in ("sub_editor", "supervisor", "fis_specialist") and item["status"] != "exported":
+        elif item["status"] == "fis_review" and (role == "supervisor" or _is_assigned_fis_specialist(current_user() or {}, item)):
+            item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], edit=1, return_to=queue_return_url)
+        elif role in ("sub_editor", "supervisor") and item["status"] != "exported":
             item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], edit=1, return_to=queue_return_url)
         else:
             item["queue_url"] = url_for("sports_editorial_workspace.detail", submission_id=item["id"], return_to=queue_return_url)
@@ -852,7 +924,12 @@ def detail(submission_id):
     rejected_dates = {}
     if request.method == "POST":
         is_autosave = request.form.get("autosave") == "1"
-        _require_reviewer()
+        user = _require_reviewer()
+        if submission["status"] == "fis_review":
+            if user.get("role") != "supervisor" and not _is_assigned_fis_specialist(user, submission):
+                abort(403, description="This sheet is assigned to another FIS specialist.")
+        elif user.get("role") == "fis_specialist":
+            abort(403, description="FIS specialists can edit only sheets awaiting FIS review.")
         if submission["status"] in ("approved", "exported"):
             abort(409, description="Use Edit to return this sheet to In Progress before making changes.")
         user, lock_token = _require_owned_lock(submission_id)
@@ -976,7 +1053,10 @@ def detail(submission_id):
             return redirect(url_for("sports_editorial_workspace.detail", submission_id=submission_id, edit=1, return_to=queue_return_url))
     grouped_entities = {entity_type: [] for entity_type in VALID_ENTITY_TYPES}
     role = (current_user() or {}).get("role", "researcher")
-    editable_role = role in ("sub_editor", "supervisor", "fis_specialist")
+    editable_role = (
+        submission.get("status") == "fis_review"
+        and (role == "supervisor" or _is_assigned_fis_specialist(current_user() or {}, submission))
+    ) or (submission.get("status") != "fis_review" and role in ("sub_editor", "supervisor"))
     final_state = submission["status"] in ("approved", "exported")
     wants_edit = request.args.get("edit") == "1"
     refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and wants_edit and not final_state else (repository.get_submission(submission_id), None if final_state else repository.get_edit_lock(submission_id))
@@ -1115,10 +1195,12 @@ def publication_preview(submission_id):
 
 @blueprint.post("/submissions/<submission_id>/fis-publish")
 def fis_publish(submission_id):
-    _require_reviewer()
+    user = _require_reviewer()
     submission = _submission_or_404(submission_id)
-    if submission["status"] not in ("approved", "exported"):
-        abort(403, description="Approve the submission in CXMS before publishing to FIS.")
+    if submission["status"] != "fis_review":
+        abort(403, description="Send the approved sheet to FIS review before publishing.")
+    if user.get("role") != "supervisor" and not _is_assigned_fis_specialist(user, submission):
+        abort(403, description="Only the assigned FIS specialist or a Supervisor can publish this sheet.")
     if any(block.get("content_type") in ("stat", "section", "heading") and not block.get("accepted_at") for block in submission.get("stats", [])):
         abort(409, description="Accept and lock every statistic and sub-heading before publishing to FIS.")
     previous = repository.get_fis_publication(submission_id) or {}
@@ -1128,6 +1210,8 @@ def fis_publish(submission_id):
         publication = get_fis_client().publish(submission.get("fis_external_id") or f"cxms-{submission_id}", payload, previous=previous, submission=submission)
         repository.save_fis_publication(submission_id, publication)
         repository.set_submission_status(submission_id, "exported")
+        repository.release_edit_lock(submission_id, force=True)
+        _forget_lock(submission_id)
         repository.record_audit_event(submission_id, current_user() or {}, "published", {
             "mode": config["mode"], "version": publication.get("version"),
         })
@@ -1139,22 +1223,45 @@ def fis_publish(submission_id):
 
 @blueprint.post("/submissions/<submission_id>/fis-withdraw")
 def fis_withdraw(submission_id):
-    _require_reviewer()
+    user = _require_reviewer()
+    if user.get("role") not in ("sub_editor", "supervisor"):
+        abort(403, description="Sub-editor or Supervisor access is required to withdraw a FIS handoff.")
     submission = _submission_or_404(submission_id)
     previous = repository.get_fis_publication(submission_id)
+    if submission.get("status") == "fis_review" and (not previous or previous.get("status") != "published"):
+        repository.administer_submission(submission_id, {"status": "in_review", "fis_specialist_user_id": None, "fis_specialist_name": "Unassigned"})
+        repository.record_audit_event(submission_id, user, "fis_review_withdrawn", {"previous_status": "fis_review"})
+        flash("The FIS handoff was withdrawn and the sheet returned to In Sub Edit.", "success")
+        return redirect(_queue_highlight_url(request.form.get("return_to"), submission_id))
     if not previous or previous.get("status") != "published":
-        abort(409, description="This sheet is not currently published to FIS.")
+        abort(409, description="This sheet is not awaiting FIS review or currently published to FIS.")
     try:
         publication = get_fis_client().withdraw(submission.get("fis_external_id") or f"cxms-{submission_id}", previous=previous)
         repository.save_fis_publication(submission_id, publication)
-        repository.set_submission_status(submission_id, "draft")
+        repository.administer_submission(submission_id, {"status": "in_review", "fis_specialist_user_id": None, "fis_specialist_name": "Unassigned"})
         repository.record_audit_event(submission_id, current_user() or {}, "withdrawn", {
             "mode": fis_configuration()["mode"], "previous_status": submission.get("status"),
         })
         flash("FIS simulation withdrawn." if fis_configuration()["mode"] == "mock" else "FIS sheet withdrawn.", "success")
     except FisApiError as exc:
         _flash_fis_error(exc)
-    return redirect(url_for("sports_editorial_workspace.research", submission_id=submission_id))
+    return redirect(_queue_highlight_url(request.form.get("return_to"), submission_id))
+
+
+@blueprint.post("/submissions/<submission_id>/send-to-fis-review")
+def send_to_fis_review(submission_id):
+    user = require_editor()
+    submission = _submission_or_404(submission_id)
+    if submission.get("status") != "approved":
+        abort(409, description="Only an Approved sheet can be sent to FIS review.")
+    if not submission.get("fis_specialist_user_id"):
+        abort(409, description="A Supervisor must assign an FIS specialist before this sheet can be sent for FIS review.")
+    repository.administer_submission(submission_id, {"status": "fis_review"})
+    repository.record_audit_event(submission_id, user, "sent_to_fis_review", {
+        "fis_specialist_user_id": submission.get("fis_specialist_user_id"),
+    })
+    flash("Stat sheet sent to the assigned FIS specialist for final review.", "success")
+    return redirect(_queue_highlight_url(request.form.get("return_to"), submission_id))
 
 
 @blueprint.post("/submissions/<submission_id>/edit")
