@@ -18,6 +18,20 @@
   let submitting = false;
   let releaseRequested = false;
   let expiryWarning;
+  const scrollKey = form.dataset.scrollKey;
+
+  if (scrollKey) {
+    let savedScroll = null;
+    try {
+      savedScroll = sessionStorage.getItem(scrollKey);
+      sessionStorage.removeItem(scrollKey);
+    } catch (_error) {
+      savedScroll = null;
+    }
+    if (savedScroll !== null && Number.isFinite(Number(savedScroll))) {
+      window.requestAnimationFrame(() => window.scrollTo({ top: Number(savedScroll), left: 0 }));
+    }
+  }
 
   const setSaveStatus = (message, state = "") => {
     if (!saveStatus) return;
@@ -121,7 +135,10 @@
       heartbeat();
     }
   });
-  form.addEventListener("submit", () => {
+  form.addEventListener("submit", (event) => {
+    if (scrollKey && event.submitter?.matches("[data-save-draft]")) {
+      try { sessionStorage.setItem(scrollKey, String(window.scrollY)); } catch (_error) { /* Optional enhancement. */ }
+    }
     submitting = true;
     dirty = false;
   });

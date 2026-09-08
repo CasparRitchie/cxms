@@ -1645,6 +1645,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b"<dt>AMP ID</dt>", response.data)
         self.assertNotIn(b"<dt>Status</dt>", response.data)
 
+    def test_final_stat_sheet_shows_internal_notes_read_only(self):
+        self.set_sub_editor()
+        for submission_id in ("demo-submission-approved",):
+            response = self.client.get(f"/workspace/sports-editorial/submissions/{submission_id}")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b"Working Notes (Unpublished)", response.data)
+            self.assertIn(b"Unused Stats (Unpublished)", response.data)
+            self.assertIn(b'name="working_notes" rows="12" readonly', response.data)
+            self.assertIn(b'name="unused_stats" rows="12" readonly', response.data)
+
     def test_research_core_data_uses_single_clean_race_date_control(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-kronplatz/research")
@@ -1790,6 +1800,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn('event.key.toLowerCase() === "s"', script)
         self.assertIn('form.requestSubmit(saveButton)', script)
         self.assertIn('const saveButton = form.querySelector("[data-save-draft]:not(:disabled)")', script)
+        self.assertIn("sessionStorage.setItem(scrollKey, String(window.scrollY))", script)
+        self.assertIn("sessionStorage.removeItem(scrollKey)", script)
+        self.assertIn("window.scrollTo({ top: Number(savedScroll), left: 0 })", script)
+        self.assertIn('event.submitter?.matches("[data-save-draft]")', script)
 
     def test_review_location_control_keeps_label_and_search_together(self):
         stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
