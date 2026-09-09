@@ -2539,6 +2539,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         ]
         self.assertEqual(sponsor_audit(athletes), {
             "athletes": 3, "countries_known": 2, "countries_missing": 1,
+            "result_eligible": 0, "result_checked": 0, "result_unchecked": 0,
             "eligible": 3, "checked": 2, "sponsored": 1, "unpublished": 1, "unchecked": 1,
         })
 

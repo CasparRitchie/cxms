@@ -38,9 +38,14 @@ def sponsor_audit(athletes):
                 and item.get("canonical_url")]
     checked = [item for item in eligible if (item.get("metadata") or {}).get("sponsor_checked_at")]
     sponsored = [item for item in checked if (item.get("metadata") or {}).get("ski_sponsor")]
+    result_eligible = [item for item in eligible
+                       if (item.get("metadata") or {}).get("source_name") == "fis_official_results"]
+    result_checked = [item for item in result_eligible if (item.get("metadata") or {}).get("sponsor_checked_at")]
     return {"athletes": len(numeric_athletes),
             "countries_known": sum(bool(item.get("country_code")) for item in numeric_athletes),
             "countries_missing": sum(not item.get("country_code") for item in numeric_athletes),
+            "result_eligible": len(result_eligible), "result_checked": len(result_checked),
+            "result_unchecked": len(result_eligible) - len(result_checked),
             "eligible": len(eligible), "checked": len(checked), "sponsored": len(sponsored),
             "unpublished": len(checked) - len(sponsored), "unchecked": len(eligible) - len(checked)}
 
@@ -56,6 +61,8 @@ def main():
           f"{audit['countries_missing']} missing. Sponsor coverage: {audit['checked']}/{audit['eligible']} eligible profiles checked; "
           f"{audit['sponsored']} sponsors published, {audit['unpublished']} unpublished, "
           f"{audit['unchecked']} unchecked.", flush=True)
+    print(f"World Cup result priority: {audit['result_checked']}/{audit['result_eligible']} checked; "
+          f"{audit['result_unchecked']} unchecked.", flush=True)
     if args.audit_only:
         return
 
