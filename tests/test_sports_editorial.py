@@ -25,6 +25,7 @@ from services.sports_editorial.stat_insights import build_editorial_discoveries,
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 from services.sports_editorial.creation import canonical_calendar_events, parse_display_date
 from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
+from services.sports_editorial.result_coverage import build_result_coverage
 from services.sports_editorial import views as sports_editorial_views
 from services.sports_editorial.formatting import render_entity_links
 
@@ -212,9 +213,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
                  "fis_code": "516562", "competitor_id": "203812", "nation": "SUI", "bib": "1", "birth_year": "1999",
                  "time": "2:00.09", "source_url": race["canonical_url"], "source": "fis_official_results", "imported_at": "2026-07-22T10:00:00+00:00"}]
         repository.save_result_import(race, rows)
+        self.assertRegex(repository.list_result_competitions()[0]["source_hash"], r"^[0-9a-f]{64}$")
         response = self.client.get("/workspace/sports-editorial/stat-insights")
         self.assertIn(b"Stored official FIS result data", response.data)
         self.assertIn(b"127367", response.data)
+        self.assertIn(b"FIS data coverage", response.data)
         self.assertNotIn(b"Alice Robinson", response.data)
         scenario = self.client.get("/workspace/sports-editorial/stat-insights?scenario_athlete_ids=516562")
         self.assertIn(b"A win for RAST Camille", scenario.data)
@@ -751,11 +754,38 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn('addEntity(entity, "", false, wording)', script)
         self.assertIn("insertedWording = replacementText || entity.name", script)
 
-    def test_inline_entity_messages_have_contrast_in_both_themes(self):
+    def test_inline_entity_messages_have_contrast_in_light_theme(self):
         stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
         self.assertIn(".sew-entity-suggestions>.sew-entity-loading", stylesheet)
         self.assertIn("background:#182235", stylesheet)
         self.assertIn("background:#eef4ff", stylesheet)
+
+    def test_workspace_uses_one_light_theme_without_a_toggle(self):
+        template = Path("templates/sports-editorial-workspace/_workspace_base.html").read_text(encoding="utf-8")
+        self.assertIn("document.documentElement.dataset.sewTheme='light'", template)
+        self.assertNotIn("sew-theme-toggle", template)
+        self.assertNotIn("sports-editorial-theme.js", template)
+
+    def test_result_coverage_reports_completed_missing_and_partial_catalogue_races(self):
+        competitions = [
+            {"canonical_id": "101", "metadata": {"date": "2025-01-01", "season_code": 2025}},
+            {"canonical_id": "102", "metadata": {"date": "2025-01-02", "season_code": 2025}},
+            {"canonical_id": "103", "metadata": {"date": "2025-01-03", "season_code": 2025}},
+            {"canonical_id": "104", "metadata": {"date": "2099-01-01", "season_code": 2099}},
+        ]
+        imports = [
+            {"race_id": 101, "season_code": 2025, "import_status": "complete", "row_count": 50},
+            {"race_id": 102, "season_code": 2025, "import_status": "partial", "row_count": 20},
+            {"race_id": 999, "season_code": 2025, "import_status": "complete", "row_count": 10},
+        ]
+        audit = build_result_coverage(competitions, imports, as_of=date(2026, 9, 9))
+        self.assertEqual(audit["catalogued"], 3)
+        self.assertEqual(audit["complete"], 1)
+        self.assertEqual(audit["partial"], 1)
+        self.assertEqual(audit["missing"], 1)
+        self.assertEqual(audit["orphaned_imports"], 1)
+        self.assertEqual(audit["coverage_percent"], 33)
+        self.assertFalse(audit["external_catalogue_verified"])
 
     def test_recent_entities_are_compact_separate_and_limited_to_eight(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")

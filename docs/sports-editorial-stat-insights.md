@@ -8,6 +8,23 @@
 
 Supabase uses `sports_editorial_result_imports` for race metadata/provenance and `sports_editorial_results` for athlete classifications. The unique keys are `(workspace_id, race_id)` and `(workspace_id, race_id, fis_code)`. The server service role is the only database role granted access; repository queries also apply workspace scoping.
 
+Each import stores its source URL, source name, timestamps and a deterministic
+SHA-256 `source_hash` of the normalised classification. The Stat Insights page
+also compares completed competition entities with stored classifications. This
+is catalogue coverage, not a claim that every race published by FIS has already
+been discovered.
+
+The checkpointed backfill can report gaps without contacting FIS:
+
+```sh
+python scripts/backfill_fis_results.py --workspace-id WORKSPACE_UUID --season 2026 --skip-discovery --audit-only
+```
+
+Remove `--audit-only` to import only missing completed races. Remove
+`--skip-discovery` when the season's calendar and competition catalogue also
+need refreshing. Requests remain sequential and are spaced by at least 1.5
+seconds.
+
 ## Normalised result row
 
 The engine accepts a dictionary containing, where available:

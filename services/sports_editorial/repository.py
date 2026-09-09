@@ -2,6 +2,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from threading import RLock
 from uuid import uuid4
+import hashlib
+import json
 import os
 import re
 from flask import has_request_context
@@ -948,6 +950,10 @@ def _result_import_record(race, rows, partial=False):
     first = rows[0]
     now = _now()
     metadata = race.get("metadata") or {}
+    source_hash = hashlib.sha256(json.dumps([
+        {key: row.get(key) for key in sorted(row) if key != "imported_at"}
+        for row in rows
+    ], ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     return {
         "race_id": int(first["race_id"]), "event_id": int(metadata["event_id"]) if str(metadata.get("event_id") or "").isdigit() else None,
         "season_code": int(metadata["season_code"]) if str(metadata.get("season_code") or "").isdigit() else None,
@@ -955,7 +961,7 @@ def _result_import_record(race, rows, partial=False):
         "category_code": first.get("competition") or metadata.get("category_code"), "gender": first.get("gender") or metadata.get("gender") or None,
         "venue": first.get("venue"), "nation_code": race.get("country_code") or None, "race_date": first.get("date") or None,
         "source_url": first.get("source_url") or race.get("canonical_url") or "", "source_name": "fis_official_results",
-        "import_status": "partial" if partial else "complete", "row_count": len(rows), "last_error": None,
+        "import_status": "partial" if partial else "complete", "row_count": len(rows), "source_hash": source_hash, "last_error": None,
         "imported_at": first.get("imported_at") or now, "refreshed_at": now,
     }
 

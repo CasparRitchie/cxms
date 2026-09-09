@@ -22,6 +22,7 @@ from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_
 from .stat_insights import build_stat_insights, demo_result_rows
 from .dashboard_metrics import build_dashboard_metrics
 from .fis_results import FisResultError, fetch_alpine_results
+from .result_coverage import build_result_coverage
 from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
     format_display_date, parse_display_date, resolve_calendar_event, validate_choice_combination,
@@ -487,6 +488,9 @@ def dashboard():
 def stat_insights():
     race_ids = list(dict.fromkeys(re.findall(r"\d+", request.args.get("race_ids", ""))))[:10]
     coverage = repository.list_result_competitions()
+    coverage_audit = build_result_coverage(
+        repository.list_entities(entity_type="competition"), coverage
+    )
     rows = repository.list_results(race_ids=race_ids) if coverage else []
     source = "demonstration"
     if rows:
@@ -528,6 +532,7 @@ def stat_insights():
                                                        scenario_athlete_ids=scenario_athlete_ids,
                                                        category=category),
                            venues=venues, disciplines=disciplines, seasons=seasons, nations=nations, coverage=coverage,
+                           coverage_audit=coverage_audit,
                            filters={"venue": venue, "discipline": discipline, "athlete": athlete, "race_ids": ", ".join(race_ids),
                                     "season": season, "gender": gender, "nation": nation,
                                     "category": category, "scenario_athlete_ids": ", ".join(scenario_athlete_ids)},

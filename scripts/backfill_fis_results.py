@@ -16,6 +16,7 @@ from services.sports_editorial.fis_calendar import fetch_alpine_world_cup_events
 from services.sports_editorial.fis_entities import fetch_alpine_competitions
 from services.sports_editorial.fis_results import FisResultError, fetch_alpine_results
 from services.sports_editorial.repository import SupabaseSportsEditorialRepository
+from services.sports_editorial.result_coverage import build_result_coverage
 from services.sports_editorial.supabase_rest import SupabaseRestClient, SupabaseError
 
 
@@ -29,6 +30,7 @@ def parse_args():
     parser.add_argument("--max-races", type=int, default=250, help="Safety ceiling for this run (default 250)")
     parser.add_argument("--request-interval", type=float, default=MIN_REQUEST_INTERVAL, help="Seconds between FIS calls (minimum 1.5)")
     parser.add_argument("--skip-discovery", action="store_true", help="Use the stored competition catalogue without refreshing it")
+    parser.add_argument("--audit-only", action="store_true", help="Report stored coverage without requesting FIS")
     return parser.parse_args()
 
 
@@ -41,7 +43,7 @@ def main():
         raise SystemExit("SUPABASE_URL and the server-side Supabase service key are required.")
     repository = SupabaseSportsEditorialRepository(client, workspace_id=args.workspace_id)
 
-    if not args.skip_discovery:
+    if not args.skip_discovery and not args.audit_only:
         for season in sorted(set(args.season)):
             print(f"Opening Alpine World Cup competition records for FIS season {season}...", flush=True)
             events, _ = fetch_alpine_world_cup_events(season)
@@ -50,11 +52,27 @@ def main():
             repository.upsert_entities(competitions)
             print(f"Stored {len(competitions)} underlying race links; {failures} competition pages failed.", flush=True)
 
-    existing = {str(item["race_id"]) for item in repository.list_result_competitions()}
+    imports = repository.list_result_competitions()
+    competitions = repository.list_entities(entity_type="competition")
+    audit = build_result_coverage(competitions, imports, seasons=args.season)
+    print(
+        "Coverage: "
+        f"{audit['complete']}/{audit['catalogued']} completed catalogued races "
+        f"({audit['coverage_percent']}%); {audit['missing']} missing, "
+        f"{audit['partial']} partial, {audit['failed']} failed; "
+        f"{audit['rows']} stored rows.",
+        flush=True,
+    )
+    if audit["orphaned_imports"]:
+        print(f"Note: {audit['orphaned_imports']} stored imports are outside the selected current catalogue scope.", flush=True)
+    if args.audit_only:
+        return
+
+    existing = {str(item["race_id"]) for item in imports}
     seasons = {str(value) for value in args.season}
     today = date.today().isoformat()
     candidates = []
-    for race in repository.list_entities(entity_type="competition"):
+    for race in competitions:
         metadata = race.get("metadata") or {}
         race_id = str(race.get("canonical_id") or "")
         race_date = str(metadata.get("date") or "")

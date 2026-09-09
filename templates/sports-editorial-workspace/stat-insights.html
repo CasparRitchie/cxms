@@ -25,6 +25,18 @@
 </section>
 {% endif %}
 
+<section class="sew-card sew-coverage-audit">
+  <div class="sew-section-heading"><div><h2>FIS data coverage</h2><p>Completed races found in the local competition catalogue compared with classifications stored in CXMS.</p></div></div>
+  <div class="sew-metrics">
+    <article><strong>{{ coverage_audit.coverage_percent }}%</strong><span>catalogued races complete</span></article>
+    <article><strong>{{ coverage_audit.complete }}/{{ coverage_audit.catalogued }}</strong><span>complete classifications</span></article>
+    <article><strong>{{ coverage_audit.missing }}</strong><span>missing classifications</span></article>
+    <article><strong>{{ coverage_audit.rows }}</strong><span>stored result rows</span></article>
+  </div>
+  <p><strong>Scope warning:</strong> this measures races currently discovered in CXMS; it does not yet prove that every FIS race has been discovered.</p>
+  {% if coverage_audit.partial or coverage_audit.failed %}<p class="sew-coverage-warning">{{ coverage_audit.partial }} partial and {{ coverage_audit.failed }} failed imports need attention.</p>{% endif %}
+</section>
+
 <form class="sew-filters sew-insight-filters" method="get">
   <label>Season<select name="season"><option value="">All seasons</option>{% for season in seasons %}<option value="{{ season }}" {% if filters.season == season %}selected{% endif %}>{{ season }}</option>{% endfor %}</select></label>
   <label>Venue<select name="venue"><option value="">All venues</option>{% for venue in venues %}<option value="{{ venue }}" {% if filters.venue == venue %}selected{% endif %}>{{ venue }}</option>{% endfor %}</select></label>

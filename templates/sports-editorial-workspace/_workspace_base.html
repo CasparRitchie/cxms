@@ -2,7 +2,7 @@
 {% block title %}{% block workspace_title %}Sports Editorial Pilot{% endblock %} | CXMS{% endblock %}
 {% block body_class %} sew-page{% endblock %}
 {% block head_extra %}
-<script>document.documentElement.dataset.sewTheme=localStorage.getItem('cxms-sports-editorial-theme')||'dark';</script>
+<script>document.documentElement.dataset.sewTheme='light';</script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sports-editorial-workspace.css', v='dashboard-beta-1') }}">
 {% endblock %}
 {% block site_header %}{% endblock %}
@@ -43,10 +43,6 @@
         <option value="fis_specialist" {% if workspace_role == 'fis_specialist' %}selected{% endif %}>FIS specialist</option>
       </select>
       </form>{% else %}<form class="sew-role" method="post" action="{{ url_for('sports_editorial_workspace.logout') }}"><span>{{ workspace_user }} · {{ workspace_role|replace('_', ' ')|title }}</span><button class="sew-button sew-button--small" type="submit">Sign out</button></form>{% endif %}
-      <button class="sew-theme-toggle" type="button" aria-label="Switch to light mode" aria-pressed="false">
-        <span class="sew-theme-toggle__icon" aria-hidden="true">☀</span>
-        <span class="sew-theme-toggle__label">Light</span>
-      </button>
     </div>
   </header>
   {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="sew-messages">{% for category, message in messages %}<p class="sew-message sew-message--{{ category }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% endwith %}
@@ -54,6 +50,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/sports-editorial-theme.js') }}"></script>
 {% block workspace_scripts %}{% endblock %}
 {% endblock %}
