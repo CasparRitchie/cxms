@@ -21,6 +21,23 @@ def _display_name(firstname, lastname):
     return " ".join(part for part in (first, last) if part)
 
 
+def display_result_athlete_name(value):
+    """Convert FIS result wording such as 'VONN Lindsey' to 'Lindsey Vonn'."""
+    parts = re.sub(r"\s+", " ", str(value or "").strip()).split(" ")
+    surname_end = 0
+    for part in parts:
+        letters = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ]", "", part)
+        if letters and letters == letters.upper():
+            surname_end += 1
+        else:
+            break
+    if not 0 < surname_end < len(parts):
+        return " ".join(parts)
+    surname = " ".join(parts[:surname_end]).title()
+    given = " ".join(parts[surname_end:]).title()
+    return f"{given} {surname}".strip()
+
+
 def parse_athlete_csv(content, source_url, season_code, list_name=""):
     text = content.decode("utf-8-sig", "replace")
     rows = csv.DictReader(StringIO(text), delimiter="\t")

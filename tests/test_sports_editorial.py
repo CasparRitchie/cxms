@@ -16,7 +16,7 @@ from services.sports_editorial.formatting import rich_text_to_plain, sanitise_ri
 from services.sports_editorial.fis_client import FisApiError, LiveFisClient, get_fis_client
 from services.sports_editorial.fis_export import FisPayloadValidationError, build_fis_payload
 from services.sports_editorial.fis_calendar import parse_calendar_events
-from services.sports_editorial.fis_athletes import parse_athlete_csv
+from services.sports_editorial.fis_athletes import display_result_athlete_name, parse_athlete_csv
 from services.sports_editorial.fis_athlete_profiles import parse_fis_athlete_profile
 from services.sports_editorial.fis_entities import countries_from_athletes, parse_event_competitions
 from services.sports_editorial.fis_results import parse_fis_results
@@ -2507,6 +2507,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         athletes = parse_athlete_csv(content, "https://www.fis-ski.com/example.zip", 2027, "historic")
         self.assertEqual(athletes[0]["canonical_id"], "-10220")
         self.assertEqual(athletes[0]["metadata"]["competitor_id"], "12582")
+
+    def test_fis_result_athlete_name_is_presented_first_name_then_surname(self):
+        self.assertEqual(display_result_athlete_name("VONN Lindsey"), "Lindsey Vonn")
+        self.assertEqual(display_result_athlete_name("GUT-BEHRAMI Lara"), "Lara Gut-Behrami")
+        self.assertEqual(display_result_athlete_name("DE AGOSTINI Doris"), "Doris De Agostini")
+        self.assertEqual(display_result_athlete_name("Lindsey Vonn"), "Lindsey Vonn")
 
     def test_fis_athlete_profile_parser_reads_official_ski_manufacturer(self):
         html = '''<html><body><div>FIS Code 537544</div><dl><dt>Skis</dt><dd>Head</dd><dt>Boots</dt><dd>Head</dd></dl></body></html>'''

@@ -936,11 +936,12 @@ class SupabaseSportsEditorialRepository:
 
 
 def _result_athlete_entities(rows):
+    from .fis_athletes import display_result_athlete_name
     athletes = {}
     for row in rows:
         fis_code = str(row.get("fis_code") or "").strip()
         competitor_id = str(row.get("competitor_id") or "").strip()
-        name = str(row.get("athlete") or row.get("athlete_name") or "").strip()
+        name = display_result_athlete_name(row.get("athlete") or row.get("athlete_name"))
         nation = str(row.get("nation") or row.get("nation_code") or "").strip().upper()
         if not re.fullmatch(r"-?\d+", fis_code) or not name:
             continue

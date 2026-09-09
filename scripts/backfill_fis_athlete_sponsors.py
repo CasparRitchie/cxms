@@ -13,6 +13,7 @@ from services.sports_editorial.fis_athlete_profiles import (  # noqa: E402
     FisAthleteProfileError,
     fetch_fis_athlete_profile,
 )
+from services.sports_editorial.fis_athletes import display_result_athlete_name  # noqa: E402
 from services.sports_editorial.repository import SupabaseSportsEditorialRepository  # noqa: E402
 from services.sports_editorial.supabase_rest import SupabaseError, SupabaseRestClient  # noqa: E402
 
@@ -29,6 +30,8 @@ def parse_args():
     parser.add_argument("--fis-codes", default="", help="Optional comma-separated FIS athlete codes.")
     parser.add_argument("--refresh", action="store_true", help="Recheck athletes previously checked.")
     parser.add_argument("--audit-only", action="store_true", help="Report sponsor coverage without requesting FIS.")
+    parser.add_argument("--normalise-names-only", action="store_true",
+                        help="Correct surname-first FIS result names without requesting FIS.")
     return parser.parse_args()
 
 
@@ -65,6 +68,15 @@ def main():
           f"{audit['result_unchecked']} unchecked.", flush=True)
     if args.audit_only:
         return
+    if args.normalise_names_only:
+        updates = []
+        for athlete in athletes:
+            normalised = display_result_athlete_name(athlete.get("name"))
+            if normalised and normalised != athlete.get("name"):
+                updates.append({**athlete, "name": normalised})
+        repository.upsert_athletes(updates)
+        print(f"Normalised {len(updates)} athlete display names without requesting FIS.", flush=True)
+        return
 
     wanted = {value for value in re.findall(r"-?\d+", args.fis_codes)}
     candidates = []
@@ -92,7 +104,8 @@ def main():
         previous_request_at = monotonic()
         try:
             enrichment = fetch_fis_athlete_profile(athlete["canonical_url"])
-            updated = {**athlete, "metadata": {**(athlete.get("metadata") or {}), **enrichment}}
+            updated = {**athlete, "name": display_result_athlete_name(athlete.get("name")),
+                       "metadata": {**(athlete.get("metadata") or {}), **enrichment}}
             repository.upsert_athletes([updated])
             checked += 1
             if enrichment["ski_sponsor"]:
