@@ -2516,6 +2516,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(profile["sponsor_source"], "fis_official_athlete_profile")
         self.assertTrue(profile["sponsor_checked_at"])
 
+    def test_fis_athlete_profile_parser_targets_profile_field_not_earlier_navigation_text(self):
+        html = '''
+        <nav>Skis Results FIS Code and a great deal of unrelated navigation before Boots</nav>
+        <li class="profile-info__entry" id="Skis">
+          <span class="profile-info__field">Skis</span>
+          <span class="profile-info__value">Head</span>
+        </li>
+        <li class="profile-info__entry" id="Boots"><span>Boots</span></li>'''
+        self.assertEqual(parse_fis_athlete_profile(html)["ski_sponsor"], "Head")
+
     def test_fis_athlete_profile_parser_records_unpublished_manufacturer(self):
         profile = parse_fis_athlete_profile("<div>Skis</div><div>– –</div><div>Boots</div><div>– –</div>")
         self.assertIsNone(profile["ski_sponsor"])

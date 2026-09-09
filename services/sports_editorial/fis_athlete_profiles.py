@@ -2,6 +2,7 @@
 
 import re
 from datetime import datetime, timezone
+from html import unescape
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -33,12 +34,25 @@ class _VisibleTextParser(HTMLParser):
 
 
 def parse_fis_athlete_profile(html, source_url=""):
-    parser = _VisibleTextParser()
-    parser.feed(html)
-    text = " ".join(parser.values)
-    match = re.search(r"\b(Skis|Snowboard)\s+(.+?)\s+Boots\b", text, re.I)
-    equipment_type = match.group(1).casefold() if match else "skis"
-    raw_sponsor = match.group(2).strip(" -–—") if match else ""
+    field_match = re.search(
+        r'<li\b(?=[^>]*\bid=["\'](Skis|Snowboard)["\'])[^>]*>(.*?)</li>',
+        html, re.I | re.S,
+    )
+    raw_sponsor = ""
+    equipment_type = field_match.group(1).casefold() if field_match else "skis"
+    if field_match:
+        value_match = re.search(r"profile-info__value[^>]*>(.*?)</span>", field_match.group(2), re.I | re.S)
+        if value_match:
+            raw_sponsor = re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", value_match.group(1)))).strip()
+    if not field_match:
+        parser = _VisibleTextParser()
+        parser.feed(html)
+        text = " ".join(parser.values)
+        match = re.search(r"\b(Skis|Snowboard)\s+(.+?)\s+Boots\b", text, re.I)
+        if match:
+            equipment_type = match.group(1).casefold()
+            raw_sponsor = match.group(2)
+    raw_sponsor = raw_sponsor.strip(" -–—")
     ski_sponsor = None if not raw_sponsor or raw_sponsor in {"-", "–", "—"} else raw_sponsor
     if ski_sponsor and (len(ski_sponsor) > 80 or re.search(r"\bFIS Code\b", ski_sponsor, re.I)):
         ski_sponsor = None
