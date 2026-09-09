@@ -14,6 +14,15 @@ also compares completed competition entities with stored classifications. This
 is catalogue coverage, not a claim that every race published by FIS has already
 been discovered.
 
+`coverage_scope` records classification depth separately from import success.
+FIS season codes 1967–1978 are labelled `official_top_10`, 1979–1991 are
+`official_top_25`, and 1992 onward are `full_classification`; an explicitly
+partial or failed import is `unknown_partial`. This keeps early historical
+wins, podiums and top-ten analysis useful without implying that field sizes,
+starts, non-finishers or lower finishing positions are complete. Existing
+databases must apply `supabase/sports_editorial_result_coverage_scope.sql`
+before application code that writes this field is deployed.
+
 The checkpointed backfill can report gaps without contacting FIS:
 
 ```sh

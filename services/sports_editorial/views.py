@@ -22,7 +22,7 @@ from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_
 from .stat_insights import build_stat_insights, demo_result_rows
 from .dashboard_metrics import build_dashboard_metrics
 from .fis_results import FisResultError, fetch_alpine_results
-from .result_coverage import build_result_coverage, competition_result_status
+from .result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
 from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
     format_display_date, parse_display_date, resolve_calendar_event, validate_choice_combination,
@@ -529,13 +529,33 @@ def stat_insights():
     nations = sorted({row["nation"] for row in rows if row.get("nation")})
     venue = venue if venue in venues else ""
     discipline = discipline if discipline in disciplines else ""
+    selected_race_ids = set(analysis_race_ids)
+    selected_imports = [item for item in coverage if str(item.get("race_id")) in selected_race_ids]
+    selected_scopes = {
+        item.get("coverage_scope") or result_coverage_scope(
+            item.get("season_code"), partial=item.get("import_status") == "partial"
+        ) for item in selected_imports
+    }
+    coverage_warnings = []
+    if "official_top_10" in selected_scopes:
+        coverage_warnings.append(
+            "For these early seasons, the FIS historical result archive exposes the top 10 only. "
+            "Wins, podiums and top-ten finishes are supported, but field size, starts, finish rates, "
+            "non-finishers and positions below tenth are incomplete."
+        )
+    if "official_top_25" in selected_scopes:
+        coverage_warnings.append(
+            "For these historical seasons, the FIS result archive exposes the top 25 only. "
+            "Field size, starts, finish rates, non-finishers and positions below 25th are incomplete."
+        )
+    if "unknown_partial" in selected_scopes or any(item.get("import_status") == "partial" for item in selected_imports):
+        coverage_warnings.append("One or more selected competition imports have unknown or partial classification depth.")
     coverage_metadata = {
         "coverage_type": "stored_fis_classifications" if source == "fis_official_results" else "demonstration",
         # Imports are individually complete, but the catalogue does not yet prove
         # complete historical coverage for an athlete, venue or competition.
         "is_known_complete": False,
-        "warnings": (["One or more stored competition imports are marked partial."]
-                     if any(item.get("import_status") == "partial" for item in coverage) else []),
+        "warnings": coverage_warnings,
     }
     return render_template("sports-editorial-workspace/stat-insights.html",
                            insights=build_stat_insights(rows, venue, discipline, athlete,

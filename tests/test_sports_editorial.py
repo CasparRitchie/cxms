@@ -25,7 +25,7 @@ from services.sports_editorial.stat_insights import build_editorial_discoveries,
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 from services.sports_editorial.creation import canonical_calendar_events, parse_display_date
 from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
-from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status
+from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
 from services.sports_editorial import views as sports_editorial_views
 from services.sports_editorial.formatting import render_entity_links
 from scripts.backfill_fis_results import expand_seasons
@@ -222,6 +222,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         repository.upsert_entities([race])
         repository.save_result_import(race, rows)
         self.assertRegex(repository.list_result_competitions()[0]["source_hash"], r"^[0-9a-f]{64}$")
+        self.assertEqual(repository.list_result_competitions()[0]["coverage_scope"], "full_classification")
         response = self.client.get("/workspace/sports-editorial/stat-insights")
         self.assertIn(b"Stored official FIS result data", response.data)
         self.assertIn(b"127367", response.data)
@@ -234,6 +235,20 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"A win for RAST Camille", scenario.data)
         self.assertIn(b"A podium for RAST Camille", scenario.data)
         self.assertIn(b"conditional", scenario.data)
+
+    def test_historical_stat_insights_warns_when_fis_exposes_top_ten_only(self):
+        race = {"entity_type": "competition", "name": "Historic SL", "canonical_id": "8237",
+                "canonical_url": "https://www.fis-ski.com/result",
+                "metadata": {"season_code": 1967, "category_code": "WC", "date": "1967-01-05"}}
+        row = {"race_id": "8237", "date": "1967-01-05", "venue": "Berchtesgaden", "discipline": "SL",
+               "gender": "M", "competition": "WC", "place": 1, "status": "finished", "athlete": "Test Winner",
+               "fis_code": "10001", "nation": "AUT", "source_url": race["canonical_url"]}
+        repository.upsert_entities([race])
+        repository.save_result_import(race, [row])
+        response = self.client.get("/workspace/sports-editorial/stat-insights?season=1967")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"FIS historical top 10", response.data)
+        self.assertIn(b"positions below tenth are incomplete", response.data)
 
     def test_stat_insights_queries_only_the_latest_season_by_default(self):
         races = [
@@ -832,6 +847,33 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(audit["orphaned_imports"], 1)
         self.assertEqual(audit["coverage_percent"], 33)
         self.assertFalse(audit["external_catalogue_verified"])
+
+    def test_historical_result_scope_follows_fis_archive_depth_eras(self):
+        self.assertEqual(result_coverage_scope(1967), "official_top_10")
+        self.assertEqual(result_coverage_scope(1978), "official_top_10")
+        self.assertEqual(result_coverage_scope(1979), "official_top_25")
+        self.assertEqual(result_coverage_scope(1991), "official_top_25")
+        self.assertEqual(result_coverage_scope(1992), "full_classification")
+        self.assertEqual(result_coverage_scope(2026), "full_classification")
+        self.assertEqual(result_coverage_scope(1970, partial=True), "unknown_partial")
+
+    def test_result_coverage_reports_historical_classification_depth(self):
+        competitions = [
+            {"canonical_id": "101", "metadata": {"date": "1978-01-01", "season_code": 1978}},
+            {"canonical_id": "102", "metadata": {"date": "1985-01-01", "season_code": 1985}},
+            {"canonical_id": "103", "metadata": {"date": "2025-01-01", "season_code": 2025}},
+        ]
+        imports = [
+            {"race_id": 101, "season_code": 1978, "import_status": "complete", "row_count": 10},
+            {"race_id": 102, "season_code": 1985, "import_status": "complete", "row_count": 25},
+            {"race_id": 103, "season_code": 2025, "import_status": "complete", "row_count": 50},
+        ]
+        audit = build_result_coverage(competitions, imports, as_of=date(2026, 9, 9))
+        self.assertEqual(audit["coverage_scopes"]["official_top_10"], 1)
+        self.assertEqual(audit["coverage_scopes"]["official_top_25"], 1)
+        self.assertEqual(audit["coverage_scopes"]["full_classification"], 1)
+        by_season = {item["season_code"]: item for item in audit["by_season"]}
+        self.assertEqual(by_season["1978"]["coverage_scope_labels"], ["FIS historical top 10"])
 
     def test_result_coverage_excludes_training_and_cancelled_catalogue_entries(self):
         competitions = [

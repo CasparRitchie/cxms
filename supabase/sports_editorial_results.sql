@@ -17,6 +17,8 @@ create table if not exists public.sports_editorial_result_imports (
   source_url text not null,
   source_name text not null default 'fis_official_results',
   import_status text not null default 'complete' check (import_status in ('complete','partial','failed')),
+  coverage_scope text not null default 'full_classification'
+    check (coverage_scope in ('full_classification','official_top_10','official_top_25','unknown_partial')),
   row_count integer not null default 0 check (row_count >= 0),
   source_hash text,
   last_error text,

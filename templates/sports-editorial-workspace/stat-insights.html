@@ -29,19 +29,20 @@
   <div class="sew-section-heading"><div><h2>FIS data coverage</h2><p>Completed races found in the local competition catalogue compared with classifications stored in CXMS.</p></div></div>
   <div class="sew-metrics">
     <article><strong>{{ coverage_audit.coverage_percent }}%</strong><span>catalogued races complete</span></article>
-    <article><strong>{{ coverage_audit.complete }}/{{ coverage_audit.catalogued }}</strong><span>complete classifications</span></article>
+    <article><strong>{{ coverage_audit.complete }}/{{ coverage_audit.catalogued }}</strong><span>races retrieved from FIS</span></article>
     <article><strong>{{ coverage_audit.missing }}</strong><span>missing classifications</span></article>
     <article><strong>{{ coverage_audit.rows }}</strong><span>stored result rows</span></article>
   </div>
   <p><strong>Scope warning:</strong> this measures races currently discovered in CXMS; it does not yet prove that every FIS race has been discovered.</p>
+  <p><strong>Classification depth:</strong> {{ coverage_audit.coverage_scopes.full_classification }} full classifications, {{ coverage_audit.coverage_scopes.official_top_25 }} historical top-25 classifications, {{ coverage_audit.coverage_scopes.official_top_10 }} historical top-10 classifications{% if coverage_audit.coverage_scopes.unknown_partial %}, and {{ coverage_audit.coverage_scopes.unknown_partial }} with unknown or partial depth{% endif %}.</p>
   {% if coverage_audit.excluded_total %}<p>{{ coverage_audit.excluded_total }} entries outside individual-race analysis are excluded from coverage and calculations: {{ coverage_audit.excluded.training }} training, {{ coverage_audit.excluded.team_event }} team events, {{ coverage_audit.excluded.cancelled }} cancelled, {{ coverage_audit.excluded.replaced }} replaced and {{ coverage_audit.excluded.deleted }} deleted.</p>{% endif %}
   {% if coverage_audit.partial or coverage_audit.failed %}<p class="sew-coverage-warning">{{ coverage_audit.partial }} partial and {{ coverage_audit.failed }} failed imports need attention.</p>{% endif %}
   <details class="sew-insight-evidence">
     <summary>Coverage by season</summary>
     <div class="sew-table-card">
       <table class="sew-table">
-        <thead><tr><th>Season</th><th>Coverage</th><th>Complete</th><th>Missing</th><th>Partial</th><th>Failed</th></tr></thead>
-        <tbody>{% for item in coverage_audit.by_season %}<tr><td><strong>{{ item.season_code }}</strong></td><td>{{ item.coverage_percent }}%</td><td>{{ item.complete }}/{{ item.catalogued }}</td><td>{{ item.missing }}</td><td>{{ item.partial }}</td><td>{{ item.failed }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="6">No completed catalogued races are available to audit.</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>Season</th><th>Coverage</th><th>Retrieved</th><th>Source depth</th><th>Missing</th><th>Partial</th><th>Failed</th></tr></thead>
+        <tbody>{% for item in coverage_audit.by_season %}<tr><td><strong>{{ item.season_code }}</strong></td><td>{{ item.coverage_percent }}%</td><td>{{ item.complete }}/{{ item.catalogued }}</td><td>{{ item.coverage_scope_labels|join(', ') or 'Not yet known' }}</td><td>{{ item.missing }}</td><td>{{ item.partial }}</td><td>{{ item.failed }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="7">No completed catalogued races are available to audit.</td></tr>{% endfor %}</tbody>
       </table>
     </div>
   </details>

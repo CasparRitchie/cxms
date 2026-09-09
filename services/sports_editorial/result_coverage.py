@@ -1,7 +1,35 @@
 """Coverage accounting for the local FIS competition and result catalogue."""
 
 import re
+from collections import Counter
 from datetime import date
+
+
+COVERAGE_SCOPE_LABELS = {
+    "full_classification": "Full classification",
+    "official_top_10": "FIS historical top 10",
+    "official_top_25": "FIS historical top 25",
+    "unknown_partial": "Unknown/partial depth",
+}
+
+
+def result_coverage_scope(season_code, *, partial=False):
+    """Describe the depth exposed by the official FIS result archive."""
+    if partial:
+        return "unknown_partial"
+    try:
+        season = int(season_code)
+    except (TypeError, ValueError):
+        return "unknown_partial"
+    if 1967 <= season <= 1978:
+        return "official_top_10"
+    if 1979 <= season <= 1991:
+        return "official_top_25"
+    return "full_classification"
+
+
+def coverage_scope_label(scope):
+    return COVERAGE_SCOPE_LABELS.get(scope, COVERAGE_SCOPE_LABELS["unknown_partial"])
 
 
 def competition_result_status(competition):
@@ -63,16 +91,28 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
     missing_ids = set(expected) - set(imported)
     total = len(expected)
 
+    def scope_for(race_id):
+        item = imported.get(race_id, {})
+        return item.get("coverage_scope") or result_coverage_scope(
+            item.get("season_code") or (expected.get(race_id, {}).get("metadata") or {}).get("season_code"),
+            partial=item.get("import_status") == "partial",
+        )
+
+    scope_counts = Counter(scope_for(race_id) for race_id in complete_ids | partial_ids)
+
     by_season = []
     season_values = sorted({str((item.get("metadata") or {}).get("season_code") or "") for item in expected.values()}, reverse=True)
     for season in season_values:
         ids = {race_id for race_id, item in expected.items() if str((item.get("metadata") or {}).get("season_code") or "") == season}
         complete = len(ids & complete_ids)
+        season_scopes = Counter(scope_for(race_id) for race_id in ids & (complete_ids | partial_ids))
         by_season.append({
             "season_code": season, "catalogued": len(ids), "complete": complete,
             "partial": len(ids & partial_ids), "failed": len(ids & failed_ids),
             "missing": len(ids & missing_ids),
             "coverage_percent": round((complete / len(ids)) * 100) if ids else 0,
+            "coverage_scopes": dict(season_scopes),
+            "coverage_scope_labels": [coverage_scope_label(scope) for scope in COVERAGE_SCOPE_LABELS if season_scopes.get(scope)],
         })
 
     return {
@@ -87,4 +127,5 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
         "orphaned_imports": len(set(imported) - catalogued_ids),
         "eligible_race_ids": sorted(expected, key=int),
         "missing_race_ids": sorted(missing_ids, key=int), "by_season": by_season,
+        "coverage_scopes": {scope: scope_counts.get(scope, 0) for scope in COVERAGE_SCOPE_LABELS},
     }

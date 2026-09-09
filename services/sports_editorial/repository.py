@@ -962,6 +962,7 @@ def _result_athlete_entities(rows):
 
 
 def _result_import_record(race, rows, partial=False):
+    from .result_coverage import result_coverage_scope
     first = rows[0]
     now = _now()
     metadata = race.get("metadata") or {}
@@ -976,7 +977,9 @@ def _result_import_record(race, rows, partial=False):
         "category_code": first.get("competition") or metadata.get("category_code"), "gender": first.get("gender") or metadata.get("gender") or None,
         "venue": first.get("venue"), "nation_code": race.get("country_code") or None, "race_date": first.get("date") or None,
         "source_url": first.get("source_url") or race.get("canonical_url") or "", "source_name": "fis_official_results",
-        "import_status": "partial" if partial else "complete", "row_count": len(rows), "source_hash": source_hash, "last_error": None,
+        "import_status": "partial" if partial else "complete",
+        "coverage_scope": result_coverage_scope(metadata.get("season_code"), partial=partial),
+        "row_count": len(rows), "source_hash": source_hash, "last_error": None,
         "imported_at": first.get("imported_at") or now, "refreshed_at": now,
     }
 
@@ -996,7 +999,7 @@ def _result_failure_record(race, error):
         "venue": race.get("event_name") or race.get("name") or None,
         "nation_code": race.get("country_code") or None, "race_date": metadata.get("date") or None,
         "source_url": race.get("canonical_url") or "https://www.fis-ski.com/DB/general/results.html",
-        "source_name": "fis_official_results", "import_status": "failed", "row_count": 0,
+        "source_name": "fis_official_results", "import_status": "failed", "coverage_scope": "unknown_partial", "row_count": 0,
         "source_hash": None, "last_error": str(error)[:1000], "imported_at": now, "refreshed_at": now,
     }
 
@@ -1022,6 +1025,7 @@ def _hydrate_result_row(row, imported):
         "discipline": imported.get("event_code") or "AL", "gender": imported.get("gender") or "",
         "host_nation": imported.get("nation_code") or "",
         "season_code": imported.get("season_code"),
+        "coverage_scope": imported.get("coverage_scope") or "unknown_partial",
         "competition": imported.get("category_code") or "FIS", "place": row.get("place"), "status": row.get("result_status"),
         "athlete": row.get("athlete_name"), "fis_code": str(row.get("fis_code") or ""),
         "competitor_id": str(row.get("competitor_id") or ""), "nation": row.get("nation_code"),
