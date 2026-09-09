@@ -83,11 +83,15 @@ def parse_event_competitions(html, event):
     competitions = []
     ignored = {"FIS", "C", "P", "D", "No changes", "Not cancelled"}
     for race_id, race in parser.races.items():
-        labels = list(dict.fromkeys(label for label in race["labels"] if label not in ignored))
+        source_labels = list(dict.fromkeys(race["labels"]))
+        labels = [label for label in source_labels if label not in ignored]
         codex = next((label for label in labels if re.fullmatch(r"\d{4}", label)), "")
         gender = next((label for label in labels if label in ("M", "W")), "")
         discipline = next((label for label in labels if re.search(r"[A-Za-z]", label) and label not in (gender,) and not label.startswith("Replaces ") and not re.match(r"^\d{1,2} [A-Z][a-z]{2}$", label)), "Race")
         date = next(iter(race["dates"]), "")
+        label_text = " ".join(source_labels).casefold()
+        competition_kind = "training" if re.search(r"\btraining\b", label_text) else "race"
+        race_status = "cancelled" if re.search(r"\b(cancelled|canceled)\b", label_text) else "scheduled"
         name = " · ".join(part for part in (discipline, gender, event.get("name", ""), date, f"codex {codex}" if codex else "") if part)
         competitions.append({
             "entity_type": "competition", "name": name, "canonical_id": race_id,
@@ -95,7 +99,10 @@ def parse_event_competitions(html, event):
             "metadata": {"source": "fis_public_event_page", "discipline_code": "AL", "event_id": event.get("canonical_id"),
                          "season_code": (event.get("metadata") or {}).get("season_code"),
                          "category_code": (event.get("metadata") or {}).get("category_code"),
-                         "codex": codex, "gender": gender, "date": date or None, "imported_at": imported_at},
+                         "codex": codex, "gender": gender, "date": date or None,
+                         "competition_kind": competition_kind, "race_status": race_status,
+                         "is_result_expected": competition_kind == "race" and race_status != "cancelled",
+                         "source_labels": source_labels, "imported_at": imported_at},
         })
     return competitions
 

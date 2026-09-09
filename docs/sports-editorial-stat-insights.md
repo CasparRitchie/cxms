@@ -25,6 +25,9 @@ Remove `--audit-only` to import only missing completed races. Remove
 need refreshing. Requests remain sequential and are spaced by at least 1.5
 seconds.
 
+Use `--discover-only` to refresh calendar metadata, including training and
+cancelled/replaced classification, without importing any result pages.
+
 ## Normalised result row
 
 The engine accepts a dictionary containing, where available:

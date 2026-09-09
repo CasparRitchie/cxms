@@ -16,7 +16,7 @@ from services.sports_editorial.fis_calendar import fetch_alpine_world_cup_events
 from services.sports_editorial.fis_entities import fetch_alpine_competitions
 from services.sports_editorial.fis_results import FisResultError, fetch_alpine_results
 from services.sports_editorial.repository import SupabaseSportsEditorialRepository
-from services.sports_editorial.result_coverage import build_result_coverage
+from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status
 from services.sports_editorial.supabase_rest import SupabaseRestClient, SupabaseError
 
 
@@ -31,11 +31,14 @@ def parse_args():
     parser.add_argument("--request-interval", type=float, default=MIN_REQUEST_INTERVAL, help="Seconds between FIS calls (minimum 1.5)")
     parser.add_argument("--skip-discovery", action="store_true", help="Use the stored competition catalogue without refreshing it")
     parser.add_argument("--audit-only", action="store_true", help="Report stored coverage without requesting FIS")
+    parser.add_argument("--discover-only", action="store_true", help="Refresh calendar and competition metadata without importing results")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    if args.discover_only and args.skip_discovery:
+        raise SystemExit("--discover-only cannot be combined with --skip-discovery.")
     interval = max(args.request_interval, MIN_REQUEST_INTERVAL)
     max_races = min(max(args.max_races, 1), 1000)
     client = SupabaseRestClient(timeout=30)
@@ -67,6 +70,8 @@ def main():
         print(f"Note: {audit['orphaned_imports']} stored imports are outside the selected current catalogue scope.", flush=True)
     if args.audit_only:
         return
+    if args.discover_only:
+        return
 
     existing = {
         str(item["race_id"]) for item in imports
@@ -79,7 +84,8 @@ def main():
         metadata = race.get("metadata") or {}
         race_id = str(race.get("canonical_id") or "")
         race_date = str(metadata.get("date") or "")
-        if (race_id.isdigit() and race_id not in existing and str(metadata.get("season_code") or "") in seasons
+        if (race_id.isdigit() and race_id not in existing and competition_result_status(race) == "result"
+                and str(metadata.get("season_code") or "") in seasons
                 and race.get("canonical_url") and race_date and race_date <= today):
             candidates.append(race)
     candidates.sort(key=lambda item: ((item.get("metadata") or {}).get("date") or "", item["canonical_id"]))

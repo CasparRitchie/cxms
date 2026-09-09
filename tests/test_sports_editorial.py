@@ -25,7 +25,7 @@ from services.sports_editorial.stat_insights import build_editorial_discoveries,
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 from services.sports_editorial.creation import canonical_calendar_events, parse_display_date
 from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
-from services.sports_editorial.result_coverage import build_result_coverage
+from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status
 from services.sports_editorial import views as sports_editorial_views
 from services.sports_editorial.formatting import render_entity_links
 
@@ -822,6 +822,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(audit["orphaned_imports"], 1)
         self.assertEqual(audit["coverage_percent"], 33)
         self.assertFalse(audit["external_catalogue_verified"])
+
+    def test_result_coverage_excludes_training_and_cancelled_catalogue_entries(self):
+        competitions = [
+            {"canonical_id": "201", "name": "Downhill Training M", "metadata": {"date": "2026-01-01", "season_code": 2026}},
+            {"canonical_id": "202", "name": "Slalom W", "metadata": {"date": "2026-01-02", "season_code": 2026, "race_status": "cancelled"}},
+            {"canonical_id": "203", "name": "Giant Slalom M", "metadata": {"date": "2026-01-03", "season_code": 2026}},
+        ]
+        audit = build_result_coverage(competitions, [], as_of=date(2026, 9, 9))
+        self.assertEqual(audit["catalogued"], 1)
+        self.assertEqual(audit["missing"], 1)
+        self.assertEqual(audit["excluded_total"], 2)
+        self.assertEqual(audit["excluded"]["training"], 1)
+        self.assertEqual(audit["excluded"]["cancelled"], 1)
 
     def test_recent_entities_are_compact_separate_and_limited_to_eight(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
@@ -2458,6 +2471,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
         items = parse_event_competitions(html, {"canonical_id": "62716", "name": "Cerro Castor", "metadata": {"season_code": 2027, "category_code": "WC"}})
         self.assertEqual(items[0]["metadata"]["season_code"], 2027)
         self.assertEqual(items[0]["metadata"]["category_code"], "WC")
+
+    def test_competition_parser_marks_training_and_cancelled_entries_as_non_results(self):
+        html = '''
+        <a href="https://www.fis-ski.com/DB/general/results.html?raceid=127355"><div data-date="2025-12-03">03 Dec</div><div>Downhill Training</div><div>M</div></a>
+        <a href="https://www.fis-ski.com/DB/general/results.html?raceid=127356"><div data-date="2025-12-04">04 Dec</div><div>Downhill</div><div>W</div><div>Cancelled</div></a>'''
+        items = parse_event_competitions(html, {"canonical_id": "60000", "name": "Test", "metadata": {"season_code": 2026}})
+        by_id = {item["canonical_id"]: item for item in items}
+        self.assertEqual(competition_result_status(by_id["127355"]), "training")
+        self.assertEqual(competition_result_status(by_id["127356"]), "cancelled")
+        self.assertFalse(by_id["127355"]["metadata"]["is_result_expected"])
 
     def test_historical_fis_result_layout_reads_six_column_athlete_name(self):
         html = '''

@@ -34,6 +34,7 @@
     <article><strong>{{ coverage_audit.rows }}</strong><span>stored result rows</span></article>
   </div>
   <p><strong>Scope warning:</strong> this measures races currently discovered in CXMS; it does not yet prove that every FIS race has been discovered.</p>
+  {% if coverage_audit.excluded_total %}<p>{{ coverage_audit.excluded_total }} non-result catalogue entries are excluded: {{ coverage_audit.excluded.training }} training, {{ coverage_audit.excluded.cancelled }} cancelled, {{ coverage_audit.excluded.replaced }} replaced and {{ coverage_audit.excluded.deleted }} deleted.</p>{% endif %}
   {% if coverage_audit.partial or coverage_audit.failed %}<p class="sew-coverage-warning">{{ coverage_audit.partial }} partial and {{ coverage_audit.failed }} failed imports need attention.</p>{% endif %}
   <details class="sew-insight-evidence">
     <summary>Coverage by season</summary>

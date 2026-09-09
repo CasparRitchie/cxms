@@ -4,6 +4,24 @@ import re
 from datetime import date
 
 
+def competition_result_status(competition):
+    """Return why a catalogue entry should or should not have classifications."""
+    metadata = competition.get("metadata") or {}
+    explicit = str(metadata.get("competition_kind") or "").casefold()
+    status = str(metadata.get("race_status") or "").casefold()
+    searchable = " ".join(str(value or "") for value in (
+        competition.get("name"), metadata.get("event_code"), metadata.get("discipline"),
+        " ".join(metadata.get("source_labels") or []),
+    )).casefold()
+    if explicit == "training" or re.search(r"\btraining\b", searchable):
+        return "training"
+    if status in {"cancelled", "deleted", "replaced"} or re.search(r"\b(cancelled|canceled|deleted|replaced by)\b", searchable):
+        return status if status in {"cancelled", "deleted", "replaced"} else "cancelled"
+    if metadata.get("is_result_expected") is False:
+        return "non_result"
+    return "result"
+
+
 def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
     """Compare stored classifications with completed, catalogued competitions.
 
@@ -14,6 +32,7 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
     cutoff = (as_of or date.today()).isoformat()
     wanted_seasons = {str(value) for value in (seasons or []) if str(value)}
     expected = {}
+    excluded = {"training": 0, "cancelled": 0, "deleted": 0, "replaced": 0, "non_result": 0}
     for competition in competitions:
         race_id = str(competition.get("canonical_id") or "")
         metadata = competition.get("metadata") or {}
@@ -21,6 +40,10 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
         season = str(metadata.get("season_code") or "")
         if (not race_id.isdigit() or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", race_date)
                 or race_date > cutoff or (wanted_seasons and season not in wanted_seasons)):
+            continue
+        result_status = competition_result_status(competition)
+        if result_status != "result":
+            excluded[result_status] = excluded.get(result_status, 0) + 1
             continue
         expected[race_id] = competition
 
@@ -53,6 +76,7 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
         "coverage_percent": round((len(complete_ids) / total) * 100) if total else 0,
         "catalogue_coverage_complete": bool(total and not missing_ids and not partial_ids and not failed_ids),
         "external_catalogue_verified": False,
+        "excluded": excluded, "excluded_total": sum(excluded.values()),
         "orphaned_imports": len(set(imported) - set(expected)),
         "missing_race_ids": sorted(missing_ids, key=int), "by_season": by_season,
     }

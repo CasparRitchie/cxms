@@ -22,7 +22,7 @@ from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_
 from .stat_insights import build_stat_insights, demo_result_rows
 from .dashboard_metrics import build_dashboard_metrics
 from .fis_results import FisResultError, fetch_alpine_results
-from .result_coverage import build_result_coverage
+from .result_coverage import build_result_coverage, competition_result_status
 from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
     format_display_date, parse_display_date, resolve_calendar_event, validate_choice_combination,
@@ -556,7 +556,7 @@ def import_stat_results():
     for race in repository.list_entities(entity_type="competition"):
         race_id = str(race.get("canonical_id") or "")
         metadata = race.get("metadata") or {}
-        if (not race_id.isdigit() or not race.get("canonical_url")
+        if (not race_id.isdigit() or not race.get("canonical_url") or competition_result_status(race) != "result"
                 or imported.get(race_id, {}).get("import_status") == "complete"):
             continue
         if requested_ids and race_id not in requested_ids:
