@@ -103,6 +103,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_readable_amp_external_id(self):
         self.assertEqual(build_fis_external_id({"gender": "W", "event_name": "Giant Slalom", "location": "Val d’Isère", "event_date": "2026-10-27"}), "amp-alp-w-giant-slalom-val-disere-2026")
+        self.assertEqual(build_fis_external_id({"gender": "W", "event_name": "Giant Slalom", "location": "Soelden", "event_date": "2026-10-24", "season_code": "2027"}), "amp-alp-w-giant-slalom-soelden-2027")
 
     def test_rich_text_sanitisation(self):
         self.assertEqual(sanitise_rich_text('<strong>Safe</strong><script>alert(1)</script><a href="bad"> link</a>'), "<strong>Safe</strong>alert(1) link")

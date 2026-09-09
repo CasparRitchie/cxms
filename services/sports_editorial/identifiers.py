@@ -13,6 +13,7 @@ def build_fis_external_id(data):
     gender = str(data.get("gender") or "u").lower()
     event = _slug(data.get("event_name"), "event")
     location = _slug(data.get("location"), "location")
+    season = str(data.get("season_code") or "").strip()
     date = str(data.get("event_date") or "")
-    year = date[:4] if len(date) >= 4 and date[:4].isdigit() else "undated"
+    year = season if re.fullmatch(r"\d{4}", season) and 2000 <= int(season) <= 2100 else date[:4] if len(date) >= 4 and date[:4].isdigit() else "undated"
     return f"amp-alp-{gender}-{event}-{location}-{year}"[:255]
