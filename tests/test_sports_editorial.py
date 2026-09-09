@@ -537,6 +537,27 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(supabase_repository.search_entities("Switzerland", entity_type="country")[0]["id"], "country-sui")
         self.assertTrue(all("country_code.ilike." in query["or"] for query in client.queries))
 
+    def test_supabase_entity_catalogue_reads_past_default_thousand_row_cap(self):
+        class PagedClient:
+            def __init__(self):
+                self.queries = []
+
+            def request(self, table, query=None):
+                self.queries.append(query)
+                offset = int(query.get("offset", "0"))
+                if offset == 0:
+                    return [{"id": f"event-{index}"} for index in range(1000)]
+                return [{"id": "event-1000", "canonical_id": "62771", "name": "Soelden WC 2xGS"}]
+
+        client = PagedClient()
+        supabase_repository = SupabaseSportsEditorialRepository(client=client, workspace_id="workspace")
+        entities = supabase_repository.list_entities(entity_type="event")
+
+        self.assertEqual(len(entities), 1001)
+        self.assertEqual(entities[-1]["canonical_id"], "62771")
+        self.assertEqual([query["offset"] for query in client.queries], ["0", "1000"])
+        self.assertTrue(all(query["limit"] == "1000" for query in client.queries))
+
     def test_country_mention_text_saves_code_or_full_name(self):
         for mention in ("SUI", "Switzerland"):
             with self.subTest(mention=mention):

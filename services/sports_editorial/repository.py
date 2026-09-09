@@ -749,12 +749,27 @@ class SupabaseSportsEditorialRepository:
         return len(ids)
 
     def list_entities(self, entity_type="", limit=None):
-        query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "entity_type.asc,name.asc"}
+        query = {"select": "*", "workspace_id": f"eq.{self._workspace()}", "order": "entity_type.asc,name.asc,id.asc"}
         if entity_type:
             query["entity_type"] = f"eq.{entity_type}"
         if limit:
             query["limit"] = str(limit)
-        return self.client.request("sports_editorial_entities", query=query)
+            return self.client.request("sports_editorial_entities", query=query)
+
+        # Supabase/PostgREST installations commonly cap a response at 1,000
+        # rows even when no limit is requested. Calendar selectors need the
+        # complete catalogue, so page until the server returns a short batch.
+        page_size = 1000
+        rows = []
+        offset = 0
+        while True:
+            page = self.client.request("sports_editorial_entities", query={
+                **query, "limit": str(page_size), "offset": str(offset),
+            })
+            rows.extend(page)
+            if len(page) < page_size:
+                return rows
+            offset += page_size
 
     def get_entities_by_ids(self, entity_ids):
         ids = list(dict.fromkeys(entity_ids))
