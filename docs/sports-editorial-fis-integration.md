@@ -24,8 +24,11 @@
 5. Conflict/version semantics and recovery procedure after partial failures.
 6. Canonical definitions for Client Event ID, FIS Event ID, competition ID and
    event entity references.
-7. Approved athlete sponsor/manufacturer source. The official points-list
-   import supplies athlete and NOC identity but not ski sponsor.
+7. Athlete sponsor/manufacturer provenance. The official points-list import
+   supplies athlete and NOC identity but not ski sponsor. A controlled,
+   checkpointed enrichment reads the `Skis` value from official athlete
+   biography pages and records its source and checked timestamp. FIS states on
+   those pages that manufacturers are responsible for equipment updates.
 8. Permitted storage, refresh, attribution and retention of reference data.
 
 ## Recommended architecture

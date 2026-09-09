@@ -17,6 +17,7 @@ from services.sports_editorial.fis_client import FisApiError, LiveFisClient, get
 from services.sports_editorial.fis_export import FisPayloadValidationError, build_fis_payload
 from services.sports_editorial.fis_calendar import parse_calendar_events
 from services.sports_editorial.fis_athletes import parse_athlete_csv
+from services.sports_editorial.fis_athlete_profiles import parse_fis_athlete_profile
 from services.sports_editorial.fis_entities import countries_from_athletes, parse_event_competitions
 from services.sports_editorial.fis_results import parse_fis_results
 from services.sports_editorial.identifiers import build_fis_external_id
@@ -29,6 +30,7 @@ from services.sports_editorial.result_coverage import build_result_coverage, com
 from services.sports_editorial import views as sports_editorial_views
 from services.sports_editorial.formatting import render_entity_links
 from scripts.backfill_fis_results import expand_seasons
+from scripts.backfill_fis_athlete_sponsors import sponsor_audit
 
 
 class SportsEditorialPilotTests(unittest.TestCase):
@@ -2505,6 +2507,30 @@ class SportsEditorialPilotTests(unittest.TestCase):
         athletes = parse_athlete_csv(content, "https://www.fis-ski.com/example.zip", 2027, "historic")
         self.assertEqual(athletes[0]["canonical_id"], "-10220")
         self.assertEqual(athletes[0]["metadata"]["competitor_id"], "12582")
+
+    def test_fis_athlete_profile_parser_reads_official_ski_manufacturer(self):
+        html = '''<html><body><div>FIS Code 537544</div><dl><dt>Skis</dt><dd>Head</dd><dt>Boots</dt><dd>Head</dd></dl></body></html>'''
+        profile = parse_fis_athlete_profile(html, "https://www.fis-ski.com/DB/general/athlete-biography.html?competitorid=30368&sectorcode=AL")
+        self.assertEqual(profile["ski_sponsor"], "Head")
+        self.assertEqual(profile["equipment_type"], "skis")
+        self.assertEqual(profile["sponsor_source"], "fis_official_athlete_profile")
+        self.assertTrue(profile["sponsor_checked_at"])
+
+    def test_fis_athlete_profile_parser_records_unpublished_manufacturer(self):
+        profile = parse_fis_athlete_profile("<div>Skis</div><div>– –</div><div>Boots</div><div>– –</div>")
+        self.assertIsNone(profile["ski_sponsor"])
+
+    def test_sponsor_backfill_audit_distinguishes_checked_and_published(self):
+        athletes = [
+            {"canonical_id": "101", "country_code": "USA", "canonical_url": "https://www.fis-ski.com/profile/1", "metadata": {"competitor_id": "1", "sponsor_checked_at": "now", "ski_sponsor": "Head"}},
+            {"canonical_id": "102", "country_code": "SUI", "canonical_url": "https://www.fis-ski.com/profile/2", "metadata": {"competitor_id": "2", "sponsor_checked_at": "now", "ski_sponsor": None}},
+            {"canonical_id": "103", "country_code": None, "canonical_url": "https://www.fis-ski.com/profile/3", "metadata": {"competitor_id": "3"}},
+            {"canonical_url": "", "metadata": {}},
+        ]
+        self.assertEqual(sponsor_audit(athletes), {
+            "athletes": 3, "countries_known": 2, "countries_missing": 1,
+            "eligible": 3, "checked": 2, "sponsored": 1, "unpublished": 1, "unchecked": 1,
+        })
 
     def test_result_import_promotes_historic_athlete_to_local_autocomplete_catalogue(self):
         row = {
