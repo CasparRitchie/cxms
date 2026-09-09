@@ -218,6 +218,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Stored official FIS result data", response.data)
         self.assertIn(b"127367", response.data)
         self.assertIn(b"FIS data coverage", response.data)
+        self.assertIn(b"Coverage by season", response.data)
         self.assertNotIn(b"Alice Robinson", response.data)
         scenario = self.client.get("/workspace/sports-editorial/stat-insights?scenario_athlete_ids=516562")
         self.assertIn(b"A win for RAST Camille", scenario.data)

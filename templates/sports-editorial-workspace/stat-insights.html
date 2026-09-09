@@ -35,6 +35,15 @@
   </div>
   <p><strong>Scope warning:</strong> this measures races currently discovered in CXMS; it does not yet prove that every FIS race has been discovered.</p>
   {% if coverage_audit.partial or coverage_audit.failed %}<p class="sew-coverage-warning">{{ coverage_audit.partial }} partial and {{ coverage_audit.failed }} failed imports need attention.</p>{% endif %}
+  <details class="sew-insight-evidence">
+    <summary>Coverage by season</summary>
+    <div class="sew-table-card">
+      <table class="sew-table">
+        <thead><tr><th>Season</th><th>Coverage</th><th>Complete</th><th>Missing</th><th>Partial</th><th>Failed</th></tr></thead>
+        <tbody>{% for item in coverage_audit.by_season %}<tr><td><strong>{{ item.season_code }}</strong></td><td>{{ item.coverage_percent }}%</td><td>{{ item.complete }}/{{ item.catalogued }}</td><td>{{ item.missing }}</td><td>{{ item.partial }}</td><td>{{ item.failed }}</td></tr>{% else %}<tr><td class="sew-empty" colspan="6">No completed catalogued races are available to audit.</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </details>
 </section>
 
 <form class="sew-filters sew-insight-filters" method="get">
