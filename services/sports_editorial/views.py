@@ -491,13 +491,18 @@ def stat_insights():
     seasons = sorted({str(item["season_code"]) for item in coverage if item.get("season_code")}, reverse=True)
     requested_season = request.args.get("season", "").strip()
     season = requested_season if requested_season in seasons else (seasons[0] if seasons else "")
-    analysis_race_ids = race_ids or [
-        str(item["race_id"]) for item in coverage
-        if str(item.get("season_code") or "") == season
-        and item.get("import_status") != "failed"
-    ]
     coverage_audit = build_result_coverage(
         repository.list_entities(entity_type="competition"), coverage
+    )
+    eligible_race_ids = set(coverage_audit["eligible_race_ids"])
+    analysis_race_ids = (
+        [race_id for race_id in race_ids if race_id in eligible_race_ids]
+        if race_ids else [
+            str(item["race_id"]) for item in coverage
+            if str(item.get("season_code") or "") == season
+            and str(item.get("race_id")) in eligible_race_ids
+            and item.get("import_status") == "complete"
+        ]
     )
     rows = repository.list_results(race_ids=analysis_race_ids) if analysis_race_ids else []
     source = "demonstration"

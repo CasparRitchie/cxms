@@ -66,8 +66,10 @@ def main():
         f"{audit['rows']} stored rows.",
         flush=True,
     )
+    if audit["excluded_imports"]:
+        print(f"Note: {audit['excluded_imports']} stored imports belong to excluded non-result catalogue entries.", flush=True)
     if audit["orphaned_imports"]:
-        print(f"Note: {audit['orphaned_imports']} stored imports are outside the selected current catalogue scope.", flush=True)
+        print(f"Note: {audit['orphaned_imports']} stored imports no longer match a selected catalogue entry.", flush=True)
     if args.audit_only:
         return
     if args.discover_only:

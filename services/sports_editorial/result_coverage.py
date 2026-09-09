@@ -32,6 +32,8 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
     cutoff = (as_of or date.today()).isoformat()
     wanted_seasons = {str(value) for value in (seasons or []) if str(value)}
     expected = {}
+    catalogued_ids = set()
+    excluded_ids = set()
     excluded = {"training": 0, "cancelled": 0, "deleted": 0, "replaced": 0, "non_result": 0}
     for competition in competitions:
         race_id = str(competition.get("canonical_id") or "")
@@ -41,9 +43,11 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
         if (not race_id.isdigit() or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", race_date)
                 or race_date > cutoff or (wanted_seasons and season not in wanted_seasons)):
             continue
+        catalogued_ids.add(race_id)
         result_status = competition_result_status(competition)
         if result_status != "result":
             excluded[result_status] = excluded.get(result_status, 0) + 1
+            excluded_ids.add(race_id)
             continue
         expected[race_id] = competition
 
@@ -72,11 +76,13 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
     return {
         "catalogued": total, "complete": len(complete_ids), "partial": len(partial_ids),
         "failed": len(failed_ids), "missing": len(missing_ids),
-        "rows": sum(int(item.get("row_count") or 0) for item in imported.values()),
+        "rows": sum(int(imported[race_id].get("row_count") or 0) for race_id in expected if race_id in imported),
         "coverage_percent": round((len(complete_ids) / total) * 100) if total else 0,
         "catalogue_coverage_complete": bool(total and not missing_ids and not partial_ids and not failed_ids),
         "external_catalogue_verified": False,
         "excluded": excluded, "excluded_total": sum(excluded.values()),
-        "orphaned_imports": len(set(imported) - set(expected)),
+        "excluded_imports": len(set(imported) & excluded_ids),
+        "orphaned_imports": len(set(imported) - catalogued_ids),
+        "eligible_race_ids": sorted(expected, key=int),
         "missing_race_ids": sorted(missing_ids, key=int), "by_season": by_season,
     }

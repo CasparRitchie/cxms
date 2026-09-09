@@ -206,12 +206,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Scenario athlete FIS codes", response.data)
 
     def test_stored_official_results_replace_demo_default_and_show_coverage(self):
-        race = {"canonical_id": "127367", "canonical_url": "https://www.fis-ski.com/result",
-                "metadata": {"season_code": 2026, "event_id": "55595", "category_code": "WC"}}
+        race = {"entity_type": "competition", "name": "GS W test", "canonical_id": "127367",
+                "canonical_url": "https://www.fis-ski.com/result",
+                "metadata": {"season_code": 2026, "event_id": "55595", "category_code": "WC", "date": "2026-01-03"}}
         rows = [{"race_id": "127367", "date": "2026-01-03", "venue": "Kranjska Gora", "discipline": "GS",
                  "gender": "W", "competition": "WC", "place": 1, "status": "finished", "athlete": "RAST Camille",
                  "fis_code": "516562", "competitor_id": "203812", "nation": "SUI", "bib": "1", "birth_year": "1999",
                  "time": "2:00.09", "source_url": race["canonical_url"], "source": "fis_official_results", "imported_at": "2026-07-22T10:00:00+00:00"}]
+        repository.upsert_entities([race])
         repository.save_result_import(race, rows)
         self.assertRegex(repository.list_result_competitions()[0]["source_hash"], r"^[0-9a-f]{64}$")
         response = self.client.get("/workspace/sports-editorial/stat-insights")
@@ -233,6 +235,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
             ({"canonical_id": "127368", "canonical_url": "https://www.fis-ski.com/2026", "metadata": {"season_code": 2026}}, "2026-01-03"),
         ]
         for race, race_date in races:
+            repository.upsert_entities([{**race, "entity_type": "competition", "name": "Test race",
+                                         "metadata": {**race["metadata"], "date": race_date}}])
             repository.save_result_import(race, [{
                 "race_id": race["canonical_id"], "date": race_date, "venue": "Test", "discipline": "GS",
                 "gender": "W", "competition": "WC", "place": 1, "status": "finished", "athlete": "Test Athlete",
@@ -829,12 +833,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
             {"canonical_id": "202", "name": "Slalom W", "metadata": {"date": "2026-01-02", "season_code": 2026, "race_status": "cancelled"}},
             {"canonical_id": "203", "name": "Giant Slalom M", "metadata": {"date": "2026-01-03", "season_code": 2026}},
         ]
-        audit = build_result_coverage(competitions, [], as_of=date(2026, 9, 9))
+        imports = [{"race_id": 201, "season_code": 2026, "import_status": "complete", "row_count": 20}]
+        audit = build_result_coverage(competitions, imports, as_of=date(2026, 9, 9))
         self.assertEqual(audit["catalogued"], 1)
         self.assertEqual(audit["missing"], 1)
         self.assertEqual(audit["excluded_total"], 2)
         self.assertEqual(audit["excluded"]["training"], 1)
         self.assertEqual(audit["excluded"]["cancelled"], 1)
+        self.assertEqual(audit["excluded_imports"], 1)
+        self.assertEqual(audit["orphaned_imports"], 0)
+        self.assertEqual(audit["rows"], 0)
 
     def test_recent_entities_are_compact_separate_and_limited_to_eight(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
