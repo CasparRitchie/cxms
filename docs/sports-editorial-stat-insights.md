@@ -25,6 +25,10 @@ Remove `--audit-only` to import only missing completed races. Remove
 need refreshing. Requests remain sequential and are spaced by at least 1.5
 seconds.
 
+For a continuous archive, `--season-range 1967-2009` replaces dozens of
+repeated `--season` arguments. The importer remains checkpointed per race and
+caps a single invocation at 2,500 races.
+
 Use `--discover-only` to refresh calendar metadata, including training and
 cancelled/replaced classification, without importing any result pages.
 

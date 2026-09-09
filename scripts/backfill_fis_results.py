@@ -21,18 +21,42 @@ from services.sports_editorial.supabase_rest import SupabaseRestClient, Supabase
 
 
 MIN_REQUEST_INTERVAL = 1.5
+MAX_RACES_PER_RUN = 2500
+
+
+def expand_seasons(seasons=None, season_ranges=None):
+    values = set(seasons or [])
+    for value in season_ranges or []:
+        parts = str(value).split("-", 1)
+        if len(parts) != 2 or not all(part.isdigit() for part in parts):
+            raise ValueError("Season ranges must use START-END, for example 1967-2009.")
+        start, end = (int(part) for part in parts)
+        if start > end or start < 1967 or end > 2100:
+            raise ValueError("Season ranges must run forwards between 1967 and 2100.")
+        values.update(range(start, end + 1))
+    if not values:
+        raise ValueError("Choose at least one --season or --season-range.")
+    if min(values) < 1967 or max(values) > 2100:
+        raise ValueError("FIS Alpine World Cup seasons must be between 1967 and 2100.")
+    return sorted(values)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Import completed FIS Alpine World Cup results once, then resume deltas.")
     parser.add_argument("--workspace-id", required=True, help="Sports Editorial workspace UUID")
-    parser.add_argument("--season", type=int, action="append", required=True, help="FIS season code; repeat for more seasons")
-    parser.add_argument("--max-races", type=int, default=250, help="Safety ceiling for this run (default 250)")
+    parser.add_argument("--season", type=int, action="append", help="FIS season code; repeat for more seasons")
+    parser.add_argument("--season-range", action="append", help="Inclusive season range, for example 1967-2009")
+    parser.add_argument("--max-races", type=int, default=250, help=f"Safety ceiling for this run (default 250, maximum {MAX_RACES_PER_RUN})")
     parser.add_argument("--request-interval", type=float, default=MIN_REQUEST_INTERVAL, help="Seconds between FIS calls (minimum 1.5)")
     parser.add_argument("--skip-discovery", action="store_true", help="Use the stored competition catalogue without refreshing it")
     parser.add_argument("--audit-only", action="store_true", help="Report stored coverage without requesting FIS")
     parser.add_argument("--discover-only", action="store_true", help="Refresh calendar and competition metadata without importing results")
-    return parser.parse_args()
+    args = parser.parse_args()
+    try:
+        args.season = expand_seasons(args.season, args.season_range)
+    except ValueError as exc:
+        parser.error(str(exc))
+    return args
 
 
 def main():
@@ -40,7 +64,7 @@ def main():
     if args.discover_only and args.skip_discovery:
         raise SystemExit("--discover-only cannot be combined with --skip-discovery.")
     interval = max(args.request_interval, MIN_REQUEST_INTERVAL)
-    max_races = min(max(args.max_races, 1), 1000)
+    max_races = min(max(args.max_races, 1), MAX_RACES_PER_RUN)
     client = SupabaseRestClient(timeout=30)
     if not client.configured:
         raise SystemExit("SUPABASE_URL and the server-side Supabase service key are required.")

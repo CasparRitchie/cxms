@@ -28,6 +28,7 @@ from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
 from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status
 from services.sports_editorial import views as sports_editorial_views
 from services.sports_editorial.formatting import render_entity_links
+from scripts.backfill_fis_results import expand_seasons
 
 
 class SportsEditorialPilotTests(unittest.TestCase):
@@ -52,6 +53,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         }
         data.update(overrides)
         return data
+
+    def test_backfill_season_ranges_expand_and_validate(self):
+        self.assertEqual(expand_seasons([2026], ["2024-2025"]), [2024, 2025, 2026])
+        with self.assertRaisesRegex(ValueError, "run forwards"):
+            expand_seasons([], ["2025-2024"])
 
     def test_submission_validation(self):
         errors = validate_submission({"title": "", "content": [{"content_type": "stat", "content_html": ""}]}, submitting=True)
