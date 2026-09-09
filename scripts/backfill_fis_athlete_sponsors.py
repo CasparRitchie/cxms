@@ -68,7 +68,10 @@ def main():
             continue
         if str(metadata.get("competitor_id") or "").isdigit() and athlete.get("canonical_url"):
             candidates.append(athlete)
-    candidates.sort(key=lambda item: (item.get("name") or "").casefold())
+    candidates.sort(key=lambda item: (
+        (item.get("metadata") or {}).get("source_name") != "fis_official_results",
+        (item.get("name") or "").casefold(),
+    ))
     candidates = candidates[:limit]
     print(f"{len(candidates)} athlete profiles are eligible for this incremental run.", flush=True)
 
