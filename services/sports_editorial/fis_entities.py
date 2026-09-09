@@ -87,6 +87,9 @@ def parse_event_competitions(html, event):
         labels = [label for label in source_labels if label not in ignored]
         codex = next((label for label in labels if re.fullmatch(r"\d{4}", label)), "")
         gender = next((label for label in labels if label in ("M", "W")), "")
+        source_category = next((label for label in labels if label in {
+            "WC", "EC", "WSC", "OWG", "JUN", "FIS", "NC", "NAC", "SAC", "ANC", "CC",
+        }), "")
         discipline = next((label for label in labels if re.search(r"[A-Za-z]", label) and label not in (gender, "A")
                            and not label.startswith("Replaces ")
                            and not re.match(r"^\d{1,2} [A-Z][a-z]{2}(?: \d{4})?$", label)
@@ -106,7 +109,7 @@ def parse_event_competitions(html, event):
             "canonical_url": race["href"], "country_code": event.get("country_code", ""),
             "metadata": {"source": "fis_public_event_page", "discipline_code": "AL", "event_id": event.get("canonical_id"),
                          "season_code": (event.get("metadata") or {}).get("season_code"),
-                         "category_code": (event.get("metadata") or {}).get("category_code"),
+                         "category_code": source_category or (event.get("metadata") or {}).get("category_code"),
                          "codex": codex, "gender": gender, "date": date or None,
                          "competition_kind": competition_kind, "race_status": race_status,
                          "is_result_expected": competition_kind == "race" and race_status != "cancelled",

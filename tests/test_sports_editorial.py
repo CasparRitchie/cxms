@@ -845,7 +845,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(audit["partial"], 1)
         self.assertEqual(audit["missing"], 1)
         self.assertEqual(audit["orphaned_imports"], 1)
-        self.assertEqual(audit["coverage_percent"], 33)
+        self.assertEqual(audit["coverage_percent"], 33.3)
         self.assertFalse(audit["external_catalogue_verified"])
 
     def test_historical_result_scope_follows_fis_archive_depth_eras(self):
@@ -856,6 +856,18 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(result_coverage_scope(1992), "full_classification")
         self.assertEqual(result_coverage_scope(2026), "full_classification")
         self.assertEqual(result_coverage_scope(1970, partial=True), "unknown_partial")
+
+    def test_coverage_does_not_round_an_incomplete_catalogue_to_one_hundred_percent(self):
+        competitions = [
+            {"canonical_id": str(index), "metadata": {"date": "2025-01-01", "season_code": 2025}}
+            for index in range(1, 1001)
+        ]
+        imports = [
+            {"race_id": index, "season_code": 2025, "import_status": "complete", "row_count": 1}
+            for index in range(1, 1000)
+        ]
+        audit = build_result_coverage(competitions, imports, as_of=date(2026, 9, 9))
+        self.assertEqual(audit["coverage_percent"], 99.9)
 
     def test_result_coverage_reports_historical_classification_depth(self):
         competitions = [
@@ -2527,6 +2539,25 @@ class SportsEditorialPilotTests(unittest.TestCase):
         items = parse_event_competitions(html, {"canonical_id": "62716", "name": "Cerro Castor", "metadata": {"season_code": 2027, "category_code": "WC"}})
         self.assertEqual(items[0]["metadata"]["season_code"], 2027)
         self.assertEqual(items[0]["metadata"]["category_code"], "WC")
+
+    def test_competition_parser_does_not_inherit_world_cup_over_europa_cup_label(self):
+        html = '''<a href="https://www.fis-ski.com/DB/general/results.html?raceid=23400"><div data-date="2004-03-10">10 Mar</div><div>Parallel</div><div>EC</div><div>W</div></a>'''
+        item = parse_event_competitions(html, {"canonical_id": "11486", "name": "Sierra Nevada",
+                                               "metadata": {"season_code": 2004, "category_code": "WC"}})[0]
+        self.assertEqual(item["metadata"]["category_code"], "EC")
+        self.assertEqual(competition_result_status(item), "non_result")
+
+    def test_existing_cross_category_race_is_excluded_from_world_cup_coverage(self):
+        item = {"canonical_id": "23401", "name": "Parallel M", "metadata": {
+            "date": "2004-03-10", "season_code": 2004, "category_code": "WC",
+            "source_labels": ["10 Mar 2004", "0258", "Parallel", "EC", "M"],
+        }}
+        self.assertEqual(competition_result_status(item), "non_result")
+        audit = build_result_coverage([item], [{"race_id": 23401, "season_code": 2004,
+                                               "import_status": "failed", "row_count": 0}],
+                                      as_of=date(2026, 9, 9))
+        self.assertEqual(audit["catalogued"], 0)
+        self.assertEqual(audit["excluded"]["non_result"], 1)
 
     def test_competition_parser_marks_training_and_cancelled_entries_as_non_results(self):
         html = '''

@@ -32,6 +32,13 @@ def coverage_scope_label(scope):
     return COVERAGE_SCOPE_LABELS.get(scope, COVERAGE_SCOPE_LABELS["unknown_partial"])
 
 
+def coverage_percent(complete, total):
+    if not total:
+        return 0
+    percentage = round((complete / total) * 100, 1)
+    return 99.9 if complete < total and percentage == 100 else percentage
+
+
 def competition_result_status(competition):
     """Return why a catalogue entry should or should not have classifications."""
     metadata = competition.get("metadata") or {}
@@ -41,6 +48,10 @@ def competition_result_status(competition):
         competition.get("name"), metadata.get("event_code"), metadata.get("discipline"),
         " ".join(metadata.get("source_labels") or []),
     )).casefold()
+    source_labels = {str(value or "").upper() for value in metadata.get("source_labels") or []}
+    source_categories = source_labels & {"WC", "EC", "WSC", "OWG", "JUN", "FIS", "NC", "NAC", "SAC", "ANC", "CC"}
+    if source_categories and "WC" not in source_categories:
+        return "non_result"
     if explicit == "training" or re.search(r"\btraining\b", searchable):
         return "training"
     if explicit == "team_event" or re.search(r"\bteam\s*parallel\b|\bparallel\s*team\b|\bteam event\b", searchable):
@@ -110,7 +121,7 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
             "season_code": season, "catalogued": len(ids), "complete": complete,
             "partial": len(ids & partial_ids), "failed": len(ids & failed_ids),
             "missing": len(ids & missing_ids),
-            "coverage_percent": round((complete / len(ids)) * 100) if ids else 0,
+            "coverage_percent": coverage_percent(complete, len(ids)),
             "coverage_scopes": dict(season_scopes),
             "coverage_scope_labels": [coverage_scope_label(scope) for scope in COVERAGE_SCOPE_LABELS if season_scopes.get(scope)],
         })
@@ -119,7 +130,7 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
         "catalogued": total, "complete": len(complete_ids), "partial": len(partial_ids),
         "failed": len(failed_ids), "missing": len(missing_ids),
         "rows": sum(int(imported[race_id].get("row_count") or 0) for race_id in expected if race_id in imported),
-        "coverage_percent": round((len(complete_ids) / total) * 100) if total else 0,
+        "coverage_percent": coverage_percent(len(complete_ids), total),
         "catalogue_coverage_complete": bool(total and not missing_ids and not partial_ids and not failed_ids),
         "external_catalogue_verified": False,
         "excluded": excluded, "excluded_total": sum(excluded.values()),
