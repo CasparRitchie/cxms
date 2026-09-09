@@ -488,10 +488,18 @@ def dashboard():
 def stat_insights():
     race_ids = list(dict.fromkeys(re.findall(r"\d+", request.args.get("race_ids", ""))))[:10]
     coverage = repository.list_result_competitions()
+    seasons = sorted({str(item["season_code"]) for item in coverage if item.get("season_code")}, reverse=True)
+    requested_season = request.args.get("season", "").strip()
+    season = requested_season if requested_season in seasons else (seasons[0] if seasons else "")
+    analysis_race_ids = race_ids or [
+        str(item["race_id"]) for item in coverage
+        if str(item.get("season_code") or "") == season
+        and item.get("import_status") != "failed"
+    ]
     coverage_audit = build_result_coverage(
         repository.list_entities(entity_type="competition"), coverage
     )
-    rows = repository.list_results(race_ids=race_ids) if coverage else []
+    rows = repository.list_results(race_ids=analysis_race_ids) if analysis_race_ids else []
     source = "demonstration"
     if rows:
         source = "fis_official_results"
@@ -502,7 +510,6 @@ def stat_insights():
     venue = request.args.get("venue", "").strip()
     discipline = request.args.get("discipline", "").strip().upper()
     athlete = request.args.get("athlete", "").strip()
-    season = request.args.get("season", "").strip()
     gender = request.args.get("gender", "").strip().upper()
     nation = request.args.get("nation", "").strip().upper()
     category = request.args.get("category", "").strip().casefold()
@@ -514,7 +521,6 @@ def stat_insights():
                 and (not gender or row.get("gender") == gender) and (not nation or row.get("nation") == nation)]
     venues = sorted({row["venue"] for row in rows})
     disciplines = sorted({row["discipline"] for row in rows})
-    seasons = sorted({str(item["season_code"]) for item in coverage if item.get("season_code")}, reverse=True)
     nations = sorted({row["nation"] for row in rows if row.get("nation")})
     venue = venue if venue in venues else ""
     discipline = discipline if discipline in disciplines else ""

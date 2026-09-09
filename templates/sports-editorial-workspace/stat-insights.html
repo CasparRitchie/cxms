@@ -8,7 +8,7 @@
 </div>
 
 {% if result_source == 'fis_official_results' %}
-<p class="sew-message sew-message--success"><strong>Stored official FIS result data:</strong> calculations use classifications already imported into CXMS. Opening or filtering this page does not request FIS again.</p>
+<p class="sew-message sew-message--success"><strong>Stored official FIS result data:</strong> calculations use classifications already imported into CXMS for season {{ filters.season }}{% if filters.race_ids %}, restricted to the selected competition IDs{% endif %}. Opening or filtering this page does not request FIS again.</p>
 {% else %}
 <p class="sew-message sew-message--notice"><strong>Demonstration data:</strong> no stored classifications match this view, so the pilot dataset is shown. It is not an authoritative FIS record.</p>
 {% endif %}
@@ -47,14 +47,14 @@
 </section>
 
 <form class="sew-filters sew-insight-filters" method="get">
-  <label>Season<select name="season"><option value="">All seasons</option>{% for season in seasons %}<option value="{{ season }}" {% if filters.season == season %}selected{% endif %}>{{ season }}</option>{% endfor %}</select></label>
+  <label>Season<select name="season">{% for season in seasons %}<option value="{{ season }}" {% if filters.season == season %}selected{% endif %}>{{ season }}</option>{% endfor %}</select><small>One season is loaded at a time to keep analysis within safe memory limits.</small></label>
   <label>Venue<select name="venue"><option value="">All venues</option>{% for venue in venues %}<option value="{{ venue }}" {% if filters.venue == venue %}selected{% endif %}>{{ venue }}</option>{% endfor %}</select></label>
   <label>Discipline<select name="discipline"><option value="">All disciplines</option>{% for discipline in disciplines %}<option value="{{ discipline }}" {% if filters.discipline == discipline %}selected{% endif %}>{{ discipline }}</option>{% endfor %}</select></label>
   <label>Gender<select name="gender"><option value="">All genders</option><option value="W" {% if filters.gender == 'W' %}selected{% endif %}>Women</option><option value="M" {% if filters.gender == 'M' %}selected{% endif %}>Men</option></select></label>
   <label>Nation<select name="nation"><option value="">All nations</option>{% for nation in nations %}<option value="{{ nation }}" {% if filters.nation == nation %}selected{% endif %}>{{ nation }}</option>{% endfor %}</select></label>
   <label>Athlete<input type="search" name="athlete" value="{{ filters.athlete }}" placeholder="e.g. Mikaela Shiffrin"></label>
   <label>Insight category<select name="category"><option value="">All categories</option>{% for item in insights.available_categories %}<option value="{{ item.value }}" {% if filters.category == item.value %}selected{% endif %}>{{ item.label }}</option>{% endfor %}</select></label>
-  <label>Competition IDs<input name="race_ids" value="{{ filters.race_ids }}" inputmode="numeric" placeholder="Optional: 127367, 127368"><small>Leave blank to analyse every stored competition.</small></label>
+  <label>Competition IDs<input name="race_ids" value="{{ filters.race_ids }}" inputmode="numeric" placeholder="Optional: 127367, 127368"><small>Leave blank to analyse every stored competition in the selected season.</small></label>
   <label>Scenario athlete FIS codes<input name="scenario_athlete_ids" value="{{ filters.scenario_athlete_ids }}" inputmode="numeric" placeholder="Optional: 516562"><small>Only named entrants are modelled; CXMS does not infer a start list.</small></label>
   <div class="sew-actions"><button class="sew-button sew-button--primary" type="submit">Calculate</button><a class="sew-button" href="{{ url_for('sports_editorial_workspace.stat_insights') }}">Clear</a></div>
 </form>

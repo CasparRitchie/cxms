@@ -218,12 +218,30 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Stored official FIS result data", response.data)
         self.assertIn(b"127367", response.data)
         self.assertIn(b"FIS data coverage", response.data)
+        self.assertIn(b"for season 2026", response.data)
+        self.assertIn(b"One season is loaded at a time", response.data)
         self.assertIn(b"Coverage by season", response.data)
         self.assertNotIn(b"Alice Robinson", response.data)
         scenario = self.client.get("/workspace/sports-editorial/stat-insights?scenario_athlete_ids=516562")
         self.assertIn(b"A win for RAST Camille", scenario.data)
         self.assertIn(b"A podium for RAST Camille", scenario.data)
         self.assertIn(b"conditional", scenario.data)
+
+    def test_stat_insights_queries_only_the_latest_season_by_default(self):
+        races = [
+            ({"canonical_id": "127367", "canonical_url": "https://www.fis-ski.com/2025", "metadata": {"season_code": 2025}}, "2025-01-03"),
+            ({"canonical_id": "127368", "canonical_url": "https://www.fis-ski.com/2026", "metadata": {"season_code": 2026}}, "2026-01-03"),
+        ]
+        for race, race_date in races:
+            repository.save_result_import(race, [{
+                "race_id": race["canonical_id"], "date": race_date, "venue": "Test", "discipline": "GS",
+                "gender": "W", "competition": "WC", "place": 1, "status": "finished", "athlete": "Test Athlete",
+                "fis_code": race["canonical_id"], "nation": "SUI", "source_url": race["canonical_url"],
+            }])
+        with patch.object(repository, "list_results", wraps=repository.list_results) as listed:
+            response = self.client.get("/workspace/sports-editorial/stat-insights")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(listed.call_args.kwargs["race_ids"], ["127368"])
 
     def test_controlled_import_is_missing_only_and_capped(self):
         self.set_role("supervisor")
