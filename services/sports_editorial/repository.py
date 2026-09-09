@@ -426,6 +426,14 @@ class DemoSportsEditorialRepository:
             self.upsert_athletes(_result_athlete_entities(rows))
         return len(rows)
 
+    def save_result_failure(self, race, error):
+        record = _result_failure_record(race, error)
+        race_id = str(record["race_id"])
+        with self._lock:
+            self._result_imports = [item for item in self._result_imports if str(item["race_id"]) != race_id]
+            self._result_imports.append(record)
+        return record
+
 
 class SupabaseSportsEditorialRepository:
     """Workspace-scoped persistence using the isolated sports_editorial_* tables."""
@@ -919,6 +927,13 @@ class SupabaseSportsEditorialRepository:
             }, prefer="return=minimal")
         return len(payload)
 
+    def save_result_failure(self, race, error):
+        record = {**_result_failure_record(race, error), "workspace_id": self._workspace()}
+        self.client.request("sports_editorial_result_imports", "POST",
+                            query={"on_conflict": "workspace_id,race_id"}, payload=record,
+                            prefer="resolution=merge-duplicates,return=minimal")
+        return record
+
 
 def _result_athlete_entities(rows):
     athletes = {}
@@ -963,6 +978,26 @@ def _result_import_record(race, rows, partial=False):
         "source_url": first.get("source_url") or race.get("canonical_url") or "", "source_name": "fis_official_results",
         "import_status": "partial" if partial else "complete", "row_count": len(rows), "source_hash": source_hash, "last_error": None,
         "imported_at": first.get("imported_at") or now, "refreshed_at": now,
+    }
+
+
+def _result_failure_record(race, error):
+    metadata = race.get("metadata") or {}
+    now = _now()
+    race_id = str(race.get("canonical_id") or "")
+    if not race_id.isdigit():
+        raise ValueError("A numeric race ID is required to record an import failure.")
+    return {
+        "race_id": int(race_id),
+        "event_id": int(metadata["event_id"]) if str(metadata.get("event_id") or "").isdigit() else None,
+        "season_code": int(metadata["season_code"]) if str(metadata.get("season_code") or "").isdigit() else None,
+        "discipline_code": "AL", "event_code": metadata.get("event_code"),
+        "category_code": metadata.get("category_code"), "gender": metadata.get("gender") or None,
+        "venue": race.get("event_name") or race.get("name") or None,
+        "nation_code": race.get("country_code") or None, "race_date": metadata.get("date") or None,
+        "source_url": race.get("canonical_url") or "https://www.fis-ski.com/DB/general/results.html",
+        "source_name": "fis_official_results", "import_status": "failed", "row_count": 0,
+        "source_hash": None, "last_error": str(error)[:1000], "imported_at": now, "refreshed_at": now,
     }
 
 

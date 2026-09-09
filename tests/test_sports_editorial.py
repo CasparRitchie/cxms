@@ -243,6 +243,23 @@ class SportsEditorialPilotTests(unittest.TestCase):
             self.client.post("/workspace/sports-editorial/stat-insights/import", data={"season": "2026"})
             fetch_again.assert_not_called()
 
+    def test_failed_result_import_is_recorded_and_remains_retryable(self):
+        self.set_role("supervisor")
+        race = {"entity_type": "competition", "name": "GS W retry", "canonical_id": "127369",
+                "canonical_url": "https://www.fis-ski.com/result", "country_code": "SLO",
+                "metadata": {"season_code": 2026, "event_id": "55595", "category_code": "WC", "date": "2026-01-04"}}
+        repository.upsert_entities([race])
+        repository.save_result_failure(race, "temporary response error")
+        self.assertEqual(repository.list_result_competitions()[0]["import_status"], "failed")
+        rows = [{"race_id": "127369", "date": "2026-01-04", "venue": "Kranjska Gora", "discipline": "GS",
+                 "gender": "W", "competition": "WC", "place": 1, "status": "finished", "athlete": "RAST Camille",
+                 "fis_code": "516562", "competitor_id": "203812", "nation": "SUI", "bib": "1", "birth_year": "1999",
+                 "time": "2:00.09", "source_url": race["canonical_url"], "imported_at": "2026-07-22T10:00:00+00:00"}]
+        with patch("services.sports_editorial.views.fetch_alpine_results", return_value=(rows, 0)) as fetch:
+            self.client.post("/workspace/sports-editorial/stat-insights/import", data={"season": "2026"})
+            fetch.assert_called_once()
+        self.assertEqual(repository.list_result_competitions()[0]["import_status"], "complete")
+
     def test_official_fis_result_parser_retains_provenance_and_non_finishers(self):
         html = '''
         <h1 class="heading">Kranjska Gora (SLO)</h1>

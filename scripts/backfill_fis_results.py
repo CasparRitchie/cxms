@@ -68,7 +68,10 @@ def main():
     if args.audit_only:
         return
 
-    existing = {str(item["race_id"]) for item in imports}
+    existing = {
+        str(item["race_id"]) for item in imports
+        if item.get("import_status") == "complete"
+    }
     seasons = {str(value) for value in args.season}
     today = date.today().isoformat()
     candidates = []
@@ -100,6 +103,10 @@ def main():
             print(f"[{index}/{len(candidates)}] {race_id}: stored {len(rows)} rows", flush=True)
         except (FisResultError, SupabaseError) as exc:
             failed += 1
+            try:
+                repository.save_result_failure(race, exc)
+            except SupabaseError as storage_exc:
+                print(f"[{index}/{len(candidates)}] {race_id}: failure record could not be stored ({storage_exc})", flush=True)
             print(f"[{index}/{len(candidates)}] {race_id}: skipped ({exc})", flush=True)
 
     print(f"Complete: {imported_races} races, {imported_rows} rows, {failed} failures.", flush=True)

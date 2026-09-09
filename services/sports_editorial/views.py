@@ -550,7 +550,8 @@ def import_stat_results():
     for race in repository.list_entities(entity_type="competition"):
         race_id = str(race.get("canonical_id") or "")
         metadata = race.get("metadata") or {}
-        if not race_id.isdigit() or not race.get("canonical_url") or race_id in imported:
+        if (not race_id.isdigit() or not race.get("canonical_url")
+                or imported.get(race_id, {}).get("import_status") == "complete"):
             continue
         if requested_ids and race_id not in requested_ids:
             continue
@@ -574,7 +575,9 @@ def import_stat_results():
         for race in candidates:
             race_rows = by_race.get(str(race["canonical_id"]), [])
             if race_rows:
-                saved += repository.save_result_import(race, race_rows, partial=bool(failures))
+                saved += repository.save_result_import(race, race_rows)
+            else:
+                repository.save_result_failure(race, "No completed classification rows were returned.")
         message = f"Stored {saved} official classification rows from {len(by_race)} FIS competitions."
         if failures:
             message += f" {failures} competition could not be read and remains available for a later retry."
