@@ -2490,6 +2490,20 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(competition_result_status(by_id["127356"]), "cancelled")
         self.assertFalse(by_id["127355"]["metadata"]["is_result_expected"])
 
+    def test_team_parallel_is_retained_but_excluded_from_individual_results(self):
+        html = '''<a href="https://www.fis-ski.com/DB/general/results.html?raceid=59282"><div data-date="2010-03-14">14 Mar 2010</div><div>12:00</div><div>1907</div><div>Team Parallel</div><div>NGP</div><div>A</div><div>1st</div></a>'''
+        item = parse_event_competitions(html, {"canonical_id": "26937", "name": "Garmisch-Partenkirchen", "metadata": {"season_code": 2010}})[0]
+        self.assertEqual(item["metadata"]["competition_kind"], "team_event")
+        self.assertEqual(competition_result_status(item), "team_event")
+        self.assertIn("Team Parallel", item["name"])
+        self.assertNotIn("14 Mar 2010 ·", item["name"])
+        audit = build_result_coverage([item], [{"race_id": 59282, "season_code": 2010,
+                                               "import_status": "failed", "row_count": 0}],
+                                      as_of=date(2026, 9, 9))
+        self.assertEqual(audit["catalogued"], 0)
+        self.assertEqual(audit["excluded"]["team_event"], 1)
+        self.assertEqual(audit["failed"], 0)
+
     def test_historical_fis_result_layout_reads_six_column_athlete_name(self):
         html = '''
         <h1>Soelden (AUT)</h1>

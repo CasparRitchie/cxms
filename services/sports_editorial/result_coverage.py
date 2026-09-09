@@ -15,6 +15,8 @@ def competition_result_status(competition):
     )).casefold()
     if explicit == "training" or re.search(r"\btraining\b", searchable):
         return "training"
+    if explicit == "team_event" or re.search(r"\bteam\s*parallel\b|\bparallel\s*team\b|\bteam event\b", searchable):
+        return "team_event"
     if status in {"cancelled", "deleted", "replaced"} or re.search(r"\b(cancelled|canceled|deleted|replaced by)\b", searchable):
         return status if status in {"cancelled", "deleted", "replaced"} else "cancelled"
     if metadata.get("is_result_expected") is False:
@@ -34,7 +36,7 @@ def build_result_coverage(competitions, imports, *, as_of=None, seasons=None):
     expected = {}
     catalogued_ids = set()
     excluded_ids = set()
-    excluded = {"training": 0, "cancelled": 0, "deleted": 0, "replaced": 0, "non_result": 0}
+    excluded = {"training": 0, "team_event": 0, "cancelled": 0, "deleted": 0, "replaced": 0, "non_result": 0}
     for competition in competitions:
         race_id = str(competition.get("canonical_id") or "")
         metadata = competition.get("metadata") or {}

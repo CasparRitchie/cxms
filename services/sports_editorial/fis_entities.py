@@ -87,10 +87,18 @@ def parse_event_competitions(html, event):
         labels = [label for label in source_labels if label not in ignored]
         codex = next((label for label in labels if re.fullmatch(r"\d{4}", label)), "")
         gender = next((label for label in labels if label in ("M", "W")), "")
-        discipline = next((label for label in labels if re.search(r"[A-Za-z]", label) and label not in (gender,) and not label.startswith("Replaces ") and not re.match(r"^\d{1,2} [A-Z][a-z]{2}$", label)), "Race")
+        discipline = next((label for label in labels if re.search(r"[A-Za-z]", label) and label not in (gender, "A")
+                           and not label.startswith("Replaces ")
+                           and not re.match(r"^\d{1,2} [A-Z][a-z]{2}(?: \d{4})?$", label)
+                           and not re.fullmatch(r"\d{1,2}:\d{2}|\d+(?:st|nd|rd|th)|[A-Z]{2,4}", label)), "Race")
         date = next(iter(race["dates"]), "")
         label_text = " ".join(source_labels).casefold()
-        competition_kind = "training" if re.search(r"\btraining\b", label_text) else "race"
+        if re.search(r"\btraining\b", label_text):
+            competition_kind = "training"
+        elif re.search(r"\bteam\s*parallel\b|\bparallel\s*team\b|\bteam event\b", label_text):
+            competition_kind = "team_event"
+        else:
+            competition_kind = "race"
         race_status = "cancelled" if re.search(r"\b(cancelled|canceled)\b", label_text) else "scheduled"
         name = " · ".join(part for part in (discipline, gender, event.get("name", ""), date, f"codex {codex}" if codex else "") if part)
         competitions.append({
