@@ -828,11 +828,23 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_inline_athlete_suggestions_offer_linked_wording_variants(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
-        self.assertIn("athleteWordingVariants", script)
+        self.assertIn("entityWordingVariants", script)
         self.assertIn('`${entity.name} (${identity})`', script)
         self.assertIn('`${entity.name}\'s (${identity})`', script)
         self.assertIn('addEntity(entity, "", false, wording)', script)
         self.assertIn("insertedWording = replacementText || entity.name", script)
+
+    def test_typed_and_selected_entity_lookup_share_completion_variants(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        selection_context = script[
+            script.index("const selectedMentionContext"):
+            script.index("const addEntity")
+        ]
+        self.assertIn("replace: true", selection_context)
+        self.assertIn("entityWordingVariants(entity).forEach((wording)", script)
+        self.assertGreaterEqual(script.count('addEntity(entity, "", false, wording)'), 2)
+        self.assertIn("entity.country_code || entity.canonical_id", script)
+        self.assertIn("(?:\\s+\\p{Lu}[\\p{L}’'-]*){0,3}", script)
 
     def test_inline_entity_messages_have_contrast_in_light_theme(self):
         stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")

@@ -738,7 +738,7 @@
           ? {
               text,
               range: trimmedRange,
-              replace: false,
+              replace: true,
               start,
               end,
             }
@@ -909,40 +909,58 @@
       );
     };
 
+    const entityWordingVariants = (entity) => {
+      if (entity.type === "athlete") {
+        const identity = [entity.country_code, entity.ski_sponsor]
+          .filter(Boolean)
+          .join("/");
+        return [...new Set([
+          entity.name,
+          `${entity.name}'s`,
+          identity ? `${entity.name} (${identity})` : "",
+          identity ? `${entity.name}'s (${identity})` : "",
+        ].filter(Boolean))];
+      }
+
+      if (entity.type === "country") {
+        return [...new Set([
+          entity.name,
+          entity.country_code || entity.canonical_id,
+        ].filter(Boolean))];
+      }
+
+      return [entity.name];
+    };
+
     const appendResult = (entity) => {
-      const button =
-        document.createElement("button");
+      entityWordingVariants(entity).forEach((wording) => {
+        const button =
+          document.createElement("button");
 
-      button.id =
-        `entity-result-${crypto.randomUUID()}`;
-      button.type = "button";
-      button.dataset.entityResult = "";
-      button.setAttribute("role", "option");
-      button.setAttribute(
-        "aria-selected",
-        "false",
-      );
-      button.tabIndex = -1;
+        button.id =
+          `entity-result-${crypto.randomUUID()}`;
+        button.type = "button";
+        button.dataset.entityResult = "";
+        button.setAttribute("role", "option");
+        button.setAttribute(
+          "aria-selected",
+          "false",
+        );
+        button.tabIndex = -1;
 
-      const identity = [
-        entity.country_code,
-        entity.ski_sponsor,
-      ]
-        .filter(Boolean)
-        .join(" / ");
+        button.textContent =
+          `${wording} · ${entity.type}` +
+          `${entity.canonical_id ? ` · ${entity.canonical_id}` : ""}`;
+        button.setAttribute("aria-label", `Insert and link ${wording}`);
 
-      button.textContent =
-        `${entity.name}` +
-        `${identity ? ` (${identity})` : ""}` +
-        `${entity.canonical_id ? ` · ${entity.canonical_id}` : ""}`;
+        button.addEventListener("click", () => {
+          addEntity(entity, "", false, wording);
+        });
 
-      button.addEventListener("click", () => {
-        addEntity(entity);
+        results
+          .querySelector("[data-entity-options]")
+          ?.appendChild(button);
       });
-
-      results
-        .querySelector("[data-entity-options]")
-        ?.appendChild(button);
     };
 
     const runSearch = async (
@@ -1128,20 +1146,6 @@
       .replace(/^[“\"']+|[”\"'.,;:!?]+$/g, "")
       .trim();
 
-    const athleteWordingVariants = (entity) => {
-      const identity = [entity.country_code, entity.ski_sponsor]
-        .filter(Boolean)
-        .join("/");
-      const variants = identity
-        ? [
-            `${entity.name} (${identity})`,
-            `${entity.name}'s (${identity})`,
-            entity.name,
-          ]
-        : [entity.name, `${entity.name}'s`];
-      return [...new Set(variants)];
-    };
-
     const openEntityLookup = (context) => {
       if (!context || !editor.isContentEditable) return;
       queryContext = context;
@@ -1226,7 +1230,7 @@
       beforeCaretRange.selectNodeContents(editor);
       beforeCaretRange.setEnd(selection.anchorNode, selection.anchorOffset);
       const beforeCaret = beforeCaretRange.toString();
-      const match = beforeCaret.match(/(?:^|[^\p{L}’'-])(\p{Lu}\p{Ll}[\p{L}’'-]{1,})$/u);
+      const match = beforeCaret.match(/(?:^|[^\p{L}’'-])((?:\p{Lu}[\p{L}’'-]*)(?:\s+\p{Lu}[\p{L}’'-]*){0,3})$/u);
       if (!match) return null;
       const text = match[1];
       const end = beforeCaret.length;
@@ -1288,7 +1292,7 @@
               )
               .forEach((entity) => {
                 seen.add(entity.id);
-                athleteWordingVariants(entity).forEach((wording) => {
+                entityWordingVariants(entity).forEach((wording) => {
                   const button = document.createElement("button");
                   button.id = `inline-entity-${crypto.randomUUID()}`;
                   button.type = "button";
