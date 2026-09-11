@@ -2543,6 +2543,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(cancelled.status_code, 302)
         queue = self.client.get("/workspace/sports-editorial/queue")
         self.assertIn(b"is-race-cancelled", queue.data)
+        stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
+        self.assertIn("col.sew-col-status{width:132px}", stylesheet)
+        self.assertIn(".sew-queue-table td:nth-child(2){white-space:nowrap;overflow-wrap:normal}", stylesheet)
+        self.assertIn("flex-flow:row nowrap", stylesheet)
+        self.assertIn("width:max-content", stylesheet)
         inactive = self.client.post(
             "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
             data={"admin_action": "inactivate"},
