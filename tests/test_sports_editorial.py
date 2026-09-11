@@ -613,6 +613,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
                 "canonical_id": "537545", "canonical_url": "", "country_code": "USA",
                 "metadata": {"source_name": "fis_official_results", "ski_sponsor": "Head"},
             },
+            {
+                "id": "legacy-active", "entity_type": "athlete", "name": "Legacy Athlete",
+                "canonical_id": "123", "canonical_url": "", "country_code": "SUI",
+                "metadata": {"ski_sponsor": "Stoeckli"},
+            },
+            {
+                "id": "explicit-retired", "entity_type": "athlete", "name": "Retired Athlete",
+                "canonical_id": "124", "canonical_url": "", "country_code": "AUT",
+                "metadata": {"is_active": False, "ski_sponsor": "Atomic"},
+            },
         ]
         with patch.object(repository, "search_entities", return_value=entities):
             payload = self.client.get("/workspace/sports-editorial/entities/search?q=USA&type=athlete").get_json()
@@ -620,6 +630,10 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(payload["results"][0]["ski_sponsor"], "Atomic")
         self.assertFalse(payload["results"][1]["athlete_active"])
         self.assertIsNone(payload["results"][1]["ski_sponsor"])
+        self.assertTrue(payload["results"][2]["athlete_active"])
+        self.assertEqual(payload["results"][2]["ski_sponsor"], "Stoeckli")
+        self.assertFalse(payload["results"][3]["athlete_active"])
+        self.assertIsNone(payload["results"][3]["ski_sponsor"])
 
     def test_supabase_entity_search_includes_country_code_and_ranks_exact_matches(self):
         switzerland = {

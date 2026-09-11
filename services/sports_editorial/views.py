@@ -953,10 +953,17 @@ def search_entities():
     results, has_more = matches[:limit], len(matches) > limit
     def public_entity(item):
         metadata = item.get("metadata") or {}
-        athlete_active = bool(
-            metadata.get("is_active") is True
-            or metadata.get("source") == "fis_official_points_list"
-        )
+        if item["entity_type"] != "athlete":
+            athlete_active = False
+        elif isinstance(metadata.get("is_active"), bool):
+            athlete_active = metadata["is_active"]
+        elif metadata.get("source_name") == "fis_official_results":
+            athlete_active = False
+        else:
+            # Records created before active status was stored came from the
+            # current points-list catalogue. Preserve their sponsor wording;
+            # result-only historic athletes are identified by source_name.
+            athlete_active = True
         return {
             "id": item["id"], "type": item["entity_type"], "name": item["name"],
             "canonical_id": item.get("canonical_id"), "canonical_url": item.get("canonical_url"),
