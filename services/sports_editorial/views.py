@@ -982,8 +982,6 @@ def detail(submission_id):
         requested_status = submission["status"] if is_autosave else request.form.get("status", submission["status"])
         # Older open tabs may still submit "approved". Approval now hands the
         # sheet directly to the shared FIS Specialist queue.
-        if requested_status == "approved":
-            requested_status = "fis_review"
         # Client Event ID is never accepted directly from review request data.
         # Editable roles select a local catalogue record and the server resolves
         # both its canonical location and numeric identifier below.

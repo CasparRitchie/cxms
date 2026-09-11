@@ -562,11 +562,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         review_data.update({f"accepted_{block['id']}": "1" for block in blocks})
         response = self.client.post(f"/workspace/sports-editorial/submissions/{submission_id}", data=review_data)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(repository.get_submission(submission_id)["status"], "fis_review")
+        self.assertEqual(repository.get_submission(submission_id)["status"], "approved")
         self.assertIsNone(repository.get_edit_lock(submission_id))
-        audit = repository.list_audit_events(submission_id)[-1]
-        self.assertEqual(audit["action"], "sent_to_fis_review")
-        self.assertTrue(audit["details"]["shared_pool"])
+        self.assertFalse(any(event["action"] == "sent_to_fis_review" for event in repository.list_audit_events(submission_id)))
 
         download = self.client.get(f"/workspace/sports-editorial/exports/{submission_id}.json")
         self.assertEqual(download.status_code, 200)
@@ -1389,7 +1387,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Current stage: In Sub Edit", response.data)
         self.assertNotIn(b'value="changes_requested">Request changes', response.data)
         self.assertNotIn(b"Instructions for the researcher", response.data)
-        self.assertIn(b'value="fis_review">Approve stat sheet', response.data)
+        self.assertIn(b'value="approved">Approve stat sheet', response.data)
         self.assertNotIn(b"<span>Workflow status</span><select", response.data)
 
     def test_workflow_actions_are_in_the_sticky_header_in_requested_order(self):
@@ -1851,7 +1849,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             data[f"accepted_{block['id']}"] = "1"
         response = self.client.post("/workspace/sports-editorial/submissions/demo-submission-kronplatz", data=data)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(repository.get_submission("demo-submission-kronplatz")["status"], "fis_review")
+        self.assertEqual(repository.get_submission("demo-submission-kronplatz")["status"], "approved")
 
     def test_failed_approval_preserves_unsaved_editor_wording_without_persisting_it(self):
         self.set_sub_editor()
