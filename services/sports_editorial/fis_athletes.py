@@ -66,6 +66,7 @@ def parse_athlete_csv(content, source_url, season_code, list_name=""):
                 "gender": gender,
                 "birthdate": str(row.get("Birthdate") or "").strip() or None,
                 "status": str(row.get("Status") or "").strip() or None,
+                "is_active": True,
                 "imported_at": imported_at,
                 "source_url": source_url,
             },

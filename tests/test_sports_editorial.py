@@ -597,8 +597,29 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "canonical_id": "SUI",
             "canonical_url": "",
             "country_code": "SUI",
+            "athlete_active": False,
             "ski_sponsor": None,
         })
+
+    def test_entity_autocomplete_only_exposes_sponsor_for_active_athletes(self):
+        entities = [
+            {
+                "id": "active", "entity_type": "athlete", "name": "Mikaela Shiffrin",
+                "canonical_id": "6535237", "canonical_url": "", "country_code": "USA",
+                "metadata": {"source": "fis_official_points_list", "ski_sponsor": "Atomic"},
+            },
+            {
+                "id": "historic", "entity_type": "athlete", "name": "Lindsey Vonn",
+                "canonical_id": "537545", "canonical_url": "", "country_code": "USA",
+                "metadata": {"source_name": "fis_official_results", "ski_sponsor": "Head"},
+            },
+        ]
+        with patch.object(repository, "search_entities", return_value=entities):
+            payload = self.client.get("/workspace/sports-editorial/entities/search?q=USA&type=athlete").get_json()
+        self.assertTrue(payload["results"][0]["athlete_active"])
+        self.assertEqual(payload["results"][0]["ski_sponsor"], "Atomic")
+        self.assertFalse(payload["results"][1]["athlete_active"])
+        self.assertIsNone(payload["results"][1]["ski_sponsor"])
 
     def test_supabase_entity_search_includes_country_code_and_ranks_exact_matches(self):
         switzerland = {
@@ -831,6 +852,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("entityWordingVariants", script)
         self.assertIn('`${entity.name} (${identity})`', script)
         self.assertIn('`${entity.name}\'s (${identity})`', script)
+        self.assertIn("const surname = entity.name.trim().split", script)
+        self.assertIn("`${surname}'s`", script)
+        self.assertNotIn("          entity.name,\n          `${entity.name}'s`,", script)
         self.assertIn('addEntity(entity, "", false, wording)', script)
         self.assertIn("insertedWording = replacementText || entity.name", script)
 
@@ -1046,6 +1070,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("if (suppressNextRecognition)", script)
         replacement = script[script.index("if (activeContext?.replace)"):script.index("} else if (!trustedPaste", script.index("if (activeContext?.replace)"))]
         self.assertNotIn('dispatchEvent(new Event("input"', replacement)
+        self.assertIn("replaceContextText(activeContext, insertedWording)", replacement)
 
     def test_new_statistic_initialises_entity_suggestions_before_typing(self):
         submit_script = Path("static/js/sports-editorial-submit.js").read_text(encoding="utf-8")
@@ -1079,7 +1104,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("const range = annotation?.range", script)
         entity_editor = script[script.index("const initialiseEntityControl"):script.index("const setAccepted")]
         self.assertNotIn("editor.innerText", entity_editor)
-        self.assertIn("annotationStart = canonicalEditorText().indexOf(mentionText)", entity_editor)
+        self.assertIn("canonicalEditorText().slice(storedStart, storedEnd) === mention", entity_editor)
+        self.assertIn("offsets.start < annotation.end", entity_editor)
 
     def test_unlocking_an_existing_stat_reenables_the_entity_link_button(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
@@ -2533,6 +2559,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(athletes[0]["canonical_id"], "512345")
         self.assertEqual(athletes[0]["name"], "Camille Rast")
         self.assertEqual(athletes[0]["country_code"], "SUI")
+        self.assertTrue(athletes[0]["metadata"]["is_active"])
         self.assertEqual(athletes[0]["metadata"]["competitor_id"], "12345")
 
     def test_fis_athlete_csv_parser_accepts_signed_historic_fis_code(self):

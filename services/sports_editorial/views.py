@@ -951,9 +951,21 @@ def search_entities():
         return jsonify({"ok": True, "results": [], "has_more": False, "next_offset": 0})
     matches = repository.search_entities(query, entity_type=entity_type, limit=limit + 1, offset=offset)
     results, has_more = matches[:limit], len(matches) > limit
+    def public_entity(item):
+        metadata = item.get("metadata") or {}
+        athlete_active = bool(
+            metadata.get("is_active") is True
+            or metadata.get("source") == "fis_official_points_list"
+        )
+        return {
+            "id": item["id"], "type": item["entity_type"], "name": item["name"],
+            "canonical_id": item.get("canonical_id"), "canonical_url": item.get("canonical_url"),
+            "country_code": item.get("country_code"), "athlete_active": athlete_active,
+            "ski_sponsor": metadata.get("ski_sponsor") if athlete_active else None,
+        }
+
     return jsonify({"ok": True, "provider": "local_pilot", "results": [
-        {"id": item["id"], "type": item["entity_type"], "name": item["name"], "canonical_id": item.get("canonical_id"), "canonical_url": item.get("canonical_url"), "country_code": item.get("country_code"), "ski_sponsor": (item.get("metadata") or {}).get("ski_sponsor")}
-        for item in results
+        public_entity(item) for item in results
     ], "has_more": has_more, "next_offset": offset + len(results)})
 
 

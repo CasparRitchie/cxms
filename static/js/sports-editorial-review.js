@@ -534,6 +534,17 @@
       const inputs = rangeInputs(chip);
       const mention = inputs.mention?.value.trim() || "";
       if (!mention) return null;
+      const storedStart = Number.parseInt(inputs.start?.value, 10);
+      const storedEnd = Number.parseInt(inputs.end?.value, 10);
+      if (
+        Number.isInteger(storedStart) && Number.isInteger(storedEnd) &&
+        canonicalEditorText().slice(storedStart, storedEnd) === mention
+      ) {
+        const storedRange = rangeFromOffsets(storedStart, storedEnd);
+        if (storedRange) {
+          return { range: storedRange, start: storedStart, end: storedEnd, mention, inputs };
+        }
+      }
       const resolved = firstExactMentionRange(mention);
       if (!resolved) return null;
       if (inputs.start) inputs.start.value = String(resolved.start);
@@ -605,7 +616,7 @@
         const annotation = ensureChipRange(chip, true);
         if (!annotation) return false;
         return offsets.collapsed
-          ? offsets.start >= annotation.start && offsets.start <= annotation.end
+          ? offsets.start >= annotation.start && offsets.start < annotation.end
           : offsets.start < annotation.end && offsets.end > annotation.start;
       }) || null;
     };
@@ -755,6 +766,29 @@
         return;
       }
 
+      const replaceContextText = (context, wording) => {
+        const replacement = document.createTextNode(wording);
+        context.range.deleteContents();
+        context.range.insertNode(replacement);
+        context.range.setStart(replacement, 0);
+        context.range.setEnd(replacement, wording.length);
+        const start = textOffsetForPoint(replacement, 0);
+        const caret = document.createRange();
+        caret.setStartAfter(replacement);
+        caret.collapse(true);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(caret);
+
+        // Reconcile links that existed before this replacement before adding
+        // any new chip. Otherwise a new range can be adjusted a second time as
+        // though it belonged to the editor's previous text.
+        validateMentionTags();
+        return { replacement, start, end: start + wording.length };
+      };
+
+      const activeContext = linkContext;
+
       let existingChip = selected.querySelector(
         `[data-entity-id="${entity.id}"]`,
       );
@@ -775,43 +809,29 @@
       }
 
       if (existingChip) {
+        if (activeContext?.replace && replacementText) {
+          replaceContextText(activeContext, replacementText);
+          suppressNextRecognition = true;
+          editor.dispatchEvent(new Event("input", { bubbles: true }));
+        }
         closeResults();
         editor.focus({ preventScroll: true });
         return;
       }
 
-      const activeContext = linkContext;
       let mentionText = mentionOverride || activeContext?.text || entity.name;
       let annotationStart = trustedPaste ? entity.annotation_start : activeContext?.start;
       let annotationEnd = trustedPaste ? entity.annotation_end : activeContext?.end;
 
       if (activeContext?.replace) {
         const insertedWording = replacementText || entity.name;
-        const replacement = document.createTextNode(insertedWording);
-        activeContext.range.deleteContents();
-        activeContext.range.insertNode(replacement);
-        activeContext.range.setStart(replacement, 0);
-        activeContext.range.setEnd(replacement, insertedWording.length);
+        const replaced = replaceContextText(activeContext, insertedWording);
         mentionText = insertedWording;
-        annotationStart = textOffsetForPoint(replacement, 0);
-        annotationEnd = annotationStart + insertedWording.length;
-        const caret = document.createRange();
-        caret.setStartAfter(replacement);
-        caret.collapse(true);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(caret);
+        annotationStart = replaced.start;
+        annotationEnd = replaced.end;
       } else if (!trustedPaste && activeContext?.range) {
         annotationStart = textOffsetForPoint(activeContext.range.startContainer, activeContext.range.startOffset);
         annotationEnd = textOffsetForPoint(activeContext.range.endContainer, activeContext.range.endOffset);
-      }
-
-      if (!trustedPaste) {
-        // Entity output deliberately links the first exact occurrence. Resolve
-        // that occurrence from the same canonical text model used for saving,
-        // rather than relying on contenteditable caret offsets after Enter.
-        annotationStart = canonicalEditorText().indexOf(mentionText);
-        annotationEnd = annotationStart + mentionText.length;
       }
 
       if (!Number.isInteger(annotationStart)) annotationStart = canonicalEditorText().indexOf(mentionText);
@@ -911,14 +931,18 @@
 
     const entityWordingVariants = (entity) => {
       if (entity.type === "athlete") {
-        const identity = [entity.country_code, entity.ski_sponsor]
+        const surname = entity.name.trim().split(/\s+/).at(-1);
+        const identity = [
+          entity.country_code,
+          entity.athlete_active ? entity.ski_sponsor : "",
+        ]
           .filter(Boolean)
           .join("/");
         return [...new Set([
-          entity.name,
-          `${entity.name}'s`,
           identity ? `${entity.name} (${identity})` : "",
           identity ? `${entity.name}'s (${identity})` : "",
+          surname,
+          surname ? `${surname}'s` : "",
         ].filter(Boolean))];
       }
 
