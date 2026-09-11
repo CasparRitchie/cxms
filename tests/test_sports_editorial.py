@@ -846,6 +846,13 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("entity.country_code || entity.canonical_id", script)
         self.assertIn("(?:\\s+\\p{Lu}[\\p{L}’'-]*){0,3}", script)
 
+    def test_inline_athlete_suggestions_match_a_typed_surname(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("const athleteNameMatchesPrefix", script)
+        self.assertIn("name.startsWith(prefix)", script)
+        self.assertIn(".some((part) => part.startsWith(prefix))", script)
+        self.assertIn("athleteNameMatchesPrefix(entity.name, context.text)", script)
+
     def test_inline_entity_messages_have_contrast_in_light_theme(self):
         stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
         self.assertIn(".sew-entity-suggestions>.sew-entity-loading", stylesheet)

@@ -1246,6 +1246,14 @@
       };
     };
 
+    const athleteNameMatchesPrefix = (entityName, typedText) => {
+      const name = entityName.toLocaleLowerCase();
+      const prefix = typedText.toLocaleLowerCase();
+      return name.startsWith(prefix) || name
+        .split(/\s+/)
+        .some((part) => part.startsWith(prefix));
+    };
+
     const scheduleRecognisedEntitySuggestion = () => {
       clearTimeout(recognitionTimer);
       recognitionController?.abort();
@@ -1287,7 +1295,7 @@
             payload.results
               .filter((entity) =>
                 entity.type === "athlete" &&
-                entity.name.toLocaleLowerCase().startsWith(context.text.toLocaleLowerCase()) &&
+                athleteNameMatchesPrefix(entity.name, context.text) &&
                 !seen.has(entity.id)
               )
               .forEach((entity) => {
