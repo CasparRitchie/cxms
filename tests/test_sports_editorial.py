@@ -676,6 +676,28 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual([query["offset"] for query in client.queries], ["0", "1000"])
         self.assertTrue(all(query["limit"] == "1000" for query in client.queries))
 
+    def test_athlete_upsert_preserves_points_status_and_sponsor_metadata(self):
+        repository.upsert_athletes([{
+            "entity_type": "athlete", "name": "Mikaela Shiffrin", "canonical_id": "6535237",
+            "canonical_url": "", "country_code": "USA",
+            "metadata": {"source": "fis_official_points_list", "is_active": True},
+        }])
+        repository.upsert_athletes([{
+            "entity_type": "athlete", "name": "Mikaela Shiffrin", "canonical_id": "6535237",
+            "canonical_url": "", "country_code": "USA",
+            "metadata": {"source_name": "fis_official_results"},
+        }])
+        repository.upsert_athletes([{
+            "entity_type": "athlete", "name": "Mikaela Shiffrin", "canonical_id": "6535237",
+            "canonical_url": "", "country_code": "USA",
+            "metadata": {"ski_sponsor": "Atomic"},
+        }])
+        saved = repository.search_entities("Shiffrin", entity_type="athlete")[0]
+        self.assertEqual(saved["metadata"]["source"], "fis_official_points_list")
+        self.assertTrue(saved["metadata"]["is_active"])
+        self.assertEqual(saved["metadata"]["source_name"], "fis_official_results")
+        self.assertEqual(saved["metadata"]["ski_sponsor"], "Atomic")
+
     def test_country_mention_text_saves_code_or_full_name(self):
         for mention in ("SUI", "Switzerland"):
             with self.subTest(mention=mention):

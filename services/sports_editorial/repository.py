@@ -382,7 +382,12 @@ class DemoSportsEditorialRepository:
             for incoming in athletes:
                 existing = next((item for item in self._entities if item["entity_type"] == "athlete" and item.get("canonical_id") == incoming["canonical_id"]), None)
                 if existing:
-                    existing.update(deepcopy(incoming))
+                    merged = deepcopy(incoming)
+                    merged["metadata"] = {
+                        **deepcopy(existing.get("metadata") or {}),
+                        **deepcopy(incoming.get("metadata") or {}),
+                    }
+                    existing.update(merged)
                 else:
                     self._entities.append({"id": str(uuid4()), **deepcopy(incoming)})
         return len(athletes)
@@ -843,7 +848,29 @@ class SupabaseSportsEditorialRepository:
 
     def upsert_athletes(self, athletes):
         for start in range(0, len(athletes), 500):
-            payload = [{**athlete, "workspace_id": self._workspace()} for athlete in athletes[start:start + 500]]
+            batch = athletes[start:start + 500]
+            canonical_ids = [str(item.get("canonical_id") or "") for item in batch if item.get("canonical_id")]
+            existing_by_code = {}
+            if canonical_ids:
+                existing = self.client.request("sports_editorial_entities", query={
+                    "select": "canonical_id,metadata",
+                    "workspace_id": f"eq.{self._workspace()}",
+                    "entity_type": "eq.athlete",
+                    "canonical_id": f"in.({','.join(canonical_ids)})",
+                    "limit": str(len(canonical_ids)),
+                })
+                existing_by_code = {str(item.get("canonical_id")): item for item in existing}
+            payload = []
+            for athlete in batch:
+                previous = existing_by_code.get(str(athlete.get("canonical_id"))) or {}
+                payload.append({
+                    **athlete,
+                    "workspace_id": self._workspace(),
+                    "metadata": {
+                        **(previous.get("metadata") or {}),
+                        **(athlete.get("metadata") or {}),
+                    },
+                })
             self.client.request(
                 "sports_editorial_entities", "POST",
                 query={"on_conflict": "workspace_id,entity_type,canonical_id"},
