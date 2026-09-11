@@ -22,7 +22,7 @@ create table if not exists public.sports_editorial_submissions (
   sport text not null default 'alpine_skiing' check (sport = 'alpine_skiing'),
   competition text,
   event_name text,
-  gender text check (gender in ('W', 'M', 'X')),
+  gender text check (gender in ('W', 'M', 'X', 'O')),
   location text,
   season_code integer,
   event_date date,

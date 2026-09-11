@@ -441,6 +441,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_creation_dates_are_strict_and_persist_as_iso(self):
         self.assertEqual(parse_display_date("01-aUg-2026", "Race Date"), ("2026-08-01", None))
+        self.assertEqual(parse_display_date("11-Sep-2026", "Race Date"), ("2026-09-11", None))
         for invalid in ("01/08/2026", "31-Feb-2026", "2026-08-01"):
             self.assertIsNotNone(parse_display_date(invalid, "Race Date")[1])
         self.set_role("supervisor")
@@ -454,6 +455,24 @@ class SportsEditorialPilotTests(unittest.TestCase):
         created = repository.list_submissions()[0]
         self.assertEqual((created["event_date"], created["researcher_deadline"], created["publication_deadline"]),
                          ("2026-08-03", "2026-07-31", "2026-08-01"))
+
+    def test_date_pickers_use_three_letter_september(self):
+        with open("static/js/sports-editorial-creation.js", encoding="utf-8") as handle:
+            creation_script = handle.read()
+        with open("static/js/sports-editorial-edit-lock.js", encoding="utf-8") as handle:
+            edit_script = handle.read()
+        for script in (creation_script, edit_script):
+            self.assertIn('"Aug", "Sep", "Oct"', script)
+            self.assertNotIn('month: "short"', script)
+
+    def test_creation_and_edit_forms_separate_mixed_and_open_gender(self):
+        self.set_role("supervisor")
+        creation = self.client.get("/workspace/sports-editorial/submit")
+        self.assertIn(b'<option value="X" >Mixed</option>', creation.data)
+        self.assertIn(b'<option value="O" >Open</option>', creation.data)
+        detail = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
+        self.assertIn(b'>Mixed</option>', detail.data)
+        self.assertIn(b'>Open</option>', detail.data)
 
     def test_creation_resolves_canonical_location_and_rejects_forgery(self):
         self.set_role("supervisor")

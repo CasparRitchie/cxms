@@ -196,9 +196,8 @@
     picker.addEventListener("change", () => {
       if (!picker.value) return;
       const [year, month, day] = picker.value.split("-").map(Number);
-      display.value = new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
-      }).format(new Date(Date.UTC(year, month - 1, day))).replace(/ /g, "-");
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      display.value = `${String(day).padStart(2, "0")}-${months[month - 1]}-${year}`;
       display.dispatchEvent(new Event("input", {bubbles: true}));
     });
   });
