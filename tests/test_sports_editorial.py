@@ -2543,11 +2543,28 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(cancelled.status_code, 302)
         queue = self.client.get("/workspace/sports-editorial/queue")
         self.assertIn(b"is-race-cancelled", queue.data)
+        self.assertIn(b'<table class="sew-table sew-queue-table has-race-status">', queue.data)
+        self.assertIn(b"<th>Race status</th>", queue.data)
+        self.assertIn(b'<span class="sew-race-status sew-race-status--cancelled">Race cancelled</span>', queue.data)
+        self.assertLess(queue.data.index(b">Status<"), queue.data.index(b"<th>Race status</th>"))
+        race_heading = queue.data.index(b"<th>Race status</th>")
+        self.assertGreater(queue.data.find(b"AMP ID", race_heading), race_heading)
+        filtered_without_cancelled = self.client.get("/workspace/sports-editorial/queue?status=approved")
+        self.assertNotIn(b"has-race-status", filtered_without_cancelled.data)
+        self.assertNotIn(b"<th>Race status</th>", filtered_without_cancelled.data)
+        reinstated = self.client.post(
+            "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
+            data={"admin_action": "reinstate_race"},
+        )
+        self.assertEqual(reinstated.status_code, 302)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["race_status"], "scheduled")
+        queue_after_reinstatement = self.client.get("/workspace/sports-editorial/queue")
+        self.assertNotIn(b"has-race-status", queue_after_reinstatement.data)
+        self.assertNotIn(b"Race cancelled", queue_after_reinstatement.data)
         stylesheet = Path("static/css/sports-editorial-workspace.css").read_text(encoding="utf-8")
-        self.assertIn("col.sew-col-status{width:132px}", stylesheet)
-        self.assertIn(".sew-queue-table td:nth-child(2){white-space:nowrap;overflow-wrap:normal}", stylesheet)
-        self.assertIn("flex-flow:row nowrap", stylesheet)
-        self.assertIn("width:max-content", stylesheet)
+        self.assertIn("col.sew-col-status{width:110px}", stylesheet)
+        self.assertIn(".sew-queue-table.has-race-status{width:1534px}", stylesheet)
+        self.assertIn("col.sew-col-race-status{width:88px}", stylesheet)
         inactive = self.client.post(
             "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
             data={"admin_action": "inactivate"},

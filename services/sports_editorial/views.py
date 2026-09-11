@@ -791,6 +791,7 @@ def queue():
         dict(item) for item in all_submissions
         if all(not values or any(value in values for value in item_filter_values(item, field)) for field, values in filters.items())
     ]
+    show_race_status_column = any(item.get("race_status") == "cancelled" for item in submissions)
     for field, direction in reversed(sort_criteria):
         submissions.sort(key=lambda item: str(item.get(field) or "").casefold(), reverse=direction == "desc")
     options = {
@@ -892,6 +893,7 @@ def queue():
         queue_view=queue_view,
         result_count=len(submissions),
         total_count=len(all_submissions),
+        show_race_status_column=show_race_status_column,
         queue_return_url=queue_return_url,
         recent_submission_id=recent_submission_id if recent_submission_visible else "",
         recent_submission_hidden=bool(recent_submission_id and not recent_submission_visible),
