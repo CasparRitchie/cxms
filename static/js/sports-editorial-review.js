@@ -758,7 +758,7 @@
       return null;
     };
 
-    const addEntity = (entity, mentionOverride = "", trustedPaste = false, replacementText = "", contextOverride = null) => {
+    const addEntity = (entity, mentionOverride = "", trustedPaste = false, replacementText = "", contextOverride = null, createLink = true) => {
       const linkContext = contextOverride || queryContext;
       if (!trustedPaste && !contextStillMatches(linkContext)) {
         closeResults("The selected wording changed. Select it again before linking.");
@@ -788,6 +788,17 @@
       };
 
       const activeContext = linkContext;
+
+      if (!createLink) {
+        if (activeContext?.replace && replacementText) {
+          replaceContextText(activeContext, replacementText);
+          suppressNextRecognition = true;
+          editor.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        closeResults();
+        editor.focus({ preventScroll: true });
+        return;
+      }
 
       let existingChip = selected.querySelector(
         `[data-entity-id="${entity.id}"]`,
@@ -956,8 +967,12 @@
       return [entity.name];
     };
 
+    const suggestionCreatesLink = (entity, wording) =>
+      entity.type !== "athlete" || wording === entityWordingVariants(entity)[0];
+
     const appendResult = (entity) => {
       entityWordingVariants(entity).forEach((wording) => {
+        const createsLink = suggestionCreatesLink(entity, wording);
         const button =
           document.createElement("button");
 
@@ -974,11 +989,12 @@
 
         button.textContent =
           `${wording} · ${entity.type}` +
+          `${entity.type === "athlete" ? (createsLink ? " · link" : " · text only") : ""}` +
           `${entity.canonical_id ? ` · ${entity.canonical_id}` : ""}`;
-        button.setAttribute("aria-label", `Insert and link ${wording}`);
+        button.setAttribute("aria-label", `${createsLink ? "Insert and link" : "Insert"} ${wording}`);
 
         button.addEventListener("click", () => {
-          addEntity(entity, "", false, wording);
+          addEntity(entity, "", false, wording, null, createsLink);
         });
 
         results
@@ -1325,18 +1341,19 @@
               .forEach((entity) => {
                 seen.add(entity.id);
                 entityWordingVariants(entity).forEach((wording) => {
+                  const createsLink = suggestionCreatesLink(entity, wording);
                   const button = document.createElement("button");
                   button.id = `inline-entity-${crypto.randomUUID()}`;
                   button.type = "button";
                   button.setAttribute("role", "option");
                   button.setAttribute("aria-selected", "false");
-                  button.setAttribute("aria-label", `Insert and link ${wording}`);
+                  button.setAttribute("aria-label", `${createsLink ? "Insert and link" : "Insert"} ${wording}`);
                   button.tabIndex = -1;
                   button.textContent = wording;
                   button.addEventListener("mousedown", (event) => event.preventDefault());
                   button.addEventListener("click", () => {
                     queryContext = context;
-                    addEntity(entity, "", false, wording);
+                    addEntity(entity, "", false, wording, null, createsLink);
                   });
                   options.appendChild(button);
                 });

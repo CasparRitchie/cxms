@@ -891,8 +891,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("const surname = entity.name.trim().split", script)
         self.assertIn("`${surname}'s`", script)
         self.assertNotIn("          entity.name,\n          `${entity.name}'s`,", script)
-        self.assertIn('addEntity(entity, "", false, wording)', script)
+        self.assertIn('addEntity(entity, "", false, wording, null, createsLink)', script)
         self.assertIn("insertedWording = replacementText || entity.name", script)
+        self.assertIn("const suggestionCreatesLink", script)
+        self.assertIn('entity.type !== "athlete" || wording === entityWordingVariants(entity)[0]', script)
+        self.assertIn('createsLink ? " · link" : " · text only"', script)
+        self.assertIn("if (!createLink)", script)
 
     def test_typed_and_selected_entity_lookup_share_completion_variants(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
@@ -902,7 +906,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         ]
         self.assertIn("replace: true", selection_context)
         self.assertIn("entityWordingVariants(entity).forEach((wording)", script)
-        self.assertGreaterEqual(script.count('addEntity(entity, "", false, wording)'), 2)
+        self.assertGreaterEqual(script.count('addEntity(entity, "", false, wording, null, createsLink)'), 2)
         self.assertIn("entity.country_code || entity.canonical_id", script)
         self.assertIn("(?:\\s+\\p{Lu}[\\p{L}’'-]*){0,3}", script)
 
