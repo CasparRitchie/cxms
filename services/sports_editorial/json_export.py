@@ -54,12 +54,13 @@ def build_pilot_export(submission, entities_by_id):
         "submission": {
             "id": submission["id"], "title": submission["title"], "sport": submission["sport"],
             "competition": submission.get("competition") or None,
-            "event": {"name": submission.get("event_name") or None, "gender": submission.get("gender") or None, "location": submission.get("location") or None, "date": submission.get("event_date") or None},
+            "event": {"name": submission.get("event_name") or None, "names": submission.get("event_names") or ([submission.get("event_name")] if submission.get("event_name") else []), "gender": submission.get("gender") or None, "genders": submission.get("genders") or ([submission.get("gender")] if submission.get("gender") else []), "location": submission.get("location") or None, "date": submission.get("event_date") or None},
             "status": submission["status"],
             "fis": {
                 "external_id": submission.get("fis_external_id") or None,
                 "discipline_code": submission.get("fis_discipline_code") or SPORT_CODES.get(submission.get("sport")),
                 "event_discipline_code": submission.get("fis_event_discipline_code") or event_discipline_code(submission.get("sport"), submission.get("competition"), submission.get("event_name")),
+                "event_discipline_codes": submission.get("fis_event_discipline_codes") or [],
                 "event_ids": [int(value) for value in submission.get("fis_event_ids", []) if str(value).isdigit()],
                 "submission_note": submission.get("fis_submission_notes") or None,
             },

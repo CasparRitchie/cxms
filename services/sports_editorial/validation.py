@@ -16,9 +16,33 @@ STATUS_TRANSITIONS = {
     "exported": {"exported", "in_review", "draft"},
 }
 
+MAX_TITLE_CHARACTERS = 160
+MAX_STAT_CHARACTERS = 5000
+MAX_CONTENT_BLOCKS = 200
+MAX_WORKING_NOTES_CHARACTERS = 10000
+MAX_UNUSED_STATS_CHARACTERS = 2500
+
+
+def validate_editorial_limits(data):
+    errors = []
+    title = str(data.get("title") or "")
+    if len(title) > MAX_TITLE_CHARACTERS:
+        errors.append(f"Title must be {MAX_TITLE_CHARACTERS} characters or fewer.")
+    content = data.get("content") or []
+    valid_blocks = [item for item in content if item.get("content_type") in VALID_CONTENT_TYPES and rich_text_to_plain(item.get("content_html"))]
+    if len(valid_blocks) > MAX_CONTENT_BLOCKS:
+        errors.append(f"A stat sheet can contain no more than {MAX_CONTENT_BLOCKS} content blocks.")
+    if any(item.get("content_type") == "stat" and len(rich_text_to_plain(item.get("content_html"))) > MAX_STAT_CHARACTERS for item in valid_blocks):
+        errors.append(f"Each statistic must be {MAX_STAT_CHARACTERS:,} characters or fewer.")
+    if len(str(data.get("working_notes") or "")) > MAX_WORKING_NOTES_CHARACTERS:
+        errors.append(f"Working Notes must be {MAX_WORKING_NOTES_CHARACTERS:,} characters or fewer.")
+    if len(str(data.get("unused_stats") or "")) > MAX_UNUSED_STATS_CHARACTERS:
+        errors.append(f"Unused Stats must be {MAX_UNUSED_STATS_CHARACTERS:,} characters or fewer.")
+    return errors
+
 
 def validate_submission(data, submitting=False):
-    errors = []
+    errors = validate_editorial_limits(data)
     if not str(data.get("title", "")).strip():
         errors.append("Add a title for this stat sheet.")
     content = data.get("content", [])

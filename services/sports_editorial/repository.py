@@ -106,6 +106,8 @@ class DemoSportsEditorialRepository:
             "competition": data.get("competition", "").strip(), "event_name": data.get("event_name", "").strip(),
             "gender": data.get("gender", "").strip().upper(), "location": data.get("location", "").strip(),
             "fis_discipline_code": data.get("fis_discipline_code"), "fis_event_discipline_code": data.get("fis_event_discipline_code"),
+            "event_names": list(data.get("event_names") or []), "genders": list(data.get("genders") or []),
+            "fis_event_discipline_codes": list(data.get("fis_event_discipline_codes") or []),
             "season_code": data.get("season_code"), "event_date": data.get("event_date", "").strip(), "fis_event_ids": data.get("fis_event_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(),
             "author_email": data.get("author_email", "").strip(), "status": status, "editor_notes": "", "fis_submission_notes": "",
@@ -236,6 +238,13 @@ class DemoSportsEditorialRepository:
             item["editor_notes"] = form_data.get("editor_notes", "").strip()
             item["fis_submission_notes"] = form_data.get("fis_submission_notes", "").strip()
             item["fis_event_ids"] = _event_ids_from_form(form_data)
+            if "event_name" in form_data:
+                item["event_names"] = list(form_data.getlist("event_name"))
+                item["event_name"] = item["event_names"][0] if item["event_names"] else None
+            if "gender" in form_data:
+                item["genders"] = [value.upper() for value in form_data.getlist("gender")]
+                item["gender"] = item["genders"][0] if item["genders"] else None
+            item["fis_event_discipline_codes"] = list(form_data.get("fis_event_discipline_codes") or [])
             for field in ("title", "sport", "client_name", "competition", "event_name", "gender", "location", "season_code", "event_date", "fis_discipline_code", "fis_event_discipline_code", "publication_deadline", "researcher_deadline", "researcher_user_id", "researcher_name", "sub_editor_user_id", "sub_editor_name", "working_notes", "unused_stats"):
                 if field in form_data:
                     item[field] = form_data.get(field, "").strip() or None
@@ -485,6 +494,9 @@ class SupabaseSportsEditorialRepository:
             by_submission.setdefault(stat["submission_id"], []).append(stat)
         for row in rows:
             row["stats"] = by_submission.get(row["id"], [])
+            row["event_names"] = row.get("event_names") or ([row["event_name"]] if row.get("event_name") else [])
+            row["genders"] = row.get("genders") or ([row["gender"]] if row.get("gender") else [])
+            row["fis_event_discipline_codes"] = row.get("fis_event_discipline_codes") or ([row["fis_event_discipline_code"]] if row.get("fis_event_discipline_code") else [])
         user_ids = list(dict.fromkeys(value for row in rows for value in (row.get("researcher_user_id"), row.get("sub_editor_user_id")) if value))
         if user_ids:
             users = self.client.request("app_users", query={"select": "id,full_name,email", "id": f"in.({','.join(user_ids)})"})
@@ -529,6 +541,8 @@ class SupabaseSportsEditorialRepository:
             "sport": data.get("sport", "").strip() or "alpine_skiing", "competition": data.get("competition", "").strip(), "event_name": data.get("event_name", "").strip(),
             "gender": data.get("gender", "").strip().upper() or None, "location": data.get("location", "").strip(),
             "fis_discipline_code": data.get("fis_discipline_code"), "fis_event_discipline_code": data.get("fis_event_discipline_code"),
+            "event_names": list(data.get("event_names") or []), "genders": list(data.get("genders") or []),
+            "fis_event_discipline_codes": list(data.get("fis_event_discipline_codes") or []),
             "season_code": data.get("season_code"), "event_date": data.get("event_date") or None, "fis_event_ids": data.get("fis_event_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(), "author_email": data.get("author_email", "").strip(),
             "status": status, "editor_notes": "", "fis_submission_notes": "", "submitted_at": now if status == "submitted" else None,
@@ -693,6 +707,13 @@ class SupabaseSportsEditorialRepository:
                 } for value in selected], prefer="return=minimal")
         event_ids = _event_ids_from_form(form_data)
         changes = {"editor_notes": form_data.get("editor_notes", "").strip(), "fis_submission_notes": form_data.get("fis_submission_notes", "").strip(), "fis_event_ids": event_ids, "updated_at": _now(), "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
+        if "event_name" in form_data:
+            changes["event_names"] = list(form_data.getlist("event_name"))
+            changes["event_name"] = changes["event_names"][0] if changes["event_names"] else None
+        if "gender" in form_data:
+            changes["genders"] = [value.upper() for value in form_data.getlist("gender")]
+            changes["gender"] = changes["genders"][0] if changes["genders"] else None
+        changes["fis_event_discipline_codes"] = list(form_data.get("fis_event_discipline_codes") or [])
         if not preserve_status:
             changes["status"] = requested_status
         for field in ("title", "sport", "client_name", "competition", "event_name", "gender", "location", "season_code", "event_date", "fis_discipline_code", "fis_event_discipline_code", "publication_deadline", "researcher_deadline", "researcher_user_id", "sub_editor_user_id", "working_notes", "unused_stats"):

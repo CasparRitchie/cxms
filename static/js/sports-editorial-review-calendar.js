@@ -19,32 +19,47 @@
   const season = form.querySelector("[data-core-season]");
   let activeIndex = -1;
 
-  const replaceOptions = (select, values, emptyLabel) => {
+  const selectedValues = (select) => [...select.selectedOptions].map((option) => option.value).filter(Boolean);
+  const replaceOptions = (select, values, emptyLabel, selected = []) => {
     const options = [new Option(emptyLabel, "")];
     values.forEach((value) => options.push(new Option(value.label || value, value.value || value)));
     select.replaceChildren(...options);
+    const wanted = Array.isArray(selected) ? selected : String(selected || "").split("|||").filter(Boolean);
+    [...select.options].forEach((option) => { option.selected = wanted.includes(option.value); });
   };
 
   const updateGenders = () => {
     const key = `${sport.value}|||${competition.value}`;
-    const selectedEvent = (choices.events[key] || []).find((choice) => choice.value === eventName.value);
-    const codes = selectedEvent?.genders || (choices.genders[key] || []).join("");
+    const chosenEvents = selectedValues(eventName);
+    const selectedEvents = (choices.events[key] || []).filter((choice) => chosenEvents.includes(choice.value));
+    const codes = selectedEvents.length ? selectedEvents.map((choice) => choice.genders).join("") : (choices.genders[key] || []).join("");
     const labels = { M: "Men", W: "Women", X: "Mixed" };
-    const previous = gender.value;
-    replaceOptions(gender, ["M", "W", "X"].filter((code) => codes.includes(code)).map((code) => ({ value: code, label: labels[code] })), "Choose Gender");
-    if ([...gender.options].some((option) => option.value === previous)) gender.value = previous;
+    const previous = gender.dataset.selected || selectedValues(gender);
+    replaceOptions(gender, ["M", "W", "X"].filter((code) => codes.includes(code)).map((code) => ({ value: code, label: labels[code] })), "Choose Gender", previous);
+    gender.dataset.selected = "";
   };
 
   sport.addEventListener("change", () => {
     replaceOptions(competition, choices.competitions[sport.value] || [], "Choose Competition");
     replaceOptions(eventName, [], "None available");
+    const capabilities = choices.sport_capabilities[sport.value] || {};
+    eventName.multiple = Boolean(capabilities.multiple_events);
+    gender.multiple = Boolean(capabilities.multiple_genders);
+    form.querySelector("[data-core-event-help]").textContent = eventName.multiple ? "Select one or more events. Use Ctrl/Cmd-click to choose several." : "Select one event.";
+    form.querySelector("[data-core-gender-help]").textContent = gender.multiple ? "Select one or more genders. Use Ctrl/Cmd-click to choose several." : "Select one gender.";
     updateGenders();
   });
   competition.addEventListener("change", () => {
     const key = `${sport.value}|||${competition.value}`;
     const values = choices.events[key] || [];
-    replaceOptions(eventName, values, values.length ? "None" : "None available");
+    const capabilities = choices.sport_capabilities[sport.value] || {};
+    eventName.multiple = Boolean(capabilities.multiple_events);
+    gender.multiple = Boolean(capabilities.multiple_genders);
+    replaceOptions(eventName, values, values.length ? "None" : "None available", eventName.dataset.selected || selectedValues(eventName));
+    eventName.dataset.selected = "";
     eventName.required = values.length > 0;
+    form.querySelector("[data-core-event-help]").textContent = eventName.multiple ? "Select one or more events. Use Ctrl/Cmd-click to choose several." : "Select one event.";
+    form.querySelector("[data-core-gender-help]").textContent = gender.multiple ? "Select one or more genders. Use Ctrl/Cmd-click to choose several." : "Select one gender.";
     updateGenders();
   });
   eventName.addEventListener("change", updateGenders);
@@ -150,4 +165,9 @@
     if (selected && !compatible().includes(selected)) clearSelection(true);
     render();
   }));
+  const initialCapabilities = choices.sport_capabilities[sport.value] || {};
+  eventName.multiple = Boolean(initialCapabilities.multiple_events);
+  gender.multiple = Boolean(initialCapabilities.multiple_genders);
+  form.querySelector("[data-core-event-help]").textContent = eventName.multiple ? "Select one or more events. Use Ctrl/Cmd-click to choose several." : "Select one event.";
+  form.querySelector("[data-core-gender-help]").textContent = gender.multiple ? "Select one or more genders. Use Ctrl/Cmd-click to choose several." : "Select one gender.";
 })();

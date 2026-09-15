@@ -942,7 +942,6 @@
 
     const entityWordingVariants = (entity) => {
       if (entity.type === "athlete") {
-        const surname = entity.name.trim().split(/\s+/).at(-1);
         const identity = [
           entity.country_code,
           entity.athlete_active ? entity.ski_sponsor : "",
@@ -950,10 +949,8 @@
           .filter(Boolean)
           .join("/");
         return [...new Set([
-          identity ? `${entity.name} (${identity})` : "",
-          identity ? `${entity.name}'s (${identity})` : "",
-          surname,
-          surname ? `${surname}'s` : "",
+          identity ? `${entity.name} (${identity})` : entity.name,
+          identity ? `${entity.name}'s (${identity})` : `${entity.name}'s`,
         ].filter(Boolean))];
       }
 
@@ -967,8 +964,7 @@
       return [entity.name];
     };
 
-    const suggestionCreatesLink = (entity, wording) =>
-      entity.type !== "athlete" || wording === entityWordingVariants(entity)[0];
+    const suggestionCreatesLink = () => true;
 
     const appendResult = (entity) => {
       entityWordingVariants(entity).forEach((wording) => {
@@ -1315,7 +1311,7 @@
         try {
           const label = document.createElement("span");
           label.className = "sew-entity-loading";
-          label.textContent = `Athlete suggestions for “${context.text}”`;
+          label.textContent = `Suggestions for “${context.text}”`;
           const options = document.createElement("div");
           options.className = "sew-inline-entity-options";
           options.setAttribute("role", "listbox");
@@ -1378,7 +1374,7 @@
           if (error.name !== "AbortError") {
             const unavailable = document.createElement("span");
             unavailable.className = "sew-entity-loading";
-            unavailable.textContent = "Athlete suggestions are temporarily unavailable. You can still select the wording and use the link button.";
+            unavailable.textContent = "Suggestions are temporarily unavailable. You can still select the wording and use the link button.";
             suggestions.replaceChildren(unavailable);
           }
         }

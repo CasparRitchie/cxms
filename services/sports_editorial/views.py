@@ -12,7 +12,7 @@ from .formatting import render_entity_links, render_entity_tags, sanitise_rich_t
 from .fis_client import FisApiError, fis_configuration, get_fis_client
 from .fis_export import FisPayloadValidationError, build_fis_payload
 from .repository import repository
-from .validation import ACTIVE_STATUSES, VALID_ENTITY_TYPES, VALID_STATUSES, STATUS_LABELS, validate_status_transition, validate_submission
+from .validation import ACTIVE_STATUSES, VALID_ENTITY_TYPES, VALID_STATUSES, STATUS_LABELS, validate_editorial_limits, validate_status_transition, validate_submission
 from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_editor, require_reviewer, require_editorial_user_admin, require_supervisor, update_workspace_editorial_user
 from .supabase_rest import SupabaseError
 from .calendar import RepositoryCalendarProvider
@@ -25,8 +25,8 @@ from .fis_results import FisResultError, fetch_alpine_results
 from .result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
 from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
-    event_discipline_code, format_display_date, parse_display_date, resolve_calendar_event,
-    SPORT_CODES, SPORT_LABELS, validate_choice_combination,
+    event_discipline_code, event_discipline_codes, format_display_date, parse_display_date, resolve_calendar_event,
+    SPORT_CODES, SPORT_DISPLAY_CODES, SPORT_LABELS, validate_choice_combination,
 )
 from .edit_locks import lock_timeout_seconds, parse_timestamp
 
@@ -177,7 +177,7 @@ def _review_form_preview(submission, form_data, parsed_dates=None):
 def workspace_context():
     user = current_user() or {}
     mode = auth_configuration()["mode"]
-    return {"workspace_role": user.get("role", "researcher"), "workspace_account_role": user.get("workspace_role", "member"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode, "status_labels": STATUS_LABELS, "sport_codes": SPORT_CODES, "sport_labels": SPORT_LABELS, "research_assignment_roles": RESEARCH_ASSIGNMENT_ROLES, "sub_editor_assignment_roles": SUB_EDITOR_ASSIGNMENT_ROLES}
+    return {"workspace_role": user.get("role", "researcher"), "workspace_account_role": user.get("workspace_role", "member"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode, "status_labels": STATUS_LABELS, "sport_codes": SPORT_DISPLAY_CODES, "sport_labels": SPORT_LABELS, "format_display_date": format_display_date, "research_assignment_roles": RESEARCH_ASSIGNMENT_ROLES, "sub_editor_assignment_roles": SUB_EDITOR_ASSIGNMENT_ROLES}
 
 
 @blueprint.route("/login", methods=["GET", "POST"])
@@ -656,6 +656,7 @@ def submit():
     calendar_events = canonical_calendar_events(raw_calendar_events)
     options = creation_options()
     browser_options = {
+        "sport_capabilities": {item["value"]: {"multiple_events": bool(item.get("multiple_events")), "multiple_genders": bool(item.get("multiple_genders"))} for item in options["sports"]},
         "competitions": {sport: list(items) for sport, items in options["competitions"].items()},
         "events": {f"{sport}|{competition}": list(items) for (sport, competition), items in options["events"].items()},
         "genders": {f"{sport}|{competition}": list(items) for (sport, competition), items in options["genders"].items()},
@@ -667,13 +668,15 @@ def submit():
         status = "in_review" if action == "submit" else "draft"
         sport = request.form.get("sport", "").strip()
         competition = request.form.get("competition", "").strip()
-        event_name = request.form.get("event_name", "").strip()
+        event_names = [value.strip() for value in request.form.getlist("event_name") if value.strip()]
         raw_season = request.form.get("season_code", "").strip()
         errors = []
         if not request.form.get("title", "").strip():
             errors.append("Title is required.")
-        gender = request.form.get("gender", "").strip().upper()
-        errors.extend(validate_choice_combination(sport, competition, event_name, gender))
+        elif len(request.form.get("title", "")) > 160:
+            errors.append("Title must be 160 characters or fewer.")
+        genders = [value.strip().upper() for value in request.form.getlist("gender") if value.strip()]
+        errors.extend(validate_choice_combination(sport, competition, event_names, genders))
         season_code = int(raw_season) if re.fullmatch(r"\d{4}", raw_season) else None
         if season_code is None or not MIN_SEASON <= season_code <= MAX_SEASON:
             errors.append(f"Season must be a four-digit year from {MIN_SEASON} to {MAX_SEASON}.")
@@ -710,9 +713,10 @@ def submit():
 
         data = {
             "title": request.form.get("title", ""), "sport": sport,
-            "competition": competition, "event_name": event_name,
-            "gender": gender, "fis_discipline_code": SPORT_CODES.get(sport),
-            "fis_event_discipline_code": event_discipline_code(sport, competition, event_name),
+            "competition": competition, "event_name": event_names[0] if event_names else "", "event_names": event_names,
+            "gender": genders[0] if genders else "", "genders": genders, "fis_discipline_code": SPORT_CODES.get(sport),
+            "fis_event_discipline_code": event_discipline_code(sport, competition, event_names),
+            "fis_event_discipline_codes": list(event_discipline_codes(sport, competition, event_names)),
             "location": selected_event["location"] if selected_event else "",
             "fis_event_ids": [int(selected_event["canonical_id"])] if selected_event else [],
             "event_date": parsed_dates["event_date"], "author_name": (current_user() or {}).get("full_name") or (current_user() or {}).get("email") or "Workspace user",
@@ -1013,6 +1017,19 @@ def detail(submission_id):
         raw_event_ids = " ".join(str(value) for value in submission.get("fis_event_ids", []))
         event_ids = _event_ids_from_form(raw_event_ids)
         valid, message = validate_status_transition(submission["status"], requested_status)
+        review_content = [
+            {"content_type": kind, "content_html": request.form.get(f"edited_text_{block_id}", "")}
+            for block_id, kind in zip(request.form.getlist("content_id"), request.form.getlist("content_type"))
+        ]
+        length_errors = validate_editorial_limits({
+            "title": request.form.get("title", submission.get("title", "")),
+            "sport": request.form.get("sport", submission.get("sport", "")),
+            "content": review_content,
+            "working_notes": request.form.get("working_notes", submission.get("working_notes", "")),
+            "unused_stats": request.form.get("unused_stats", submission.get("unused_stats", "")),
+        })
+        if valid and length_errors:
+            valid, message = False, length_errors[0]
         parsed_dates = {}
         for field_name, label in (
             ("event_date", "Race Date"),
@@ -1043,14 +1060,16 @@ def detail(submission_id):
         elif can_edit_core:
             submitted_sport = request.form.get("sport", submission.get("sport", "")).strip()
             submitted_competition = request.form.get("competition", submission.get("competition", "")).strip()
-            submitted_event = request.form.get("event_name", submission.get("event_name", "")).strip()
-            submitted_gender = request.form.get("gender", submission.get("gender", "")).strip().upper()
+            submitted_events = ([value.strip() for value in request.form.getlist("event_name") if value.strip()]
+                                if "event_name" in request.form else (submission.get("event_names") or ([submission.get("event_name")] if submission.get("event_name") else [])))
+            submitted_genders = ([value.strip().upper() for value in request.form.getlist("gender") if value.strip()]
+                                 if "gender" in request.form else (submission.get("genders") or ([submission.get("gender")] if submission.get("gender") else [])))
             unchanged_legacy = (
                 submitted_sport == submission.get("sport")
                 and submitted_competition == submission.get("competition")
-                and submitted_event == submission.get("event_name")
+                and submitted_events == (submission.get("event_names") or ([submission.get("event_name")] if submission.get("event_name") else []))
             )
-            controlled_errors = validate_choice_combination(submitted_sport, submitted_competition, submitted_event, submitted_gender)
+            controlled_errors = validate_choice_combination(submitted_sport, submitted_competition, submitted_events, submitted_genders)
             if controlled_errors and not unchanged_legacy:
                 valid, message = False, controlled_errors[0]
         if valid and "season_code" in request.form and _season_code(request.form.get("season_code"), event_ids, parsed_dates.get("event_date", request.form.get("event_date"))) is None:
@@ -1098,9 +1117,15 @@ def detail(submission_id):
                 mutable_form["fis_event_ids"] = " ".join(str(value) for value in event_ids)
                 selected_sport = mutable_form.get("sport", submission.get("sport"))
                 selected_competition = mutable_form.get("competition", submission.get("competition"))
-                selected_event_name = mutable_form.get("event_name", submission.get("event_name"))
+                selected_event_names = ([value.strip() for value in mutable_form.getlist("event_name") if value.strip()]
+                                        if "event_name" in mutable_form else (submission.get("event_names") or ([submission.get("event_name")] if submission.get("event_name") else [])))
+                selected_genders = ([value.strip().upper() for value in mutable_form.getlist("gender") if value.strip()]
+                                    if "gender" in mutable_form else (submission.get("genders") or ([submission.get("gender")] if submission.get("gender") else [])))
                 mutable_form["fis_discipline_code"] = SPORT_CODES.get(selected_sport, "")
-                mutable_form["fis_event_discipline_code"] = event_discipline_code(selected_sport, selected_competition, selected_event_name) or ""
+                mutable_form["event_names"] = selected_event_names
+                mutable_form["genders"] = selected_genders
+                mutable_form["fis_event_discipline_code"] = event_discipline_code(selected_sport, selected_competition, selected_event_names) or ""
+                mutable_form["fis_event_discipline_codes"] = list(event_discipline_codes(selected_sport, selected_competition, selected_event_names))
                 selected = next((item for item in canonical_calendar_events(_calendar_events()) if item["canonical_id"] in {str(value) for value in event_ids}), None)
                 mutable_form["location"] = selected["location"] if selected else ""
             for field_name, parsed_value in parsed_dates.items():
@@ -1146,6 +1171,7 @@ def detail(submission_id):
     calendar_events = canonical_calendar_events(_calendar_events())
     choices = creation_options()
     core_choice_options = {
+        "sport_capabilities": {item["value"]: {"multiple_events": bool(item.get("multiple_events")), "multiple_genders": bool(item.get("multiple_genders"))} for item in choices["sports"]},
         "competitions": {sport: list(values) for sport, values in choices["competitions"].items()},
         "events": {f"{sport}|||{competition}": list(values) for (sport, competition), values in choices["events"].items()},
         "genders": {f"{sport}|||{competition}": list(values) for (sport, competition), values in choices["genders"].items()},
@@ -1183,7 +1209,7 @@ def research(submission_id):
         mutable_form = request.form.copy()
         mutable_form["event_date"] = parsed_date
         content = [{"content_type": kind, "content_html": sanitise_rich_text(value)} for kind, value in zip(request.form.getlist("content_type"), request.form.getlist("content_html"))]
-        errors = validate_submission({"title": submission["title"], "sport": submission["sport"], "fis_event_ids": submission.get("fis_event_ids", []), "content": content}, submitting=action == "submit")
+        errors = validate_submission({"title": submission["title"], "sport": submission["sport"], "fis_event_ids": submission.get("fis_event_ids", []), "content": content, "working_notes": request.form.get("working_notes", ""), "unused_stats": request.form.get("unused_stats", "")}, submitting=action == "submit")
         if not errors:
             renewed_lock = repository.heartbeat_edit_lock(submission_id, user["id"], lock_token) if is_autosave else None
             if is_autosave and not renewed_lock:

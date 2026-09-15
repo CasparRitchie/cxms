@@ -32,27 +32,35 @@
   });
 
   const fillSelect = (select, choices, selected) => {
+    const selectedValues = Array.isArray(selected) ? selected : String(selected || "").split("|||").filter(Boolean);
     select.replaceChildren(new Option("", ""));
     choices.forEach((choice) => select.add(new Option(choice.label || choice, choice.value || choice)));
-    select.value = choices.some((choice) => (choice.value || choice) === selected) ? selected : "";
+    [...select.options].forEach((option) => { option.selected = selectedValues.includes(option.value); });
   };
+  const selectedValues = (select) => [...select.selectedOptions].map((option) => option.value).filter(Boolean);
   const updateGenders = () => {
     const key = `${sport.value}|${competition.value}`;
-    const selectedEvent = (options.events[key] || []).find((choice) => choice.value === eventName.value);
-    const codes = selectedEvent?.genders || (options.genders[key] || []).join("");
+    const chosenEvents = selectedValues(eventName);
+    const selectedEvents = (options.events[key] || []).filter((choice) => chosenEvents.includes(choice.value));
+    const codes = selectedEvents.length ? selectedEvents.map((choice) => choice.genders).join("") : (options.genders[key] || []).join("");
     const labels = { M: "Men", W: "Women", X: "Mixed", O: "Open" };
     const choices = ["M", "W", "X"].filter((code) => codes.includes(code)).map((code) => ({ value: code, label: labels[code] }));
-    fillSelect(gender, choices, gender.dataset.selected || gender.value);
+    fillSelect(gender, choices, gender.dataset.selected || selectedValues(gender));
     gender.dataset.selected = "";
     form.querySelector("[data-gender-message]").hidden = choices.length > 0 || !competition.value;
   };
   const updateEvents = () => {
     const key = `${sport.value}|${competition.value}`;
     const choices = options.events[key] || [];
-    fillSelect(eventName, choices, eventName.dataset.selected || eventName.value);
+    const capabilities = options.sport_capabilities[sport.value] || {};
+    eventName.multiple = Boolean(capabilities.multiple_events);
+    gender.multiple = Boolean(capabilities.multiple_genders);
+    fillSelect(eventName, choices, eventName.dataset.selected || selectedValues(eventName));
     eventName.required = choices.length > 0;
     eventName.dataset.selected = "";
     form.querySelector("[data-event-message]").hidden = choices.length > 0 || !competition.value;
+    form.querySelector("[data-event-help]").textContent = eventName.multiple ? "Select one or more events. Use Ctrl/Cmd-click to choose several." : "Select one event.";
+    form.querySelector("[data-gender-help]").textContent = gender.multiple ? "Select one or more genders. Use Ctrl/Cmd-click to choose several." : "Select one gender.";
     updateGenders();
     updateCalendar();
   };

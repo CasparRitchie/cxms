@@ -91,8 +91,8 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
     submission_notes = str(submission.get("fis_submission_notes") or "").strip()
     if not submission.get("title"):
         errors.append("FIS requires a sheet title.")
-    elif len(submission["title"]) > 255:
-        errors.append("The FIS sheet title must be 255 characters or fewer.")
+    elif len(submission["title"]) > 160:
+        errors.append("The stat sheet title must be 160 characters or fewer.")
     if not discipline_code or discipline_code not in set(DISCIPLINE_CODES.values()):
         errors.append("Select a supported FIS sport before publishing.")
     if not event_ids:
@@ -114,8 +114,10 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
         if wrong_discipline:
             errors.append("All FIS calendar events must use the sheet discipline.")
 
+    genders = submission.get("genders") or ([submission.get("gender")] if submission.get("gender") else [])
+    section_gender = genders[0] if len(genders) == 1 and genders[0] in ("W", "M", "X") else None
     sections = []
-    current = {"title": None, "genderCode": submission.get("gender") if submission.get("gender") in ("W", "M", "X") else None, "items": []}
+    current = {"title": None, "genderCode": section_gender, "items": []}
     for block in sorted(submission.get("stats", []), key=lambda item: item.get("sort_order", 0)):
         block_type = block.get("content_type", "stat")
         formatted_text = block.get("edited_text") or block.get("stat_text") or ""
@@ -123,7 +125,7 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
         if block_type in ("section", "heading"):
             if current["items"]:
                 sections.append(current)
-            current = {"title": text or None, "genderCode": submission.get("gender") if submission.get("gender") in ("W", "M", "X") else None, "items": []}
+            current = {"title": text or None, "genderCode": section_gender, "items": []}
             if len(text) > 255:
                 errors.append(f"Section heading {block.get('id')} must be 255 characters or fewer.")
             continue

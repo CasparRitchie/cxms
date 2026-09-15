@@ -6,16 +6,16 @@ MIN_SEASON = 2000
 MAX_SEASON = 2100
 
 SPORTS = (
-    {"value": "alpine_skiing", "label": "Alpine Skiing (AL)", "enabled": True, "discipline_code": "AL"},
-    {"value": "ski_jumping", "label": "Ski Jumping (JP)", "enabled": True, "discipline_code": "JP"},
-    {"value": "cross_country_skiing", "label": "Cross-Country Skiing (CC)", "enabled": True, "discipline_code": "CC"},
-    {"value": "nordic_combined", "label": "Nordic Combined (NK)", "enabled": True, "discipline_code": "NK"},
-    {"value": "freestyle", "label": "FRS - Freestyle (FS)", "enabled": True, "discipline_code": "FS"},
-    {"value": "freeski_park_and_pipe", "label": "FRS - Freeski P&P (FS)", "enabled": True, "discipline_code": "FS"},
-    {"value": "freestyle_ski_cross", "label": "FRS - Ski Cross (FS)", "enabled": True, "discipline_code": "FS"},
-    {"value": "snowboard_cross", "label": "SBD - Cross (SB)", "enabled": True, "discipline_code": "SB"},
-    {"value": "snowboard_park_and_pipe", "label": "SBD - P&P (SB)", "enabled": True, "discipline_code": "SB"},
-    {"value": "snowboard_alpine", "label": "SBD - Alpine (SB)", "enabled": True, "discipline_code": "SB"},
+    {"value": "alpine_skiing", "label": "Alpine Skiing (AL)", "display_code": "ALP", "enabled": True, "discipline_code": "AL"},
+    {"value": "ski_jumping", "label": "Ski Jumping (JP)", "display_code": "SJP", "enabled": True, "discipline_code": "JP", "multiple_events": True},
+    {"value": "cross_country_skiing", "label": "Cross-Country Skiing (CC)", "display_code": "CCS", "enabled": True, "discipline_code": "CC"},
+    {"value": "nordic_combined", "label": "Nordic Combined (NK)", "display_code": "NCB", "enabled": True, "discipline_code": "NK"},
+    {"value": "freestyle", "label": "FRS - Freestyle (FS)", "display_code": "FRS", "enabled": True, "discipline_code": "FS", "multiple_events": True, "multiple_genders": True},
+    {"value": "freeski_park_and_pipe", "label": "FRS - Freeski P&P (FS)", "display_code": "FRS", "enabled": True, "discipline_code": "FS", "multiple_events": True, "multiple_genders": True},
+    {"value": "freestyle_ski_cross", "label": "FRS - Ski Cross (FS)", "display_code": "FRS", "enabled": True, "discipline_code": "FS"},
+    {"value": "snowboard_cross", "label": "SBD - Cross (SB)", "display_code": "SBD", "enabled": True, "discipline_code": "SB"},
+    {"value": "snowboard_park_and_pipe", "label": "SBD - P&P (SB)", "display_code": "SBD", "enabled": True, "discipline_code": "SB", "multiple_events": True, "multiple_genders": True},
+    {"value": "snowboard_alpine", "label": "SBD - Alpine (SB)", "display_code": "SBD", "enabled": True, "discipline_code": "SB", "multiple_events": True, "multiple_genders": True},
 )
 
 COMPETITIONS = {
@@ -74,6 +74,7 @@ COMPETITION_GENDERS.update({
 })
 
 SPORT_CODES = {item["value"]: item["discipline_code"] for item in SPORTS}
+SPORT_DISPLAY_CODES = {item["value"]: item["display_code"] for item in SPORTS}
 SPORT_LABELS = {item["value"]: item["label"] for item in SPORTS}
 GENDER_LABELS = {"M": "Men", "W": "Women", "X": "Mixed", "O": "Open"}
 
@@ -93,18 +94,30 @@ def creation_options():
     return {"sports": SPORTS, "competitions": COMPETITIONS, "events": EVENTS, "genders": COMPETITION_GENDERS}
 
 
+def _as_choices(value):
+    if isinstance(value, (list, tuple)):
+        return tuple(item for item in value if item)
+    return (value,) if value else ()
+
+
 def allowed_genders(sport, competition, event_name=""):
     choices = EVENTS.get((sport, competition), ())
     if choices:
-        selected = next((item for item in choices if item["value"] == event_name), None)
-        codes = selected["genders"] if selected else "".join(dict.fromkeys("".join(item["genders"] for item in choices)))
+        selected_values = set(_as_choices(event_name))
+        selected = [item for item in choices if item["value"] in selected_values]
+        codes = "".join(dict.fromkeys("".join(item["genders"] for item in (selected or choices))))
         return tuple(code for code in ("M", "W", "X") if code in codes)
     return COMPETITION_GENDERS.get((sport, competition), ())
 
 
+def event_discipline_codes(sport, competition, event_names):
+    selected_values = set(_as_choices(event_names))
+    return tuple(item["discipline_code"] for item in EVENTS.get((sport, competition), ()) if item["value"] in selected_values)
+
+
 def event_discipline_code(sport, competition, event_name):
-    selected = next((item for item in EVENTS.get((sport, competition), ()) if item["value"] == event_name), None)
-    return selected["discipline_code"] if selected else None
+    codes = event_discipline_codes(sport, competition, event_name)
+    return codes[0] if codes else None
 
 
 def validate_choice_combination(sport, competition, event_name, gender=""):
@@ -119,11 +132,19 @@ def validate_choice_combination(sport, competition, event_name, gender=""):
     elif competition not in COMPETITIONS.get(sport, ()):
         errors.append("Select a Competition available for the chosen Sport.")
     allowed_events = EVENTS.get((sport, competition), ())
-    if allowed_events and not event_name:
+    selected_events = _as_choices(event_name)
+    selected_genders = _as_choices(gender)
+    sport_config = next((item for item in SPORTS if item["value"] == sport), {})
+    if allowed_events and not selected_events:
         errors.append("Event is required for the chosen Sport and Competition.")
-    if event_name and event_name not in {item["value"] for item in allowed_events}:
+    if any(item not in {choice["value"] for choice in allowed_events} for item in selected_events):
         errors.append("Select an Event available for the chosen Sport and Competition.")
-    if gender and gender not in allowed_genders(sport, competition, event_name):
+    if len(selected_events) > 1 and not sport_config.get("multiple_events"):
+        errors.append("Select one Event for the chosen Sport.")
+    if len(selected_genders) > 1 and not sport_config.get("multiple_genders"):
+        errors.append("Select one Gender for the chosen Sport.")
+    available_genders = allowed_genders(sport, competition, selected_events)
+    if any(item not in available_genders for item in selected_genders):
         errors.append("Select a Gender available for the chosen Sport, Competition and Event.")
     return errors
 

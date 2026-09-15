@@ -407,9 +407,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         page = self.client.get("/workspace/sports-editorial/submit")
         self.assertEqual(page.status_code, 200)
         self.assertNotIn(b"Controlled creation", page.data)
-        self.assertNotIn(b"placeholder=", page.data)
+        self.assertIn(b'placeholder="Choose a stored FIS event', page.data)
         self.assertNotIn(b'name="client_name" value="FIS" checked', page.data)
-        self.assertIn(b'name="title" required value=""', page.data)
+        self.assertIn(b'name="title" required maxlength="160" value=""', page.data)
         self.assertIn(b'name="season_code" required', page.data)
         self.assertIn(b'name="fis_event_ids" value="" readonly', page.data)
         self.assertIn(b'name="calendar_event_query" type="search"', page.data)
@@ -461,6 +461,37 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(created["fis_discipline_code"], "JP")
         self.assertEqual(created["fis_event_discipline_code"], "TN")
         self.assertTrue(created["fis_external_id"].startswith("amp-jp-w-team-normal-hill-"))
+
+    def test_configured_sports_can_store_multiple_events_and_genders(self):
+        self.set_role("supervisor")
+        data = MultiDict([
+            ("title", "Freestyle combined sheet"), ("sport", "freestyle"),
+            ("competition", "FIS World Cup"), ("event_name", "Moguls"),
+            ("event_name", "Aerials"), ("gender", "M"), ("gender", "W"),
+            ("season_code", "2027"), ("calendar_event_id", ""),
+            ("fis_event_ids", ""), ("content_type", ""), ("content_html", ""),
+            ("action", "draft"),
+        ])
+        response = self.client.post("/workspace/sports-editorial/submit", data=data)
+        self.assertEqual(response.status_code, 302)
+        created = repository.list_submissions()[0]
+        self.assertEqual(created["event_names"], ["Moguls", "Aerials"])
+        self.assertEqual(created["genders"], ["M", "W"])
+        self.assertEqual(created["fis_event_discipline_codes"], ["MO", "AE"])
+
+    def test_editorial_limits_are_enforced(self):
+        base = {"title": "Pack", "content": [{"content_type": "stat", "content_html": "One fact"}]}
+        self.assertIn("160", validate_submission({**base, "title": "x" * 161})[0])
+        self.assertIn("5,000", validate_submission({**base, "content": [{"content_type": "stat", "content_html": "x" * 5001}]})[0])
+        self.assertIn("10,000", validate_submission({**base, "working_notes": "x" * 10001})[0])
+        self.assertIn("2,500", validate_submission({**base, "unused_stats": "x" * 2501})[0])
+
+    def test_queue_uses_olympic_codes_and_display_dates(self):
+        self.set_role("supervisor")
+        page = self.client.get("/workspace/sports-editorial/queue")
+        self.assertIn(b">ALP</td>", page.data)
+        self.assertIn(b">27-Oct-2026</td>", page.data)
+        self.assertIn(b">25-Oct-2026</td>", page.data)
 
     def test_creation_dates_are_strict_and_persist_as_iso(self):
         self.assertEqual(parse_display_date("01-aUg-2026", "Race Date"), ("2026-08-01", None))
@@ -911,14 +942,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("entityWordingVariants", script)
         self.assertIn('`${entity.name} (${identity})`', script)
         self.assertIn('`${entity.name}\'s (${identity})`', script)
-        self.assertIn("const surname = entity.name.trim().split", script)
-        self.assertIn("`${surname}'s`", script)
-        self.assertNotIn("          entity.name,\n          `${entity.name}'s`,", script)
+        self.assertNotIn("const surname = entity.name.trim().split", script)
+        self.assertNotIn("`${surname}'s`", script)
         self.assertIn('addEntity(entity, "", false, wording, null, createsLink)', script)
         self.assertIn("insertedWording = replacementText || entity.name", script)
         self.assertIn("const suggestionCreatesLink", script)
-        self.assertIn('entity.type !== "athlete" || wording === entityWordingVariants(entity)[0]', script)
-        self.assertIn('createsLink ? " · link" : " · text only"', script)
+        self.assertIn("const suggestionCreatesLink = () => true", script)
         self.assertIn("if (!createLink)", script)
 
     def test_typed_and_selected_entity_lookup_share_completion_variants(self):
@@ -1115,12 +1144,13 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn("node.nodeType !== Node.TEXT_NODE", script)
         self.assertIn("type=athlete&offset=${offset}", script)
         self.assertIn("replace: true", script)
-        self.assertIn("Athlete suggestions for", script)
+        self.assertIn("Suggestions for", script)
+        self.assertNotIn("Athlete suggestions for", script)
         self.assertIn("while (hasMore)", script)
         self.assertIn("sew-inline-entity-options", script)
         self.assertIn("Looking for athletes matching", script)
         self.assertIn("No athletes match", script)
-        self.assertIn("Athlete suggestions are temporarily unavailable", script)
+        self.assertIn("Suggestions are temporarily unavailable", script)
         self.assertNotIn(").slice(0, 5)", script)
         self.assertIn('button.addEventListener("click"', script)
         self.assertNotIn("addEntity(entity);\n          suggestions.replaceChildren", script)
@@ -1237,7 +1267,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         with self.assertRaises(FisPayloadValidationError) as context:
             build_fis_payload(submission, {})
         message = str(context.exception)
-        self.assertIn("255", message)
+        self.assertIn("160", message)
         self.assertIn("5,000", message)
         self.assertIn("more than 10", message)
 
@@ -1492,7 +1522,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.set_sub_editor()
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Current stage: In Sub Edit", response.data)
+        self.assertNotIn(b"Current stage: In Sub Edit", response.data)
+        self.assertNotIn(b"Complete the sub-edit", response.data)
         self.assertNotIn(b'value="changes_requested">Request changes', response.data)
         self.assertNotIn(b"Instructions for the researcher", response.data)
         self.assertIn(b'value="approved">Approve stat sheet', response.data)
@@ -1511,8 +1542,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertLess(header.index("Pub. Prev."), header.index("Accept all"))
         self.assertLess(header.index("Accept all"), header.index(">Edit</button>"))
         self.assertLess(header.index(">Edit</button>"), header.index("Approve stat sheet"))
-        workflow = page[page.index('class="sew-card sew-workflow-decision"'):page.index('class="sew-card sew-unpublished')]
-        self.assertNotIn("type=\"submit\"", workflow)
+        self.assertNotIn('class="sew-card sew-workflow-decision"', page)
 
     def test_final_state_keeps_entity_metadata_available_for_link_checks(self):
         self.set_sub_editor()
@@ -1536,7 +1566,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertIn(b'<select name="client_name">', response.data)
         self.assertIn(b'<select name="competition" data-core-competition>', response.data)
-        self.assertIn(b'<select name="event_name" data-core-event>', response.data)
+        self.assertIn(b'<select name="event_name" data-core-event data-selected=', response.data)
         self.assertNotIn(b'<input name="competition"', response.data)
         self.assertNotIn(b'<input name="event_name"', response.data)
 
@@ -2073,8 +2103,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertIn(b"Working Notes (Unpublished)", response.data)
             self.assertIn(b"Unused Stats (Unpublished)", response.data)
-            self.assertIn(b'name="working_notes" rows="12" readonly', response.data)
-            self.assertIn(b'name="unused_stats" rows="12" readonly', response.data)
+            self.assertIn(b'name="working_notes" rows="12" maxlength="10000" readonly', response.data)
+            self.assertIn(b'name="unused_stats" rows="12" maxlength="2500" readonly', response.data)
 
     def test_research_core_data_uses_single_clean_race_date_control(self):
         repository.set_submission_status("demo-submission-kronplatz", "draft")

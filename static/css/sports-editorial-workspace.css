@@ -354,6 +354,7 @@ html[data-sew-theme="light"] .sew-queue-table-card::-webkit-scrollbar-thumb{back
   background:var(--sew-card);
   box-shadow:0 1px var(--sew-line);
 }
+.sew-queue-table .sew-column-headings>th,.sew-queue-table .sew-column-headings>th a{white-space:normal;overflow-wrap:normal;word-break:normal}
 .sew-queue-table .sew-column-headings>th:first-child,
 .sew-queue-table .sew-column-headings>th:nth-child(2){z-index:7}
 
