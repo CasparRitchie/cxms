@@ -5,30 +5,77 @@ from datetime import datetime
 MIN_SEASON = 2000
 MAX_SEASON = 2100
 
-# ALP is the only creatable sport today. Enabling CCS or SJP also requires
-# schema, validation, catalogue, export, and publishing support.
 SPORTS = (
-    {"value": "alpine_skiing", "label": "Alpine Skiing (ALP)", "enabled": True, "discipline_code": "AL"},
-    {"value": "cross_country_skiing", "label": "Cross-Country Skiing (CCS) — Coming soon", "enabled": False, "discipline_code": "CC"},
-    {"value": "ski_jumping", "label": "Ski Jumping (SJP) — Coming soon", "enabled": False, "discipline_code": "JP"},
+    {"value": "alpine_skiing", "label": "Alpine Skiing (AL)", "enabled": True, "discipline_code": "AL"},
+    {"value": "ski_jumping", "label": "Ski Jumping (JP)", "enabled": True, "discipline_code": "JP"},
+    {"value": "cross_country_skiing", "label": "Cross-Country Skiing (CC)", "enabled": True, "discipline_code": "CC"},
+    {"value": "nordic_combined", "label": "Nordic Combined (NK)", "enabled": True, "discipline_code": "NK"},
+    {"value": "freestyle", "label": "FRS - Freestyle (FS)", "enabled": True, "discipline_code": "FS"},
+    {"value": "freeski_park_and_pipe", "label": "FRS - Freeski P&P (FS)", "enabled": True, "discipline_code": "FS"},
+    {"value": "freestyle_ski_cross", "label": "FRS - Ski Cross (FS)", "enabled": True, "discipline_code": "FS"},
+    {"value": "snowboard_cross", "label": "SBD - Cross (SB)", "enabled": True, "discipline_code": "SB"},
+    {"value": "snowboard_park_and_pipe", "label": "SBD - P&P (SB)", "enabled": True, "discipline_code": "SB"},
+    {"value": "snowboard_alpine", "label": "SBD - Alpine (SB)", "enabled": True, "discipline_code": "SB"},
 )
 
 COMPETITIONS = {
     "alpine_skiing": (
         "FIS World Cup",
         "FIS World Championships",
-        "FIS Junior World Championships",
     ),
+    "ski_jumping": ("FIS World Cup", "FIS Ski Flying World Championships", "FIS World Championships"),
+    "cross_country_skiing": ("FIS World Cup", "FIS World Championships"),
+    "nordic_combined": ("FIS World Cup", "FIS World Championships"),
+    "freestyle": ("FIS World Cup",),
+    "freeski_park_and_pipe": ("FIS World Cup",),
+    "freestyle_ski_cross": ("FIS World Cup",),
+    "snowboard_cross": ("FIS World Cup",),
+    "snowboard_park_and_pipe": ("FIS World Cup",),
+    "snowboard_alpine": ("FIS World Cup",),
 }
 
+def _choices(*items):
+    return tuple({"value": name, "label": name, "discipline_code": code, "genders": genders} for name, code, genders in items)
+
+
 EVENTS = {
-    ("alpine_skiing", "FIS World Cup"): (
-        "Downhill",
-        "Giant Slalom",
-        "Slalom",
-        "Super G",
-    ),
+    ("alpine_skiing", "FIS World Cup"): _choices(
+        ("Slalom", "SL", "MW"), ("Giant Slalom", "GS", "MW"), ("Super G", "SG", "MW"),
+        ("Downhill", "DH", "MW"), ("Team Combined", "TC", "MW"), ("Team Parallel", "TP", "X")),
+    ("alpine_skiing", "FIS World Championships"): _choices(
+        ("Slalom", "SL", "MW"), ("Giant Slalom", "GS", "MW"), ("Super G", "SG", "MW"),
+        ("Downhill", "DH", "MW"), ("Team Combined", "TC", "MW"), ("Team Parallel", "TP", "X")),
+    ("ski_jumping", "FIS World Cup"): _choices(
+        ("Large Hill", "LH", "MW"), ("Normal Hill", "NH", "MW"), ("Flying Hill", "FH", "MW"),
+        ("Team Flying Hill", "TF", "M"), ("Super Team Large Hill", "STL", "M"), ("Mixed Team", "TL", "X")),
+    ("ski_jumping", "FIS Ski Flying World Championships"): _choices(
+        ("Flying Hill", "FH", "M"), ("Team Event", "TF", "M")),
+    ("ski_jumping", "FIS World Championships"): _choices(
+        ("Large Hill", "LH", "MW"), ("Normal Hill", "NH", "MW"), ("Team Large Hill", "TL", "MX"),
+        ("Team Normal Hill", "TN", "WX")),
+    ("freestyle", "FIS World Cup"): _choices(("Moguls", "MO", "MW"), ("Aerials", "AE", "MW")),
+    ("freeski_park_and_pipe", "FIS World Cup"): _choices(
+        ("Slopestyle", "SS", "MW"), ("Halfpipe", "HP", "MW"), ("Big Air", "BA", "MW")),
+    ("snowboard_park_and_pipe", "FIS World Cup"): _choices(
+        ("Slopestyle", "SS", "MW"), ("Halfpipe", "HP", "MW"), ("Big Air", "BA", "MW")),
+    ("snowboard_alpine", "FIS World Cup"): _choices(
+        ("Parallel Giant Slalom", "PGS", "MW"), ("Parallel Slalom", "PSL", "MW"),
+        ("Giant Slalom", "GS", "MW"), ("Parallel Team", "PRT", "X")),
 }
+
+COMPETITION_GENDERS = {
+    (sport, competition): ("M", "W", "X") if competition == "FIS World Championships" else ("M", "W")
+    for sport in ("cross_country_skiing", "nordic_combined")
+    for competition in COMPETITIONS[sport]
+}
+COMPETITION_GENDERS.update({
+    ("freestyle_ski_cross", "FIS World Cup"): ("M", "W"),
+    ("snowboard_cross", "FIS World Cup"): ("M", "W"),
+})
+
+SPORT_CODES = {item["value"]: item["discipline_code"] for item in SPORTS}
+SPORT_LABELS = {item["value"]: item["label"] for item in SPORTS}
+GENDER_LABELS = {"M": "Men", "W": "Women", "X": "Mixed", "O": "Open"}
 
 COMPETITION_CATEGORY_CODES = {
     "FIS World Cup": {"WC"},
@@ -43,10 +90,24 @@ _LOCAL_EVENT_OVERRIDES = {
 
 
 def creation_options():
-    return {"sports": SPORTS, "competitions": COMPETITIONS, "events": EVENTS}
+    return {"sports": SPORTS, "competitions": COMPETITIONS, "events": EVENTS, "genders": COMPETITION_GENDERS}
 
 
-def validate_choice_combination(sport, competition, event_name):
+def allowed_genders(sport, competition, event_name=""):
+    choices = EVENTS.get((sport, competition), ())
+    if choices:
+        selected = next((item for item in choices if item["value"] == event_name), None)
+        codes = selected["genders"] if selected else "".join(dict.fromkeys("".join(item["genders"] for item in choices)))
+        return tuple(code for code in ("M", "W", "X") if code in codes)
+    return COMPETITION_GENDERS.get((sport, competition), ())
+
+
+def event_discipline_code(sport, competition, event_name):
+    selected = next((item for item in EVENTS.get((sport, competition), ()) if item["value"] == event_name), None)
+    return selected["discipline_code"] if selected else None
+
+
+def validate_choice_combination(sport, competition, event_name, gender=""):
     errors = []
     enabled_sports = {item["value"] for item in SPORTS if item["enabled"]}
     if not sport.strip():
@@ -58,8 +119,12 @@ def validate_choice_combination(sport, competition, event_name):
     elif competition not in COMPETITIONS.get(sport, ()):
         errors.append("Select a Competition available for the chosen Sport.")
     allowed_events = EVENTS.get((sport, competition), ())
-    if event_name and event_name not in allowed_events:
+    if allowed_events and not event_name:
+        errors.append("Event is required for the chosen Sport and Competition.")
+    if event_name and event_name not in {item["value"] for item in allowed_events}:
         errors.append("Select an Event available for the chosen Sport and Competition.")
+    if gender and gender not in allowed_genders(sport, competition, event_name):
+        errors.append("Select a Gender available for the chosen Sport, Competition and Event.")
     return errors
 
 
@@ -128,7 +193,7 @@ def canonical_calendar_events(events):
             "location": location,
             "label": f"{event.get('name', '').strip() or location} — {canonical_id}",
             "search_text": " ".join((location, event.get("name", ""), canonical_id)).strip(),
-            "sport": "alpine_skiing" if str(metadata.get("discipline_code") or "").upper() == "AL" else "",
+            "sport": next((sport for sport, code in SPORT_CODES.items() if code == str(metadata.get("discipline_code") or "").upper()), ""),
             "competition": competition,
             "season_code": metadata.get("season_code"),
         })

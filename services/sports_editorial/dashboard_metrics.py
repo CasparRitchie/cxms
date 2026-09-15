@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 WORKFLOW_GROUPS = (
     ("in_progress", "In Progress", ("draft", "changes_requested")),
     ("in_sub_edit", "In Sub Edit", ("submitted", "in_review")),
-    ("approved", "Approved (legacy)", ("approved",)),
+    ("approved", "Approved", ("approved",)),
     ("fis_review", "Awaiting FIS Review", ("fis_review",)),
     ("exported", "Published FIS", ("exported",)),
 )

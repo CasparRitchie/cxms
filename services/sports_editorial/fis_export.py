@@ -1,9 +1,10 @@
 import re
 
+from .creation import SPORT_CODES
 from .formatting import rich_text_to_plain
 
 
-DISCIPLINE_CODES = {"alpine_skiing": "AL"}
+DISCIPLINE_CODES = SPORT_CODES
 LINK_TYPES = {"athlete": "athlete", "country": "nation", "event": "event", "competition": "competition"}
 TAG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 LINK_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,50}$")
@@ -92,10 +93,8 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
         errors.append("FIS requires a sheet title.")
     elif len(submission["title"]) > 255:
         errors.append("The FIS sheet title must be 255 characters or fewer.")
-    if not discipline_code:
-        errors.append("This pilot currently accepts Alpine Skiing (AL/ALP) only.")
-    elif discipline_code != "AL":
-        errors.append("This pilot currently accepts Alpine Skiing (AL/ALP) only.")
+    if not discipline_code or discipline_code not in set(DISCIPLINE_CODES.values()):
+        errors.append("Select a supported FIS sport before publishing.")
     if not event_ids:
         errors.append("Add at least one FIS calendar event ID.")
     if len(event_ids) > 10:
@@ -116,7 +115,7 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
             errors.append("All FIS calendar events must use the sheet discipline.")
 
     sections = []
-    current = {"title": None, "genderCode": submission.get("gender") if submission.get("gender") in ("W", "M") else None, "items": []}
+    current = {"title": None, "genderCode": submission.get("gender") if submission.get("gender") in ("W", "M", "X") else None, "items": []}
     for block in sorted(submission.get("stats", []), key=lambda item: item.get("sort_order", 0)):
         block_type = block.get("content_type", "stat")
         formatted_text = block.get("edited_text") or block.get("stat_text") or ""
@@ -124,7 +123,7 @@ def build_fis_payload(submission, entities_by_id, expected_version=None, organis
         if block_type in ("section", "heading"):
             if current["items"]:
                 sections.append(current)
-            current = {"title": text or None, "genderCode": submission.get("gender") if submission.get("gender") in ("W", "M") else None, "items": []}
+            current = {"title": text or None, "genderCode": submission.get("gender") if submission.get("gender") in ("W", "M", "X") else None, "items": []}
             if len(text) > 255:
                 errors.append(f"Section heading {block.get('id')} must be 255 characters or fewer.")
             continue

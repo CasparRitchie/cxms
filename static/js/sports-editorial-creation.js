@@ -5,6 +5,7 @@
   const sport = form.querySelector("[data-sport]");
   const competition = form.querySelector("[data-competition]");
   const eventName = form.querySelector("[data-event]");
+  const gender = form.querySelector("[data-gender]");
   const calendar = form.querySelector("[data-calendar-event]");
   const calendarSearch = form.querySelector("[data-calendar-search]");
   const calendarResults = form.querySelector("[data-calendar-results]");
@@ -32,15 +33,27 @@
 
   const fillSelect = (select, choices, selected) => {
     select.replaceChildren(new Option("", ""));
-    choices.forEach((choice) => select.add(new Option(choice, choice)));
-    select.value = choices.includes(selected) ? selected : "";
+    choices.forEach((choice) => select.add(new Option(choice.label || choice, choice.value || choice)));
+    select.value = choices.some((choice) => (choice.value || choice) === selected) ? selected : "";
+  };
+  const updateGenders = () => {
+    const key = `${sport.value}|${competition.value}`;
+    const selectedEvent = (options.events[key] || []).find((choice) => choice.value === eventName.value);
+    const codes = selectedEvent?.genders || (options.genders[key] || []).join("");
+    const labels = { M: "Men", W: "Women", X: "Mixed", O: "Open" };
+    const choices = ["M", "W", "X"].filter((code) => codes.includes(code)).map((code) => ({ value: code, label: labels[code] }));
+    fillSelect(gender, choices, gender.dataset.selected || gender.value);
+    gender.dataset.selected = "";
+    form.querySelector("[data-gender-message]").hidden = choices.length > 0 || !competition.value;
   };
   const updateEvents = () => {
     const key = `${sport.value}|${competition.value}`;
     const choices = options.events[key] || [];
     fillSelect(eventName, choices, eventName.dataset.selected || eventName.value);
+    eventName.required = choices.length > 0;
     eventName.dataset.selected = "";
     form.querySelector("[data-event-message]").hidden = choices.length > 0 || !competition.value;
+    updateGenders();
     updateCalendar();
   };
   const updateCompetitions = () => {
@@ -146,6 +159,7 @@
   }
   sport.addEventListener("change", () => { competition.value = ""; eventName.value = ""; updateCompetitions(); });
   competition.addEventListener("change", () => { eventName.value = ""; updateEvents(); });
+  eventName.addEventListener("change", updateGenders);
   form.elements.season_code.addEventListener("input", updateCalendar);
   calendarSearch.addEventListener("focus", renderCalendarResults);
   calendarSearch.addEventListener("input", () => {

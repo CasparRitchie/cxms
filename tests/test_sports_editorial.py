@@ -24,7 +24,7 @@ from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import SupabaseSportsEditorialRepository, repository
 from services.sports_editorial.stat_insights import build_editorial_discoveries, build_perspective_insights, build_stat_insights, demo_result_rows, group_editorial_discoveries
 from services.sports_editorial.validation import validate_status_transition, validate_submission
-from services.sports_editorial.creation import canonical_calendar_events, parse_display_date
+from services.sports_editorial.creation import canonical_calendar_events, creation_options, event_discipline_code, parse_display_date, validate_choice_combination
 from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
 from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
 from services.sports_editorial import views as sports_editorial_views
@@ -66,7 +66,17 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(len(errors), 2)
         self.assertEqual(validate_submission({"title": "Pack", "content": [{"content_type": "stat", "content_html": "One fact"}]}, submitting=True), [])
         self.assertEqual(validate_submission({"title": "Pack", "fis_event_ids": [12345], "content": [{"content_type": "stat", "content_html": "One fact"}]}, submitting=True), [])
-        self.assertIn("Alpine Skiing", validate_submission({"title": "Pack", "sport": "ski_jumping", "content": [{"content_type": "stat", "content_html": "One fact"}]})[0])
+        self.assertEqual(validate_submission({"title": "Pack", "sport": "ski_jumping", "content": [{"content_type": "stat", "content_html": "One fact"}]}), [])
+
+    def test_filled_down_multi_sport_catalogue_controls_events_and_genders(self):
+        options = creation_options()
+        self.assertEqual(len(options["sports"]), 10)
+        self.assertEqual(event_discipline_code("alpine_skiing", "FIS World Cup", "Giant Slalom"), "GS")
+        self.assertEqual(event_discipline_code("ski_jumping", "FIS World Championships", "Team Normal Hill"), "TN")
+        self.assertEqual(validate_choice_combination("ski_jumping", "FIS Ski Flying World Championships", "Flying Hill", "M"), [])
+        self.assertIn("Gender", validate_choice_combination("ski_jumping", "FIS Ski Flying World Championships", "Flying Hill", "W")[0])
+        self.assertEqual(validate_choice_combination("cross_country_skiing", "FIS World Championships", "", "X"), [])
+        self.assertEqual(validate_choice_combination("snowboard_alpine", "FIS World Cup", "Parallel Giant Slalom", "W"), [])
 
     def test_dashboard_metrics_cover_workflow_upcoming_and_attention(self):
         sheets = [
@@ -439,6 +449,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(created["event_name"], "Giant Slalom")
         self.assertEqual(created["amp_id"], "560004")
 
+    def test_multi_sport_creation_persists_sport_and_event_codes(self):
+        self.set_role("supervisor")
+        response = self.client.post("/workspace/sports-editorial/submit", data=self.valid_creation(
+            sport="ski_jumping", competition="FIS World Championships", event_name="Team Normal Hill",
+            gender="W", calendar_event_id="", fis_event_ids="",
+        ))
+        self.assertEqual(response.status_code, 302)
+        created = repository.list_submissions()[0]
+        self.assertEqual(created["sport"], "ski_jumping")
+        self.assertEqual(created["fis_discipline_code"], "JP")
+        self.assertEqual(created["fis_event_discipline_code"], "TN")
+        self.assertTrue(created["fis_external_id"].startswith("amp-jp-w-team-normal-hill-"))
+
     def test_creation_dates_are_strict_and_persist_as_iso(self):
         self.assertEqual(parse_display_date("01-aUg-2026", "Race Date"), ("2026-08-01", None))
         self.assertEqual(parse_display_date("11-Sep-2026", "Race Date"), ("2026-09-11", None))
@@ -465,11 +488,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
             self.assertIn('"Aug", "Sep", "Oct"', script)
             self.assertNotIn('month: "short"', script)
 
-    def test_creation_and_edit_forms_separate_mixed_and_open_gender(self):
+    def test_creation_uses_catalogue_genders_and_edit_retains_legacy_open(self):
         self.set_role("supervisor")
         creation = self.client.get("/workspace/sports-editorial/submit")
-        self.assertIn(b'<option value="X" >Mixed</option>', creation.data)
-        self.assertIn(b'<option value="O" >Open</option>', creation.data)
+        self.assertIn(b'data-gender', creation.data)
+        self.assertNotIn(b'<option value="O"', creation.data)
         detail = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted?edit=1")
         self.assertIn(b'>Mixed</option>', detail.data)
         self.assertIn(b'>Open</option>', detail.data)

@@ -25,7 +25,8 @@ from .fis_results import FisResultError, fetch_alpine_results
 from .result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
 from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
-    format_display_date, parse_display_date, resolve_calendar_event, validate_choice_combination,
+    event_discipline_code, format_display_date, parse_display_date, resolve_calendar_event,
+    SPORT_CODES, SPORT_LABELS, validate_choice_combination,
 )
 from .edit_locks import lock_timeout_seconds, parse_timestamp
 
@@ -176,7 +177,7 @@ def _review_form_preview(submission, form_data, parsed_dates=None):
 def workspace_context():
     user = current_user() or {}
     mode = auth_configuration()["mode"]
-    return {"workspace_role": user.get("role", "researcher"), "workspace_account_role": user.get("workspace_role", "member"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode, "status_labels": STATUS_LABELS, "research_assignment_roles": RESEARCH_ASSIGNMENT_ROLES, "sub_editor_assignment_roles": SUB_EDITOR_ASSIGNMENT_ROLES}
+    return {"workspace_role": user.get("role", "researcher"), "workspace_account_role": user.get("workspace_role", "member"), "workspace_mode": "Local demo mode" if mode == "demo" else "Authenticated workspace", "workspace_user": user.get("full_name") or user.get("email") or "Workspace user", "workspace_auth_mode": mode, "status_labels": STATUS_LABELS, "sport_codes": SPORT_CODES, "sport_labels": SPORT_LABELS, "research_assignment_roles": RESEARCH_ASSIGNMENT_ROLES, "sub_editor_assignment_roles": SUB_EDITOR_ASSIGNMENT_ROLES}
 
 
 @blueprint.route("/login", methods=["GET", "POST"])
@@ -657,6 +658,7 @@ def submit():
     browser_options = {
         "competitions": {sport: list(items) for sport, items in options["competitions"].items()},
         "events": {f"{sport}|{competition}": list(items) for (sport, competition), items in options["events"].items()},
+        "genders": {f"{sport}|{competition}": list(items) for (sport, competition), items in options["genders"].items()},
         "calendar_events": calendar_events,
     }
     if request.method == "POST":
@@ -670,7 +672,8 @@ def submit():
         errors = []
         if not request.form.get("title", "").strip():
             errors.append("Title is required.")
-        errors.extend(validate_choice_combination(sport, competition, event_name))
+        gender = request.form.get("gender", "").strip().upper()
+        errors.extend(validate_choice_combination(sport, competition, event_name, gender))
         season_code = int(raw_season) if re.fullmatch(r"\d{4}", raw_season) else None
         if season_code is None or not MIN_SEASON <= season_code <= MAX_SEASON:
             errors.append(f"Season must be a four-digit year from {MIN_SEASON} to {MAX_SEASON}.")
@@ -708,7 +711,8 @@ def submit():
         data = {
             "title": request.form.get("title", ""), "sport": sport,
             "competition": competition, "event_name": event_name,
-            "gender": request.form.get("gender", ""),
+            "gender": gender, "fis_discipline_code": SPORT_CODES.get(sport),
+            "fis_event_discipline_code": event_discipline_code(sport, competition, event_name),
             "location": selected_event["location"] if selected_event else "",
             "fis_event_ids": [int(selected_event["canonical_id"])] if selected_event else [],
             "event_date": parsed_dates["event_date"], "author_name": (current_user() or {}).get("full_name") or (current_user() or {}).get("email") or "Workspace user",
@@ -1034,20 +1038,19 @@ def detail(submission_id):
                     break
         if not can_edit_core and _invalid_event_id_tokens(raw_event_ids):
             valid, message = False, "FIS calendar event IDs must contain digits only, for example 123456."
-        elif can_edit_core and request.form.get("sport", submission.get("sport")) != "alpine_skiing":
-            valid, message = False, "This release currently supports Alpine Skiing core data only."
         elif can_edit_core and "client_name" in request.form and request.form.get("client_name") != "FIS":
             valid, message = False, "Select a supported Client."
         elif can_edit_core:
             submitted_sport = request.form.get("sport", submission.get("sport", "")).strip()
             submitted_competition = request.form.get("competition", submission.get("competition", "")).strip()
             submitted_event = request.form.get("event_name", submission.get("event_name", "")).strip()
+            submitted_gender = request.form.get("gender", submission.get("gender", "")).strip().upper()
             unchanged_legacy = (
                 submitted_sport == submission.get("sport")
                 and submitted_competition == submission.get("competition")
                 and submitted_event == submission.get("event_name")
             )
-            controlled_errors = validate_choice_combination(submitted_sport, submitted_competition, submitted_event)
+            controlled_errors = validate_choice_combination(submitted_sport, submitted_competition, submitted_event, submitted_gender)
             if controlled_errors and not unchanged_legacy:
                 valid, message = False, controlled_errors[0]
         if valid and "season_code" in request.form and _season_code(request.form.get("season_code"), event_ids, parsed_dates.get("event_date", request.form.get("event_date"))) is None:
@@ -1093,6 +1096,11 @@ def detail(submission_id):
                 mutable_form["fis_event_ids"] = raw_event_ids
             else:
                 mutable_form["fis_event_ids"] = " ".join(str(value) for value in event_ids)
+                selected_sport = mutable_form.get("sport", submission.get("sport"))
+                selected_competition = mutable_form.get("competition", submission.get("competition"))
+                selected_event_name = mutable_form.get("event_name", submission.get("event_name"))
+                mutable_form["fis_discipline_code"] = SPORT_CODES.get(selected_sport, "")
+                mutable_form["fis_event_discipline_code"] = event_discipline_code(selected_sport, selected_competition, selected_event_name) or ""
                 selected = next((item for item in canonical_calendar_events(_calendar_events()) if item["canonical_id"] in {str(value) for value in event_ids}), None)
                 mutable_form["location"] = selected["location"] if selected else ""
             for field_name, parsed_value in parsed_dates.items():
@@ -1140,6 +1148,7 @@ def detail(submission_id):
     core_choice_options = {
         "competitions": {sport: list(values) for sport, values in choices["competitions"].items()},
         "events": {f"{sport}|||{competition}": list(values) for (sport, competition), values in choices["events"].items()},
+        "genders": {f"{sport}|||{competition}": list(values) for (sport, competition), values in choices["genders"].items()},
     }
     return render_template("sports-editorial-workspace/detail.html", submission=refreshed, grouped_entities=grouped_entities, entities_by_id=entity_map, render_entity_tags=render_entity_tags, statuses=ACTIVE_STATUSES, fis_publication=repository.get_fis_publication(submission_id), fis_config=fis_configuration(), calendar_events=calendar_events, assignment_users=_assignment_users(), creation_options=choices, core_choice_options=core_choice_options, can_review=editable_role and owns_lock and not final_state, can_edit_core=role in ("sub_editor", "supervisor") and owns_lock and not final_state, can_start_review=editable_role and not final_state and not edit_lock, can_edit_research=role in ("researcher", "sub_editor", "supervisor", "fis_specialist") and refreshed["status"] in ("draft", "changes_requested"), final_state=final_state, edit_lock=_lock_display(edit_lock), owns_lock=owns_lock and not final_state, lock_timeout_seconds=lock_timeout_seconds(), format_display_date=format_display_date, queue_return_url=queue_return_url, queue_highlight_url=_queue_highlight_url(queue_return_url, submission_id))
 

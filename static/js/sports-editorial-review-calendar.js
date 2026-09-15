@@ -15,24 +15,39 @@
   const sport = form.querySelector("[data-core-sport]");
   const competition = form.querySelector("[data-core-competition]");
   const eventName = form.querySelector("[data-core-event]");
+  const gender = form.querySelector("[data-core-gender]");
   const season = form.querySelector("[data-core-season]");
   let activeIndex = -1;
 
   const replaceOptions = (select, values, emptyLabel) => {
     const options = [new Option(emptyLabel, "")];
-    values.forEach((value) => options.push(new Option(value, value)));
+    values.forEach((value) => options.push(new Option(value.label || value, value.value || value)));
     select.replaceChildren(...options);
+  };
+
+  const updateGenders = () => {
+    const key = `${sport.value}|||${competition.value}`;
+    const selectedEvent = (choices.events[key] || []).find((choice) => choice.value === eventName.value);
+    const codes = selectedEvent?.genders || (choices.genders[key] || []).join("");
+    const labels = { M: "Men", W: "Women", X: "Mixed" };
+    const previous = gender.value;
+    replaceOptions(gender, ["M", "W", "X"].filter((code) => codes.includes(code)).map((code) => ({ value: code, label: labels[code] })), "Choose Gender");
+    if ([...gender.options].some((option) => option.value === previous)) gender.value = previous;
   };
 
   sport.addEventListener("change", () => {
     replaceOptions(competition, choices.competitions[sport.value] || [], "Choose Competition");
     replaceOptions(eventName, [], "None available");
+    updateGenders();
   });
   competition.addEventListener("change", () => {
     const key = `${sport.value}|||${competition.value}`;
     const values = choices.events[key] || [];
     replaceOptions(eventName, values, values.length ? "None" : "None available");
+    eventName.required = values.length > 0;
+    updateGenders();
   });
+  eventName.addEventListener("change", updateGenders);
 
   const compatible = () => events.filter((item) => (
     item.sport === sport.value

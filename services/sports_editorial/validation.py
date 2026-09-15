@@ -21,8 +21,6 @@ def validate_submission(data, submitting=False):
     errors = []
     if not str(data.get("title", "")).strip():
         errors.append("Add a title for this stat sheet.")
-    if data.get("sport") and data.get("sport") != "alpine_skiing":
-        errors.append("This pilot currently accepts Alpine Skiing only.")
     content = data.get("content", [])
     if not content and data.get("stats"):
         content = [{"content_type": "stat", "content_html": item} for item in data["stats"]]

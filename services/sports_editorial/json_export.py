@@ -1,3 +1,4 @@
+from .creation import SPORT_CODES, event_discipline_code
 from .formatting import rich_text_to_plain
 
 
@@ -57,7 +58,8 @@ def build_pilot_export(submission, entities_by_id):
             "status": submission["status"],
             "fis": {
                 "external_id": submission.get("fis_external_id") or None,
-                "discipline_code": submission.get("fis_discipline_code") or ("AL" if submission.get("sport") == "alpine_skiing" else None),
+                "discipline_code": submission.get("fis_discipline_code") or SPORT_CODES.get(submission.get("sport")),
+                "event_discipline_code": submission.get("fis_event_discipline_code") or event_discipline_code(submission.get("sport"), submission.get("competition"), submission.get("event_name")),
                 "event_ids": [int(value) for value in submission.get("fis_event_ids", []) if str(value).isdigit()],
                 "submission_note": submission.get("fis_submission_notes") or None,
             },
