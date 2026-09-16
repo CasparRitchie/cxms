@@ -834,9 +834,16 @@ class SupabaseSportsEditorialRepository:
             if entity_type:
                 params["entity_type"] = f"eq.{entity_type}"
             for item in self.client.request("sports_editorial_entities", query=params):
-                if item["id"] not in seen:
+                identity = (
+                    item.get("entity_type"),
+                    str(item.get("canonical_id") or "").casefold(),
+                )
+                # Older refreshes may have left more than one physical row for
+                # the same canonical entity. Never expose those as repeated
+                # choices in autocomplete.
+                if identity not in seen:
                     matches.append(item)
-                    seen.add(item["id"])
+                    seen.add(identity)
             if len(matches) >= wanted:
                 break
 

@@ -709,6 +709,26 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(supabase_repository.search_entities("Switzerland", entity_type="country")[0]["id"], "country-sui")
         self.assertTrue(all("country_code.ilike." in query["or"] for query in client.queries))
 
+    def test_supabase_entity_search_collapses_duplicate_canonical_records(self):
+        duplicates = [
+            {
+                "id": f"country-aut-{index}", "entity_type": "country",
+                "name": "Austria", "canonical_id": "AUT", "country_code": "AUT",
+            }
+            for index in range(3)
+        ]
+
+        class DuplicateSearchClient:
+            def request(self, table, query=None):
+                return duplicates
+
+        supabase_repository = SupabaseSportsEditorialRepository(
+            client=DuplicateSearchClient(), workspace_id="workspace"
+        )
+        results = supabase_repository.search_entities("Austria", entity_type="country")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["canonical_id"], "AUT")
+
     def test_supabase_entity_catalogue_reads_past_default_thousand_row_cap(self):
         class PagedClient:
             def __init__(self):
@@ -2758,7 +2778,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_fis_countries_are_derived_from_official_athlete_codes(self):
         countries = countries_from_athletes([{"country_code": "SUI"}, {"country_code": "USA"}, {"country_code": "SUI"}])
-        self.assertEqual([(item["canonical_id"], item["name"]) for item in countries], [("SUI", "Switzerland"), ("USA", "United States")])
+        by_code = {item["canonical_id"]: item["name"] for item in countries}
+        self.assertEqual(by_code["SUI"], "Switzerland")
+        self.assertEqual(by_code["USA"], "United States")
+        self.assertEqual(by_code["AUS"], "Australia")
+        self.assertEqual(by_code["AUT"], "Austria")
         self.assertTrue(all(item["canonical_url"] == "" for item in countries))
 
     def test_fis_competition_parser_retains_race_id_and_codex(self):

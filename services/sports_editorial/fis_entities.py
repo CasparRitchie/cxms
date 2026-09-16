@@ -36,7 +36,15 @@ class FisEntityError(RuntimeError):
 
 def countries_from_athletes(athletes):
     imported_at = datetime.now(timezone.utc).isoformat()
-    codes = sorted({item.get("country_code", "").strip().upper() for item in athletes if item.get("country_code")})
+    athlete_codes = {
+        item.get("country_code", "").strip().upper()
+        for item in athletes
+        if item.get("country_code")
+    }
+    # Country linking must not depend on which nationalities happen to be
+    # represented in one season's athlete archive. Seed the complete known FIS
+    # nation catalogue, while retaining any new codes encountered in the feed.
+    codes = sorted(set(FIS_NATION_NAMES) | athlete_codes)
     return [{
         "entity_type": "country",
         "name": FIS_NATION_NAMES.get(code, f"{code} (FIS nation code)"),
