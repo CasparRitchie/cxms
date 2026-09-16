@@ -953,9 +953,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_entity_suggestions_deduplicate_visually_identical_catalogue_records(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         self.assertIn("const visibleEntityKey", script)
+        self.assertIn("...entityWordingVariants(entity)", script)
         self.assertIn("renderedSuggestionKeys.has(optionKey)", script)
+        self.assertIn('`${entity.type}|${wording.toLocaleLowerCase()}`', script)
         self.assertIn("!seen.has(visibleEntityKey(entity))", script)
         self.assertIn("seen.add(visibleEntityKey(entity))", script)
+
+    def test_review_script_cache_key_tracks_deduplicated_entity_lookup(self):
+        for template_name in ("research.html", "detail.html"):
+            template = Path(
+                "templates/sports-editorial-workspace", template_name
+            ).read_text(encoding="utf-8")
+            self.assertIn("deduplicated-entity-lookup-1", template)
+            self.assertNotIn("completed-entity-lookup-1", template)
 
     def test_typed_and_selected_entity_lookup_share_completion_variants(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")

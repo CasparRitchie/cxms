@@ -969,14 +969,12 @@
 
     const visibleEntityKey = (entity) => [
       entity.type,
-      entity.name,
-      entity.country_code || "",
-      entity.ski_sponsor || "",
+      ...entityWordingVariants(entity),
     ].join("|").toLocaleLowerCase();
 
     const appendResult = (entity) => {
       entityWordingVariants(entity).forEach((wording) => {
-        const optionKey = `${visibleEntityKey(entity)}|${wording.toLocaleLowerCase()}`;
+        const optionKey = `${entity.type}|${wording.toLocaleLowerCase()}`;
         if (renderedSuggestionKeys.has(optionKey)) return;
         renderedSuggestionKeys.add(optionKey);
         const createsLink = suggestionCreatesLink(entity, wording);
