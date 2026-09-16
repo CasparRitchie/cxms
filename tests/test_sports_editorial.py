@@ -18,7 +18,7 @@ from services.sports_editorial.fis_export import FisPayloadValidationError, buil
 from services.sports_editorial.fis_calendar import parse_calendar_events
 from services.sports_editorial.fis_athletes import display_result_athlete_name, parse_athlete_csv
 from services.sports_editorial.fis_athlete_profiles import parse_fis_athlete_profile
-from services.sports_editorial.fis_entities import countries_from_athletes, parse_event_competitions
+from services.sports_editorial.fis_entities import countries_from_athletes, fis_nation_url, parse_event_competitions
 from services.sports_editorial.fis_results import parse_fis_results
 from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import SupabaseSportsEditorialRepository, repository
@@ -649,7 +649,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "type": "country",
             "name": "Switzerland",
             "canonical_id": "SUI",
-            "canonical_url": "",
+            "canonical_url": "https://www.fis-ski.com/DB/v2/national-ski-and-snowboard-associations?nationCode=SUI",
             "country_code": "SUI",
             "athlete_active": False,
             "ski_sponsor": None,
@@ -984,7 +984,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             template = Path(
                 "templates/sports-editorial-workspace", template_name
             ).read_text(encoding="utf-8")
-            self.assertIn("simple-link-options-3", template)
+            self.assertIn("country-inline-options-4", template)
             self.assertNotIn("completed-entity-lookup-1", template)
 
     def test_automatic_suggestions_deduplicate_visible_wording_and_use_generic_count(self):
@@ -993,6 +993,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("renderedWordings.has(wordingKey)", script)
         self.assertIn('`${seen.size} match${seen.size === 1 ? "" : "es"}`', script)
         self.assertNotIn("matching athlete${", script)
+        self.assertIn('["athlete", "country"].includes', script)
+        self.assertIn("const matchingEntities = []", script)
+        self.assertNotIn("&type=athlete&offset=", script)
 
     def test_typed_and_selected_entity_lookup_share_completion_variants(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
@@ -1198,14 +1201,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("typedAthletePrefixContext", script)
         self.assertIn("beforeCaretRange.selectNodeContents(editor)", script)
         self.assertNotIn("node.nodeType !== Node.TEXT_NODE", script)
-        self.assertIn("type=athlete&offset=${offset}", script)
+        self.assertIn("&offset=${offset}", script)
         self.assertIn("replace: true", script)
         self.assertIn("Suggestions for", script)
         self.assertNotIn("Athlete suggestions for", script)
         self.assertIn("while (hasMore)", script)
         self.assertIn("sew-inline-entity-options", script)
-        self.assertIn("Looking for athletes matching", script)
-        self.assertIn("No athletes match", script)
+        self.assertIn("Looking for matches for", script)
+        self.assertIn("No entities match", script)
         self.assertIn("Suggestions are temporarily unavailable", script)
         self.assertNotIn(").slice(0, 5)", script)
         self.assertIn('button.addEventListener("click"', script)
@@ -2802,7 +2805,18 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(by_code["USA"], "United States")
         self.assertEqual(by_code["AUS"], "Australia")
         self.assertEqual(by_code["AUT"], "Austria")
-        self.assertTrue(all(item["canonical_url"] == "" for item in countries))
+        self.assertTrue(all(item["canonical_url"].startswith("https://www.fis-ski.com/") for item in countries))
+        self.assertEqual(
+            next(item for item in countries if item["canonical_id"] == "AUT")["canonical_url"],
+            "https://www.fis-ski.com/DB/v2/national-ski-and-snowboard-associations?nationCode=AUT",
+        )
+
+    def test_fis_nation_url_accepts_only_three_letter_codes(self):
+        self.assertEqual(
+            fis_nation_url("aus"),
+            "https://www.fis-ski.com/DB/v2/national-ski-and-snowboard-associations?nationCode=AUS",
+        )
+        self.assertEqual(fis_nation_url("Australia"), "")
 
     def test_fis_competition_parser_retains_race_id_and_codex(self):
         html = '''<a href="https://www.fis-ski.com/DB/general/results.html?sectorcode=AL&amp;raceid=131458"><div data-date="2026-07-31">31 Jul</div></a>

@@ -34,6 +34,16 @@ class FisEntityError(RuntimeError):
     pass
 
 
+def fis_nation_url(code):
+    nation_code = str(code or "").strip().upper()
+    if not re.fullmatch(r"[A-Z]{3}", nation_code):
+        return ""
+    return (
+        "https://www.fis-ski.com/DB/v2/"
+        f"national-ski-and-snowboard-associations?nationCode={nation_code}"
+    )
+
+
 def countries_from_athletes(athletes):
     imported_at = datetime.now(timezone.utc).isoformat()
     athlete_codes = {
@@ -49,7 +59,7 @@ def countries_from_athletes(athletes):
         "entity_type": "country",
         "name": FIS_NATION_NAMES.get(code, f"{code} (FIS nation code)"),
         "canonical_id": code,
-        "canonical_url": "",
+        "canonical_url": fis_nation_url(code),
         "country_code": code,
         "metadata": {"source": "fis_official_points_list", "discipline_code": "AL", "imported_at": imported_at},
     } for code in codes]

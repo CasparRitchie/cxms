@@ -18,7 +18,7 @@ from .supabase_rest import SupabaseError
 from .calendar import RepositoryCalendarProvider
 from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
 from .fis_athletes import FisAthleteError, fetch_alpine_athletes
-from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_competitions
+from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_competitions, fis_nation_url
 from .stat_insights import build_stat_insights, demo_result_rows
 from .dashboard_metrics import build_dashboard_metrics
 from .fis_results import FisResultError, fetch_alpine_results
@@ -393,7 +393,13 @@ def _entities_by_id(submission=None):
     if submission is None:
         return {}
     entity_ids = [entity_id for stat in submission.get("stats", []) for entity_id in stat.get("entity_ids", [])]
-    return {entity["id"]: entity for entity in repository.get_entities_by_ids(entity_ids)}
+    entities = repository.get_entities_by_ids(entity_ids)
+    for entity in entities:
+        if entity.get("entity_type") == "country" and not entity.get("canonical_url"):
+            entity["canonical_url"] = fis_nation_url(
+                entity.get("canonical_id") or entity.get("country_code")
+            )
+    return {entity["id"]: entity for entity in entities}
 
 
 def _calendar_events():
@@ -974,9 +980,14 @@ def search_entities():
             # current points-list catalogue. Preserve their sponsor wording;
             # result-only historic athletes are identified by source_name.
             athlete_active = True
+        canonical_url = item.get("canonical_url")
+        if item["entity_type"] == "country" and not canonical_url:
+            canonical_url = fis_nation_url(
+                item.get("canonical_id") or item.get("country_code")
+            )
         return {
             "id": item["id"], "type": item["entity_type"], "name": item["name"],
-            "canonical_id": item.get("canonical_id"), "canonical_url": item.get("canonical_url"),
+            "canonical_id": item.get("canonical_id"), "canonical_url": canonical_url,
             "country_code": item.get("country_code"), "athlete_active": athlete_active,
             "ski_sponsor": metadata.get("ski_sponsor") if athlete_active else None,
         }

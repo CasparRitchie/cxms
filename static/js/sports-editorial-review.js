@@ -1320,7 +1320,7 @@
 
       const waiting = document.createElement("span");
       waiting.className = "sew-entity-loading";
-      waiting.textContent = `Looking for athletes matching “${context.text}”…`;
+      waiting.textContent = `Looking for matches for “${context.text}”…`;
       suggestions.replaceChildren(waiting);
 
       recognitionTimer = setTimeout(async () => {
@@ -1332,27 +1332,41 @@
           const options = document.createElement("div");
           options.className = "sew-inline-entity-options";
           options.setAttribute("role", "listbox");
-          options.setAttribute("aria-label", `Athletes matching ${context.text}`);
+          options.setAttribute("aria-label", `Entities matching ${context.text}`);
           suggestions.replaceChildren(label, options);
 
           const seen = new Set();
           const renderedWordings = new Set();
+          const matchingEntities = [];
           let offset = 0;
           let hasMore = true;
           while (hasMore) {
             const response = await fetch(
-              `/workspace/sports-editorial/entities/search?q=${encodeURIComponent(context.text)}&type=athlete&offset=${offset}`,
+              `/workspace/sports-editorial/entities/search?q=${encodeURIComponent(context.text)}&offset=${offset}`,
               { signal: recognitionController.signal },
             );
             if (!response.ok || !contextStillMatches(context)) return;
             const payload = await response.json();
-            payload.results
-              .filter((entity) =>
-                entity.type === "athlete" &&
-                athleteNameMatchesPrefix(entity.name, context.text) &&
-                !seen.has(visibleEntityKey(entity))
-              )
-              .forEach((entity) => {
+            matchingEntities.push(...payload.results.filter((entity) =>
+              ["athlete", "country"].includes(entity.type) &&
+              athleteNameMatchesPrefix(entity.name, context.text)
+            ));
+            hasMore = Boolean(payload.has_more);
+            offset = payload.next_offset;
+          }
+
+          const countryNames = new Set(
+            matchingEntities
+              .filter((entity) => entity.type === "country")
+              .map((entity) => entity.name.trim().toLocaleLowerCase()),
+          );
+          matchingEntities
+            .filter((entity) => !(
+              entity.type !== "country" &&
+              countryNames.has(entity.name.trim().toLocaleLowerCase())
+            ))
+            .filter((entity) => !seen.has(visibleEntityKey(entity)))
+            .forEach((entity) => {
                 seen.add(visibleEntityKey(entity));
                 entityWordingVariants(entity).forEach((wording) => {
                   const wordingKey = wording
@@ -1378,15 +1392,12 @@
                   });
                   options.appendChild(button);
                 });
-              });
-            hasMore = Boolean(payload.has_more);
-            offset = payload.next_offset;
-          }
+            });
 
           if (!seen.size) {
             const empty = document.createElement("span");
             empty.className = "sew-entity-loading";
-            empty.textContent = `No athletes match “${context.text}”.`;
+            empty.textContent = `No entities match “${context.text}”.`;
             suggestions.replaceChildren(empty);
             return;
           }
