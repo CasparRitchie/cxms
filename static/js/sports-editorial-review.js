@@ -958,7 +958,7 @@
       if (entity.type === "country") {
         return [...new Set([
           entity.name,
-          entity.country_code || entity.canonical_id,
+          `${entity.name}'s`,
         ].filter(Boolean))];
       }
 
@@ -992,10 +992,7 @@
         );
         button.tabIndex = -1;
 
-        button.textContent =
-          `${wording} · ${entity.type}` +
-          `${entity.type === "athlete" ? (createsLink ? " · link" : " · text only") : ""}` +
-          `${entity.canonical_id ? ` · ${entity.canonical_id}` : ""}`;
+        button.textContent = wording;
         button.setAttribute("aria-label", `${createsLink ? "Insert and link" : "Insert"} ${wording}`);
 
         button.addEventListener("click", () => {
@@ -1088,7 +1085,17 @@
             '<span class="sew-entity-loading">No matches.</span>';
         }
 
-        payload.results.forEach(appendResult);
+        const countryNames = new Set(
+          payload.results
+            .filter((entity) => entity.type === "country")
+            .map((entity) => entity.name.trim().toLocaleLowerCase()),
+        );
+        payload.results
+          .filter((entity) => !(
+            entity.type !== "country" &&
+            countryNames.has(entity.name.trim().toLocaleLowerCase())
+          ))
+          .forEach(appendResult);
         nextOffset = payload.next_offset;
 
         if (payload.has_more) {

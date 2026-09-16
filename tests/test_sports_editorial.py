@@ -984,7 +984,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             template = Path(
                 "templates/sports-editorial-workspace", template_name
             ).read_text(encoding="utf-8")
-            self.assertIn("unique-entity-matches-2", template)
+            self.assertIn("simple-link-options-3", template)
             self.assertNotIn("completed-entity-lookup-1", template)
 
     def test_automatic_suggestions_deduplicate_visible_wording_and_use_generic_count(self):
@@ -1003,8 +1003,20 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("replace: true", selection_context)
         self.assertIn("entityWordingVariants(entity).forEach((wording)", script)
         self.assertGreaterEqual(script.count('addEntity(entity, "", false, wording, null, createsLink)'), 2)
-        self.assertIn("entity.country_code || entity.canonical_id", script)
         self.assertIn("(?:\\s+\\p{Lu}[\\p{L}’'-]*){0,3}", script)
+
+    def test_link_button_country_results_are_simple_linked_name_variants(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        country_variants = script[
+            script.index('if (entity.type === "country")'):
+            script.index("return [entity.name]", script.index('if (entity.type === "country")'))
+        ]
+        self.assertIn("entity.name,", country_variants)
+        self.assertIn("`${entity.name}'s`", country_variants)
+        self.assertNotIn("entity.country_code", country_variants)
+        self.assertIn("button.textContent = wording", script)
+        self.assertIn('entity.type !== "country"', script)
+        self.assertIn("countryNames.has", script)
 
     def test_inline_athlete_suggestions_match_a_typed_surname(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
