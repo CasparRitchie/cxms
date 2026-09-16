@@ -1329,6 +1329,7 @@
           suggestions.replaceChildren(label, options);
 
           const seen = new Set();
+          const renderedWordings = new Set();
           let offset = 0;
           let hasMore = true;
           while (hasMore) {
@@ -1347,6 +1348,13 @@
               .forEach((entity) => {
                 seen.add(visibleEntityKey(entity));
                 entityWordingVariants(entity).forEach((wording) => {
+                  const wordingKey = wording
+                    .normalize("NFKC")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .toLocaleLowerCase();
+                  if (renderedWordings.has(wordingKey)) return;
+                  renderedWordings.add(wordingKey);
                   const createsLink = suggestionCreatesLink(entity, wording);
                   const button = document.createElement("button");
                   button.id = `inline-entity-${crypto.randomUUID()}`;
@@ -1378,7 +1386,7 @@
 
           const count = document.createElement("small");
           count.className = "sew-entity-suggestion-count";
-          count.textContent = `${seen.size} matching athlete${seen.size === 1 ? "" : "s"}`;
+          count.textContent = `${seen.size} match${seen.size === 1 ? "" : "es"}`;
           label.append(" · ", count);
         } catch (error) {
           if (error.name !== "AbortError") {

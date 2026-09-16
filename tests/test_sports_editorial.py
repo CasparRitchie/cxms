@@ -984,8 +984,15 @@ class SportsEditorialPilotTests(unittest.TestCase):
             template = Path(
                 "templates/sports-editorial-workspace", template_name
             ).read_text(encoding="utf-8")
-            self.assertIn("deduplicated-entity-lookup-1", template)
+            self.assertIn("unique-entity-matches-2", template)
             self.assertNotIn("completed-entity-lookup-1", template)
+
+    def test_automatic_suggestions_deduplicate_visible_wording_and_use_generic_count(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("const renderedWordings = new Set()", script)
+        self.assertIn("renderedWordings.has(wordingKey)", script)
+        self.assertIn('`${seen.size} match${seen.size === 1 ? "" : "es"}`', script)
+        self.assertNotIn("matching athlete${", script)
 
     def test_typed_and_selected_entity_lookup_share_completion_variants(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
