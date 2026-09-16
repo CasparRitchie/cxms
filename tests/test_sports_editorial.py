@@ -950,6 +950,13 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("const suggestionCreatesLink = () => true", script)
         self.assertIn("if (!createLink)", script)
 
+    def test_entity_suggestions_deduplicate_visually_identical_catalogue_records(self):
+        script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
+        self.assertIn("const visibleEntityKey", script)
+        self.assertIn("renderedSuggestionKeys.has(optionKey)", script)
+        self.assertIn("!seen.has(visibleEntityKey(entity))", script)
+        self.assertIn("seen.add(visibleEntityKey(entity))", script)
+
     def test_typed_and_selected_entity_lookup_share_completion_variants(self):
         script = Path("static/js/sports-editorial-review.js").read_text(encoding="utf-8")
         selection_context = script[

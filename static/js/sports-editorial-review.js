@@ -313,6 +313,7 @@
     let recognitionController;
     let recognitionActiveIndex = -1;
     let suppressNextRecognition = false;
+    let renderedSuggestionKeys = new Set();
 
     const highlightKey = crypto.randomUUID();
 
@@ -966,8 +967,18 @@
 
     const suggestionCreatesLink = () => true;
 
+    const visibleEntityKey = (entity) => [
+      entity.type,
+      entity.name,
+      entity.country_code || "",
+      entity.ski_sponsor || "",
+    ].join("|").toLocaleLowerCase();
+
     const appendResult = (entity) => {
       entityWordingVariants(entity).forEach((wording) => {
+        const optionKey = `${visibleEntityKey(entity)}|${wording.toLocaleLowerCase()}`;
+        if (renderedSuggestionKeys.has(optionKey)) return;
+        renderedSuggestionKeys.add(optionKey);
         const createsLink = suggestionCreatesLink(entity, wording);
         const button =
           document.createElement("button");
@@ -1018,6 +1029,7 @@
 
       if (!append) {
         nextOffset = 0;
+        renderedSuggestionKeys = new Set();
         options.replaceChildren();
         activeIndex = -1;
       } else {
@@ -1332,10 +1344,10 @@
               .filter((entity) =>
                 entity.type === "athlete" &&
                 athleteNameMatchesPrefix(entity.name, context.text) &&
-                !seen.has(entity.id)
+                !seen.has(visibleEntityKey(entity))
               )
               .forEach((entity) => {
-                seen.add(entity.id);
+                seen.add(visibleEntityKey(entity));
                 entityWordingVariants(entity).forEach((wording) => {
                   const createsLink = suggestionCreatesLink(entity, wording);
                   const button = document.createElement("button");
