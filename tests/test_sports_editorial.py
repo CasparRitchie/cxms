@@ -1891,8 +1891,9 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("grid-column:span 2", stylesheet)
         self.assertIn(".sew-core-choice-trigger", stylesheet)
         self.assertIn(".sew-core-choice-options", stylesheet)
+        self.assertIn("font:inherit;font-weight:400;line-height:normal", stylesheet)
         workspace_base = Path("templates/sports-editorial-workspace/_workspace_base.html").read_text(encoding="utf-8")
-        self.assertIn("compact-core-multiselect-2", workspace_base)
+        self.assertIn("compact-core-multiselect-3", workspace_base)
 
     def test_sub_edit_multi_choices_use_compact_picker_without_help_copy(self):
         template = Path(
