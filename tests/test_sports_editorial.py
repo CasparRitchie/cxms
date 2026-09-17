@@ -71,6 +71,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
     def test_filled_down_multi_sport_catalogue_controls_events_and_genders(self):
         options = creation_options()
         self.assertEqual(len(options["sports"]), 10)
+        self.assertEqual(
+            [sport["label"] for sport in options["sports"]],
+            [
+                "Alpine Skiing", "Ski Jumping", "Cross-Country Skiing", "Nordic Combined",
+                "FRS - Freestyle", "FRS - Freeski P&P", "FRS - Ski Cross",
+                "SBD - Cross", "SBD - P&P", "SBD - Alpine",
+            ],
+        )
         self.assertEqual(event_discipline_code("alpine_skiing", "FIS World Cup", "Giant Slalom"), "GS")
         self.assertEqual(event_discipline_code("ski_jumping", "FIS World Championships", "Team Normal Hill"), "TN")
         self.assertEqual(validate_choice_combination("ski_jumping", "FIS Ski Flying World Championships", "Flying Hill", "M"), [])
@@ -514,12 +522,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("10,000", validate_submission({**base, "working_notes": "x" * 10001})[0])
         self.assertIn("2,500", validate_submission({**base, "unused_stats": "x" * 2501})[0])
 
-    def test_queue_uses_olympic_codes_and_display_dates(self):
+    def test_queue_uses_canonical_sport_names_and_display_dates(self):
         self.set_role("supervisor")
         page = self.client.get("/workspace/sports-editorial/queue")
-        self.assertIn(b">ALP</td>", page.data)
+        self.assertIn(b">Alpine Skiing</td>", page.data)
+        self.assertIn(b">Alpine Skiing</span>", page.data)
+        self.assertNotIn(b">ALP</td>", page.data)
         self.assertIn(b">27-Oct-2026</td>", page.data)
         self.assertIn(b">25-Oct-2026</td>", page.data)
+
+    def test_queue_sport_filter_chip_uses_canonical_sport_name(self):
+        self.set_role("supervisor")
+        page = self.client.get("/workspace/sports-editorial/queue/modern-preview?sport=alpine_skiing")
+        self.assertIn(b"Sport:</span> Alpine Skiing", page.data)
 
     def test_creation_dates_are_strict_and_persist_as_iso(self):
         self.assertEqual(parse_display_date("01-aUg-2026", "Race Date"), ("2026-08-01", None))

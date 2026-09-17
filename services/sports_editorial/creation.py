@@ -6,16 +6,16 @@ MIN_SEASON = 2000
 MAX_SEASON = 2100
 
 SPORTS = (
-    {"value": "alpine_skiing", "label": "Alpine Skiing (AL)", "display_code": "ALP", "enabled": True, "discipline_code": "AL"},
-    {"value": "ski_jumping", "label": "Ski Jumping (JP)", "display_code": "SJP", "enabled": True, "discipline_code": "JP", "multiple_events": True},
-    {"value": "cross_country_skiing", "label": "Cross-Country Skiing (CC)", "display_code": "CCS", "enabled": True, "discipline_code": "CC"},
-    {"value": "nordic_combined", "label": "Nordic Combined (NK)", "display_code": "NCB", "enabled": True, "discipline_code": "NK"},
-    {"value": "freestyle", "label": "FRS - Freestyle (FS)", "display_code": "FRS", "enabled": True, "discipline_code": "FS", "multiple_events": True, "multiple_genders": True},
-    {"value": "freeski_park_and_pipe", "label": "FRS - Freeski P&P (FS)", "display_code": "FRS", "enabled": True, "discipline_code": "FS", "multiple_events": True, "multiple_genders": True},
-    {"value": "freestyle_ski_cross", "label": "FRS - Ski Cross (FS)", "display_code": "FRS", "enabled": True, "discipline_code": "FS"},
-    {"value": "snowboard_cross", "label": "SBD - Cross (SB)", "display_code": "SBD", "enabled": True, "discipline_code": "SB"},
-    {"value": "snowboard_park_and_pipe", "label": "SBD - P&P (SB)", "display_code": "SBD", "enabled": True, "discipline_code": "SB", "multiple_events": True, "multiple_genders": True},
-    {"value": "snowboard_alpine", "label": "SBD - Alpine (SB)", "display_code": "SBD", "enabled": True, "discipline_code": "SB", "multiple_events": True, "multiple_genders": True},
+    {"value": "alpine_skiing", "label": "Alpine Skiing", "display_code": "ALP", "enabled": True, "discipline_code": "AL"},
+    {"value": "ski_jumping", "label": "Ski Jumping", "display_code": "SJP", "enabled": True, "discipline_code": "JP", "multiple_events": True},
+    {"value": "cross_country_skiing", "label": "Cross-Country Skiing", "display_code": "CCS", "enabled": True, "discipline_code": "CC"},
+    {"value": "nordic_combined", "label": "Nordic Combined", "display_code": "NCB", "enabled": True, "discipline_code": "NK"},
+    {"value": "freestyle", "label": "FRS - Freestyle", "display_code": "FRS", "enabled": True, "discipline_code": "FS", "multiple_events": True, "multiple_genders": True},
+    {"value": "freeski_park_and_pipe", "label": "FRS - Freeski P&P", "display_code": "FRS", "enabled": True, "discipline_code": "FS", "multiple_events": True, "multiple_genders": True},
+    {"value": "freestyle_ski_cross", "label": "FRS - Ski Cross", "display_code": "FRS", "enabled": True, "discipline_code": "FS"},
+    {"value": "snowboard_cross", "label": "SBD - Cross", "display_code": "SBD", "enabled": True, "discipline_code": "SB"},
+    {"value": "snowboard_park_and_pipe", "label": "SBD - P&P", "display_code": "SBD", "enabled": True, "discipline_code": "SB", "multiple_events": True, "multiple_genders": True},
+    {"value": "snowboard_alpine", "label": "SBD - Alpine", "display_code": "SBD", "enabled": True, "discipline_code": "SB", "multiple_events": True, "multiple_genders": True},
 )
 
 COMPETITIONS = {

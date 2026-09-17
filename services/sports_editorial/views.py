@@ -829,7 +829,12 @@ def queue():
     active_filters = []
     for field in filter_fields:
         for value in filters[field]:
-            display_value = STATUS_LABELS.get(value, value) if field == "status" else user_names.get(value, value)
+            if field == "status":
+                display_value = STATUS_LABELS.get(value, value)
+            elif field == "sport":
+                display_value = SPORT_LABELS.get(value, value)
+            else:
+                display_value = user_names.get(value, value)
             remaining_values = [selected for selected in filters[field] if selected != value]
             remove_args = {key: list(values) for key, values in clean_query_args.items()}
             if remaining_values:
