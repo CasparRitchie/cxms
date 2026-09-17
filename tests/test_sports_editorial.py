@@ -1889,9 +1889,25 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("background:#fff;\n  color:#172033", stylesheet)
         self.assertIn(".sew-core-choice-field--multiple", stylesheet)
         self.assertIn("grid-column:span 2", stylesheet)
-        self.assertIn("min-height:82px", stylesheet)
+        self.assertIn(".sew-core-choice-trigger", stylesheet)
+        self.assertIn(".sew-core-choice-options", stylesheet)
         workspace_base = Path("templates/sports-editorial-workspace/_workspace_base.html").read_text(encoding="utf-8")
-        self.assertIn("core-multiselect-layout-1", workspace_base)
+        self.assertIn("compact-core-multiselect-2", workspace_base)
+
+    def test_sub_edit_multi_choices_use_compact_picker_without_help_copy(self):
+        template = Path(
+            "templates/sports-editorial-workspace/_editable_core_data.html"
+        ).read_text(encoding="utf-8")
+        script = Path(
+            "static/js/sports-editorial-review-calendar.js"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("Maximum 160 characters", template)
+        self.assertNotIn("Use Ctrl/Cmd-click", template)
+        self.assertNotIn("Search the compatible local FIS calendar", template)
+        self.assertNotIn("Select one gender", template)
+        self.assertIn("const refreshChoicePicker", script)
+        self.assertIn('done.textContent = "Done"', script)
+        self.assertIn('labels.join(", ")', script)
 
     def test_supervisor_can_bulk_allocate_and_unallocate_researchers(self):
         self.set_role("supervisor")

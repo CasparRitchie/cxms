@@ -17,15 +17,84 @@
   const eventName = form.querySelector("[data-core-event]");
   const gender = form.querySelector("[data-core-gender]");
   const season = form.querySelector("[data-core-season]");
+  const choicePickers = new Map();
   let activeIndex = -1;
 
   const selectedValues = (select) => [...select.selectedOptions].map((option) => option.value).filter(Boolean);
+  const choicePickerLabel = (select) => select === eventName ? "Event" : "Gender";
+  const updateChoicePickerSummary = (select) => {
+    const picker = choicePickers.get(select);
+    if (!picker) return;
+    const labels = [...select.selectedOptions]
+      .filter((option) => option.value)
+      .map((option) => option.textContent.trim());
+    picker.trigger.textContent = labels.join(", ") || `Choose ${choicePickerLabel(select)}`;
+  };
+  const refreshChoicePicker = (select) => {
+    let picker = choicePickers.get(select);
+    if (!picker) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "sew-core-choice-picker";
+      wrapper.hidden = true;
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "sew-core-choice-trigger";
+      trigger.setAttribute("aria-expanded", "false");
+      const panel = document.createElement("div");
+      panel.className = "sew-core-choice-options";
+      panel.hidden = true;
+      trigger.addEventListener("click", () => {
+        const opening = panel.hidden;
+        document.querySelectorAll(".sew-core-choice-options:not([hidden])").forEach((other) => { other.hidden = true; });
+        document.querySelectorAll(".sew-core-choice-trigger[aria-expanded='true']").forEach((other) => { other.setAttribute("aria-expanded", "false"); });
+        panel.hidden = !opening;
+        trigger.setAttribute("aria-expanded", String(opening));
+      });
+      wrapper.append(trigger, panel);
+      select.after(wrapper);
+      picker = { wrapper, trigger, panel };
+      choicePickers.set(select, picker);
+    }
+
+    const enabled = select.multiple;
+    select.hidden = enabled;
+    select.closest(".sew-core-choice-field")?.classList.toggle("is-choice-picker", enabled);
+    picker.wrapper.hidden = !enabled;
+    if (!enabled) return;
+
+    picker.panel.replaceChildren();
+    [...select.options].filter((option) => option.value).forEach((option) => {
+      const row = document.createElement("label");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = option.selected;
+      checkbox.addEventListener("change", () => {
+        option.selected = checkbox.checked;
+        updateChoicePickerSummary(select);
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      row.append(checkbox, document.createTextNode(option.textContent));
+      picker.panel.appendChild(row);
+    });
+    const done = document.createElement("button");
+    done.type = "button";
+    done.className = "sew-button sew-button--primary sew-core-choice-done";
+    done.textContent = "Done";
+    done.addEventListener("click", () => {
+      picker.panel.hidden = true;
+      picker.trigger.setAttribute("aria-expanded", "false");
+      picker.trigger.focus();
+    });
+    picker.panel.appendChild(done);
+    updateChoicePickerSummary(select);
+  };
   const replaceOptions = (select, values, emptyLabel, selected = []) => {
     const options = [new Option(emptyLabel, "")];
     values.forEach((value) => options.push(new Option(value.label || value, value.value || value)));
     select.replaceChildren(...options);
     const wanted = Array.isArray(selected) ? selected : String(selected || "").split("|||").filter(Boolean);
     [...select.options].forEach((option) => { option.selected = wanted.includes(option.value); });
+    refreshChoicePicker(select);
   };
 
   const updateGenders = () => {
@@ -45,8 +114,8 @@
     const capabilities = choices.sport_capabilities[sport.value] || {};
     eventName.multiple = Boolean(capabilities.multiple_events);
     gender.multiple = Boolean(capabilities.multiple_genders);
-    form.querySelector("[data-core-event-help]").textContent = eventName.multiple ? "Select one or more events. Use Ctrl/Cmd-click to choose several." : "Select one event.";
-    form.querySelector("[data-core-gender-help]").textContent = gender.multiple ? "Select one or more genders. Use Ctrl/Cmd-click to choose several." : "Select one gender.";
+    refreshChoicePicker(eventName);
+    refreshChoicePicker(gender);
     updateGenders();
   });
   competition.addEventListener("change", () => {
@@ -58,8 +127,8 @@
     replaceOptions(eventName, values, values.length ? "None" : "None available", eventName.dataset.selected || selectedValues(eventName));
     eventName.dataset.selected = "";
     eventName.required = values.length > 0;
-    form.querySelector("[data-core-event-help]").textContent = eventName.multiple ? "Select one or more events. Use Ctrl/Cmd-click to choose several." : "Select one event.";
-    form.querySelector("[data-core-gender-help]").textContent = gender.multiple ? "Select one or more genders. Use Ctrl/Cmd-click to choose several." : "Select one gender.";
+    refreshChoicePicker(eventName);
+    refreshChoicePicker(gender);
     updateGenders();
   });
   eventName.addEventListener("change", updateGenders);
@@ -168,6 +237,13 @@
   const initialCapabilities = choices.sport_capabilities[sport.value] || {};
   eventName.multiple = Boolean(initialCapabilities.multiple_events);
   gender.multiple = Boolean(initialCapabilities.multiple_genders);
-  form.querySelector("[data-core-event-help]").textContent = eventName.multiple ? "Select one or more events. Use Ctrl/Cmd-click to choose several." : "Select one event.";
-  form.querySelector("[data-core-gender-help]").textContent = gender.multiple ? "Select one or more genders. Use Ctrl/Cmd-click to choose several." : "Select one gender.";
+  refreshChoicePicker(eventName);
+  refreshChoicePicker(gender);
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".sew-core-choice-picker")) return;
+    choicePickers.forEach((picker) => {
+      picker.panel.hidden = true;
+      picker.trigger.setAttribute("aria-expanded", "false");
+    });
+  });
 })();

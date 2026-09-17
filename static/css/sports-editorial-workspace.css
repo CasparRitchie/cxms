@@ -1487,20 +1487,18 @@ html[data-sew-theme="light"] .sew-calendar-results button:hover,html[data-sew-th
 }
 .sew-document-editor .sew-core-data .sew-core-grid>.sew-core-choice-field--multiple{
   grid-column:span 2;
-  grid-template-columns:1fr;
-  align-items:start;
+  grid-template-columns:max-content minmax(0,1fr);
+  align-items:center;
 }
-.sew-document-editor .sew-core-data .sew-core-choice-field--multiple>select{
-  width:100%;
-  min-width:0;
-  min-height:82px;
-}
-.sew-document-editor .sew-core-data .sew-core-choice-field--multiple>small{
-  min-width:0;
-  color:var(--sew-muted);
-  line-height:1.3;
-  white-space:normal;
-}
+.sew-core-choice-picker{position:relative;min-width:0}
+.sew-core-choice-trigger{position:relative;display:block;width:100%;min-height:24px;padding:3px 26px 3px 6px;overflow:hidden;border:1px solid #b9c5cc;border-radius:1px;background:#fff;color:#172033;text-align:left;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.sew-core-choice-trigger:after{content:"▾";position:absolute;top:50%;right:8px;transform:translateY(-50%)}
+.sew-core-choice-options{position:absolute;z-index:40;top:calc(100% + 2px);right:0;left:0;display:grid;gap:2px;max-height:260px;padding:5px;overflow-y:auto;border:1px solid #98a2b3;background:#fff;color:#172033;box-shadow:0 8px 18px rgba(0,0,0,.28)}
+.sew-core-choice-options[hidden]{display:none}
+.sew-core-choice-options>label{display:flex;align-items:center;gap:7px;min-height:26px;padding:3px 5px;font-weight:600;cursor:pointer}
+.sew-core-choice-options>label:hover{background:#e7edf8}
+.sew-core-choice-options input[type="checkbox"]{width:auto;min-height:auto;margin:0}
+.sew-core-choice-done{justify-self:end;margin-top:3px}
 @media(max-width:850px){
   .sew-document-editor .sew-core-data .sew-core-grid>.sew-core-choice-field--multiple{
     grid-column:1/-1;
