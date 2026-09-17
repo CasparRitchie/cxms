@@ -479,6 +479,34 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(created["genders"], ["M", "W"])
         self.assertEqual(created["fis_event_discipline_codes"], ["MO", "AE"])
 
+    def test_existing_multi_event_sheet_is_multi_select_in_initial_html(self):
+        self.set_role("supervisor")
+        data = MultiDict([
+            ("title", "Freestyle combined sheet"), ("sport", "freestyle"),
+            ("competition", "FIS World Cup"), ("event_name", "Moguls"),
+            ("event_name", "Aerials"), ("gender", "M"), ("gender", "W"),
+            ("season_code", "2027"), ("calendar_event_id", ""),
+            ("fis_event_ids", ""), ("content_type", ""), ("content_html", ""),
+            ("action", "draft"),
+        ])
+        self.client.post("/workspace/sports-editorial/submit", data=data)
+        created = repository.list_submissions()[0]
+
+        response = self.client.get(
+            f"/workspace/sports-editorial/submissions/{created['id']}?edit=1"
+        )
+
+        self.assertIn(
+            b'<select name="event_name" data-core-event multiple data-selected="Moguls|||Aerials">',
+            response.data,
+        )
+        self.assertIn(
+            b'<select name="gender" data-core-gender multiple data-selected="M|||W">',
+            response.data,
+        )
+        self.assertIn(b'<option value="Moguls" selected>', response.data)
+        self.assertIn(b'<option value="Aerials" selected>', response.data)
+
     def test_editorial_limits_are_enforced(self):
         base = {"title": "Pack", "content": [{"content_type": "stat", "content_html": "One fact"}]}
         self.assertIn("160", validate_submission({**base, "title": "x" * 161})[0])
