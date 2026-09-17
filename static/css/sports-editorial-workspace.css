@@ -1485,6 +1485,27 @@ html[data-sew-theme="light"] .sew-calendar-results button:hover,html[data-sew-th
   background:#fff;
   color:#172033;
 }
+.sew-document-editor .sew-core-data .sew-core-grid>.sew-core-choice-field--multiple{
+  grid-column:span 2;
+  grid-template-columns:1fr;
+  align-items:start;
+}
+.sew-document-editor .sew-core-data .sew-core-choice-field--multiple>select{
+  width:100%;
+  min-width:0;
+  min-height:82px;
+}
+.sew-document-editor .sew-core-data .sew-core-choice-field--multiple>small{
+  min-width:0;
+  color:var(--sew-muted);
+  line-height:1.3;
+  white-space:normal;
+}
+@media(max-width:850px){
+  .sew-document-editor .sew-core-data .sew-core-grid>.sew-core-choice-field--multiple{
+    grid-column:1/-1;
+  }
+}
 .sew-document-editor fieldset:disabled .sew-core-data .sew-core-grid>.sew-field input,
 .sew-document-editor fieldset:disabled .sew-core-data .sew-core-grid>.sew-field select{
   border-color:var(--sew-core-line);

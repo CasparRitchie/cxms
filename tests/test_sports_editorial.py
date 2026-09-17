@@ -497,11 +497,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         )
 
         self.assertIn(
-            b'<select name="event_name" data-core-event multiple data-selected="Moguls|||Aerials">',
+            b'class="sew-field sew-core-choice-field sew-core-choice-field--multiple"><span>Event</span><select name="event_name" data-core-event multiple data-selected="Moguls|||Aerials">',
             response.data,
         )
         self.assertIn(
-            b'<select name="gender" data-core-gender multiple data-selected="M|||W">',
+            b'class="sew-field sew-core-choice-field sew-core-choice-field--multiple"><span>Gender</span><select name="gender" data-core-gender multiple data-selected="M|||W">',
             response.data,
         )
         self.assertIn(b'<option value="Moguls" selected>', response.data)
@@ -1887,6 +1887,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(".sew-creation-form .sew-core-data", stylesheet)
         self.assertIn("only editable controls are white", stylesheet)
         self.assertIn("background:#fff;\n  color:#172033", stylesheet)
+        self.assertIn(".sew-core-choice-field--multiple", stylesheet)
+        self.assertIn("grid-column:span 2", stylesheet)
+        self.assertIn("min-height:82px", stylesheet)
+        workspace_base = Path("templates/sports-editorial-workspace/_workspace_base.html").read_text(encoding="utf-8")
+        self.assertIn("core-multiselect-layout-1", workspace_base)
 
     def test_supervisor_can_bulk_allocate_and_unallocate_researchers(self):
         self.set_role("supervisor")
