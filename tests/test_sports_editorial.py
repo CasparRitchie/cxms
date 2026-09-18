@@ -599,6 +599,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("selectCalendarEvent", script)
         self.assertIn('clientEventId.value = item.canonical_id', script)
 
+    def test_calendar_picker_supports_world_championship_category(self):
+        catalogue = canonical_calendar_events([{
+            "entity_type": "event", "name": "Trondheim WSC NH LH",
+            "canonical_id": "70001", "metadata": {
+                "location_label": "Trondheim", "season_code": 2027,
+                "discipline_code": "JP", "category_code": "WSC",
+                "sport_values": ["ski_jumping"],
+            },
+        }])
+        self.assertEqual(catalogue[0]["location"], "Trondheim")
+        self.assertEqual(catalogue[0]["competition"], "FIS World Championships")
+        self.assertEqual(catalogue[0]["sports"], ["ski_jumping"])
+
     def test_missing_calendar_event_is_allowed_in_sub_edit_but_blocks_approval(self):
         self.set_role("supervisor")
         response = self.client.post("/workspace/sports-editorial/submit", data=self.valid_creation(
@@ -2786,6 +2799,23 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual([item["canonical_id"] for item in events], ["62716", "62984"])
         self.assertEqual(events[0]["name"], "Cerro Castor, Ushuaia FIS 4xGS 4xSL")
         self.assertEqual(events[0]["metadata"]["category_code"], "WC")
+
+    def test_fis_calendar_parser_classifies_shared_freestyle_calendar(self):
+        html = '''
+        <a href="/DB/general/event-details.html?eventid=70001&amp;seasoncode=2027&amp;sectorcode=FS">Montafon WC 4xMO 2xAE</a>
+        <a href="/DB/general/event-details.html?eventid=70002&amp;seasoncode=2027&amp;sectorcode=FS">Aspen WC 2xSS 2xBA</a>
+        <a href="/DB/general/event-details.html?eventid=70003&amp;seasoncode=2027&amp;sectorcode=FS">Veysonnaz WC 2xSX</a>
+        '''
+        events = parse_calendar_events(
+            html, "https://www.fis-ski.com/DB/general/calendar-results.html", 2027,
+            discipline_code="FS", category_code="WC",
+            sport_values=("freestyle", "freeski_park_and_pipe", "freestyle_ski_cross"),
+        )
+        by_id = {item["canonical_id"]: item for item in events}
+        self.assertEqual(by_id["70001"]["metadata"]["sport_values"], ["freestyle"])
+        self.assertEqual(by_id["70002"]["metadata"]["sport_values"], ["freeski_park_and_pipe"])
+        self.assertEqual(by_id["70003"]["metadata"]["sport_values"], ["freestyle_ski_cross"])
+        self.assertEqual(by_id["70002"]["metadata"]["location_label"], "Aspen")
 
     def test_fis_athlete_csv_parser_uses_fis_code(self):
         content = (

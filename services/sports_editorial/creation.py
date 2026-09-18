@@ -209,12 +209,17 @@ def canonical_calendar_events(events):
         if not competition:
             category = str(metadata.get("category_code") or "").upper()
             competition = next((name for name, codes in COMPETITION_CATEGORY_CODES.items() if category in codes), "")
+        discipline_code = str(metadata.get("discipline_code") or "").upper()
+        sports = list(metadata.get("sport_values") or [])
+        if not sports:
+            sports = [sport for sport, code in SPORT_CODES.items() if code == discipline_code]
         catalogue.append({
             "canonical_id": canonical_id,
             "location": location,
             "label": f"{event.get('name', '').strip() or location} — {canonical_id}",
             "search_text": " ".join((location, event.get("name", ""), canonical_id)).strip(),
-            "sport": next((sport for sport, code in SPORT_CODES.items() if code == str(metadata.get("discipline_code") or "").upper()), ""),
+            "sport": sports[0] if sports else "",
+            "sports": sports,
             "competition": competition,
             "season_code": metadata.get("season_code"),
         })
@@ -225,6 +230,6 @@ def resolve_calendar_event(events, canonical_id, sport, competition, season_code
     event = next((item for item in canonical_calendar_events(events) if item["canonical_id"] == str(canonical_id or "")), None)
     if not event:
         return None, "Select a known Client Event ID from the local calendar catalogue."
-    if event["sport"] != sport or event["competition"] != competition or event["season_code"] != season_code:
+    if sport not in event.get("sports", [event.get("sport")]) or event["competition"] != competition or event["season_code"] != season_code:
         return None, "The selected calendar event is not compatible with Sport, Competition and Season."
     return event, None

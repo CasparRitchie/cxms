@@ -77,7 +77,7 @@
       (item) => item.canonical_id === calendar.value,
     );
     if (selected && (
-      selected.sport !== sport.value
+      !(selected.sports || [selected.sport]).includes(sport.value)
       || selected.competition !== competition.value
       || String(selected.season_code) !== season
     )) {
@@ -91,7 +91,7 @@
   const compatibleCalendarEvents = () => {
     const season = form.elements.season_code.value;
     return options.calendar_events.filter((item) => (
-      item.sport === sport.value
+      (item.sports || [item.sport]).includes(sport.value)
       && item.competition === competition.value
       && String(item.season_code) === season
     ));

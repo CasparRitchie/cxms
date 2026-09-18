@@ -134,7 +134,7 @@
   eventName.addEventListener("change", updateGenders);
 
   const compatible = () => events.filter((item) => (
-    item.sport === sport.value
+    (item.sports || [item.sport]).includes(sport.value)
     && item.competition === competition.value.trim()
     && String(item.season_code) === season.value.trim()
   ));

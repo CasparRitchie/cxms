@@ -16,7 +16,7 @@ from .validation import ACTIVE_STATUSES, VALID_ENTITY_TYPES, VALID_STATUSES, STA
 from .auth import COOKIE_NAME, auth_configuration, authenticate, current_user, list_workspace_users, make_token, provision_workspace_user, require_editor, require_reviewer, require_editorial_user_admin, require_supervisor, update_workspace_editorial_user
 from .supabase_rest import SupabaseError
 from .calendar import RepositoryCalendarProvider
-from .fis_calendar import FisCalendarError, fetch_alpine_world_cup_events
+from .fis_calendar import FisCalendarError, fetch_public_calendar_events
 from .fis_athletes import FisAthleteError, fetch_alpine_athletes
 from .fis_entities import FisEntityError, countries_from_athletes, fetch_alpine_competitions, fis_nation_url
 from .stat_insights import build_stat_insights, demo_result_rows
@@ -307,9 +307,9 @@ def calendar():
     season_code = request.form.get("season_code", "2027") if request.method == "POST" else request.args.get("season_code", "2027")
     if request.method == "POST":
         try:
-            events, source_url = fetch_alpine_world_cup_events(season_code)
+            events, source_urls = fetch_public_calendar_events(season_code)
             count = repository.upsert_calendar_events(events)
-            flash(f"Imported {count} Alpine World Cup events from the public FIS calendar.", "success")
+            flash(f"Imported {count} supported events from {len(source_urls)} public FIS calendars.", "success")
             return redirect(url_for("sports_editorial_workspace.calendar", season_code=season_code))
         except (FisCalendarError, SupabaseError) as exc:
             flash(str(exc), "error")
@@ -364,7 +364,7 @@ def refresh_entities(step):
     season_code = request.form.get("season_code", "2027")
     try:
         if step == "events":
-            events, _ = fetch_alpine_world_cup_events(season_code)
+            events, _ = fetch_public_calendar_events(season_code)
             count = repository.upsert_calendar_events(events)
             return jsonify({"ok": True, "message": f"{count} events updated."})
         if step == "athletes":
