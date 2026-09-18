@@ -19,6 +19,7 @@ from services.sports_editorial.fis_calendar import parse_calendar_events
 from services.sports_editorial.fis_athletes import display_result_athlete_name, parse_athlete_csv
 from services.sports_editorial.fis_athlete_profiles import parse_fis_athlete_profile
 from services.sports_editorial.fis_entities import countries_from_athletes, fis_nation_url, parse_event_competitions
+from services.sports_editorial.fis_public_api import parse_calendar_feed, parse_competitor_feed
 from services.sports_editorial.fis_results import parse_fis_results
 from services.sports_editorial.identifiers import build_fis_external_id
 from services.sports_editorial.repository import SupabaseSportsEditorialRepository, repository
@@ -2840,6 +2841,41 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(athletes[0]["canonical_id"], "-10220")
         self.assertEqual(athletes[0]["metadata"]["competitor_id"], "12582")
 
+    def test_fis_public_competitor_feed_imports_supported_sports(self):
+        header = "Competitorid\tSectorcode\tFiscode\tLastname\tFirstname\tGender\tBirthyear\tNationcode\tSkiclub\tAssociation\tStatus\tType\n"
+        files = {
+            "A_competal.csv": (header + "30368\tAL\t537544\tVONN\tLindsey\tW\t1984\tUSA\tSki Club Vail\tUSA\tO\tathlete\n").encode(),
+            "A_competjp.csv": (header + "190560\tJP\t2425004\tKOBAYASHI\tRyoyu\tM\t1996\tJPN\tTsuchiya Home\tJPN\tO\tathlete\n").encode(),
+        }
+        athletes = parse_competitor_feed(files, "https://api.fis-ski.com/data-feeds/competitors")
+        self.assertEqual({item["canonical_id"] for item in athletes}, {"537544", "2425004"})
+        vonn = next(item for item in athletes if item["canonical_id"] == "537544")
+        self.assertEqual(vonn["metadata"]["discipline_code"], "AL")
+        self.assertEqual(vonn["metadata"]["ski_club"], "Ski Club Vail")
+        self.assertNotIn("ski_sponsor", vonn["metadata"])
+
+    def test_fis_public_calendar_feed_builds_core_events_and_competitions(self):
+        files = {
+            "A_event.csv": (
+                "Eventid\tSeasoncode\tSectorcode\tEventname\tStartdate\tEnddate\tNationcodeplace\tOrgnationcode\tPlace\n"
+                "62947\t2027\tAL\tKitzbuehel World Cup\t2027-01-19 00:00:00\t2027-01-24 00:00:00\tAUT\tAUT\tKitzbuehel\n"
+            ).encode(),
+            "A_raceal.csv": (
+                "Raceid\tEventid\tSeasoncode\tRacecodex\tDisciplinecode\tCatcode\tCatcode2\tCatcode3\tCatcode4\tGender\tRacedate\tStarteventdate\tDESCRIPTION\tPlace\tNationcode\tWebcomment\tTeam\n"
+                "131450\t62947\t2027\t253\tGS\tWC\t\t\t\tM\t2027-01-20 00:00:00\t2027-01-19 00:00:00\tGiant Slalom\tKitzbuehel\tAUT\t\t0\n"
+                "131451\t62947\t2026\t254\tSL\tWC\t\t\t\tM\t2026-01-20 00:00:00\t2026-01-19 00:00:00\tSlalom\tKitzbuehel\tAUT\t\t0\n"
+            ).encode(),
+        }
+        events, competitions = parse_calendar_feed(files, "https://api.fis-ski.com/data-feeds/calendar", 2027)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["canonical_id"], "62947")
+        self.assertEqual(events[0]["metadata"]["start_date"], "2027-01-19")
+        self.assertEqual(events[0]["metadata"]["sport_values"], ["alpine_skiing"])
+        self.assertEqual(len(competitions), 1)
+        self.assertEqual(competitions[0]["canonical_id"], "131450")
+        self.assertEqual(competitions[0]["metadata"]["event_id"], "62947")
+        self.assertEqual(competitions[0]["metadata"]["codex"], "253")
+
     def test_fis_result_athlete_name_is_presented_first_name_then_surname(self):
         self.assertEqual(display_result_athlete_name("VONN Lindsey"), "Lindsey Vonn")
         self.assertEqual(display_result_athlete_name("GUT-BEHRAMI Lara"), "Lara Gut-Behrami")
@@ -3031,6 +3067,24 @@ class SportsEditorialPilotTests(unittest.TestCase):
             response = self.client.post("/workspace/sports-editorial/entities/refresh/events", data={"season_code": "2027"})
         self.assertEqual(response.status_code, 302)
         self.assertIn("/login", response.headers["Location"])
+
+    def test_supervisor_entity_refresh_uses_public_api_feeds(self):
+        self.set_role("supervisor")
+        event = {"entity_type": "event", "name": "Kitzbuehel", "canonical_id": "62947", "canonical_url": "", "country_code": "AUT", "metadata": {"season_code": 2027}}
+        competition = {"entity_type": "competition", "name": "Giant Slalom", "canonical_id": "131450", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "62947"}}
+        athlete = {"entity_type": "athlete", "name": "Lindsey Vonn", "canonical_id": "537544", "canonical_url": "", "country_code": "USA", "metadata": {"discipline_code": "AL"}}
+        user = {"id": "supervisor", "role": "supervisor", "full_name": "Supervisor"}
+        with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=user), patch("services.sports_editorial.auth.current_user", return_value=user), patch("services.sports_editorial.views.fetch_public_calendar_feed", return_value=([event], [competition], "feed")) as calendar_feed, patch("services.sports_editorial.views.fetch_public_athletes", return_value=([athlete], "feed", "FIS Public API competitors feed")) as athlete_feed:
+            events = self.client.post("/workspace/sports-editorial/entities/refresh/events", data={"season_code": "2027"})
+            athletes = self.client.post("/workspace/sports-editorial/entities/refresh/athletes", data={"season_code": "2027"})
+            competitions = self.client.post("/workspace/sports-editorial/entities/refresh/competitions", data={"season_code": "2027"})
+        self.assertEqual(events.status_code, 200)
+        self.assertEqual(athletes.status_code, 200)
+        self.assertEqual(competitions.status_code, 200)
+        self.assertEqual(calendar_feed.call_count, 2)
+        athlete_feed.assert_called_once_with()
+        self.assertTrue(repository.search_entities("537544", entity_type="athlete"))
+        self.assertTrue(repository.search_entities("131450", entity_type="competition"))
 
 
 if __name__ == "__main__":

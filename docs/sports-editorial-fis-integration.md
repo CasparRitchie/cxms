@@ -11,9 +11,9 @@
 - Mock mode is visibly reported as a simulation and transmits nothing.
 - Publish status changes to Published only after the client returns success.
   Withdraw status changes to In Progress only after the client returns success.
-- Public FIS pages and official points-list files currently seed calendar,
-  athlete, country and competition reference data. They do not establish a
-  supported media stat-sheet API contract.
+- The authorised FIS Public API feeds seed calendar, athlete, country and
+  competition reference data using `FIS_PUBLIC_API_KEY`. This credential and
+  API boundary are separate from the Media Stat Sheets bearer token.
 
 ## Required confirmation from Andrew, AMP and FIS
 
