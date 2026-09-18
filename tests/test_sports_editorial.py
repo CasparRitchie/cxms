@@ -3086,6 +3086,22 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertTrue(repository.search_entities("537544", entity_type="athlete"))
         self.assertTrue(repository.search_entities("131450", entity_type="competition"))
 
+    def test_athlete_catalogue_can_refresh_one_supported_discipline(self):
+        user = {"id": "supervisor", "role": "supervisor", "full_name": "Supervisor"}
+        alpine = {"entity_type": "athlete", "name": "Lindsey Vonn", "canonical_id": "537544", "canonical_url": "", "country_code": "USA", "metadata": {"discipline_code": "AL"}}
+        jumping = {"entity_type": "athlete", "name": "Ryoyu Kobayashi", "canonical_id": "2425004", "canonical_url": "", "country_code": "JPN", "metadata": {"discipline_code": "JP"}}
+        with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=user), patch("services.sports_editorial.auth.current_user", return_value=user), patch("services.sports_editorial.views.fetch_public_athletes", return_value=([alpine, jumping], "feed", "FIS Public API competitors feed")):
+            page = self.client.get("/workspace/sports-editorial/athletes")
+            response = self.client.post("/workspace/sports-editorial/athletes", data={"discipline_code": "JP"})
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b"All supported sports", page.data)
+        self.assertIn(b"Ski Jumping (JP)", page.data)
+        self.assertNotIn(b"Alpine athlete catalogue", page.data)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("discipline_code=JP", response.headers["Location"])
+        self.assertFalse(repository.search_entities("537544", entity_type="athlete"))
+        self.assertTrue(repository.search_entities("2425004", entity_type="athlete"))
+
 
 if __name__ == "__main__":
     unittest.main()

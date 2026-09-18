@@ -35,6 +35,15 @@ VALID_ROLES = ("researcher", "sub_editor", "supervisor", "fis_specialist")
 RESEARCH_ASSIGNMENT_ROLES = ("researcher", "sub_editor", "supervisor")
 SUB_EDITOR_ASSIGNMENT_ROLES = ("sub_editor", "supervisor")
 QUEUE_PATH_PATTERN = re.compile(r"^/workspace/sports-editorial/queue(?:/modern-preview)?(?:\?|$)")
+FIS_ATHLETE_DISCIPLINES = (
+    ("", "All supported sports"),
+    ("AL", "Alpine Skiing (AL)"),
+    ("JP", "Ski Jumping (JP)"),
+    ("CC", "Cross-Country Skiing (CC)"),
+    ("NK", "Nordic Combined (NK)"),
+    ("FS", "Freestyle / Freeski (FS)"),
+    ("SB", "Snowboard (SB)"),
+)
 
 
 def _queue_return_url(value=""):
@@ -321,19 +330,26 @@ def athletes():
     if auth_configuration()["mode"] != "workspace":
         abort(404)
     require_supervisor()
-    season_code = request.form.get("season_code", "2027") if request.method == "POST" else request.args.get("season_code", "2027")
+    discipline_code = (request.form.get("discipline_code", "") if request.method == "POST" else request.args.get("discipline_code", "")).strip().upper()
+    valid_discipline_codes = {code for code, _ in FIS_ATHLETE_DISCIPLINES}
+    if discipline_code not in valid_discipline_codes:
+        discipline_code = ""
     if request.method == "POST":
         try:
             imported, source_url, list_name = fetch_public_athletes()
+            if discipline_code:
+                imported = [athlete for athlete in imported if (athlete.get("metadata") or {}).get("discipline_code") == discipline_code]
             count = repository.upsert_athletes(imported)
             country_count = repository.upsert_entities(countries_from_athletes(imported))
-            flash(f"Imported {count} supported-sport athletes and {country_count} FIS nations from {list_name}.", "success")
-            return redirect(url_for("sports_editorial_workspace.athletes", season_code=season_code))
+            scope = dict(FIS_ATHLETE_DISCIPLINES).get(discipline_code) if discipline_code else "supported-sport"
+            flash(f"Imported {count} {scope} athletes and {country_count} FIS nations from {list_name}.", "success")
+            return redirect(url_for("sports_editorial_workspace.athletes", discipline_code=discipline_code))
         except (FisPublicApiError, SupabaseError) as exc:
             flash(str(exc), "error")
     catalogue = [entity for entity in repository.list_entities(entity_type="athlete", limit=200) if re.fullmatch(r"-?\d+", str(entity.get("canonical_id") or ""))]
     athlete_count = f"{len(catalogue)}+" if len(catalogue) == 200 else str(len(catalogue))
-    return render_template("sports-editorial-workspace/athletes.html", athletes=catalogue, athlete_count=athlete_count, season_code=season_code)
+    return render_template("sports-editorial-workspace/athletes.html", athletes=catalogue, athlete_count=athlete_count,
+                           discipline_code=discipline_code, athlete_disciplines=FIS_ATHLETE_DISCIPLINES)
 
 
 @blueprint.route("/competitions", methods=["GET", "POST"])
