@@ -313,16 +313,25 @@ def calendar():
         abort(404)
     require_supervisor()
     season_code = request.form.get("season_code", "2027") if request.method == "POST" else request.args.get("season_code", "2027")
+    discipline_code = (request.form.get("discipline_code", "") if request.method == "POST" else request.args.get("discipline_code", "")).strip().upper()
+    valid_discipline_codes = {code for code, _ in FIS_ATHLETE_DISCIPLINES}
+    if discipline_code not in valid_discipline_codes:
+        discipline_code = ""
     if request.method == "POST":
         try:
             events, _, source_url = fetch_public_calendar_feed(season_code)
+            if discipline_code:
+                events = [event for event in events if (event.get("metadata") or {}).get("discipline_code") == discipline_code]
             count = repository.upsert_calendar_events(events)
             flash(f"Imported {count} supported events from the FIS Public API calendar feed.", "success")
-            return redirect(url_for("sports_editorial_workspace.calendar", season_code=season_code))
+            return redirect(url_for("sports_editorial_workspace.calendar", season_code=season_code, discipline_code=discipline_code))
         except (FisPublicApiError, SupabaseError) as exc:
             flash(str(exc), "error")
     events = _calendar_events()
-    return render_template("sports-editorial-workspace/calendar.html", events=events, season_code=season_code)
+    if discipline_code:
+        events = [event for event in events if (event.get("metadata") or {}).get("discipline_code") == discipline_code]
+    return render_template("sports-editorial-workspace/calendar.html", events=events, event_count=len(events), season_code=season_code,
+                           discipline_code=discipline_code, event_disciplines=FIS_ATHLETE_DISCIPLINES)
 
 
 @blueprint.route("/athletes", methods=["GET", "POST"])
@@ -347,7 +356,7 @@ def athletes():
         except (FisPublicApiError, SupabaseError) as exc:
             flash(str(exc), "error")
     catalogue = [entity for entity in repository.list_entities(entity_type="athlete", limit=200) if re.fullmatch(r"-?\d+", str(entity.get("canonical_id") or ""))]
-    athlete_count = f"{len(catalogue)}+" if len(catalogue) == 200 else str(len(catalogue))
+    athlete_count = repository.count_entities(entity_type="athlete")
     return render_template("sports-editorial-workspace/athletes.html", athletes=catalogue, athlete_count=athlete_count,
                            discipline_code=discipline_code, athlete_disciplines=FIS_ATHLETE_DISCIPLINES)
 
@@ -367,7 +376,15 @@ def competitions():
             flash(str(exc), "error")
     catalogue = repository.list_entities(entity_type="competition", limit=300)
     countries = repository.list_entities(entity_type="country", limit=300)
-    return render_template("sports-editorial-workspace/competitions.html", competitions=catalogue, countries=countries, season_code=request.args.get("season_code", "2027"))
+    country_query = request.args.get("country_query", "").strip()
+    if country_query:
+        needle = country_query.casefold()
+        countries = [country for country in countries if needle in str(country.get("name") or "").casefold()
+                     or needle in str(country.get("canonical_id") or "").casefold()]
+    return render_template("sports-editorial-workspace/competitions.html", competitions=catalogue, countries=countries,
+                           country_count=repository.count_entities(entity_type="country"), country_query=country_query,
+                           competition_count=repository.count_entities(entity_type="competition"),
+                           season_code=request.args.get("season_code", "2027"))
 
 
 @blueprint.post("/entities/refresh/<step>")

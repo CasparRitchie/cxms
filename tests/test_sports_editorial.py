@@ -2936,6 +2936,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(by_code["USA"], "United States")
         self.assertEqual(by_code["AUS"], "Australia")
         self.assertEqual(by_code["AUT"], "Austria")
+        self.assertEqual(by_code["AFG"], "Afghanistan")
+        self.assertEqual(by_code["ALG"], "Algeria")
+        self.assertEqual(by_code["ASA"], "American Samoa")
+        self.assertEqual(by_code["BAH"], "Bahamas")
+        self.assertEqual(by_code["FRT"], "FIS Refugee Team")
+        self.assertFalse(any(name.endswith("(FIS nation code)") for name in by_code.values()))
         self.assertTrue(all(item["canonical_url"].startswith("https://www.fis-ski.com/") for item in countries))
         self.assertEqual(
             next(item for item in countries if item["canonical_id"] == "AUT")["canonical_url"],
@@ -3088,6 +3094,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
 
     def test_athlete_catalogue_can_refresh_one_supported_discipline(self):
         user = {"id": "supervisor", "role": "supervisor", "full_name": "Supervisor"}
+        initial_athlete_count = repository.count_entities(entity_type="athlete")
         alpine = {"entity_type": "athlete", "name": "Lindsey Vonn", "canonical_id": "537544", "canonical_url": "", "country_code": "USA", "metadata": {"discipline_code": "AL"}}
         jumping = {"entity_type": "athlete", "name": "Ryoyu Kobayashi", "canonical_id": "2425004", "canonical_url": "", "country_code": "JPN", "metadata": {"discipline_code": "JP"}}
         with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=user), patch("services.sports_editorial.auth.current_user", return_value=user), patch("services.sports_editorial.views.fetch_public_athletes", return_value=([alpine, jumping], "feed", "FIS Public API competitors feed")):
@@ -3101,6 +3108,33 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("discipline_code=JP", response.headers["Location"])
         self.assertFalse(repository.search_entities("537544", entity_type="athlete"))
         self.assertTrue(repository.search_entities("2425004", entity_type="athlete"))
+        self.assertEqual(repository.count_entities(entity_type="athlete"), initial_athlete_count + 1)
+
+    def test_event_catalogue_filters_by_discipline_and_shows_exact_count(self):
+        user = {"id": "supervisor", "role": "supervisor", "full_name": "Supervisor"}
+        repository.upsert_calendar_events([
+            {"entity_type": "event", "name": "Alpine venue", "canonical_id": "70001", "canonical_url": "", "country_code": "AUT", "metadata": {"discipline_code": "AL", "season_code": 2027}},
+            {"entity_type": "event", "name": "Jumping venue", "canonical_id": "70002", "canonical_url": "", "country_code": "NOR", "metadata": {"discipline_code": "JP", "season_code": 2027}},
+        ])
+        with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=user), patch("services.sports_editorial.auth.current_user", return_value=user):
+            response = self.client.get("/workspace/sports-editorial/calendar?season_code=2027&discipline_code=JP")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Ski Jumping (JP)", response.data)
+        self.assertIn(b"1 events", response.data)
+        self.assertIn(b"Jumping venue", response.data)
+        self.assertNotIn(b"Alpine venue", response.data)
+
+    def test_country_catalogue_filters_name_or_fis_code_and_keeps_exact_total(self):
+        user = {"id": "supervisor", "role": "supervisor", "full_name": "Supervisor"}
+        countries = countries_from_athletes([{"country_code": "SUI"}])
+        repository.upsert_entities(countries)
+        expected_total = repository.count_entities(entity_type="country")
+        with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), patch("services.sports_editorial.views.current_user", return_value=user), patch("services.sports_editorial.auth.current_user", return_value=user):
+            response = self.client.get("/workspace/sports-editorial/competitions?country_query=SUI")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f"Countries <small>({expected_total})</small>".encode(), response.data)
+        self.assertIn(b"Switzerland", response.data)
+        self.assertNotIn(b">Australia<", response.data)
 
 
 if __name__ == "__main__":

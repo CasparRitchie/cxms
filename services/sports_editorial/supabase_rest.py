@@ -44,3 +44,29 @@ class SupabaseRestClient:
             raise SupabaseError(f"Supabase request failed ({exc.code}): {raw[:300]}") from exc
         except (URLError, TimeoutError) as exc:
             raise SupabaseError("Supabase is currently unavailable.") from exc
+
+    def count(self, table, query=None):
+        """Return an exact PostgREST count without downloading the full table."""
+        if not self.configured:
+            raise SupabaseError("Supabase is not configured.")
+        params = {**(query or {}), "select": "id", "limit": "1"}
+        suffix = f"?{urlencode(params, doseq=True, safe='(),.*')}"
+        headers = {
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}",
+            "Accept": "application/json",
+            "Prefer": "count=exact",
+        }
+        req = Request(f"{self.url}/rest/v1/{table}{suffix}", method="GET", headers=headers)
+        try:
+            with urlopen(req, timeout=self.timeout) as response:
+                content_range = response.headers.get("Content-Range", "")
+                total = content_range.rsplit("/", 1)[-1]
+                if total.isdigit():
+                    return int(total)
+                raise SupabaseError("Supabase did not return an exact record count.")
+        except HTTPError as exc:
+            raw = exc.read().decode("utf-8", "replace")
+            raise SupabaseError(f"Supabase count failed ({exc.code}): {raw[:300]}") from exc
+        except (URLError, TimeoutError) as exc:
+            raise SupabaseError("Supabase is currently unavailable.") from exc

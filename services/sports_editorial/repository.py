@@ -345,6 +345,9 @@ class DemoSportsEditorialRepository:
         items = sorted(items, key=lambda item: (item["entity_type"], item["name"]))
         return deepcopy(items[:limit] if limit else items)
 
+    def count_entities(self, entity_type=""):
+        return sum(1 for item in self._entities if not entity_type or item["entity_type"] == entity_type)
+
     def get_entities_by_ids(self, entity_ids):
         wanted = set(entity_ids)
         return deepcopy([item for item in self._entities if item["id"] in wanted])
@@ -808,6 +811,12 @@ class SupabaseSportsEditorialRepository:
             if len(page) < page_size:
                 return rows
             offset += page_size
+
+    def count_entities(self, entity_type=""):
+        query = {"workspace_id": f"eq.{self._workspace()}"}
+        if entity_type:
+            query["entity_type"] = f"eq.{entity_type}"
+        return self.client.count("sports_editorial_entities", query=query)
 
     def get_entities_by_ids(self, entity_ids):
         ids = list(dict.fromkeys(entity_ids))
