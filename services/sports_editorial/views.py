@@ -261,13 +261,48 @@ def manage_stat_sheets():
     require_supervisor()
     query = request.args.get("q", "").strip().casefold()
     competitions = repository.list_entities(entity_type="competition")
-    submissions = [decorate_submission_race_status(item, competitions) for item in repository.list_submissions(include_inactive=True)]
+    all_submissions = [decorate_submission_race_status(item, competitions) for item in repository.list_submissions(include_inactive=True)]
+    users = _assignment_users()
+    filter_fields = (
+        "status", "client_name", "sport", "season_code", "competition", "event_name",
+        "gender", "location", "researcher_user_id", "sub_editor_user_id", "race_status", "visibility",
+    )
+    filters = {
+        field: list(dict.fromkeys(value.strip() for value in request.args.getlist(field) if value.strip()))
+        for field in filter_fields
+    }
+    filters["status"] = [value for value in filters["status"] if value in VALID_STATUSES]
+
+    def admin_filter_values(item, field):
+        if field == "event_name":
+            return [str(value) for value in (item.get("event_names") or [item.get("event_name")]) if value]
+        if field == "gender":
+            return [str(value) for value in (item.get("genders") or [item.get("gender")]) if value]
+        if field == "visibility":
+            return ["active" if item.get("is_active", True) else "inactive"]
+        return [str(item.get(field) or "")]
+
+    submissions = [
+        item for item in all_submissions
+        if all(not values or any(value in values for value in admin_filter_values(item, field))
+               for field, values in filters.items())
+    ]
     if query:
         submissions = [item for item in submissions if query in " ".join((
             str(item.get("amp_id") or ""), str(item.get("title") or ""),
             str(item.get("location") or ""), " ".join(map(str, item.get("fis_event_ids") or [])),
         )).casefold()]
-    return render_template("sports-editorial-workspace/manage-stat-sheets.html", submissions=submissions, q=request.args.get("q", ""), assignment_users=_assignment_users())
+    options = {
+        field: sorted({value for item in all_submissions for value in admin_filter_values(item, field) if value}, key=str.casefold)
+        for field in filter_fields if field != "status"
+    }
+    return render_template(
+        "sports-editorial-workspace/manage-stat-sheets.html", submissions=submissions,
+        q=request.args.get("q", ""), assignment_users=users, filters=filters, options=options,
+        statuses=ACTIVE_STATUSES, result_count=len(submissions),
+        assignment_user_labels={user["id"]: user.get("full_name") or user.get("email") for user in users},
+        reset_filters_url=url_for("sports_editorial_workspace.manage_stat_sheets"),
+    )
 
 
 @blueprint.post("/manage/stat-sheets/<submission_id>")
@@ -284,7 +319,7 @@ def administer_stat_sheet(submission_id):
         changes["is_active"] = True
         audit_action = "stat_sheet_reactivated"
     elif action == "change_status":
-        requested = request.form.get("status", "")
+        requested = request.form.get("status_override") or request.form.get("status", "")
         if submission.get("status") == "exported":
             abort(409, description="Withdraw this sheet through the FIS workflow before changing its internal status.")
         if requested not in ("draft", "in_review", "approved", "fis_review"):
@@ -300,7 +335,15 @@ def administer_stat_sheet(submission_id):
         "reason": request.form.get("reason", "").strip(),
     })
     flash("Stat sheet administration updated.", "success")
-    return redirect(url_for("sports_editorial_workspace.manage_stat_sheets", q=request.form.get("q", "")))
+    return_args = {"q": request.form.get("q", "")}
+    for field in (
+        "status", "client_name", "sport", "season_code", "competition", "event_name",
+        "gender", "location", "researcher_user_id", "sub_editor_user_id", "race_status", "visibility",
+    ):
+        values = [value for value in request.form.getlist(field) if value]
+        if values:
+            return_args[field] = values
+    return redirect(url_for("sports_editorial_workspace.manage_stat_sheets", **return_args))
 
 
 @blueprint.route("/calendar", methods=["GET", "POST"])
@@ -323,11 +366,52 @@ def calendar():
             return redirect(url_for("sports_editorial_workspace.calendar", season_code=season_code, discipline_code=discipline_code))
         except (FisPublicApiError, SupabaseError) as exc:
             flash(str(exc), "error")
-    events = _calendar_events()
-    if discipline_code:
-        events = [event for event in events if (event.get("metadata") or {}).get("discipline_code") == discipline_code]
-    return render_template("sports-editorial-workspace/calendar.html", events=events, event_count=len(events), season_code=season_code,
-                           discipline_code=discipline_code, event_disciplines=FIS_ATHLETE_DISCIPLINES)
+    all_events = _calendar_events()
+    event_filter_fields = ("event_season", "event_discipline", "event_category", "event_location")
+    event_filters = {
+        field: list(dict.fromkeys(value for value in request.args.getlist(field) if value))
+        for field in event_filter_fields
+    }
+    if discipline_code and not event_filters["event_discipline"]:
+        event_filters["event_discipline"] = [discipline_code]
+    event_options = {
+        "event_season": sorted({str((item.get("metadata") or {}).get("season_code")) for item in all_events
+                                if (item.get("metadata") or {}).get("season_code")}, reverse=True),
+        "event_discipline": sorted({str((item.get("metadata") or {}).get("discipline_code")) for item in all_events
+                                    if (item.get("metadata") or {}).get("discipline_code")}),
+        "event_category": sorted({str((item.get("metadata") or {}).get("category_code")) for item in all_events
+                                  if (item.get("metadata") or {}).get("category_code")}),
+        "event_location": sorted({str((item.get("metadata") or {}).get("location_label") or item.get("name"))
+                                  for item in all_events if (item.get("metadata") or {}).get("location_label") or item.get("name")}, key=str.casefold),
+    }
+    event_query = request.args.get("q", "").strip().casefold()
+
+    def event_values(item):
+        metadata = item.get("metadata") or {}
+        return {
+            "event_season": str(metadata.get("season_code") or ""),
+            "event_discipline": str(metadata.get("discipline_code") or ""),
+            "event_category": str(metadata.get("category_code") or ""),
+            "event_location": str(metadata.get("location_label") or item.get("name") or ""),
+        }
+
+    events = [item for item in all_events if all(
+        not event_filters[field] or event_values(item)[field] in event_filters[field]
+        for field in event_filter_fields
+    )]
+    if event_query:
+        events = [item for item in events if event_query in " ".join((
+            str(item.get("name") or ""), str(item.get("canonical_id") or ""),
+            str((item.get("metadata") or {}).get("location_label") or ""),
+        )).casefold()]
+    return render_template(
+        "sports-editorial-workspace/calendar.html", events=events, event_count=len(events),
+        total_event_count=len(all_events), result_count=len(events), season_code=season_code, discipline_code=discipline_code,
+        event_disciplines=FIS_ATHLETE_DISCIPLINES, event_filters=event_filters,
+        event_discipline_labels=dict(FIS_ATHLETE_DISCIPLINES),
+        event_options=event_options, q=request.args.get("q", ""),
+        reset_filters_url=url_for("sports_editorial_workspace.calendar"),
+    )
 
 
 @blueprint.route("/athletes", methods=["GET", "POST"])
@@ -374,7 +458,37 @@ def competitions():
             return redirect(url_for("sports_editorial_workspace.competitions"))
         except (FisPublicApiError, SupabaseError) as exc:
             flash(str(exc), "error")
-    catalogue = repository.list_entities(entity_type="competition", limit=300)
+    all_competitions = repository.list_entities(entity_type="competition")
+    competition_filter_fields = ("race_season", "race_discipline", "race_event", "race_gender", "race_location", "race_status")
+    competition_filters = {
+        field: list(dict.fromkeys(value for value in request.args.getlist(field) if value))
+        for field in competition_filter_fields
+    }
+    competition_options = {
+        "race_season": sorted({str((item.get("metadata") or {}).get("season_code")) for item in all_competitions if (item.get("metadata") or {}).get("season_code")}, reverse=True),
+        "race_discipline": sorted({str((item.get("metadata") or {}).get("discipline_code")) for item in all_competitions if (item.get("metadata") or {}).get("discipline_code")}),
+        "race_event": sorted({str((item.get("metadata") or {}).get("event_code")) for item in all_competitions if (item.get("metadata") or {}).get("event_code")}),
+        "race_gender": sorted({str((item.get("metadata") or {}).get("gender")) for item in all_competitions if (item.get("metadata") or {}).get("gender")}),
+        "race_location": sorted({str((item.get("metadata") or {}).get("location")) for item in all_competitions if (item.get("metadata") or {}).get("location")}, key=str.casefold),
+        "race_status": ["scheduled", "cancelled"],
+    }
+    race_query = request.args.get("race_query", "").strip().casefold()
+    race_field_keys = {"race_season": "season_code", "race_discipline": "discipline_code", "race_event": "event_code",
+                       "race_gender": "gender", "race_location": "location", "race_status": "race_status"}
+    catalogue = []
+    for item in all_competitions:
+        metadata = item.get("metadata") or {}
+        values = {field: str(metadata.get(metadata_field) or "") for field, metadata_field in race_field_keys.items()}
+        values["race_status"] = str(metadata.get("race_status") or "scheduled")
+        if all(not competition_filters[field] or values[field] in competition_filters[field]
+               for field in competition_filter_fields):
+            catalogue.append(item)
+    if race_query:
+        catalogue = [item for item in catalogue if race_query in " ".join((
+            str(item.get("name") or ""), str(item.get("canonical_id") or ""),
+            str((item.get("metadata") or {}).get("codex") or ""),
+            str((item.get("metadata") or {}).get("event_id") or ""),
+        )).casefold()]
     countries = repository.list_entities(entity_type="country", limit=300)
     country_query = request.args.get("country_query", "").strip()
     if country_query:
@@ -384,7 +498,10 @@ def competitions():
     return render_template("sports-editorial-workspace/competitions.html", competitions=catalogue, countries=countries,
                            country_count=repository.count_entities(entity_type="country"), country_query=country_query,
                            competition_count=repository.count_entities(entity_type="competition"),
-                           season_code=request.args.get("season_code", "2027"))
+                           competition_result_count=len(catalogue), competition_filters=competition_filters,
+                           competition_options=competition_options, race_query=request.args.get("race_query", ""),
+                           race_filter_reset_url=url_for("sports_editorial_workspace.competitions", season_code=request.args.get("season_code", "2027")),
+                           discipline_labels=dict(FIS_ATHLETE_DISCIPLINES), season_code=request.args.get("season_code", "2027"))
 
 
 def _sync_competition_status_to_sheets(competition, actor=None, reason="", submissions=None):

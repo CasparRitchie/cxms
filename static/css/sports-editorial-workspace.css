@@ -732,6 +732,7 @@ html[data-sew-theme="light"] .sew-mini-toolbar button[aria-pressed="true"] {
 .sew-user-admin-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(180px,1.2fr) 150px 90px auto;align-items:end;gap:7px}
 .sew-user-admin-row label{display:grid;gap:3px}.sew-user-admin-row label>span{font-size:9px;font-weight:800;text-transform:uppercase}
 .sew-user-admin-email{align-self:center;overflow-wrap:anywhere}.sew-user-admin-row .sew-user-active{display:flex;align-items:center;align-self:center;gap:5px}.sew-user-active input{width:auto;min-height:auto}
+.sew-users-table input[name="full_name"],.sew-users-table select{width:100%}.sew-users-table .sew-user-active{display:flex;justify-content:center}.sew-users-table td:first-child{min-width:170px}
 @media(max-width:800px){.sew-user-admin-row{grid-template-columns:1fr 1fr}.sew-user-admin-email{grid-column:1/-1}}
 
 @media(max-width:700px){

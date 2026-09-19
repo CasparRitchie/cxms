@@ -2683,6 +2683,32 @@ class SportsEditorialPilotTests(unittest.TestCase):
             "temporary-passphrase", "supervisor",
         )
 
+    def test_user_admin_table_uses_column_headers_without_repeated_row_labels(self):
+        supervisor = {"id": "supervisor-id", "workspace_id": "workspace-id", "role": "supervisor"}
+        users = [{
+            "id": "user-id", "email": "editor@example.test", "full_name": "Example Editor",
+            "editorial_role": "sub_editor", "editorial_is_active": True,
+        }]
+        with patch("services.sports_editorial.views.auth_configuration", return_value={"mode": "workspace"}), \
+             patch("services.sports_editorial.views.current_user", return_value=supervisor), \
+             patch("services.sports_editorial.views.require_editorial_user_admin", return_value=supervisor), \
+             patch("services.sports_editorial.views.list_workspace_users", return_value=users):
+            response = self.client.get("/workspace/sports-editorial/users")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"<th>Name</th>", response.data)
+        self.assertNotIn(b"<span>Name</span>", response.data)
+        self.assertIn(b'aria-label="Name for editor@example.test"', response.data)
+        self.assertIn(b"1 user with Sports Editorial access", response.data)
+
+    def test_stat_sheet_admin_uses_shared_multi_select_filters(self):
+        self.set_role("supervisor")
+        response = self.client.get("/workspace/sports-editorial/manage/stat-sheets?status=in_review")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'data-filter-field="status"', response.data)
+        self.assertIn(b'name="status" value="in_review" checked', response.data)
+        self.assertIn(b"sports-editorial-filters.js", response.data)
+        self.assertIn(b"<strong>2</strong> stat sheets shown", response.data)
+
     def test_fis_specialist_can_review_and_publish_but_not_create_or_force_unlock(self):
         repository.administer_submission("demo-submission-submitted", {"status": "fis_review"})
         repository.administer_submission("demo-submission-approved", {"status": "fis_review"})
@@ -3216,8 +3242,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Ski Jumping (JP)", response.data)
         self.assertIn(b"1 events", response.data)
-        self.assertIn(b"Jumping venue", response.data)
-        self.assertNotIn(b"Alpine venue", response.data)
+        self.assertIn(b"<strong>Jumping venue</strong>", response.data)
+        self.assertNotIn(b"<strong>Alpine venue</strong>", response.data)
 
     def test_country_catalogue_filters_name_or_fis_code_and_keeps_exact_total(self):
         user = {"id": "supervisor", "role": "supervisor", "full_name": "Supervisor"}
