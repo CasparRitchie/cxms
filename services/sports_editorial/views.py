@@ -1,7 +1,7 @@
 import json
 import re
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime, timezone
 from io import BytesIO
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -22,6 +22,7 @@ from .stat_insights import build_stat_insights, demo_result_rows
 from .dashboard_metrics import build_dashboard_metrics
 from .fis_results import FisResultError, fetch_alpine_results
 from .result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
+from .race_status import decorate_submission_race_status, effective_race_status, matching_competitions
 from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
     event_discipline_code, event_discipline_codes, format_display_date, parse_display_date, resolve_calendar_event,
@@ -259,7 +260,8 @@ def update_user(user_id):
 def manage_stat_sheets():
     require_supervisor()
     query = request.args.get("q", "").strip().casefold()
-    submissions = repository.list_submissions(include_inactive=True)
+    competitions = repository.list_entities(entity_type="competition")
+    submissions = [decorate_submission_race_status(item, competitions) for item in repository.list_submissions(include_inactive=True)]
     if query:
         submissions = [item for item in submissions if query in " ".join((
             str(item.get("amp_id") or ""), str(item.get("title") or ""),
@@ -281,12 +283,6 @@ def administer_stat_sheet(submission_id):
     elif action == "reactivate":
         changes["is_active"] = True
         audit_action = "stat_sheet_reactivated"
-    elif action == "cancel_race":
-        changes.update({"race_status": "cancelled", "race_status_source": "manual"})
-        audit_action = "race_cancelled"
-    elif action == "reinstate_race":
-        changes.update({"race_status": "scheduled", "race_status_source": "manual"})
-        audit_action = "race_reinstated"
     elif action == "change_status":
         requested = request.form.get("status", "")
         if submission.get("status") == "exported":
@@ -370,6 +366,10 @@ def competitions():
         try:
             _, imported, _ = fetch_public_calendar_feed(request.form.get("season_code", "2027"))
             count = repository.upsert_entities(imported)
+            stored = {str(item.get("canonical_id")): item for item in repository.list_entities(entity_type="competition")}
+            submissions = repository.list_submissions(include_inactive=True)
+            for competition in (stored.get(str(item.get("canonical_id")), item) for item in imported):
+                _sync_competition_status_to_sheets(competition, submissions=submissions)
             flash(f"Imported {count} supported competitions from the FIS Public API calendar feed.", "success")
             return redirect(url_for("sports_editorial_workspace.competitions"))
         except (FisPublicApiError, SupabaseError) as exc:
@@ -385,6 +385,70 @@ def competitions():
                            country_count=repository.count_entities(entity_type="country"), country_query=country_query,
                            competition_count=repository.count_entities(entity_type="competition"),
                            season_code=request.args.get("season_code", "2027"))
+
+
+def _sync_competition_status_to_sheets(competition, actor=None, reason="", submissions=None):
+    status, source = effective_race_status(competition)
+    updated = 0
+    for submission in submissions if submissions is not None else repository.list_submissions(include_inactive=True):
+        if not matching_competitions(submission, [competition]):
+            continue
+        if submission.get("race_status") == status and (status == "scheduled" or submission.get("race_status_source") == source):
+            continue
+        repository.administer_submission(submission["id"], {"race_status": status, "race_status_source": source})
+        if actor:
+            repository.record_audit_event(submission["id"], actor,
+                                          "race_cancelled" if status == "cancelled" else "race_reinstated", {
+                "fis_race_id": competition.get("canonical_id"),
+                "codex": (competition.get("metadata") or {}).get("codex"),
+                "source": source, "reason": reason,
+            })
+        updated += 1
+    return updated
+
+
+@blueprint.get("/race-status")
+def race_status():
+    require_supervisor()
+    query = request.args.get("q", "").strip().casefold()
+    competitions = repository.list_entities(entity_type="competition")
+    if query:
+        competitions = [item for item in competitions if query in " ".join((
+            str(item.get("name") or ""), str(item.get("canonical_id") or ""),
+            str((item.get("metadata") or {}).get("codex") or ""),
+            str((item.get("metadata") or {}).get("event_id") or ""),
+        )).casefold()]
+    for item in competitions:
+        item["effective_race_status"], item["effective_race_status_source"] = effective_race_status(item)
+    competitions.sort(key=lambda item: (
+        item.get("effective_race_status") != "cancelled",
+        str((item.get("metadata") or {}).get("date") or ""), item.get("name", ""),
+    ))
+    return render_template("sports-editorial-workspace/race-status.html", competitions=competitions, q=request.args.get("q", ""))
+
+
+@blueprint.post("/race-status/<race_id>")
+def update_race_status(race_id):
+    supervisor = require_supervisor()
+    competition = next((item for item in repository.list_entities(entity_type="competition")
+                        if str(item.get("canonical_id")) == str(race_id)), None)
+    if not competition:
+        abort(404)
+    action = request.form.get("action")
+    if action not in ("report_cancelled", "reinstate"):
+        abort(400, description="Choose a valid race-status action.")
+    metadata = dict(competition.get("metadata") or {})
+    metadata.update({
+        "manual_race_status": "cancelled" if action == "report_cancelled" else "scheduled",
+        "manual_race_status_at": datetime.now(timezone.utc).isoformat(),
+        "manual_race_status_by": supervisor.get("full_name") or supervisor.get("email"),
+        "manual_race_status_note": request.form.get("reason", "").strip() or None,
+    })
+    competition["metadata"] = metadata
+    repository.upsert_entities([competition])
+    linked = _sync_competition_status_to_sheets(competition, supervisor, request.form.get("reason", "").strip())
+    flash(f"Race status updated. {linked} linked stat sheet{'s' if linked != 1 else ''} updated.", "success")
+    return redirect(url_for("sports_editorial_workspace.race_status", q=request.form.get("q", "")))
 
 
 @blueprint.post("/entities/refresh/<step>")
@@ -406,6 +470,10 @@ def refresh_entities(step):
         if step == "competitions":
             _, competitions, _ = fetch_public_calendar_feed(season_code)
             count = repository.upsert_entities(competitions)
+            stored = {str(item.get("canonical_id")): item for item in repository.list_entities(entity_type="competition")}
+            submissions = repository.list_submissions(include_inactive=True)
+            for competition in (stored.get(str(item.get("canonical_id")), item) for item in competitions):
+                _sync_competition_status_to_sheets(competition, submissions=submissions)
             return jsonify({"ok": True, "message": f"{count} competitions updated from the FIS Public API calendar feed."})
         return jsonify({"ok": False, "error": "Unknown refresh step."}), 400
     except (FisPublicApiError, SupabaseError) as exc:
@@ -416,7 +484,7 @@ def _submission_or_404(submission_id):
     submission = repository.get_submission(submission_id)
     if not submission:
         abort(404)
-    return submission
+    return decorate_submission_race_status(submission, repository.list_entities(entity_type="competition"))
 
 
 def _entities_by_id(submission=None):
@@ -766,6 +834,8 @@ def submit():
             "sub_editor_user_id": request.form.get("sub_editor_user_id", ""), "sub_editor_name": request.form.get("sub_editor_name", ""),
             "season_code": season_code,
         }
+        race_matches = matching_competitions(data, repository.list_entities(entity_type="competition"))
+        data["fis_race_ids"] = [int(race_matches[0]["canonical_id"])] if len(race_matches) == 1 else []
         users_by_id = {item["id"]: item for item in _assignment_users()}
         researcher = users_by_id.get(data["researcher_user_id"]) if data["researcher_user_id"] else None
         sub_editor = users_by_id.get(data["sub_editor_user_id"]) if data["sub_editor_user_id"] else None
@@ -823,7 +893,8 @@ def queue():
     if not sort_criteria:
         sort_criteria = [("updated_at", "desc")]
     sort_value = ",".join(f"{field}:{direction}" for field, direction in sort_criteria)
-    all_submissions = repository.list_submissions()
+    competition_catalogue = repository.list_entities(entity_type="competition")
+    all_submissions = [decorate_submission_race_status(item, competition_catalogue) for item in repository.list_submissions()]
 
     def item_filter_values(item, field):
         value = item.get(field)
@@ -1172,6 +1243,15 @@ def detail(submission_id):
                 mutable_form["genders"] = selected_genders
                 mutable_form["fis_event_discipline_code"] = event_discipline_code(selected_sport, selected_competition, selected_event_names) or ""
                 mutable_form["fis_event_discipline_codes"] = list(event_discipline_codes(selected_sport, selected_competition, selected_event_names))
+                race_candidate = {
+                    **submission, "fis_event_ids": event_ids,
+                    "fis_event_discipline_code": mutable_form.get("fis_event_discipline_code"),
+                    "fis_event_discipline_codes": mutable_form.get("fis_event_discipline_codes"),
+                    "genders": selected_genders, "gender": selected_genders[0] if selected_genders else None,
+                    "event_date": parsed_dates.get("event_date", submission.get("event_date")),
+                }
+                race_matches = matching_competitions(race_candidate, repository.list_entities(entity_type="competition"))
+                mutable_form["fis_race_ids"] = " ".join(str(item["canonical_id"]) for item in race_matches) if len(race_matches) == 1 else ""
                 selected = next((item for item in canonical_calendar_events(_calendar_events()) if item["canonical_id"] in {str(value) for value in event_ids}), None)
                 mutable_form["location"] = selected["location"] if selected else ""
             for field_name, parsed_value in parsed_dates.items():

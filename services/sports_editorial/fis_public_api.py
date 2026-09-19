@@ -181,6 +181,7 @@ def parse_calendar_feed(files, source_url, season_code):
                     "codex": codex, "event_code": race_code, "gender": gender, "date": date,
                     "location": place, "competition_kind": competition_kind,
                     "race_status": "cancelled" if cancelled else "scheduled",
+                    "official_status_comment": webcomment or None,
                     "is_result_expected": not training and not team and not cancelled,
                     "imported_at": imported_at, "source_url": source_url,
                 },

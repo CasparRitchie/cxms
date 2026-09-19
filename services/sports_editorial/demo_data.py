@@ -70,6 +70,7 @@ def fresh_demo_data():
         submission.setdefault("is_active", True)
         submission.setdefault("race_status", "scheduled")
         submission.setdefault("race_status_source", "manual")
+        submission.setdefault("fis_race_ids", [])
         submission.setdefault("last_modified_by", submission.get("author_name", ""))
         if submission.get("status") in ("approved", "exported"):
             for block in submission.get("stats", []):

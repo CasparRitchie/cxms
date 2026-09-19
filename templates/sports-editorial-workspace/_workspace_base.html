@@ -29,6 +29,7 @@
           <a href="{{ url_for('sports_editorial_workspace.calendar') }}">Events</a>
           <a href="{{ url_for('sports_editorial_workspace.athletes') }}">Athletes</a>
           <a href="{{ url_for('sports_editorial_workspace.competitions') }}">Countries & competitions</a>
+          <a href="{{ url_for('sports_editorial_workspace.race_status') }}">Race status</a>
           <a href="{{ url_for('sports_editorial_workspace.users') }}">Users</a>
         </nav>
       </details>
@@ -46,7 +47,8 @@
     </div>
   </header>
   {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="sew-messages">{% for category, message in messages %}<p class="sew-message sew-message--{{ category }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% endwith %}
-  {% block workspace_content %}{% endblock %}
+    {% if submission is defined and submission.race_alerts %}<div class="sew-fis-warnings" role="status"><p><strong>{{ 'Partially cancelled' if submission.race_alerts|length < (submission.fis_race_ids|default([])|length) else 'Race cancelled' }}:</strong> {% for alert in submission.race_alerts %}{{ alert.name }}{% if alert.codex %} · codex {{ alert.codex }}{% endif %} ({{ 'confirmed by FIS' if alert.source == 'fis' else 'reported by AMP; awaiting FIS confirmation' }}){% if not loop.last %}; {% endif %}{% endfor %}</p></div>{% endif %}
+    {% block workspace_content %}{% endblock %}
 </div>
 {% endblock %}
 {% block scripts %}

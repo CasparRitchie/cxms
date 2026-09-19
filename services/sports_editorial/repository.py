@@ -25,6 +25,11 @@ def _event_ids_from_form(form_data):
     return list(dict.fromkeys(int(value) for value in values if value.isdigit() and int(value) > 0))[:10]
 
 
+def _race_ids_from_form(form_data):
+    values = re.split(r"[\s,]+", " ".join(form_data.getlist("fis_race_ids")))
+    return list(dict.fromkeys(int(value) for value in values if value.isdigit() and int(value) > 0))[:20]
+
+
 def _submitted_entity_links(form_data, block_id, allowed_ids, rich_text):
     """Keep inline links only while their exact confirmed wording still exists."""
     plain_text = rich_text_to_plain(rich_text)
@@ -109,6 +114,7 @@ class DemoSportsEditorialRepository:
             "event_names": list(data.get("event_names") or []), "genders": list(data.get("genders") or []),
             "fis_event_discipline_codes": list(data.get("fis_event_discipline_codes") or []),
             "season_code": data.get("season_code"), "event_date": data.get("event_date", "").strip(), "fis_event_ids": data.get("fis_event_ids", []),
+            "fis_race_ids": data.get("fis_race_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(),
             "author_email": data.get("author_email", "").strip(), "status": status, "editor_notes": "", "fis_submission_notes": "",
             "amp_id": "", "client_name": data.get("client_name", "").strip(),
@@ -238,6 +244,8 @@ class DemoSportsEditorialRepository:
             item["editor_notes"] = form_data.get("editor_notes", "").strip()
             item["fis_submission_notes"] = form_data.get("fis_submission_notes", "").strip()
             item["fis_event_ids"] = _event_ids_from_form(form_data)
+            if "fis_race_ids" in form_data:
+                item["fis_race_ids"] = _race_ids_from_form(form_data)
             if "event_name" in form_data:
                 item["event_names"] = list(form_data.getlist("event_name"))
                 item["event_name"] = item["event_names"][0] if item["event_names"] else None
@@ -410,7 +418,9 @@ class DemoSportsEditorialRepository:
             for incoming in entities:
                 existing = next((item for item in self._entities if item["entity_type"] == incoming["entity_type"] and item.get("canonical_id") == incoming["canonical_id"]), None)
                 if existing:
-                    existing.update(deepcopy(incoming))
+                    merged = deepcopy(incoming)
+                    merged["metadata"] = {**deepcopy(existing.get("metadata") or {}), **deepcopy(incoming.get("metadata") or {})}
+                    existing.update(merged)
                 else:
                     self._entities.append({"id": str(uuid4()), **deepcopy(incoming)})
         return len(entities)
@@ -547,6 +557,7 @@ class SupabaseSportsEditorialRepository:
             "event_names": list(data.get("event_names") or []), "genders": list(data.get("genders") or []),
             "fis_event_discipline_codes": list(data.get("fis_event_discipline_codes") or []),
             "season_code": data.get("season_code"), "event_date": data.get("event_date") or None, "fis_event_ids": data.get("fis_event_ids", []),
+            "fis_race_ids": data.get("fis_race_ids", []),
             "fis_external_id": build_fis_external_id(data), "author_name": data["author_name"].strip(), "author_email": data.get("author_email", "").strip(),
             "status": status, "editor_notes": "", "fis_submission_notes": "", "submitted_at": now if status == "submitted" else None,
             # AMP ID is assigned atomically by the database default.
@@ -710,6 +721,8 @@ class SupabaseSportsEditorialRepository:
                 } for value in selected], prefer="return=minimal")
         event_ids = _event_ids_from_form(form_data)
         changes = {"editor_notes": form_data.get("editor_notes", "").strip(), "fis_submission_notes": form_data.get("fis_submission_notes", "").strip(), "fis_event_ids": event_ids, "updated_at": _now(), "last_modified_by_user_id": user.get("id"), "last_modified_by_name": user.get("full_name") or user.get("email")}
+        if "fis_race_ids" in form_data:
+            changes["fis_race_ids"] = _race_ids_from_form(form_data)
         if "event_name" in form_data:
             changes["event_names"] = list(form_data.getlist("event_name"))
             changes["event_name"] = changes["event_names"][0] if changes["event_names"] else None
@@ -920,7 +933,21 @@ class SupabaseSportsEditorialRepository:
 
     def upsert_entities(self, entities):
         for start in range(0, len(entities), 500):
-            payload = [{**entity, "workspace_id": self._workspace()} for entity in entities[start:start + 500]]
+            batch = entities[start:start + 500]
+            canonical_ids = [str(item.get("canonical_id") or "") for item in batch if item.get("canonical_id")]
+            existing_by_key = {}
+            if canonical_ids:
+                existing = self.client.request("sports_editorial_entities", query={
+                    "select": "entity_type,canonical_id,metadata", "workspace_id": f"eq.{self._workspace()}",
+                    "canonical_id": f"in.({','.join(canonical_ids)})", "limit": str(len(canonical_ids)),
+                })
+                existing_by_key = {(item.get("entity_type"), str(item.get("canonical_id"))): item for item in existing}
+            payload = []
+            for entity in batch:
+                previous = existing_by_key.get((entity.get("entity_type"), str(entity.get("canonical_id")))) or {}
+                payload.append({**entity, "workspace_id": self._workspace(), "metadata": {
+                    **(previous.get("metadata") or {}), **(entity.get("metadata") or {}),
+                }})
             self.client.request(
                 "sports_editorial_entities", "POST",
                 query={"on_conflict": "workspace_id,entity_type,canonical_id"},

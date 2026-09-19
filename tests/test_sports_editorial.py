@@ -28,6 +28,7 @@ from services.sports_editorial.validation import validate_status_transition, val
 from services.sports_editorial.creation import canonical_calendar_events, creation_options, event_discipline_code, parse_display_date, validate_choice_combination
 from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
 from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
+from services.sports_editorial.race_status import effective_race_status, matching_competitions
 from services.sports_editorial import views as sports_editorial_views
 from services.sports_editorial.formatting import render_entity_links
 from scripts.backfill_fis_results import expand_seasons
@@ -2723,7 +2724,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         queue = self.client.get("/workspace/sports-editorial/queue?status=fis_review")
         self.assertIn(b'data-submission-id="demo-submission-approved"', queue.data)
 
-    def test_only_supervisor_can_administer_inactive_and_cancelled_sheets(self):
+    def test_only_supervisor_can_administer_sheets_and_race_status_is_separate(self):
         self.set_sub_editor()
         forbidden = self.client.post(
             "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
@@ -2731,11 +2732,17 @@ class SportsEditorialPilotTests(unittest.TestCase):
         )
         self.assertEqual(forbidden.status_code, 403)
         self.set_role("supervisor")
+        repository.upsert_entities([{
+            "entity_type": "competition", "name": "Slalom W · Flachau · 2026-12-13 · codex 5253",
+            "canonical_id": "99001", "canonical_url": "", "country_code": "AUT",
+            "metadata": {"event_id": "55596", "event_code": "SL", "gender": "W", "date": "2026-12-13", "codex": "5253", "race_status": "scheduled"},
+        }])
         cancelled = self.client.post(
-            "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
-            data={"admin_action": "cancel_race"},
+            "/workspace/sports-editorial/race-status/99001",
+            data={"action": "report_cancelled", "reason": "AMP WhatsApp report"},
         )
         self.assertEqual(cancelled.status_code, 302)
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["status"], "in_review")
         queue = self.client.get("/workspace/sports-editorial/queue")
         self.assertIn(b"is-race-cancelled", queue.data)
         self.assertIn(b'<table class="sew-table sew-queue-table has-race-status">', queue.data)
@@ -2748,8 +2755,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b"has-race-status", filtered_without_cancelled.data)
         self.assertNotIn(b"<th>Race status</th>", filtered_without_cancelled.data)
         reinstated = self.client.post(
-            "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
-            data={"admin_action": "reinstate_race"},
+            "/workspace/sports-editorial/race-status/99001",
+            data={"action": "reinstate"},
         )
         self.assertEqual(reinstated.status_code, 302)
         self.assertEqual(repository.get_submission("demo-submission-submitted")["race_status"], "scheduled")
@@ -2768,7 +2775,24 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertNotIn(b'data-submission-id="demo-submission-submitted"', self.client.get("/workspace/sports-editorial/queue").data)
         manage = self.client.get("/workspace/sports-editorial/manage/stat-sheets")
         self.assertIn(b"Slalom preview notes", manage.data)
+        self.assertNotIn(b"Cancel race", manage.data)
         self.assertIn(b"Inactive", manage.data)
+
+    def test_manual_cancellation_is_not_erased_by_lagging_fis_status(self):
+        competition = {"canonical_id": "99001", "metadata": {
+            "race_status": "scheduled", "manual_race_status": "cancelled",
+        }}
+        self.assertEqual(effective_race_status(competition), ("cancelled", "manual"))
+        competition["metadata"]["race_status"] = "cancelled"
+        self.assertEqual(effective_race_status(competition), ("cancelled", "fis"))
+
+    def test_stored_fis_race_id_takes_precedence_over_inferred_matching(self):
+        competitions = [
+            {"canonical_id": "101", "metadata": {"event_id": "700", "gender": "W", "date": "2027-01-01"}},
+            {"canonical_id": "102", "metadata": {"event_id": "700", "gender": "W", "date": "2027-01-01"}},
+        ]
+        submission = {"fis_race_ids": [102], "fis_event_ids": [700], "gender": "W", "event_date": "2027-01-01"}
+        self.assertEqual([item["canonical_id"] for item in matching_competitions(submission, competitions)], ["102"])
 
     def test_fis_review_withdrawal_invalidates_specialist_lock_and_returns_to_sub_edit(self):
         repository.administer_submission("demo-submission-approved", {
