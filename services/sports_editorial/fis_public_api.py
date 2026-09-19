@@ -34,6 +34,13 @@ def _date(value):
     return _clean(value).split(" ", 1)[0] or None
 
 
+def _is_cancelled_comment(value):
+    text = _clean(value).casefold()
+    if not re.search(r"\bcancel(?:l)?ed\b", text):
+        return False
+    return not re.search(r"\b(?:not|never)\s+(?:been\s+)?cancel(?:l)?ed\b", text)
+
+
 def _rows(content):
     return csv.DictReader(StringIO(content.decode("utf-8-sig", "replace").replace("\x00", "")), delimiter="\t")
 
@@ -165,7 +172,7 @@ def parse_calendar_feed(files, source_url, season_code):
             category = next((value for value in categories if value in SUPPORTED_CATEGORIES), categories[0] or "")
             date = _date(row.get("Racedate"))
             webcomment = _clean(row.get("Webcomment"))
-            cancelled = "cancel" in webcomment.casefold()
+            cancelled = _is_cancelled_comment(webcomment)
             team = _clean(row.get("Team")) == "1"
             training = "training" in description.casefold()
             competition_kind = "training" if training else ("team_event" if team else "race")

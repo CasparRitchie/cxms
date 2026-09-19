@@ -412,19 +412,72 @@ def race_status():
     require_supervisor()
     query = request.args.get("q", "").strip().casefold()
     competitions = repository.list_entities(entity_type="competition")
+    for item in competitions:
+        item["effective_race_status"], item["effective_race_status_source"] = effective_race_status(item)
+    seasons = sorted({
+        str((item.get("metadata") or {}).get("season_code"))
+        for item in competitions if (item.get("metadata") or {}).get("season_code")
+    }, reverse=True)
+    current_season = str(date.today().year + (1 if date.today().month >= 7 else 0))
+    filters_submitted = request.args.get("filters") == "1"
+    selected_seasons = list(dict.fromkeys(
+        value for value in request.args.getlist("season") if value in seasons
+    ))
+    if not filters_submitted and not selected_seasons:
+        future_seasons = sorted(season for season in seasons if season >= current_season)
+        default_season = current_season if current_season in seasons else (
+            future_seasons[0] if future_seasons else (seasons[0] if seasons else "")
+        )
+        selected_seasons = [default_season] if default_season else []
+    valid_statuses = ("scheduled", "fis_cancelled", "amp_cancelled")
+    selected_statuses = list(dict.fromkeys(
+        value for value in request.args.getlist("status") if value in valid_statuses
+    ))
+    filter_options = {
+        "discipline_code": sorted({str((item.get("metadata") or {}).get("discipline_code"))
+                                   for item in competitions if (item.get("metadata") or {}).get("discipline_code")}),
+        "gender": sorted({str((item.get("metadata") or {}).get("gender"))
+                          for item in competitions if (item.get("metadata") or {}).get("gender")}),
+        "location": sorted({str((item.get("metadata") or {}).get("location"))
+                            for item in competitions if (item.get("metadata") or {}).get("location")}, key=str.casefold),
+    }
+    selected_metadata = {
+        field: list(dict.fromkeys(value for value in request.args.getlist(field)
+                                 if value in filter_options[field]))
+        for field in filter_options
+    }
+    if selected_seasons:
+        competitions = [item for item in competitions
+                        if str((item.get("metadata") or {}).get("season_code") or "") in selected_seasons]
     if query:
         competitions = [item for item in competitions if query in " ".join((
             str(item.get("name") or ""), str(item.get("canonical_id") or ""),
             str((item.get("metadata") or {}).get("codex") or ""),
             str((item.get("metadata") or {}).get("event_id") or ""),
         )).casefold()]
-    for item in competitions:
-        item["effective_race_status"], item["effective_race_status_source"] = effective_race_status(item)
+    if selected_statuses:
+        competitions = [item for item in competitions if (
+            ("scheduled" in selected_statuses and item["effective_race_status"] == "scheduled")
+            or ("fis_cancelled" in selected_statuses and item["effective_race_status"] == "cancelled"
+                and item["effective_race_status_source"] == "fis")
+            or ("amp_cancelled" in selected_statuses and item["effective_race_status"] == "cancelled"
+                and item["effective_race_status_source"] == "manual")
+        )]
+    for field, selected in selected_metadata.items():
+        if selected:
+            competitions = [item for item in competitions
+                            if str((item.get("metadata") or {}).get(field) or "") in selected]
     competitions.sort(key=lambda item: (
-        item.get("effective_race_status") != "cancelled",
-        str((item.get("metadata") or {}).get("date") or ""), item.get("name", ""),
+        str((item.get("metadata") or {}).get("date") or "9999-12-31"), item.get("name", ""),
     ))
-    return render_template("sports-editorial-workspace/race-status.html", competitions=competitions, q=request.args.get("q", ""))
+    return render_template(
+        "sports-editorial-workspace/race-status.html", competitions=competitions,
+        q=request.args.get("q", ""), seasons=seasons, selected_seasons=selected_seasons,
+        selected_statuses=selected_statuses, selected_metadata=selected_metadata,
+        filter_options=filter_options, result_count=len(competitions),
+        reset_filters_url=url_for("sports_editorial_workspace.race_status"),
+        discipline_labels=dict(FIS_ATHLETE_DISCIPLINES),
+    )
 
 
 @blueprint.post("/race-status/<race_id>")
@@ -448,7 +501,12 @@ def update_race_status(race_id):
     repository.upsert_entities([competition])
     linked = _sync_competition_status_to_sheets(competition, supervisor, request.form.get("reason", "").strip())
     flash(f"Race status updated. {linked} linked stat sheet{'s' if linked != 1 else ''} updated.", "success")
-    return redirect(url_for("sports_editorial_workspace.race_status", q=request.form.get("q", "")))
+    return_args = {"filters": "1", "q": request.form.get("q", "")}
+    for field in ("season", "status", "discipline_code", "gender", "location"):
+        values = [value for value in request.form.getlist(field) if value]
+        if values:
+            return_args[field] = values
+    return redirect(url_for("sports_editorial_workspace.race_status", **return_args))
 
 
 @blueprint.post("/entities/refresh/<step>")

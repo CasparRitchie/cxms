@@ -428,6 +428,7 @@ html[data-sew-theme="light"] .sew-app-header .sew-primary-nav a:hover{background
 .sew-queue-filter-panel>summary:before{content:"▸";display:inline-block;margin-right:7px}
 .sew-queue-filter-panel[open]>summary:before{transform:rotate(90deg)}
 .sew-queue-filter-form{padding:8px}
+.sew-race-search{margin-bottom:6px}
 .sew-queue-filter-grid{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:6px}
 .sew-filter-control{position:relative}
 .sew-filter-control>summary{

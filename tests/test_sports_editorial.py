@@ -2786,6 +2786,58 @@ class SportsEditorialPilotTests(unittest.TestCase):
         competition["metadata"]["race_status"] = "cancelled"
         self.assertEqual(effective_race_status(competition), ("cancelled", "fis"))
 
+    def test_race_status_defaults_to_current_season_and_filters_by_source(self):
+        self.set_role("supervisor")
+        current_season = date.today().year + (1 if date.today().month >= 7 else 0)
+        repository.upsert_entities([
+            {"entity_type": "competition", "name": "Later scheduled race", "canonical_id": "99101",
+             "canonical_url": "", "country_code": "AUT", "metadata": {
+                 "season_code": current_season, "date": "2027-02-02", "race_status": "scheduled",
+                 "discipline_code": "AL", "gender": "W", "location": "Flachau",
+             }},
+            {"entity_type": "competition", "name": "Earlier FIS cancellation", "canonical_id": "99102",
+             "canonical_url": "", "country_code": "AUT", "metadata": {
+                 "season_code": current_season, "date": "2027-01-01", "race_status": "cancelled",
+                 "discipline_code": "AL", "gender": "M", "location": "Kitzbuehel",
+             }},
+            {"entity_type": "competition", "name": "AMP cancellation", "canonical_id": "99103",
+             "canonical_url": "", "country_code": "AUT", "metadata": {
+                 "season_code": current_season, "date": "2027-01-15", "race_status": "scheduled",
+                 "manual_race_status": "cancelled", "discipline_code": "JP", "gender": "M",
+                 "location": "Oslo",
+             }},
+            {"entity_type": "competition", "name": "Historic race", "canonical_id": "99104",
+             "canonical_url": "", "country_code": "AUT", "metadata": {
+                 "season_code": current_season - 1, "date": "2026-01-01", "race_status": "scheduled",
+             }},
+        ])
+        page = self.client.get("/workspace/sports-editorial/race-status")
+        self.assertIn(b"<strong>3</strong> races shown, ordered by race date", page.data)
+        self.assertIn(f'name="season" value="{current_season}" checked'.encode(), page.data)
+        self.assertNotIn(b"Historic race", page.data)
+        self.assertLess(page.data.index(b"<strong>Earlier FIS cancellation</strong>"),
+                        page.data.index(b"<strong>AMP cancellation</strong>"))
+        self.assertLess(page.data.index(b"<strong>AMP cancellation</strong>"),
+                        page.data.index(b"<strong>Later scheduled race</strong>"))
+        fis_only = self.client.get(
+            f"/workspace/sports-editorial/race-status?season={current_season}&status=fis_cancelled"
+        )
+        self.assertIn(b"<strong>Earlier FIS cancellation</strong>", fis_only.data)
+        self.assertNotIn(b"<strong>AMP cancellation</strong>", fis_only.data)
+        amp_only = self.client.get(
+            f"/workspace/sports-editorial/race-status?season={current_season}&status=amp_cancelled"
+        )
+        self.assertIn(b"<strong>AMP cancellation</strong>", amp_only.data)
+        self.assertNotIn(b"<strong>Earlier FIS cancellation</strong>", amp_only.data)
+        alpine_women = self.client.get(
+            f"/workspace/sports-editorial/race-status?filters=1&season={current_season}"
+            "&discipline_code=AL&gender=W&location=Flachau"
+        )
+        self.assertIn(b"<strong>Later scheduled race</strong>", alpine_women.data)
+        self.assertNotIn(b"<strong>Earlier FIS cancellation</strong>", alpine_women.data)
+        all_seasons = self.client.get("/workspace/sports-editorial/race-status?filters=1")
+        self.assertIn(b"<strong>Historic race</strong>", all_seasons.data)
+
     def test_stored_fis_race_id_takes_precedence_over_inferred_matching(self):
         competitions = [
             {"canonical_id": "101", "metadata": {"event_id": "700", "gender": "W", "date": "2027-01-01"}},
@@ -2899,6 +2951,25 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(competitions[0]["canonical_id"], "131450")
         self.assertEqual(competitions[0]["metadata"]["event_id"], "62947")
         self.assertEqual(competitions[0]["metadata"]["codex"], "253")
+
+    def test_fis_public_calendar_feed_does_not_treat_not_cancelled_as_cancelled(self):
+        files = {
+            "A_event.csv": (
+                "Eventid\tSeasoncode\tSectorcode\tEventname\tStartdate\tEnddate\tNationcodeplace\tOrgnationcode\tPlace\n"
+                "62947\t2027\tAL\tTest World Cup\t2027-01-19\t2027-01-24\tAUT\tAUT\tKitzbuehel\n"
+            ).encode(),
+            "A_raceal.csv": (
+                "Raceid\tEventid\tSeasoncode\tRacecodex\tDisciplinecode\tCatcode\tCatcode2\tCatcode3\tCatcode4\tGender\tRacedate\tStarteventdate\tDESCRIPTION\tPlace\tNationcode\tWebcomment\tTeam\n"
+                "131450\t62947\t2027\t253\tGS\tWC\t\t\t\tM\t2027-01-20\t2027-01-19\tGiant Slalom\tKitzbuehel\tAUT\tNot cancelled\t0\n"
+                "131451\t62947\t2027\t254\tSL\tWC\t\t\t\tM\t2027-01-21\t2027-01-19\tSlalom\tKitzbuehel\tAUT\tCancelled due to weather\t0\n"
+            ).encode(),
+        }
+        _events, competitions = parse_calendar_feed(
+            files, "https://api.fis-ski.com/data-feeds/calendar", 2027
+        )
+        by_id = {item["canonical_id"]: item for item in competitions}
+        self.assertEqual(by_id["131450"]["metadata"]["race_status"], "scheduled")
+        self.assertEqual(by_id["131451"]["metadata"]["race_status"], "cancelled")
 
     def test_fis_result_athlete_name_is_presented_first_name_then_surname(self):
         self.assertEqual(display_result_athlete_name("VONN Lindsey"), "Lindsey Vonn")
