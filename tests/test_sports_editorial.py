@@ -191,6 +191,22 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'data-selected="Parallel Slalom"', race.data)
         self.assertIn(b'data-selected="W"', race.data)
 
+    def test_covered_dashboard_event_links_to_stat_sheet(self):
+        repository.upsert_calendar_events([{
+            "entity_type": "event", "name": "Linked event", "canonical_id": "55596",
+            "canonical_url": "", "country_code": "AUT", "metadata": {
+                "season_code": 2027, "discipline_code": "AL", "category_code": "WC",
+                "sport_values": ["alpine_skiing"], "location_label": "Linked location",
+                "start_date": "2027-01-10", "end_date": "2027-01-11",
+            },
+        }])
+        self.set_role("supervisor")
+        response = self.client.get("/workspace/sports-editorial/?coverage_range=next_year")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Covered", response.data)
+        self.assertIn(b"Open AMP 560002", response.data)
+        self.assertIn(b'href="/workspace/sports-editorial/submissions/demo-submission-submitted"', response.data)
+
     def test_dashboard_beta_is_supervisor_only_and_stat_insights_is_labelled_beta(self):
         self.set_role("researcher")
         redirected = self.client.get("/workspace/sports-editorial/")
