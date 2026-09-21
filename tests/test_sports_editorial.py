@@ -28,7 +28,7 @@ from services.sports_editorial.validation import validate_status_transition, val
 from services.sports_editorial.creation import canonical_calendar_events, creation_options, event_discipline_code, parse_display_date, validate_choice_combination
 from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
 from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
-from services.sports_editorial.race_status import decorate_submission_race_status, effective_race_status, matching_competitions
+from services.sports_editorial.race_status import decorate_submission_fis_schedule, decorate_submission_race_status, effective_race_status, matching_competitions
 from services.sports_editorial import views as sports_editorial_views
 from services.sports_editorial.formatting import render_entity_links
 from scripts.backfill_fis_results import expand_seasons
@@ -113,6 +113,41 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(metrics["summary"]["cancelled"], 1)
         self.assertIn("No researcher", metrics["attention"][0]["attention_reasons"])
 
+    def test_dashboard_fis_coverage_tracks_events_races_workflow_and_cancellations(self):
+        sheets = [
+            {"id": "one", "title": "Moguls pack", "status": "draft", "is_active": True,
+             "fis_event_ids": [700], "fis_race_ids": [101]},
+            {"id": "two", "title": "Published pack", "status": "exported", "is_active": True,
+             "fis_event_ids": [700], "fis_race_ids": [102]},
+        ]
+        events = [{"canonical_id": "700", "name": "Kreischberg", "canonical_url": "https://example.test/event/700",
+                   "metadata": {"location_label": "Kreischberg", "start_date": "2026-09-10", "end_date": "2026-09-12",
+                                "discipline_code": "FS", "category_code": "WC"}}]
+        races = [
+            {"canonical_id": "101", "name": "Moguls Men", "metadata": {"event_id": "700", "date": "2026-09-10", "competition_kind": "race", "race_status": "scheduled"}},
+            {"canonical_id": "102", "name": "Moguls Women", "metadata": {"event_id": "700", "date": "2026-09-11", "competition_kind": "race", "race_status": "scheduled"}},
+            {"canonical_id": "103", "name": "Aerials", "metadata": {"event_id": "700", "date": "2026-09-12", "competition_kind": "race", "race_status": "cancelled"}},
+            {"canonical_id": "104", "name": "Training", "metadata": {"event_id": "700", "date": "2026-09-09", "competition_kind": "training", "race_status": "scheduled"}},
+        ]
+        metrics = build_dashboard_metrics(sheets, [], events, races, today=date(2026, 9, 8))
+        coverage = metrics["fis_coverage"]
+        self.assertEqual(coverage["summary"], {
+            "events": 1, "covered_events": 1, "missing_events": 0, "event_coverage_percent": 100,
+            "races": 2, "covered_races": 2, "missing_races": 0, "race_coverage_percent": 100,
+            "cancelled_races": 1,
+        })
+        self.assertEqual(coverage["events"][0]["workflow_counts"]["in_progress"], 1)
+        self.assertEqual(coverage["events"][0]["workflow_counts"]["exported"], 1)
+        self.assertEqual(len(coverage["races"]), 3)
+
+    def test_dashboard_fis_coverage_flags_uncovered_scheduled_items(self):
+        events = [{"canonical_id": "701", "name": "Levi", "metadata": {"start_date": "2026-09-09", "end_date": "2026-09-10"}}]
+        races = [{"canonical_id": "201", "name": "Slalom", "metadata": {"event_id": "701", "date": "2026-09-09", "competition_kind": "race"}}]
+        coverage = build_dashboard_metrics([], [], events, races, today=date(2026, 9, 8))["fis_coverage"]
+        self.assertEqual(coverage["summary"]["missing_events"], 1)
+        self.assertEqual(coverage["summary"]["missing_races"], 1)
+        self.assertTrue(coverage["events"][0]["is_missing"])
+
     def test_dashboard_beta_is_supervisor_only_and_stat_insights_is_labelled_beta(self):
         self.set_role("researcher")
         redirected = self.client.get("/workspace/sports-editorial/")
@@ -124,7 +159,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(dashboard.status_code, 200)
         self.assertIn(b"Stat-sheet dashboard", dashboard.data)
         self.assertIn(b"Dashboard <span class=\"sew-beta-badge\">Beta</span>", dashboard.data)
-        self.assertIn(b"Upcoming events", dashboard.data)
+        self.assertIn(b"Upcoming stat sheets", dashboard.data)
+        self.assertIn(b"Upcoming FIS coverage", dashboard.data)
         self.assertIn(b"Attention required", dashboard.data)
 
         insights = self.client.get("/workspace/sports-editorial/stat-insights")
@@ -2933,6 +2969,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(created["fis_race_ids"], [101, 102])
 
     def test_stat_sheet_presents_linked_fis_race_details(self):
+        repository.upsert_calendar_events([{
+            "entity_type": "event", "name": "Semmering World Cup", "canonical_id": "55596",
+            "canonical_url": "https://www.fis-ski.com/DB/general/event-details.html?eventid=55596",
+            "country_code": "AUT", "metadata": {
+                "location_label": "Semmering", "start_date": "2026-12-12", "end_date": "2026-12-14",
+                "season_code": 2027, "discipline_code": "AL", "category_code": "WC",
+            },
+        }])
         repository.upsert_entities([{
             "entity_type": "competition", "name": "Women Slalom", "canonical_id": "104332",
             "canonical_url": "https://www.fis-ski.com/DB/general/results.html?sectorcode=AL&raceid=104332",
@@ -2950,7 +2994,20 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b">104332</a>", response.data)
         self.assertIn(b">SL</td>", response.data)
         self.assertIn(b">0122</td>", response.data)
+        self.assertIn(b"FIS event dates", response.data)
+        self.assertIn(b"12-Dec-2026", response.data)
+        self.assertIn(b"14-Dec-2026", response.data)
+        self.assertIn(b"The editable Race Date remains separate", response.data)
         self.assertNotIn(b"FIS Race ID", response.data)
+
+    def test_fis_schedule_decorator_links_only_selected_events(self):
+        events = [
+            {"canonical_id": "700", "metadata": {"start_date": "2027-01-01", "end_date": "2027-01-03"}},
+            {"canonical_id": "701", "metadata": {"start_date": "2027-02-01", "end_date": "2027-02-02"}},
+        ]
+        decorated = decorate_submission_fis_schedule({"fis_event_ids": [700]}, events, [])
+        self.assertEqual([item["canonical_id"] for item in decorated["linked_fis_events"]], ["700"])
+        self.assertEqual(decorated["linked_fis_event_count"], 1)
 
     def test_fis_review_withdrawal_invalidates_specialist_lock_and_returns_to_sub_edit(self):
         repository.administer_submission("demo-submission-approved", {

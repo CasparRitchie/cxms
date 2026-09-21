@@ -1,0 +1,6 @@
+<section class="sew-card sew-linked-fis-events">
+  <div class="sew-section-heading"><div><h2>FIS event dates</h2>{% if submission.linked_fis_events %}<p>Read-only start and finish dates from the refreshed FIS calendar. The editable Race Date remains separate.</p>{% else %}<p>No matching FIS event schedule is currently available in the refreshed catalogue.</p>{% endif %}</div></div>
+  {% if submission.linked_fis_events %}<div class="sew-table-card"><table class="sew-table"><thead><tr><th>FIS Event ID</th><th>Location</th><th>Start</th><th>Finish</th></tr></thead><tbody>
+  {% for event in submission.linked_fis_events %}{% set metadata = event.metadata|default({}) %}<tr><td>{% if event.canonical_url %}<a href="{{ event.canonical_url }}" target="_blank" rel="noopener">{{ event.canonical_id }}</a>{% else %}{{ event.canonical_id }}{% endif %}</td><td>{{ metadata.location_label|default(event.name, true) }}</td><td>{{ format_display_date(metadata.start_date)|default('—', true) }}</td><td>{{ format_display_date(metadata.end_date)|default('—', true) }}</td></tr>{% endfor %}
+  </tbody></table></div>{% endif %}
+</section>

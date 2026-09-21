@@ -22,7 +22,7 @@ from .stat_insights import build_stat_insights, demo_result_rows
 from .dashboard_metrics import build_dashboard_metrics
 from .fis_results import FisResultError, fetch_alpine_results
 from .result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
-from .race_status import decorate_submission_race_status, effective_race_status, matching_competitions
+from .race_status import decorate_submission_fis_schedule, decorate_submission_race_status, effective_race_status, matching_competitions
 from .creation import (
     MAX_SEASON, MIN_SEASON, canonical_calendar_events, creation_options,
     event_discipline_code, event_discipline_codes, format_display_date, parse_display_date, resolve_calendar_event,
@@ -780,7 +780,9 @@ def dashboard():
     if user.get("role") != "supervisor":
         return redirect(url_for("sports_editorial_workspace.queue"))
     metrics = build_dashboard_metrics(
-        repository.list_submissions(include_inactive=True), _assignment_users()
+        repository.list_submissions(include_inactive=True), _assignment_users(),
+        events=repository.list_entities(entity_type="event"),
+        competitions=repository.list_entities(entity_type="competition"),
     )
     return render_template("sports-editorial-workspace/dashboard.html", metrics=metrics)
 
@@ -1486,7 +1488,11 @@ def detail(submission_id):
     refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and wants_edit and not final_state else (repository.get_submission(submission_id), None if final_state else repository.get_edit_lock(submission_id))
     if rejected_form is not None:
         refreshed = _review_form_preview(refreshed, rejected_form, rejected_dates)
-    refreshed = decorate_submission_race_status(refreshed, repository.list_entities(entity_type="competition"))
+    refreshed = decorate_submission_fis_schedule(
+        refreshed,
+        repository.list_entities(entity_type="event"),
+        repository.list_entities(entity_type="competition"),
+    )
     owns_lock = bool(edit_lock and edit_lock["owner_id"] == (current_user() or {}).get("id"))
     if owns_lock:
         _remember_lock(submission_id, edit_lock)
@@ -1512,7 +1518,11 @@ def research(submission_id):
     if submission["status"] not in ("draft", "changes_requested"):
         abort(403, description="This stat sheet is locked while it is in sub edit or publication.")
     submission, edit_lock = repository.acquire_edit_lock(submission_id, user)
-    submission = decorate_submission_race_status(submission, repository.list_entities(entity_type="competition"))
+    submission = decorate_submission_fis_schedule(
+        submission,
+        repository.list_entities(entity_type="event"),
+        repository.list_entities(entity_type="competition"),
+    )
     owns_lock = bool(edit_lock and edit_lock["owner_id"] == user.get("id"))
     if owns_lock:
         _remember_lock(submission_id, edit_lock)

@@ -95,3 +95,20 @@ def decorate_submission_race_status(submission, competitions):
         item["race_status"] = "cancelled"
         item["race_status_source"] = "fis" if any(alert["source"] == "fis" for alert in alerts) else "manual"
     return item
+
+
+def decorate_submission_fis_schedule(submission, events, competitions):
+    """Attach the read-only FIS event schedule and linked race details."""
+    item = decorate_submission_race_status(submission, competitions)
+    wanted_event_ids = {str(value) for value in item.get("fis_event_ids") or []}
+    linked_events = [
+        deepcopy(event) for event in events
+        if str(event.get("canonical_id") or "") in wanted_event_ids
+    ]
+    linked_events.sort(key=lambda event: (
+        str((event.get("metadata") or {}).get("start_date") or ""),
+        str(event.get("canonical_id") or ""),
+    ))
+    item["linked_fis_events"] = linked_events
+    item["linked_fis_event_count"] = len(linked_events)
+    return item
