@@ -2789,6 +2789,40 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"sports-editorial-filters.js", response.data)
         self.assertIn(b"<strong>2</strong> stat sheets shown", response.data)
 
+    def test_supervisor_can_delete_and_restore_stat_sheet_with_audit_history(self):
+        self.set_role("supervisor")
+        deleted = self.client.post(
+            "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
+            data={"admin_action": "delete"}, follow_redirects=True,
+        )
+        self.assertEqual(deleted.status_code, 200)
+        self.assertFalse(repository.get_submission("demo-submission-submitted")["is_active"])
+        self.assertIn(b"Stat sheet deleted. It can be restored from the Deleted filter.", deleted.data)
+        self.assertEqual(repository.list_audit_events("demo-submission-submitted")[-1]["action"], "stat_sheet_deleted")
+        queue = self.client.get("/workspace/sports-editorial/queue")
+        self.assertNotIn(b"Slalom preview notes", queue.data)
+        deleted_filter = self.client.get("/workspace/sports-editorial/manage/stat-sheets?visibility=inactive")
+        self.assertIn(b"Slalom preview notes", deleted_filter.data)
+        self.assertIn(b">Deleted</td>", deleted_filter.data)
+        self.assertIn(b'value="restore"', deleted_filter.data)
+
+        restored = self.client.post(
+            "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
+            data={"admin_action": "restore"}, follow_redirects=True,
+        )
+        self.assertTrue(repository.get_submission("demo-submission-submitted")["is_active"])
+        self.assertIn(b"Stat sheet restored.", restored.data)
+        self.assertEqual(repository.list_audit_events("demo-submission-submitted")[-1]["action"], "stat_sheet_restored")
+
+    def test_non_supervisor_cannot_delete_stat_sheet(self):
+        self.set_role("sub_editor")
+        response = self.client.post(
+            "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
+            data={"admin_action": "delete"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(repository.get_submission("demo-submission-submitted")["is_active"])
+
     def test_fis_specialist_can_review_and_publish_but_not_create_or_force_unlock(self):
         repository.administer_submission("demo-submission-submitted", {"status": "fis_review"})
         repository.administer_submission("demo-submission-approved", {"status": "fis_review"})
@@ -2873,16 +2907,16 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn("col.sew-col-status{width:110px}", stylesheet)
         self.assertIn(".sew-queue-table.has-race-status{width:1534px}", stylesheet)
         self.assertIn("col.sew-col-race-status{width:88px}", stylesheet)
-        inactive = self.client.post(
+        deleted = self.client.post(
             "/workspace/sports-editorial/manage/stat-sheets/demo-submission-submitted",
-            data={"admin_action": "inactivate"},
+            data={"admin_action": "delete"},
         )
-        self.assertEqual(inactive.status_code, 302)
+        self.assertEqual(deleted.status_code, 302)
         self.assertNotIn(b'data-submission-id="demo-submission-submitted"', self.client.get("/workspace/sports-editorial/queue").data)
         manage = self.client.get("/workspace/sports-editorial/manage/stat-sheets")
         self.assertIn(b"Slalom preview notes", manage.data)
         self.assertNotIn(b"Cancel race", manage.data)
-        self.assertIn(b"Inactive", manage.data)
+        self.assertIn(b"Deleted", manage.data)
 
     def test_manual_cancellation_is_not_erased_by_lagging_fis_status(self):
         competition = {"canonical_id": "99001", "metadata": {

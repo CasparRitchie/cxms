@@ -312,12 +312,12 @@ def administer_stat_sheet(submission_id):
     action = request.form.get("admin_action", "")
     changes = {}
     audit_action = "stat_sheet_administered"
-    if action == "inactivate":
+    if action in ("delete", "inactivate"):
         changes["is_active"] = False
-        audit_action = "stat_sheet_inactivated"
-    elif action == "reactivate":
+        audit_action = "stat_sheet_deleted"
+    elif action in ("restore", "reactivate"):
         changes["is_active"] = True
-        audit_action = "stat_sheet_reactivated"
+        audit_action = "stat_sheet_restored"
     elif action == "change_status":
         requested = request.form.get("status_override") or request.form.get("status", "")
         if submission.get("status") == "exported":
@@ -334,7 +334,9 @@ def administer_stat_sheet(submission_id):
         "previous_race_status": submission.get("race_status", "scheduled"), "changes": changes,
         "reason": request.form.get("reason", "").strip(),
     })
-    flash("Stat sheet administration updated.", "success")
+    flash("Stat sheet deleted. It can be restored from the Deleted filter." if changes.get("is_active") is False
+          else "Stat sheet restored." if changes.get("is_active") is True
+          else "Stat sheet administration updated.", "success")
     return_args = {"q": request.form.get("q", "")}
     for field in (
         "status", "client_name", "sport", "season_code", "competition", "event_name",
