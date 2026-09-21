@@ -15,7 +15,6 @@
     <div><span>Season</span><strong>{{ submission.season_code|default('—', true) }}</strong></div><label class="sew-field"><span>Race Date</span><span class="sew-date-control"><input type="text" name="event_date" value="{{ format_display_date(submission.event_date) }}" placeholder="04-Dec-2026" pattern="\d{2}-[A-Za-z]{3}-\d{4}" spellcheck="false"><input type="date" aria-label="Choose race date" data-date-picker value="{{ submission.event_date|default('') }}"></span></label>
   </div></section>
   {% include "sports-editorial-workspace/_linked_fis_events.html" %}
-  {% include "sports-editorial-workspace/_linked_fis_races.html" %}
   <section class="sew-card sew-statistics-panel"><div class="sew-section-heading"><div><h2>Statistics</h2><p>Use sub-headings to group the relevant statistics.</p></div></div>
     {% set numbers = namespace(stat=0, section=0) %}<div class="sew-stats-builder" data-stats-list>{% for block in submission.stats %}{% set working_text = block.edited_text or block.stat_text %}{% if block.content_type in ['section','heading'] %}{% set numbers.section = numbers.section + 1 %}{% else %}{% set numbers.stat = numbers.stat + 1 %}{% endif %}<div class="sew-stat-input" data-content-block data-type="{{ 'section' if block.content_type == 'heading' else block.content_type }}"><span class="sew-drag" title="Drag to reorder" draggable="true">⋮⋮</span><div>
   <div class="sew-stat-field">

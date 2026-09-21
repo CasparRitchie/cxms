@@ -43,7 +43,7 @@ def _fis_coverage(active, events, competitions, today, upcoming_end):
     races_by_event = {}
     for competition in competitions:
         metadata = competition.get("metadata") or {}
-        if str(metadata.get("competition_kind") or "race").casefold() == "training":
+        if str(metadata.get("competition_kind") or "race").casefold() in ("training", "qualification"):
             continue
         race_date = _as_date(metadata.get("date"))
         if not race_date or not today <= race_date <= upcoming_end:

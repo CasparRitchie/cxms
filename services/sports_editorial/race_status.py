@@ -38,11 +38,15 @@ def matching_competitions(submission, competitions):
             continue
         if str(metadata.get("event_id") or "") not in event_ids:
             continue
-        if str(metadata.get("competition_kind") or "race").casefold() == "training":
+        if str(metadata.get("competition_kind") or "race").casefold() in ("training", "qualification"):
             continue
         if event_codes and str(metadata.get("event_code") or "").upper() not in event_codes:
             continue
-        if genders and str(metadata.get("gender") or "").upper() not in genders:
+        race_gender = str(metadata.get("gender") or "").upper()
+        # FIS uses A (all/mixed) for mixed team races; the editorial UI uses X.
+        if race_gender == "A":
+            race_gender = "X"
+        if genders and race_gender not in genders:
             continue
         if use_race_date and str(metadata.get("date") or "")[:10] != race_date:
             continue

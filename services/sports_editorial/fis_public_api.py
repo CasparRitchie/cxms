@@ -175,7 +175,9 @@ def parse_calendar_feed(files, source_url, season_code):
             cancelled = _is_cancelled_comment(webcomment)
             team = _clean(row.get("Team")) == "1"
             training = "training" in description.casefold()
-            competition_kind = "training" if training else ("team_event" if team else "race")
+            qualification = categories[0] == "QUA" or "qualification" in description.casefold()
+            competition_kind = ("training" if training else "qualification" if qualification
+                                else "team_event" if team else "race")
             competitions.append({
                 "entity_type": "competition",
                 "name": " · ".join(part for part in (description, gender, place, date, f"codex {codex}" if codex else "") if part),
@@ -189,7 +191,7 @@ def parse_calendar_feed(files, source_url, season_code):
                     "location": place, "competition_kind": competition_kind,
                     "race_status": "cancelled" if cancelled else "scheduled",
                     "official_status_comment": webcomment or None,
-                    "is_result_expected": not training and not team and not cancelled,
+                    "is_result_expected": not training and not qualification and not team and not cancelled,
                     "imported_at": imported_at, "source_url": source_url,
                 },
             })

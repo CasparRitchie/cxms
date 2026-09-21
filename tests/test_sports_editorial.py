@@ -2925,6 +2925,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
             {"canonical_id": "101", "metadata": {"event_id": "700", "event_code": "MO", "gender": "M", "date": "2027-01-01", "competition_kind": "race", "race_status": "scheduled"}},
             {"canonical_id": "102", "metadata": {"event_id": "700", "event_code": "AE", "gender": "W", "date": "2027-01-02", "competition_kind": "race", "race_status": "cancelled"}},
             {"canonical_id": "103", "metadata": {"event_id": "700", "event_code": "MO", "gender": "M", "date": "2027-01-01", "competition_kind": "training", "race_status": "scheduled"}},
+            {"canonical_id": "104", "metadata": {"event_id": "700", "event_code": "MO", "gender": "M", "date": "2027-01-01", "competition_kind": "qualification", "race_status": "scheduled"}},
         ]
         submission = {
             "fis_race_ids": [], "fis_event_ids": [700],
@@ -2940,6 +2941,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(decorated["cancelled_fis_race_count"], 1)
         self.assertEqual(decorated["linked_fis_race_status"], "partially_cancelled")
         self.assertEqual(decorated["race_status"], "cancelled")
+
+    def test_mixed_editorial_gender_matches_fis_all_gender_team_race(self):
+        competitions = [{
+            "canonical_id": "105", "metadata": {
+                "event_id": "700", "event_code": "PRT", "gender": "A",
+                "date": "2027-01-02", "competition_kind": "team_event",
+            },
+        }]
+        submission = {
+            "fis_event_ids": [700], "fis_race_ids": [],
+            "fis_event_discipline_codes": ["PRT"], "genders": ["X"],
+        }
+        self.assertEqual([item["canonical_id"] for item in matching_competitions(submission, competitions)], ["105"])
 
     def test_creation_persists_all_matching_fis_races(self):
         repository.upsert_calendar_events([{
@@ -2994,10 +3008,12 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b">104332</a>", response.data)
         self.assertIn(b">SL</td>", response.data)
         self.assertIn(b">0122</td>", response.data)
-        self.assertIn(b"FIS event dates", response.data)
+        self.assertIn(b"FIS event and race data", response.data)
         self.assertIn(b"12-Dec-2026", response.data)
         self.assertIn(b"14-Dec-2026", response.data)
         self.assertIn(b"The editable Race Date remains separate", response.data)
+        self.assertIn(b"<details class=\"sew-card sew-core-summary sew-fis-schedule\" open>", response.data)
+        self.assertIn(b"<details class=\"sew-core-summary sew-fis-race-details\" open>", response.data)
         self.assertNotIn(b"FIS Race ID", response.data)
 
     def test_fis_schedule_decorator_links_only_selected_events(self):

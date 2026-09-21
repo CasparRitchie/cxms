@@ -1442,7 +1442,7 @@ def detail(submission_id):
                 mutable_form["fis_event_discipline_code"] = event_discipline_code(selected_sport, selected_competition, selected_event_names) or ""
                 mutable_form["fis_event_discipline_codes"] = list(event_discipline_codes(selected_sport, selected_competition, selected_event_names))
                 race_candidate = {
-                    **submission, "fis_event_ids": event_ids,
+                    **submission, "fis_event_ids": event_ids, "fis_race_ids": [],
                     "fis_event_discipline_code": mutable_form.get("fis_event_discipline_code"),
                     "fis_event_discipline_codes": mutable_form.get("fis_event_discipline_codes"),
                     "genders": selected_genders, "gender": selected_genders[0] if selected_genders else None,
