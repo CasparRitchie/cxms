@@ -2954,6 +2954,36 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.client.post("/workspace/sports-editorial/race-status/99001", data={"action": "reinstate"})
         self.assertEqual(repository.get_submission("demo-submission-submitted")["race_status"], "cancelled")
 
+    def test_supervisor_can_cancel_and_reinstate_all_main_races_in_event(self):
+        repository.upsert_entities([
+            {"entity_type": "competition", "name": "Race one", "canonical_id": "99201", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "800", "date": "2027-01-10", "competition_kind": "race", "race_status": "scheduled"}},
+            {"entity_type": "competition", "name": "Team race", "canonical_id": "99202", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "800", "date": "2027-01-11", "competition_kind": "team_event", "race_status": "scheduled"}},
+            {"entity_type": "competition", "name": "Qualification", "canonical_id": "99203", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "800", "date": "2027-01-10", "competition_kind": "qualification", "race_status": "scheduled"}},
+            {"entity_type": "competition", "name": "Other event", "canonical_id": "99204", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "801", "date": "2027-01-12", "competition_kind": "race", "race_status": "scheduled"}},
+        ])
+        self.set_role("supervisor")
+        cancelled = self.client.post(
+            "/workspace/sports-editorial/race-status/event/800",
+            data={"action": "report_event_cancelled", "reason": "Venue closed"},
+            follow_redirects=True,
+        )
+        self.assertEqual(cancelled.status_code, 200)
+        by_id = {str(item["canonical_id"]): item for item in repository.list_entities(entity_type="competition")}
+        self.assertEqual(by_id["99201"]["metadata"]["manual_race_status"], "cancelled")
+        self.assertEqual(by_id["99202"]["metadata"]["manual_race_status"], "cancelled")
+        self.assertNotIn("manual_race_status", by_id["99203"]["metadata"])
+        self.assertNotIn("manual_race_status", by_id["99204"]["metadata"])
+        self.assertIn(b"2 races reported cancelled for FIS event 800", cancelled.data)
+
+        reinstated = self.client.post(
+            "/workspace/sports-editorial/race-status/event/800",
+            data={"action": "reinstate_event"}, follow_redirects=True,
+        )
+        self.assertEqual(reinstated.status_code, 200)
+        by_id = {str(item["canonical_id"]): item for item in repository.list_entities(entity_type="competition")}
+        self.assertEqual(by_id["99201"]["metadata"]["manual_race_status"], "scheduled")
+        self.assertEqual(by_id["99202"]["metadata"]["manual_race_status"], "scheduled")
+
     def test_race_status_defaults_to_current_season_and_filters_by_source(self):
         self.set_role("supervisor")
         current_season = date.today().year + (1 if date.today().month >= 7 else 0)

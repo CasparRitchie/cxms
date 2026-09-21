@@ -552,7 +552,11 @@ def _sync_submission_race_links(competitions, submissions=None):
 def race_status():
     require_supervisor()
     query = request.args.get("q", "").strip().casefold()
-    competitions = repository.list_entities(entity_type="competition")
+    competitions = [
+        item for item in repository.list_entities(entity_type="competition")
+        if str((item.get("metadata") or {}).get("competition_kind") or "race").casefold()
+        not in ("training", "qualification")
+    ]
     for item in competitions:
         item["effective_race_status"], item["effective_race_status_source"] = effective_race_status(item)
     seasons = sorted({
@@ -611,8 +615,39 @@ def race_status():
     competitions.sort(key=lambda item: (
         str((item.get("metadata") or {}).get("date") or "9999-12-31"), item.get("name", ""),
     ))
+    events_by_id = {
+        str(item.get("canonical_id") or ""): item
+        for item in repository.list_entities(entity_type="event")
+    }
+    event_groups = []
+    for competition in competitions:
+        metadata = competition.get("metadata") or {}
+        event_id = str(metadata.get("event_id") or "Unassigned")
+        group = next((item for item in event_groups if item["event_id"] == event_id), None)
+        if group is None:
+            event = events_by_id.get(event_id, {})
+            event_metadata = event.get("metadata") or {}
+            group = {
+                "event_id": event_id,
+                "event_name": event.get("name") or metadata.get("location") or f"FIS event {event_id}",
+                "event_url": event.get("canonical_url") or "",
+                "location": event_metadata.get("location_label") or metadata.get("location") or "",
+                "races": [],
+            }
+            event_groups.append(group)
+        group["races"].append(competition)
+    for group in event_groups:
+        dates = [str((item.get("metadata") or {}).get("date") or "") for item in group["races"]]
+        dates = sorted(value for value in dates if value)
+        group["start_date"] = dates[0] if dates else ""
+        group["end_date"] = dates[-1] if dates else ""
+        group["manual_cancelled_count"] = sum(
+            str((item.get("metadata") or {}).get("manual_race_status") or "").lower() == "cancelled"
+            for item in group["races"]
+        )
+        group["scheduled_count"] = sum(item["effective_race_status"] == "scheduled" for item in group["races"])
     return render_template(
-        "sports-editorial-workspace/race-status.html", competitions=competitions,
+        "sports-editorial-workspace/race-status.html", competitions=competitions, event_groups=event_groups,
         q=request.args.get("q", ""), seasons=seasons, selected_seasons=selected_seasons,
         selected_statuses=selected_statuses, selected_metadata=selected_metadata,
         filter_options=filter_options, result_count=len(competitions),
@@ -642,6 +677,55 @@ def update_race_status(race_id):
     repository.upsert_entities([competition])
     linked = _sync_competition_status_to_sheets(competition, supervisor, request.form.get("reason", "").strip())
     flash(f"Race status updated. {linked} linked stat sheet{'s' if linked != 1 else ''} updated.", "success")
+    return_args = {"filters": "1", "q": request.form.get("q", "")}
+    for field in ("season", "status", "discipline_code", "gender", "location"):
+        values = [value for value in request.form.getlist(field) if value]
+        if values:
+            return_args[field] = values
+    return redirect(url_for("sports_editorial_workspace.race_status", **return_args))
+
+
+@blueprint.post("/race-status/event/<event_id>")
+def update_event_race_status(event_id):
+    supervisor = require_supervisor()
+    action = request.form.get("action")
+    if action not in ("report_event_cancelled", "reinstate_event"):
+        abort(400, description="Choose a valid event race-status action.")
+    competitions = [
+        item for item in repository.list_entities(entity_type="competition")
+        if str((item.get("metadata") or {}).get("event_id") or "") == str(event_id)
+        and str((item.get("metadata") or {}).get("competition_kind") or "race").casefold()
+        not in ("training", "qualification")
+    ]
+    if not competitions:
+        abort(404)
+    reason = request.form.get("reason", "").strip()
+    manual_status = "cancelled" if action == "report_event_cancelled" else "scheduled"
+    now = datetime.now(timezone.utc).isoformat()
+    for competition in competitions:
+        metadata = dict(competition.get("metadata") or {})
+        metadata.update({
+            "manual_race_status": manual_status,
+            "manual_race_status_at": now,
+            "manual_race_status_by": supervisor.get("full_name") or supervisor.get("email"),
+            "manual_race_status_note": reason or None,
+        })
+        competition["metadata"] = metadata
+    repository.upsert_entities(competitions)
+    linked_sheet_ids = set()
+    for competition in competitions:
+        before = {
+            item["id"] for item in repository.list_submissions(include_inactive=True)
+            if matching_competitions(item, [competition])
+        }
+        linked_sheet_ids.update(before)
+        _sync_competition_status_to_sheets(competition, supervisor, reason)
+    flash(
+        f"{len(competitions)} races {'reported cancelled' if manual_status == 'cancelled' else 'reinstated'} "
+        f"for FIS event {event_id}. {len(linked_sheet_ids)} linked stat sheet"
+        f"{'s' if len(linked_sheet_ids) != 1 else ''} updated.",
+        "success",
+    )
     return_args = {"filters": "1", "q": request.form.get("q", "")}
     for field in ("season", "status", "discipline_code", "gender", "location"):
         values = [value for value in request.form.getlist(field) if value]
