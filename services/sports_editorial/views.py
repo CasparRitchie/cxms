@@ -945,6 +945,56 @@ def _assignment_users():
     return list_workspace_users(user.get("workspace_id"))
 
 
+def _fis_creation_prefill(event_id="", race_id=""):
+    """Build trusted creation-form defaults from the local FIS catalogue."""
+    events = repository.list_entities(entity_type="event")
+    competitions = repository.list_entities(entity_type="competition")
+    selected_race = next((item for item in competitions if str(item.get("canonical_id") or "") == str(race_id or "")), None)
+    if selected_race:
+        event_id = str((selected_race.get("metadata") or {}).get("event_id") or "")
+    event = next((item for item in events if str(item.get("canonical_id") or "") == str(event_id or "")), None)
+    if not event:
+        return {}, None
+    canonical = canonical_calendar_events([event])
+    if not canonical:
+        return {}, None
+    calendar_event = canonical[0]
+    sport = calendar_event.get("sport") or ""
+    competition = calendar_event.get("competition") or ""
+    event_races = [item for item in competitions if str((item.get("metadata") or {}).get("event_id") or "") == str(event_id)]
+    event_races = [item for item in event_races if str((item.get("metadata") or {}).get("competition_kind") or "race").casefold() not in ("training", "qualification")]
+    selected_races = [selected_race] if selected_race else event_races
+    event_codes = {str((item.get("metadata") or {}).get("event_code") or "").upper() for item in selected_races}
+    configured_events = creation_options()["events"].get((sport, competition), ())
+    event_names = [item["value"] for item in configured_events if item.get("discipline_code") in event_codes]
+    genders = []
+    for item in selected_races:
+        gender = str((item.get("metadata") or {}).get("gender") or "").upper()
+        gender = "X" if gender == "A" else gender
+        if gender in ("M", "W", "X") and gender not in genders:
+            genders.append(gender)
+    metadata = event.get("metadata") or {}
+    race_metadata = (selected_race or {}).get("metadata") or {}
+    event_date = race_metadata.get("date") or metadata.get("start_date") or ""
+    location = calendar_event.get("location") or event.get("name") or ""
+    event_label = " / ".join(event_names) or event.get("name") or "FIS event"
+    title = " – ".join(part for part in (competition, location, event_label) if part)[:160]
+    values = {
+        "title": [title], "sport": [sport], "competition": [competition],
+        "season_code": [str(calendar_event.get("season_code") or "")],
+        "event_name": event_names, "gender": genders,
+        "calendar_event_query": [location], "calendar_event_id": [str(event_id)],
+        "fis_event_ids": [str(event_id)], "event_date": [format_display_date(event_date)],
+        "client_name": ["FIS"],
+    }
+    context = {
+        "event_id": str(event_id), "race_id": str(race_id or ""),
+        "location": location, "race_count": len(selected_races),
+        "uses_event_start_date": not selected_race and bool(event_date),
+    }
+    return values, context
+
+
 @blueprint.post("/role")
 def switch_role():
     if auth_configuration()["mode"] != "demo":
@@ -962,7 +1012,13 @@ def switch_role():
 @blueprint.route("/submit", methods=["GET", "POST"])
 def submit():
     require_supervisor()
-    values = request.form.to_dict(flat=False) if request.method == "POST" else {}
+    prefill_context = None
+    if request.method == "POST":
+        values = request.form.to_dict(flat=False)
+    else:
+        values, prefill_context = _fis_creation_prefill(
+            request.args.get("from_fis_event", ""), request.args.get("from_fis_race", "")
+        )
     raw_calendar_events = _calendar_events()
     calendar_events = canonical_calendar_events(raw_calendar_events)
     options = creation_options()
@@ -1061,6 +1117,7 @@ def submit():
         "sports-editorial-workspace/submit.html", values=values, calendar_events=calendar_events,
         assignment_users=_assignment_users(), creation_options=options,
         creation_browser_options=browser_options,
+        prefill_context=prefill_context,
     )
 
 

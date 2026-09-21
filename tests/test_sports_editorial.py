@@ -161,6 +161,36 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(resolve_coverage_range("custom", "2027-02-01", "2027-02-14", today)[:2],
                          (date(2027, 2, 1), date(2027, 2, 14)))
 
+    def test_missing_fis_event_can_prefill_new_stat_sheet(self):
+        repository.upsert_calendar_events([{
+            "entity_type": "event", "name": "Bad Gastein World Cup", "canonical_id": "62764",
+            "canonical_url": "https://www.fis-ski.com/DB/general/event-details.html?eventid=62764",
+            "country_code": "AUT", "metadata": {
+                "season_code": 2027, "discipline_code": "SB", "category_code": "WC",
+                "sport_values": ["snowboard_alpine"], "location_label": "Bad Gastein",
+                "start_date": "2027-01-26", "end_date": "2027-01-27",
+            },
+        }])
+        repository.upsert_entities([
+            {"entity_type": "competition", "name": "Parallel Slalom Men", "canonical_id": "25608", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "62764", "event_code": "PSL", "gender": "M", "date": "2027-01-26", "competition_kind": "race"}},
+            {"entity_type": "competition", "name": "Parallel Slalom Women", "canonical_id": "25609", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "62764", "event_code": "PSL", "gender": "W", "date": "2027-01-26", "competition_kind": "race"}},
+            {"entity_type": "competition", "name": "Parallel Team", "canonical_id": "25612", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "62764", "event_code": "PRT", "gender": "A", "date": "2027-01-27", "competition_kind": "team_event"}},
+        ])
+        self.set_role("supervisor")
+        response = self.client.get("/workspace/sports-editorial/submit?from_fis_event=62764")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Pre-populated from FIS event 62764", response.data)
+        self.assertIn(b'value="snowboard_alpine"  selected', response.data)
+        self.assertIn(b'data-selected="Parallel Slalom|||Parallel Team"', response.data)
+        self.assertIn(b'data-selected="M|||W|||X"', response.data)
+        self.assertIn(b'value="Bad Gastein"', response.data)
+        self.assertIn(b'value="26-Jan-2027"', response.data)
+
+        race = self.client.get("/workspace/sports-editorial/submit?from_fis_race=25609")
+        self.assertIn(b"Pre-populated from FIS race 25609", race.data)
+        self.assertIn(b'data-selected="Parallel Slalom"', race.data)
+        self.assertIn(b'data-selected="W"', race.data)
+
     def test_dashboard_beta_is_supervisor_only_and_stat_insights_is_labelled_beta(self):
         self.set_role("researcher")
         redirected = self.client.get("/workspace/sports-editorial/")

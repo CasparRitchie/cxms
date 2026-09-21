@@ -4,6 +4,7 @@
 {% macro required() %}<em>Required</em>{% endmacro %}
 {% block workspace_content %}
 <div class="sew-page-heading"><h1>Create a stat sheet</h1></div>
+{% if prefill_context %}<div class="sew-message sew-message--notice"><strong>Pre-populated from FIS {{ 'race ' ~ prefill_context.race_id if prefill_context.race_id else 'event ' ~ prefill_context.event_id }}.</strong> Review the suggested fields before creating the sheet.{% if prefill_context.uses_event_start_date %} Race Date uses the FIS event start date and may need changing when this sheet covers a specific race.{% endif %}</div>{% endif %}
 <form class="sew-form sew-creation-form" method="post" novalidate data-creation-form>
   <section class="sew-card sew-core-data">
     <div class="sew-form-grid sew-creation-grid">
