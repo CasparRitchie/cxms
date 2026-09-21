@@ -28,7 +28,7 @@ from services.sports_editorial.validation import validate_status_transition, val
 from services.sports_editorial.creation import canonical_calendar_events, creation_options, event_discipline_code, parse_display_date, validate_choice_combination
 from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
 from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
-from services.sports_editorial.race_status import effective_race_status, matching_competitions
+from services.sports_editorial.race_status import decorate_submission_race_status, effective_race_status, matching_competitions
 from services.sports_editorial import views as sports_editorial_views
 from services.sports_editorial.formatting import render_entity_links
 from scripts.backfill_fis_results import expand_seasons
@@ -1907,7 +1907,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b'class="sew-core-summary__body"', response.data)
         self.assertIn(b'<span>Title</span><input name="title"', response.data)
         self.assertIn(b'name="calendar_event_query" type="search"', response.data)
-        self.assertIn(b'<span>FIS Calendar Event ID</span><strong data-client-event-id>', response.data)
+        self.assertIn(b'<span>FIS Event ID</span><strong data-client-event-id>', response.data)
         self.assertNotIn(b'name="amp_id"', response.data)
         self.assertNotIn(b'name="fis_event_ids"', response.data)
         self.assertNotIn(b'type="date" name="event_date" value="None"', response.data)
@@ -2812,6 +2812,18 @@ class SportsEditorialPilotTests(unittest.TestCase):
         competition["metadata"]["race_status"] = "cancelled"
         self.assertEqual(effective_race_status(competition), ("cancelled", "fis"))
 
+    def test_reinstating_one_linked_race_does_not_clear_another_cancellation(self):
+        repository.upsert_entities([
+            {"entity_type": "competition", "name": "Race one", "canonical_id": "99001", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "55596", "event_code": "SL", "gender": "W", "date": "2026-12-13", "race_status": "scheduled"}},
+            {"entity_type": "competition", "name": "Race two", "canonical_id": "99002", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "55596", "event_code": "SL", "gender": "W", "date": "2026-12-13", "race_status": "scheduled"}},
+        ])
+        repository.set_submission_race_ids("demo-submission-submitted", [99001, 99002])
+        self.set_role("supervisor")
+        self.client.post("/workspace/sports-editorial/race-status/99001", data={"action": "report_cancelled"})
+        self.client.post("/workspace/sports-editorial/race-status/99002", data={"action": "report_cancelled"})
+        self.client.post("/workspace/sports-editorial/race-status/99001", data={"action": "reinstate"})
+        self.assertEqual(repository.get_submission("demo-submission-submitted")["race_status"], "cancelled")
+
     def test_race_status_defaults_to_current_season_and_filters_by_source(self):
         self.set_role("supervisor")
         current_season = date.today().year + (1 if date.today().month >= 7 else 0)
@@ -2871,6 +2883,74 @@ class SportsEditorialPilotTests(unittest.TestCase):
         ]
         submission = {"fis_race_ids": [102], "fis_event_ids": [700], "gender": "W", "event_date": "2027-01-01"}
         self.assertEqual([item["canonical_id"] for item in matching_competitions(submission, competitions)], ["102"])
+
+    def test_multi_event_sheet_links_every_matching_non_training_race(self):
+        competitions = [
+            {"canonical_id": "101", "metadata": {"event_id": "700", "event_code": "MO", "gender": "M", "date": "2027-01-01", "competition_kind": "race", "race_status": "scheduled"}},
+            {"canonical_id": "102", "metadata": {"event_id": "700", "event_code": "AE", "gender": "W", "date": "2027-01-02", "competition_kind": "race", "race_status": "cancelled"}},
+            {"canonical_id": "103", "metadata": {"event_id": "700", "event_code": "MO", "gender": "M", "date": "2027-01-01", "competition_kind": "training", "race_status": "scheduled"}},
+        ]
+        submission = {
+            "fis_race_ids": [], "fis_event_ids": [700],
+            "fis_event_discipline_codes": ["MO", "AE"], "genders": ["M", "W"],
+            "event_date": "2027-01-01",
+        }
+        self.assertEqual(
+            [item["canonical_id"] for item in matching_competitions(submission, competitions)],
+            ["101", "102"],
+        )
+        decorated = decorate_submission_race_status(submission, competitions)
+        self.assertEqual(decorated["linked_fis_race_count"], 2)
+        self.assertEqual(decorated["cancelled_fis_race_count"], 1)
+        self.assertEqual(decorated["linked_fis_race_status"], "partially_cancelled")
+        self.assertEqual(decorated["race_status"], "cancelled")
+
+    def test_creation_persists_all_matching_fis_races(self):
+        repository.upsert_calendar_events([{
+            "entity_type": "event", "name": "Test Freestyle WC", "canonical_id": "700",
+            "canonical_url": "https://www.fis-ski.com/DB/general/event-details.html?eventid=700",
+            "country_code": "AUT", "metadata": {
+                "season_code": 2027, "discipline_code": "FS", "category_code": "WC",
+                "sport_values": ["freestyle"], "location_label": "Test Venue",
+            },
+        }])
+        repository.upsert_entities([
+            {"entity_type": "competition", "name": "Moguls Men", "canonical_id": "101", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "700", "event_code": "MO", "gender": "M", "date": "2027-01-01", "competition_kind": "race"}},
+            {"entity_type": "competition", "name": "Aerials Women", "canonical_id": "102", "canonical_url": "", "country_code": "AUT", "metadata": {"event_id": "700", "event_code": "AE", "gender": "W", "date": "2027-01-02", "competition_kind": "race"}},
+        ])
+        self.set_role("supervisor")
+        response = self.client.post("/workspace/sports-editorial/submit", data=MultiDict([
+            ("title", "Multi-race sheet"), ("sport", "freestyle"),
+            ("competition", "FIS World Cup"), ("event_name", "Moguls"),
+            ("event_name", "Aerials"), ("gender", "M"), ("gender", "W"),
+            ("season_code", "2027"), ("calendar_event_id", "700"),
+            ("fis_event_ids", "700"), ("event_date", "01-Jan-2027"),
+            ("client_name", "FIS"), ("content_type", ""), ("content_html", ""),
+            ("action", "draft"),
+        ]))
+        self.assertEqual(response.status_code, 302, response.data)
+        created = next(item for item in repository.list_submissions() if item["title"] == "Multi-race sheet")
+        self.assertEqual(created["fis_race_ids"], [101, 102])
+
+    def test_stat_sheet_presents_linked_fis_race_details(self):
+        repository.upsert_entities([{
+            "entity_type": "competition", "name": "Women Slalom", "canonical_id": "104332",
+            "canonical_url": "https://www.fis-ski.com/DB/general/results.html?sectorcode=AL&raceid=104332",
+            "country_code": "AUT", "metadata": {
+                "event_id": "55596", "event_code": "SL", "gender": "W",
+                "date": "2026-12-13", "codex": "0122", "competition_kind": "race",
+                "race_status": "scheduled",
+            },
+        }])
+        repository.set_submission_race_ids("demo-submission-submitted", [104332])
+        self.set_role("supervisor")
+        response = self.client.get("/workspace/sports-editorial/submissions/demo-submission-submitted")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Linked FIS races", response.data)
+        self.assertIn(b">104332</a>", response.data)
+        self.assertIn(b">SL</td>", response.data)
+        self.assertIn(b">0122</td>", response.data)
+        self.assertNotIn(b"FIS Race ID", response.data)
 
     def test_fis_review_withdrawal_invalidates_specialist_lock_and_returns_to_sub_edit(self):
         repository.administer_submission("demo-submission-approved", {

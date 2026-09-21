@@ -452,9 +452,10 @@ def competitions():
             count = repository.upsert_entities(imported)
             stored = {str(item.get("canonical_id")): item for item in repository.list_entities(entity_type="competition")}
             submissions = repository.list_submissions(include_inactive=True)
+            linked = _sync_submission_race_links(list(stored.values()), submissions=submissions)
             for competition in (stored.get(str(item.get("canonical_id")), item) for item in imported):
                 _sync_competition_status_to_sheets(competition, submissions=submissions)
-            flash(f"Imported {count} supported competitions from the FIS Public API calendar feed.", "success")
+            flash(f"Imported {count} supported competitions and refreshed race links on {linked} stat sheets from the FIS Public API calendar feed.", "success")
             return redirect(url_for("sports_editorial_workspace.competitions"))
         except (FisPublicApiError, SupabaseError) as exc:
             flash(str(exc), "error")
@@ -505,11 +506,16 @@ def competitions():
 
 
 def _sync_competition_status_to_sheets(competition, actor=None, reason="", submissions=None):
-    status, source = effective_race_status(competition)
     updated = 0
+    competition_catalogue = repository.list_entities(entity_type="competition")
     for submission in submissions if submissions is not None else repository.list_submissions(include_inactive=True):
         if not matching_competitions(submission, [competition]):
             continue
+        decorated = decorate_submission_race_status(submission, competition_catalogue)
+        linked_races = decorated.get("linked_fis_races") or []
+        cancelled = [race for race in linked_races if race.get("effective_race_status") == "cancelled"]
+        status = "cancelled" if cancelled else "scheduled"
+        source = ("fis" if any(race.get("effective_race_status_source") == "fis" for race in cancelled) else "manual") if cancelled else "fis"
         if submission.get("race_status") == status and (status == "scheduled" or submission.get("race_status_source") == source):
             continue
         repository.administer_submission(submission["id"], {"race_status": status, "race_status_source": source})
@@ -520,6 +526,20 @@ def _sync_competition_status_to_sheets(competition, actor=None, reason="", submi
                 "codex": (competition.get("metadata") or {}).get("codex"),
                 "source": source, "reason": reason,
             })
+        updated += 1
+    return updated
+
+
+def _sync_submission_race_links(competitions, submissions=None):
+    """Refresh explicit race links from the sheet's FIS event and editorial choices."""
+    updated = 0
+    for submission in submissions if submissions is not None else repository.list_submissions(include_inactive=True):
+        candidate = {**submission, "fis_race_ids": []}
+        race_ids = sorted(int(item["canonical_id"]) for item in matching_competitions(candidate, competitions))
+        if race_ids == list(submission.get("fis_race_ids") or []):
+            continue
+        repository.set_submission_race_ids(submission["id"], race_ids)
+        submission["fis_race_ids"] = race_ids
         updated += 1
     return updated
 
@@ -647,9 +667,10 @@ def refresh_entities(step):
             count = repository.upsert_entities(competitions)
             stored = {str(item.get("canonical_id")): item for item in repository.list_entities(entity_type="competition")}
             submissions = repository.list_submissions(include_inactive=True)
+            linked = _sync_submission_race_links(list(stored.values()), submissions=submissions)
             for competition in (stored.get(str(item.get("canonical_id")), item) for item in competitions):
                 _sync_competition_status_to_sheets(competition, submissions=submissions)
-            return jsonify({"ok": True, "message": f"{count} competitions updated from the FIS Public API calendar feed."})
+            return jsonify({"ok": True, "message": f"{count} competitions updated and race links refreshed on {linked} stat sheets from the FIS Public API calendar feed."})
         return jsonify({"ok": False, "error": "Unknown refresh step."}), 400
     except (FisPublicApiError, SupabaseError) as exc:
         return jsonify({"ok": False, "error": str(exc)}), 503
@@ -1010,7 +1031,7 @@ def submit():
             "season_code": season_code,
         }
         race_matches = matching_competitions(data, repository.list_entities(entity_type="competition"))
-        data["fis_race_ids"] = [int(race_matches[0]["canonical_id"])] if len(race_matches) == 1 else []
+        data["fis_race_ids"] = sorted(int(item["canonical_id"]) for item in race_matches)
         users_by_id = {item["id"]: item for item in _assignment_users()}
         researcher = users_by_id.get(data["researcher_user_id"]) if data["researcher_user_id"] else None
         sub_editor = users_by_id.get(data["sub_editor_user_id"]) if data["sub_editor_user_id"] else None
@@ -1426,7 +1447,7 @@ def detail(submission_id):
                     "event_date": parsed_dates.get("event_date", submission.get("event_date")),
                 }
                 race_matches = matching_competitions(race_candidate, repository.list_entities(entity_type="competition"))
-                mutable_form["fis_race_ids"] = " ".join(str(item["canonical_id"]) for item in race_matches) if len(race_matches) == 1 else ""
+                mutable_form["fis_race_ids"] = " ".join(str(value) for value in sorted(int(item["canonical_id"]) for item in race_matches))
                 selected = next((item for item in canonical_calendar_events(_calendar_events()) if item["canonical_id"] in {str(value) for value in event_ids}), None)
                 mutable_form["location"] = selected["location"] if selected else ""
             for field_name, parsed_value in parsed_dates.items():
@@ -1465,6 +1486,7 @@ def detail(submission_id):
     refreshed, edit_lock = repository.acquire_edit_lock(submission_id, current_user()) if editable_role and wants_edit and not final_state else (repository.get_submission(submission_id), None if final_state else repository.get_edit_lock(submission_id))
     if rejected_form is not None:
         refreshed = _review_form_preview(refreshed, rejected_form, rejected_dates)
+    refreshed = decorate_submission_race_status(refreshed, repository.list_entities(entity_type="competition"))
     owns_lock = bool(edit_lock and edit_lock["owner_id"] == (current_user() or {}).get("id"))
     if owns_lock:
         _remember_lock(submission_id, edit_lock)
@@ -1490,6 +1512,7 @@ def research(submission_id):
     if submission["status"] not in ("draft", "changes_requested"):
         abort(403, description="This stat sheet is locked while it is in sub edit or publication.")
     submission, edit_lock = repository.acquire_edit_lock(submission_id, user)
+    submission = decorate_submission_race_status(submission, repository.list_entities(entity_type="competition"))
     owns_lock = bool(edit_lock and edit_lock["owner_id"] == user.get("id"))
     if owns_lock:
         _remember_lock(submission_id, edit_lock)

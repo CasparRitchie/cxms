@@ -318,6 +318,13 @@ class DemoSportsEditorialRepository:
                 self.release_edit_lock(submission_id, force=True)
             return deepcopy(item)
 
+    def set_submission_race_ids(self, submission_id, race_ids):
+        with self._lock:
+            item = next(item for item in self._submissions if item["id"] == submission_id)
+            item["fis_race_ids"] = list(dict.fromkeys(int(value) for value in race_ids))
+            item["updated_at"] = _now()
+            return deepcopy(item)
+
     def record_audit_event(self, submission_id, actor, action, details=None):
         event = {
             "id": str(uuid4()), "submission_id": submission_id,
@@ -764,6 +771,15 @@ class SupabaseSportsEditorialRepository:
         })
         hydrated = self._hydrate(rows)
         return hydrated[0] if hydrated else self.get_submission(submission_id)
+
+    def set_submission_race_ids(self, submission_id, race_ids):
+        values = list(dict.fromkeys(int(value) for value in race_ids))
+        self.client.request(
+            "sports_editorial_submissions", "PATCH",
+            query={"id": f"eq.{submission_id}", "workspace_id": f"eq.{self._workspace()}"},
+            payload={"fis_race_ids": values, "updated_at": _now()}, prefer="return=minimal",
+        )
+        return self.get_submission(submission_id)
 
     def record_audit_event(self, submission_id, actor, action, details=None):
         payload = {

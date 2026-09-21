@@ -24,6 +24,10 @@ def matching_competitions(submission, competitions):
     if not genders and submission.get("gender"):
         genders.add(str(submission["gender"]).upper())
     race_date = str(submission.get("event_date") or "")[:10]
+    # A single Event/Gender selection describes one race and can be narrowed by
+    # Race Date. Multi-select sheets intentionally cover several races, which
+    # can take place on different dates within the same FIS event.
+    use_race_date = bool(race_date and len(event_codes) <= 1 and len(genders) <= 1)
     matches = []
     for competition in competitions:
         metadata = competition.get("metadata") or {}
@@ -34,11 +38,13 @@ def matching_competitions(submission, competitions):
             continue
         if str(metadata.get("event_id") or "") not in event_ids:
             continue
+        if str(metadata.get("competition_kind") or "race").casefold() == "training":
+            continue
         if event_codes and str(metadata.get("event_code") or "").upper() not in event_codes:
             continue
         if genders and str(metadata.get("gender") or "").upper() not in genders:
             continue
-        if race_date and str(metadata.get("date") or "")[:10] != race_date:
+        if use_race_date and str(metadata.get("date") or "")[:10] != race_date:
             continue
         matches.append(competition)
     return matches
@@ -63,7 +69,27 @@ def race_alerts(submission, competitions):
 
 def decorate_submission_race_status(submission, competitions):
     item = deepcopy(submission)
-    alerts = race_alerts(item, competitions)
+    linked_races = []
+    for competition in matching_competitions(item, competitions):
+        linked = deepcopy(competition)
+        linked["effective_race_status"], linked["effective_race_status_source"] = effective_race_status(competition)
+        linked_races.append(linked)
+    linked_races.sort(key=lambda race: (
+        str((race.get("metadata") or {}).get("date") or ""),
+        str((race.get("metadata") or {}).get("event_code") or ""),
+        str((race.get("metadata") or {}).get("gender") or ""),
+        str(race.get("canonical_id") or ""),
+    ))
+    item["linked_fis_races"] = linked_races
+    item["linked_fis_race_count"] = len(linked_races)
+    item["cancelled_fis_race_count"] = sum(race["effective_race_status"] == "cancelled" for race in linked_races)
+    if item["cancelled_fis_race_count"] == 0:
+        item["linked_fis_race_status"] = "scheduled" if linked_races else "unlinked"
+    elif item["cancelled_fis_race_count"] == len(linked_races):
+        item["linked_fis_race_status"] = "cancelled"
+    else:
+        item["linked_fis_race_status"] = "partially_cancelled"
+    alerts = race_alerts(item, linked_races)
     item["race_alerts"] = alerts
     if alerts:
         item["race_status"] = "cancelled"
