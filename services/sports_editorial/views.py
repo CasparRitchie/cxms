@@ -314,10 +314,12 @@ def administer_stat_sheet(submission_id):
     audit_action = "stat_sheet_administered"
     if action in ("delete", "inactivate"):
         changes["is_active"] = False
-        audit_action = "stat_sheet_deleted"
+        # Keep the deployed audit constraint's historical action name. The UI
+        # presents this recoverable state change as Delete.
+        audit_action = "stat_sheet_inactivated"
     elif action in ("restore", "reactivate"):
         changes["is_active"] = True
-        audit_action = "stat_sheet_restored"
+        audit_action = "stat_sheet_reactivated"
     elif action == "change_status":
         requested = request.form.get("status_override") or request.form.get("status", "")
         if submission.get("status") == "exported":

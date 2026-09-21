@@ -2814,7 +2814,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(deleted.status_code, 200)
         self.assertFalse(repository.get_submission("demo-submission-submitted")["is_active"])
         self.assertIn(b"Stat sheet deleted. It can be restored from the Deleted filter.", deleted.data)
-        self.assertEqual(repository.list_audit_events("demo-submission-submitted")[-1]["action"], "stat_sheet_deleted")
+        self.assertEqual(repository.list_audit_events("demo-submission-submitted")[-1]["action"], "stat_sheet_inactivated")
         queue = self.client.get("/workspace/sports-editorial/queue")
         self.assertNotIn(b"Slalom preview notes", queue.data)
         deleted_filter = self.client.get("/workspace/sports-editorial/manage/stat-sheets?visibility=inactive")
@@ -2828,7 +2828,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         )
         self.assertTrue(repository.get_submission("demo-submission-submitted")["is_active"])
         self.assertIn(b"Stat sheet restored.", restored.data)
-        self.assertEqual(repository.list_audit_events("demo-submission-submitted")[-1]["action"], "stat_sheet_restored")
+        self.assertEqual(repository.list_audit_events("demo-submission-submitted")[-1]["action"], "stat_sheet_reactivated")
 
     def test_non_supervisor_cannot_delete_stat_sheet(self):
         self.set_role("sub_editor")
