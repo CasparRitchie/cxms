@@ -38,7 +38,14 @@
 </div>
 
 <section class="sew-card sew-dashboard-coverage" id="fis-coverage">
-  <div class="sew-section-heading"><div><h2>Upcoming FIS coverage</h2><p>Events and races visible in the FIS calendar over the next {{ metrics.upcoming_days }} days. Cancelled races are shown but are not treated as missing work.</p></div></div>
+  <div class="sew-section-heading"><div><h2>FIS editorial coverage</h2><p>Events and races visible in the FIS calendar from {{ format_display_date(metrics.fis_coverage.range.start) }} to {{ format_display_date(metrics.fis_coverage.range.end) }}. Cancelled races are shown but are not treated as missing work.</p></div></div>
+  <form class="sew-coverage-filters" method="get" action="{{ url_for('sports_editorial_workspace.dashboard') }}#fis-coverage">
+    <label><span>Date range</span><select name="coverage_range" data-coverage-range>{% for value, label in coverage_range_options %}<option value="{{ value }}" {% if metrics.fis_coverage.range.preset == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label><span>Start</span><input type="date" name="coverage_start" value="{{ metrics.fis_coverage.range.start }}"></label>
+    <label><span>Finish</span><input type="date" name="coverage_end" value="{{ metrics.fis_coverage.range.end }}"></label>
+    <button class="sew-button sew-button--primary" type="submit">Apply dates</button>
+    <a class="sew-button" href="{{ url_for('sports_editorial_workspace.dashboard', coverage_range='next_14_days') }}#fis-coverage">Reset</a>
+  </form>
   <div class="sew-dashboard-coverage-summary">
     <div><strong>{{ metrics.fis_coverage.summary.events }}</strong><span>FIS events</span></div>
     <div><strong>{{ metrics.fis_coverage.summary.covered_events }}</strong><span>Events with sheets</span></div>

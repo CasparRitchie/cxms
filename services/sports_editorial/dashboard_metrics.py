@@ -1,4 +1,5 @@
 from collections import Counter
+from calendar import monthrange
 from datetime import date, datetime, timedelta, timezone
 
 from .race_status import effective_race_status
@@ -11,6 +12,46 @@ WORKFLOW_GROUPS = (
     ("fis_review", "Awaiting FIS Review", ("fis_review",)),
     ("exported", "Published FIS", ("exported",)),
 )
+
+COVERAGE_RANGE_OPTIONS = (
+    ("this_week", "This week"),
+    ("next_week", "Next week"),
+    ("next_14_days", "Next 14 days"),
+    ("next_30_days", "Next 30 days"),
+    ("this_month", "This month"),
+    ("next_month", "Next month"),
+    ("this_year", "This year"),
+    ("next_year", "Next year"),
+    ("next_12_months", "Next 12 months"),
+    ("custom", "Custom dates"),
+)
+
+
+def resolve_coverage_range(preset="next_14_days", start=None, end=None, today=None):
+    today = today or datetime.now(timezone.utc).date()
+    option_keys = {key for key, _label in COVERAGE_RANGE_OPTIONS}
+    preset = preset if preset in option_keys else "next_14_days"
+    if preset == "custom":
+        custom_start, custom_end = _as_date(start), _as_date(end)
+        if custom_start and custom_end and custom_start <= custom_end:
+            return custom_start, custom_end, preset
+        preset = "next_14_days"
+    if preset == "this_week":
+        return today, today + timedelta(days=6 - today.weekday()), preset
+    if preset == "next_week":
+        next_monday = today + timedelta(days=7 - today.weekday())
+        return next_monday, next_monday + timedelta(days=6), preset
+    if preset == "this_month":
+        return today, date(today.year, today.month, monthrange(today.year, today.month)[1]), preset
+    if preset == "next_month":
+        year, month = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+        return date(year, month, 1), date(year, month, monthrange(year, month)[1]), preset
+    if preset == "this_year":
+        return today, date(today.year, 12, 31), preset
+    if preset == "next_year":
+        return date(today.year + 1, 1, 1), date(today.year + 1, 12, 31), preset
+    days = {"next_14_days": 14, "next_30_days": 30, "next_12_months": 365}.get(preset, 14)
+    return today, today + timedelta(days=days), preset
 
 
 def _as_date(value):
@@ -38,7 +79,7 @@ def _workflow_counts(submissions):
     }
 
 
-def _fis_coverage(active, events, competitions, today, upcoming_end):
+def _fis_coverage(active, events, competitions, range_start, range_end):
     races = []
     races_by_event = {}
     for competition in competitions:
@@ -46,7 +87,7 @@ def _fis_coverage(active, events, competitions, today, upcoming_end):
         if str(metadata.get("competition_kind") or "race").casefold() in ("training", "qualification"):
             continue
         race_date = _as_date(metadata.get("date"))
-        if not race_date or not today <= race_date <= upcoming_end:
+        if not race_date or not range_start <= race_date <= range_end:
             continue
         race_id = str(competition.get("canonical_id") or "")
         event_id = str(metadata.get("event_id") or "")
@@ -57,7 +98,7 @@ def _fis_coverage(active, events, competitions, today, upcoming_end):
             "race_id": race_id,
             "event_id": event_id,
             "race_date": race_date.isoformat(),
-            "days_until": (race_date - today).days,
+            "days_until": (race_date - range_start).days,
             "race_status": status,
             "race_status_source": status_source,
             "stat_sheets": linked,
@@ -75,7 +116,7 @@ def _fis_coverage(active, events, competitions, today, upcoming_end):
         metadata = event.get("metadata") or {}
         start = _as_date(metadata.get("start_date"))
         end = _as_date(metadata.get("end_date")) or start
-        if start and end and start <= upcoming_end and end >= today:
+        if start and end and start <= range_end and end >= range_start:
             event_ids.add(event_id)
 
     event_rows = []
@@ -131,7 +172,8 @@ def _fis_coverage(active, events, competitions, today, upcoming_end):
     }
 
 
-def build_dashboard_metrics(submissions, users, events=None, competitions=None, today=None, upcoming_days=14):
+def build_dashboard_metrics(submissions, users, events=None, competitions=None, today=None, upcoming_days=14,
+                            coverage_start=None, coverage_end=None, coverage_preset="next_14_days"):
     """Build the management snapshot without making additional data requests."""
     today = today or datetime.now(timezone.utc).date()
     week_start = today - timedelta(days=today.weekday())
@@ -185,7 +227,16 @@ def build_dashboard_metrics(submissions, users, events=None, competitions=None, 
     attention.sort(key=lambda item: (item.get("event_date") or "9999-12-31", item.get("title") or ""))
 
     active_users = [user for user in users if user.get("editorial_is_active", user.get("is_active", True))]
-    fis_coverage = _fis_coverage(active, events or [], competitions or [], today, upcoming_end)
+    coverage_start = _as_date(coverage_start) or today
+    coverage_end = _as_date(coverage_end) or upcoming_end
+    if coverage_end < coverage_start:
+        coverage_start, coverage_end = today, upcoming_end
+        coverage_preset = "next_14_days"
+    fis_coverage = _fis_coverage(active, events or [], competitions or [], coverage_start, coverage_end)
+    fis_coverage["range"] = {
+        "start": coverage_start.isoformat(), "end": coverage_end.isoformat(),
+        "preset": coverage_preset,
+    }
     return {
         "generated_on": today.isoformat(), "upcoming_days": upcoming_days,
         "summary": {

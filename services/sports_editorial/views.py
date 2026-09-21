@@ -19,7 +19,7 @@ from .calendar import RepositoryCalendarProvider
 from .fis_entities import countries_from_athletes, fis_nation_url
 from .fis_public_api import FisPublicApiError, fetch_public_athletes, fetch_public_calendar_feed
 from .stat_insights import build_stat_insights, demo_result_rows
-from .dashboard_metrics import build_dashboard_metrics
+from .dashboard_metrics import COVERAGE_RANGE_OPTIONS, build_dashboard_metrics, resolve_coverage_range
 from .fis_results import FisResultError, fetch_alpine_results
 from .result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
 from .race_status import decorate_submission_fis_schedule, decorate_submission_race_status, effective_race_status, matching_competitions
@@ -779,12 +779,21 @@ def dashboard():
     user = current_user() or {}
     if user.get("role") != "supervisor":
         return redirect(url_for("sports_editorial_workspace.queue"))
+    coverage_start, coverage_end, coverage_preset = resolve_coverage_range(
+        request.args.get("coverage_range", "next_14_days"),
+        request.args.get("coverage_start"), request.args.get("coverage_end"),
+    )
     metrics = build_dashboard_metrics(
         repository.list_submissions(include_inactive=True), _assignment_users(),
         events=repository.list_entities(entity_type="event"),
         competitions=repository.list_entities(entity_type="competition"),
+        coverage_start=coverage_start, coverage_end=coverage_end,
+        coverage_preset=coverage_preset,
     )
-    return render_template("sports-editorial-workspace/dashboard.html", metrics=metrics)
+    return render_template(
+        "sports-editorial-workspace/dashboard.html", metrics=metrics,
+        coverage_range_options=COVERAGE_RANGE_OPTIONS,
+    )
 
 
 @blueprint.get("/stat-insights")

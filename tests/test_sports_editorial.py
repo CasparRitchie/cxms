@@ -26,7 +26,7 @@ from services.sports_editorial.repository import SupabaseSportsEditorialReposito
 from services.sports_editorial.stat_insights import build_editorial_discoveries, build_perspective_insights, build_stat_insights, demo_result_rows, group_editorial_discoveries
 from services.sports_editorial.validation import validate_status_transition, validate_submission
 from services.sports_editorial.creation import canonical_calendar_events, creation_options, event_discipline_code, parse_display_date, validate_choice_combination
-from services.sports_editorial.dashboard_metrics import build_dashboard_metrics
+from services.sports_editorial.dashboard_metrics import build_dashboard_metrics, resolve_coverage_range
 from services.sports_editorial.result_coverage import build_result_coverage, competition_result_status, result_coverage_scope
 from services.sports_editorial.race_status import decorate_submission_fis_schedule, decorate_submission_race_status, effective_race_status, matching_competitions
 from services.sports_editorial import views as sports_editorial_views
@@ -148,6 +148,19 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertEqual(coverage["summary"]["missing_races"], 1)
         self.assertTrue(coverage["events"][0]["is_missing"])
 
+    def test_dashboard_coverage_date_range_presets_and_custom_dates(self):
+        today = date(2026, 9, 21)
+        self.assertEqual(resolve_coverage_range("this_week", today=today)[:2],
+                         (date(2026, 9, 21), date(2026, 9, 27)))
+        self.assertEqual(resolve_coverage_range("next_week", today=today)[:2],
+                         (date(2026, 9, 28), date(2026, 10, 4)))
+        self.assertEqual(resolve_coverage_range("next_month", today=today)[:2],
+                         (date(2026, 10, 1), date(2026, 10, 31)))
+        self.assertEqual(resolve_coverage_range("next_year", today=today)[:2],
+                         (date(2027, 1, 1), date(2027, 12, 31)))
+        self.assertEqual(resolve_coverage_range("custom", "2027-02-01", "2027-02-14", today)[:2],
+                         (date(2027, 2, 1), date(2027, 2, 14)))
+
     def test_dashboard_beta_is_supervisor_only_and_stat_insights_is_labelled_beta(self):
         self.set_role("researcher")
         redirected = self.client.get("/workspace/sports-editorial/")
@@ -160,7 +173,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Stat-sheet dashboard", dashboard.data)
         self.assertIn(b"Dashboard <span class=\"sew-beta-badge\">Beta</span>", dashboard.data)
         self.assertIn(b"Upcoming stat sheets", dashboard.data)
-        self.assertIn(b"Upcoming FIS coverage", dashboard.data)
+        self.assertIn(b"FIS editorial coverage", dashboard.data)
+        self.assertIn(b'name="coverage_range"', dashboard.data)
         self.assertIn(b"Attention required", dashboard.data)
 
         insights = self.client.get("/workspace/sports-editorial/stat-insights")
