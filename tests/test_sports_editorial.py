@@ -138,6 +138,7 @@ class SportsEditorialPilotTests(unittest.TestCase):
         })
         self.assertEqual(coverage["events"][0]["workflow_counts"]["in_progress"], 1)
         self.assertEqual(coverage["events"][0]["workflow_counts"]["exported"], 1)
+        self.assertEqual([race["race_id"] for race in coverage["events"][0]["races"]], ["101", "102", "103"])
         self.assertEqual(len(coverage["races"]), 3)
 
     def test_dashboard_fis_coverage_flags_uncovered_scheduled_items(self):
@@ -206,6 +207,8 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"Covered", response.data)
         self.assertIn(b"Open AMP 560002", response.data)
         self.assertIn(b'href="/workspace/sports-editorial/submissions/demo-submission-submitted"', response.data)
+        self.assertIn(b'class="sew-dashboard-event"', response.data)
+        self.assertNotIn(b"View individual race coverage", response.data)
 
     def test_dashboard_beta_is_supervisor_only_and_stat_insights_is_labelled_beta(self):
         self.set_role("researcher")
@@ -3135,9 +3138,11 @@ class SportsEditorialPilotTests(unittest.TestCase):
         self.assertIn(b"FIS event and race data", response.data)
         self.assertIn(b"12-Dec-2026", response.data)
         self.assertIn(b"14-Dec-2026", response.data)
-        self.assertIn(b"The editable Race Date remains separate", response.data)
-        self.assertIn(b"<details class=\"sew-card sew-core-summary sew-fis-schedule\" open>", response.data)
+        self.assertNotIn(b"The editable Race Date remains separate", response.data)
+        self.assertNotIn(b"<h2>Event dates</h2>", response.data)
+        self.assertIn(b"<details class=\"sew-card sew-core-summary sew-fis-schedule\">", response.data)
         self.assertIn(b"<details class=\"sew-core-summary sew-fis-race-details\" open>", response.data)
+        self.assertIn(b"1 race matched to event 55596", response.data)
         self.assertNotIn(b"FIS Race ID", response.data)
 
     def test_fis_schedule_decorator_links_only_selected_events(self):

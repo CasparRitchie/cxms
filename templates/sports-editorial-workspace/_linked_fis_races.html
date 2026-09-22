@@ -1,7 +1,6 @@
 <details class="sew-core-summary sew-fis-race-details" open>
-  <summary><span><strong>Linked FIS races</strong><small>{% if submission.linked_fis_races %}{{ submission.linked_fis_race_count }} race{{ '' if submission.linked_fis_race_count == 1 else 's' }}{% else %}No matching races{% endif %}</small></span></summary>
+  <summary><span><strong>Linked FIS races</strong><small>{% if submission.linked_fis_races %}{{ submission.linked_fis_race_count }} race{{ '' if submission.linked_fis_race_count == 1 else 's' }} matched to event {{ submission.fis_event_ids|join(', ') }}{% else %}No matching races in the refreshed FIS catalogue{% endif %}</small></span></summary>
   <div class="sew-core-summary__body">
-  <div class="sew-section-heading"><div>{% if submission.linked_fis_races %}<p>{{ submission.linked_fis_race_count }} race{{ '' if submission.linked_fis_race_count == 1 else 's' }} matched to FIS event {{ submission.fis_event_ids|join(', ') }}.</p>{% else %}<p>No matching races are currently available in the refreshed FIS catalogue.</p>{% endif %}</div></div>
   {% if submission.linked_fis_races %}
   {% if submission.linked_fis_race_status == 'partially_cancelled' %}<p class="sew-message sew-message--notice"><strong>Partially cancelled:</strong> {{ submission.cancelled_fis_race_count }} of {{ submission.linked_fis_race_count }} linked races are cancelled.</p>{% elif submission.linked_fis_race_status == 'cancelled' %}<p class="sew-message sew-message--error"><strong>Cancelled:</strong> every linked race is cancelled.</p>{% endif %}
   <div class="sew-table-card"><table class="sew-table"><thead><tr><th>Race</th><th>Event</th><th>Gender</th><th>Date</th><th>Codex</th><th>Status</th></tr></thead><tbody>

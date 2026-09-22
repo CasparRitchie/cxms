@@ -1,10 +1,10 @@
-<details class="sew-card sew-core-summary sew-fis-schedule" open>
-  <summary><span><strong>FIS event and race data</strong><small>Read-only information from the refreshed FIS calendar</small></span></summary>
+{% set first_fis_event = submission.linked_fis_events|first %}{% set first_fis_metadata = first_fis_event.metadata|default({}) if first_fis_event else {} %}
+<details class="sew-card sew-core-summary sew-fis-schedule">
+  <summary><span><strong>FIS event and race data</strong><small>{% if submission.linked_fis_events|length == 1 %}Event {{ first_fis_event.canonical_id }} · {{ first_fis_metadata.location_label|default(first_fis_event.name, true) }} · {{ format_display_date(first_fis_metadata.start_date)|default('—', true) }}{% if first_fis_metadata.end_date and first_fis_metadata.end_date != first_fis_metadata.start_date %} to {{ format_display_date(first_fis_metadata.end_date) }}{% endif %} · {% endif %}{{ submission.linked_fis_race_count }} linked race{{ '' if submission.linked_fis_race_count == 1 else 's' }} · read-only FIS calendar</small></span></summary>
   <div class="sew-core-summary__body">
-  <div class="sew-section-heading"><div><h2>Event dates</h2>{% if submission.linked_fis_events %}<p>Official start and finish dates. The editable Race Date remains separate.</p>{% else %}<p>No matching FIS event schedule is currently available in the refreshed catalogue.</p>{% endif %}</div></div>
-  {% if submission.linked_fis_events %}<div class="sew-table-card"><table class="sew-table"><thead><tr><th>FIS Event ID</th><th>Location</th><th>Start</th><th>Finish</th></tr></thead><tbody>
+  {% if submission.linked_fis_events %}<div class="sew-table-card sew-fis-event-table"><table class="sew-table"><thead><tr><th>FIS Event ID</th><th>Location</th><th>Official start</th><th>Official finish</th></tr></thead><tbody>
   {% for event in submission.linked_fis_events %}{% set metadata = event.metadata|default({}) %}<tr><td>{% if event.canonical_url %}<a href="{{ event.canonical_url }}" target="_blank" rel="noopener">{{ event.canonical_id }}</a>{% else %}{{ event.canonical_id }}{% endif %}</td><td>{{ metadata.location_label|default(event.name, true) }}</td><td>{{ format_display_date(metadata.start_date)|default('—', true) }}</td><td>{{ format_display_date(metadata.end_date)|default('—', true) }}</td></tr>{% endfor %}
-  </tbody></table></div>{% endif %}
+  </tbody></table></div>{% else %}<p class="sew-fis-empty">No matching FIS event schedule is currently available in the refreshed catalogue.</p>{% endif %}
   {% include "sports-editorial-workspace/_linked_fis_races.html" %}
   </div>
 </details>

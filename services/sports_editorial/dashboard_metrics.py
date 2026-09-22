@@ -140,6 +140,7 @@ def _fis_coverage(active, events, competitions, range_start, range_end):
             "end_date": end.isoformat() if end else "",
             "discipline_code": metadata.get("discipline_code") or "",
             "category_code": metadata.get("category_code") or "",
+            "races": event_races,
             "race_count": len(event_races),
             "scheduled_race_count": len(scheduled_races),
             "cancelled_race_count": len(event_races) - len(scheduled_races),
