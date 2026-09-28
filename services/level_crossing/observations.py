@@ -302,6 +302,7 @@ class LevelCrossingObservationStore:
             duration = 0
             if len(raw_session) > 1:
                 duration = round((raw_session[-1]["_observedAt"] - raw_session[0]["_observedAt"]).total_seconds())
+            timings = self._session_timings(effective)
             session_summaries.append({
                 "number": session_number,
                 "observationCount": len(raw_session),
@@ -312,6 +313,8 @@ class LevelCrossingObservationStore:
                 "durationSeconds": max(0, duration),
                 "tdLinkedObservations": td_linked,
                 "completeCycle": self._is_complete_cycle(states),
+                "trainLinkedCycle": "TRAIN_PASSED" in states,
+                "timings": timings,
                 "correctionsApplied": corrections,
             })
 
@@ -327,6 +330,7 @@ class LevelCrossingObservationStore:
             "correctionRule": "An OPEN without a preceding OPENING is treated as superseded when CLOSED or TRAIN_PASSED follows within 120 seconds of an already closed period.",
             "sessions": session_summaries,
             "candidateSignals": ranked_candidates[:20],
+            "timingModel": self._summarise_timings(session_summaries),
             "phaseHypotheses": {
                 phase: self._phase_hypotheses(ranked_candidates, states)
                 for phase, states in PHASE_STATES.items()
@@ -410,12 +414,16 @@ class LevelCrossingObservationStore:
                     "occurrences": 0,
                     "sessions": set(),
                     "states": defaultdict(int),
+                    "trainDirections": defaultdict(int),
                     "descriptors": set(),
                     "lags": [],
                 })
                 candidate["occurrences"] += 1
                 candidate["sessions"].add(session_key)
                 candidate["states"][row["state"]] += 1
+                train_direction = self._train_direction(row)
+                if row["state"] == "TRAIN_PASSED" and train_direction:
+                    candidate["trainDirections"][train_direction] += 1
                 descriptor = str(event.get("descriptor", "")).strip()
                 if descriptor:
                     candidate["descriptors"].add(descriptor)
@@ -436,6 +444,7 @@ class LevelCrossingObservationStore:
                 "occurrences": occurrence_count,
                 "sessionCount": session_count,
                 "states": dict(sorted(candidate["states"].items())),
+                "trainDirections": dict(sorted(candidate["trainDirections"].items())),
                 "sampleDescriptors": sorted(candidate["descriptors"])[:5],
                 "medianLagSeconds": round(median(candidate["lags"])) if candidate["lags"] else None,
                 "repeatStrength": "strong" if session_count >= 3 else "promising" if session_count >= 2 else "single_session",
@@ -463,6 +472,71 @@ class LevelCrossingObservationStore:
         )[:5]
 
     @staticmethod
+    def _train_direction(row):
+        note = str(row.get("note") or "")
+        return next(
+            (direction for direction, label in TRAIN_DIRECTION_NOTES.items() if note == label),
+            None,
+        )
+
+    @staticmethod
+    def _seconds_between(start, end):
+        if start is None or end is None or end < start:
+            return None
+        return max(0, round((end - start).total_seconds()))
+
+    @classmethod
+    def _session_timings(cls, rows):
+        def first_after(state, after=None):
+            return next(
+                (
+                    row["_observedAt"]
+                    for row in rows
+                    if row["state"] == state and (after is None or row["_observedAt"] >= after)
+                ),
+                None,
+            )
+
+        closing_at = first_after("CLOSING")
+        closed_at = first_after("CLOSED", closing_at)
+        closure_start = closing_at or closed_at
+        opening_at = first_after("OPENING", closed_at or closing_at)
+        open_at = first_after("OPEN", opening_at or closed_at or closing_at)
+        train_times = [
+            row["_observedAt"]
+            for row in rows
+            if row["state"] == "TRAIN_PASSED"
+            and (closed_at is None or row["_observedAt"] >= closed_at)
+            and (opening_at is None or row["_observedAt"] <= opening_at)
+        ]
+        values = {
+            "closingMovementSeconds": cls._seconds_between(closing_at, closed_at),
+            "closedBeforeFirstTrainSeconds": cls._seconds_between(closed_at, train_times[0] if train_times else None),
+            "lastTrainToOpeningSeconds": cls._seconds_between(train_times[-1] if train_times else None, opening_at),
+            "openingMovementSeconds": cls._seconds_between(opening_at, open_at),
+            "barriersDownSeconds": cls._seconds_between(closed_at, opening_at),
+            "roadUnavailableSeconds": cls._seconds_between(closure_start, open_at),
+        }
+        return {key: value for key, value in values.items() if value is not None}
+
+    @staticmethod
+    def _summarise_timings(session_summaries):
+        values = defaultdict(list)
+        for summary in session_summaries:
+            for name, seconds in summary.get("timings", {}).items():
+                values[name].append(seconds)
+        return {
+            name: {
+                "sampleCount": len(samples),
+                "medianSeconds": round(median(samples)),
+                "minimumSeconds": min(samples),
+                "maximumSeconds": max(samples),
+            }
+            for name, samples in sorted(values.items())
+            if samples
+        }
+
+    @staticmethod
     def _snapshot_has_berth_events(snapshot):
         if not isinstance(snapshot, dict):
             return False
@@ -477,9 +551,8 @@ class LevelCrossingObservationStore:
     def _is_complete_cycle(states):
         try:
             closed_index = states.index("CLOSED")
-            train_index = states.index("TRAIN_PASSED", closed_index + 1)
-            open_index = states.index("OPEN", train_index + 1)
-            return closed_index < train_index < open_index
+            open_index = states.index("OPEN", closed_index + 1)
+            return closed_index < open_index
         except ValueError:
             return False
 
@@ -494,6 +567,7 @@ class LevelCrossingObservationStore:
             "correctionCount": 0,
             "sessions": [],
             "candidateSignals": [],
+            "timingModel": {},
             "phaseHypotheses": {phase: [] for phase in PHASE_STATES},
         }
 

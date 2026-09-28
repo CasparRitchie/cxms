@@ -407,7 +407,7 @@ class RoutePlanner:
         )
 
     def _active_road_closures(self):
-        configured = self.environ.get("LEVEL_CROSSING_ROAD_CLOSURES", "basin-road").strip().lower()
+        configured = self.environ.get("LEVEL_CROSSING_ROAD_CLOSURES", "none").strip().lower()
         if configured in {"", "none", "off"}:
             return {}
         selected = {value.strip() for value in configured.split(",") if value.strip()}

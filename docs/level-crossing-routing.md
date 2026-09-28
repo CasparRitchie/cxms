@@ -33,12 +33,14 @@ heroku config:set LEVEL_CROSSING_ORIGIN_COORDINATES='longitude,latitude' --app Y
    Lane for destinations north and east of the city. This avoids relying on
    Mapbox's generic alternatives to discover locally useful choices.
 3. Active local road closures are excluded from every driving request. Basin
-   Road is closed by default and is also shown as closed in the crossing
-   selector. Once it reopens, disable that override with:
+   Road reopened in September 2026, so no road is closed by default. A future
+   temporary closure can be enabled without changing code with:
 
    ```sh
-   heroku config:set LEVEL_CROSSING_ROAD_CLOSURES='none' --app YOUR_CXMS_APP
+   heroku config:set LEVEL_CROSSING_ROAD_CLOSURES='basin-road' --app YOUR_CXMS_APP
    ```
+
+   Clear all overrides again with `LEVEL_CROSSING_ROAD_CLOSURES='none'`.
 
    More road IDs can be supported by extending `ROAD_CLOSURES` in
    `services/level_crossing/routing.py`.

@@ -62,7 +62,39 @@
   };
   const trainDirectionLabels = {
     from_chichester: "Train from Chichester",
-    from_barnham: "Train from Barnham"
+    from_barnham: "Train towards Chichester"
+  };
+  const watchSteps = {
+    initial: {
+      stage: "Starting observation",
+      prompt: "What are the barriers doing now?",
+      hint: "You can start even if the barriers are already closed."
+    },
+    open: {
+      stage: "Barriers open",
+      prompt: "What happens next?",
+      hint: "Tap Closing as soon as they move, or Closed if you miss that moment."
+    },
+    closing: {
+      stage: "Barriers closing",
+      prompt: "Tap when they are fully closed",
+      hint: "The Closing step is useful, but it is fine to go straight from Open to Closed."
+    },
+    closed: {
+      stage: "Barriers closed",
+      prompt: "What happens next?",
+      hint: "Record every train separately. Tap Opening even if no train passes."
+    },
+    opening: {
+      stage: "Barriers opening",
+      prompt: "Tap when the road is open",
+      hint: "Record Open when traffic can cross again."
+    },
+    complete: {
+      stage: "Cycle complete",
+      prompt: "Observation saved",
+      hint: "Finish the session when you are ready."
+    }
   };
 
   const elements = {
@@ -89,6 +121,9 @@
     watchName: document.getElementById("crossing-watch-name"),
     watchElapsed: document.getElementById("crossing-watch-elapsed"),
     watchTrainCount: document.getElementById("crossing-watch-train-count"),
+    watchStage: document.getElementById("crossing-watch-stage"),
+    watchPrompt: document.getElementById("crossing-watch-prompt"),
+    watchHint: document.getElementById("crossing-watch-hint"),
     watchFinish: document.getElementById("crossing-watch-finish"),
     watchResult: document.getElementById("crossing-watch-result"),
     lastUpdated: document.getElementById("crossing-last-updated"),
@@ -729,6 +764,31 @@
     elements.watchElapsed.textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   }
 
+  function renderWatchStep() {
+    if (!watchSession) return;
+    const step = watchSteps[watchSession.phase] || watchSteps.initial;
+    elements.watchStage.textContent = step.stage;
+    elements.watchPrompt.textContent = step.prompt;
+    elements.watchHint.textContent = step.hint;
+    elements.watchActive.querySelectorAll("[data-watch-phases]").forEach((button) => {
+      button.hidden = !button.dataset.watchPhases.split(" ").includes(watchSession.phase);
+      button.classList.remove("crossing-button--solo");
+    });
+    elements.watchFinish.textContent = watchSession.phase === "complete" ? "Finish session" : "Finish early";
+    const visibleChoices = [...elements.watchActive.querySelectorAll("[data-watch-phases]:not([hidden])")];
+    if (visibleChoices.length === 1) visibleChoices[0].classList.add("crossing-button--solo");
+    const firstChoice = visibleChoices[0];
+    if (firstChoice) window.requestAnimationFrame(() => firstChoice.focus({ preventScroll: true }));
+  }
+
+  function nextWatchPhase(state, previousPhase) {
+    if (state === "CLOSING") return "closing";
+    if (state === "CLOSED" || state === "TRAIN_PASSED") return "closed";
+    if (state === "OPENING") return "opening";
+    if (state === "OPEN") return previousPhase === "opening" ? "complete" : "open";
+    return previousPhase;
+  }
+
   elements.selectionToggle.addEventListener("click", () => {
     const opening = elements.selectionControls.hidden;
     elements.selectionControls.hidden = !opening;
@@ -787,21 +847,27 @@
       id: makeId("session"),
       crossingId: crossing.id,
       startedAt: Date.now(),
-      trainCount: 0
+      trainCount: 0,
+      observationCount: 0,
+      phase: "initial"
     };
     elements.watchActive.hidden = false;
+    document.body.classList.add("crossing-watch-running");
     elements.watchStart.disabled = true;
     elements.watchSelect.disabled = true;
     elements.watchName.textContent = `Watching ${crossing.name}`;
     elements.watchTrainCount.textContent = "0";
-    elements.watchResult.textContent = "Session started. Tap only when safely stationary.";
+    elements.watchResult.textContent = "Choose the current state to begin.";
     updateWatchElapsed();
+    renderWatchStep();
   });
 
   elements.watchActive.addEventListener("click", (event) => {
-    const state = event.target.dataset.watchState;
+    const button = event.target.closest("[data-watch-state]");
+    const state = button?.dataset.watchState;
     if (!watchSession || !state) return;
-    const trainDirection = event.target.dataset.trainDirection || "";
+    const trainDirection = button.dataset.trainDirection || "";
+    const previousPhase = watchSession.phase;
     const observation = recordObservation({
       crossingId: watchSession.crossingId,
       state,
@@ -813,19 +879,24 @@
       watchSession.trainCount += 1;
       elements.watchTrainCount.textContent = String(watchSession.trainCount);
     }
+    watchSession.observationCount += 1;
+    watchSession.phase = nextWatchPhase(state, previousPhase);
     const recordedLabel = trainDirectionLabels[trainDirection] || observationLabels[state];
     elements.watchResult.textContent = `${recordedLabel} recorded at ${formatObservationTime(observation.observedAt)}.`;
+    renderWatchStep();
   });
 
   elements.watchFinish.addEventListener("click", () => {
     if (!watchSession) return;
     const crossing = crossings.find(({ id }) => id === watchSession.crossingId);
     const count = watchSession.trainCount;
+    const observationCount = watchSession.observationCount;
     watchSession = null;
     elements.watchActive.hidden = true;
+    document.body.classList.remove("crossing-watch-running");
     elements.watchSelect.disabled = false;
     elements.watchStart.disabled = !selectedCrossings().length;
-    elements.observationResult.textContent = `${crossing.name} watch session finished with ${count} train${count === 1 ? "" : "s"} recorded.`;
+    elements.observationResult.textContent = `${crossing.name} watch session finished with ${observationCount} observation${observationCount === 1 ? "" : "s"} and ${count} train${count === 1 ? "" : "s"} recorded.`;
   });
 
   renderSelection();

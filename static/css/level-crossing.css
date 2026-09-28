@@ -328,22 +328,30 @@ a:focus-visible { outline: 3px solid #69b9d5; outline-offset: 3px; }
 .crossing-state-open { background: var(--green-soft); color: var(--green); }
 .crossing-state-warning { background: var(--amber-soft); color: var(--amber); }
 .crossing-state-closed { background: var(--red-soft); color: var(--red); }
-.crossing-state-opening { background: #e5effc; color: #285f99; }
+.crossing-state-opening { background: var(--amber-soft); color: var(--amber); }
 .crossing-form-result { min-height: 20px; margin: 0; color: var(--green); font-size: 0.8rem; line-height: 1.4; }
 
 .crossing-watch-panel { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(230px, 0.65fr) minmax(0, 1.35fr); gap: 26px; padding: 22px; border: 1px solid #b8d9e3; border-radius: 18px; background: linear-gradient(135deg, #f4fafc, #eef7fa); }
 .crossing-watch-panel h3 { margin-bottom: 7px; font-size: 1.25rem; }
 .crossing-watch-panel p { color: var(--muted); font-size: 0.84rem; line-height: 1.5; }
 .crossing-watch-start { width: 100%; background: var(--blue); color: #fff; }
-.crossing-watch-active { display: grid; align-content: start; gap: 12px; }
+.crossing-watch-active { position: fixed; z-index: 1000; inset: 0; display: grid; min-width: 320px; min-height: 100vh; min-height: 100dvh; overflow-y: auto; place-items: center; padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); background: linear-gradient(145deg, #061b28, #0b3445 58%, #11556c); }
 .crossing-watch-active[hidden] { display: none; }
+.crossing-watch-shell { display: grid; width: min(100%, 760px); min-height: min(720px, calc(100dvh - 36px)); align-content: space-between; gap: clamp(30px, 8vh, 76px); padding: clamp(20px, 5vw, 42px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 28px; background: rgba(255, 255, 255, 0.97); box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32); }
+.crossing-watch-toolbar { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: stretch; }
 .crossing-watch-status { display: grid; grid-template-columns: 1fr 5.25rem; min-height: 74px; gap: 4px 16px; padding: 14px; border: 1px solid #d7e7ec; border-radius: 13px; background: #fff; color: #304c59; }
 .crossing-watch-status > strong { display: flex; grid-row: 1 / 3; grid-column: 2; width: 5.25rem; min-height: 32px; align-items: center; align-self: center; justify-content: flex-end; color: var(--blue); font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace; font-size: 1.5rem; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; line-height: 1; white-space: nowrap; }
 .crossing-watch-status > span:last-child { color: var(--muted); font-size: 0.75rem; }
-.crossing-watch-buttons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
-.crossing-watch-buttons .crossing-button { min-height: 52px; line-height: 1.2; }
+.crossing-watch-step { display: grid; align-content: center; gap: 18px; text-align: center; }
+.crossing-watch-step h3 { max-width: 650px; margin: 0 auto; font-size: clamp(2rem, 6vw, 3.8rem); line-height: 1.02; }
+.crossing-watch-step .crossing-form-result { min-height: 23px; color: var(--muted); font-size: 0.9rem; }
+.crossing-watch-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: min(100%, 650px); margin: 8px auto 0; }
+.crossing-watch-buttons .crossing-button { min-height: clamp(76px, 14vh, 116px); padding: 16px; border: 2px solid transparent; border-radius: 18px; font-size: clamp(1rem, 3vw, 1.35rem); line-height: 1.2; box-shadow: 0 10px 30px rgba(13, 39, 51, 0.08); }
+.crossing-watch-buttons .crossing-button--solo { grid-column: 1 / -1; }
+.crossing-watch-buttons .crossing-button[hidden] { display: none; }
 .crossing-watch-train { background: #dceeff; color: #17628f; }
-.crossing-watch-opening { grid-column: span 2; }
+.crossing-watch-hint { min-height: 22px; margin: 0; color: var(--muted); font-size: 0.78rem; }
+body.crossing-watch-running { overflow: hidden; }
 
 .crossing-observation-history { grid-column: 1 / -1; padding-top: 18px; border-top: 1px solid var(--line); }
 .crossing-observation-history summary { color: var(--blue); font-size: 0.84rem; font-weight: 850; cursor: pointer; }
@@ -391,7 +399,6 @@ a:focus-visible { outline: 3px solid #69b9d5; outline-offset: 3px; }
   .crossing-selection-controls,
   .crossing-observation-panel,
   .crossing-watch-panel { grid-template-columns: 1fr; }
-  .crossing-watch-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .crossing-feed-summary { grid-template-columns: 1fr 1fr; }
   .crossing-feed-summary div { border-right: 0; border-bottom: 1px solid var(--line); padding: 10px 0; }
 }
@@ -419,6 +426,12 @@ a:focus-visible { outline: 3px solid #69b9d5; outline-offset: 3px; }
   .crossing-section-heading { align-items: start; }
   .crossing-section-heading .crossing-button { min-height: 42px; padding: 8px 11px; font-size: 0.72rem; }
   .crossing-observation-panel { padding: 22px 16px; border-radius: 20px; }
+  .crossing-watch-active { padding: 0; }
+  .crossing-watch-shell { width: 100%; min-height: 100vh; min-height: 100dvh; padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); border: 0; border-radius: 0; }
+  .crossing-watch-toolbar { grid-template-columns: 1fr; }
+  .crossing-watch-toolbar > .crossing-button { min-height: 44px; }
+  .crossing-watch-buttons { gap: 10px; }
+  .crossing-watch-buttons .crossing-button { min-height: 86px; padding: 12px 8px; font-size: 1rem; }
   .crossing-state-buttons { grid-template-columns: 1fr 1fr; }
   .crossing-observation-history li { grid-template-columns: 1fr; }
   .crossing-observation-history time { text-align: left; }

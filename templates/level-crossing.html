@@ -113,23 +113,31 @@
           <select id="crossing-watch-select"></select>
           <button id="crossing-watch-start" class="crossing-button crossing-watch-start" type="button">Start watch session</button>
         </div>
-        <div id="crossing-watch-active" class="crossing-watch-active" hidden>
-          <div class="crossing-watch-status">
-            <span id="crossing-watch-name">Watching</span>
-            <strong id="crossing-watch-elapsed">00:00</strong>
-            <span><strong id="crossing-watch-train-count">0</strong> trains recorded</span>
+        <div id="crossing-watch-active" class="crossing-watch-active" role="dialog" aria-modal="true" aria-labelledby="crossing-watch-prompt" hidden>
+          <div class="crossing-watch-shell">
+            <div class="crossing-watch-toolbar">
+              <div class="crossing-watch-status">
+                <span id="crossing-watch-name">Watching</span>
+                <strong id="crossing-watch-elapsed">00:00</strong>
+                <span><strong id="crossing-watch-train-count">0</strong> trains recorded</span>
+              </div>
+              <button id="crossing-watch-finish" class="crossing-button crossing-button--quiet" type="button">Finish session</button>
+            </div>
+            <div class="crossing-watch-step">
+              <p id="crossing-watch-stage" class="crossing-eyebrow">Starting observation</p>
+              <h3 id="crossing-watch-prompt">What are the barriers doing now?</h3>
+              <p id="crossing-watch-result" class="crossing-form-result" aria-live="polite">Choose the current state to begin.</p>
+              <div class="crossing-watch-buttons">
+                <button type="button" data-watch-state="OPEN" data-watch-phases="initial opening" class="crossing-button crossing-state-open">Open</button>
+                <button type="button" data-watch-state="CLOSING" data-watch-phases="open" class="crossing-button crossing-state-warning">Closing</button>
+                <button type="button" data-watch-state="CLOSED" data-watch-phases="initial open closing" class="crossing-button crossing-state-closed">Closed</button>
+                <button type="button" data-watch-state="TRAIN_PASSED" data-train-direction="from_chichester" data-watch-phases="closed" class="crossing-button crossing-watch-train">Train from Chichester</button>
+                <button type="button" data-watch-state="TRAIN_PASSED" data-train-direction="from_barnham" data-watch-phases="closed" class="crossing-button crossing-watch-train">Train towards Chichester</button>
+                <button type="button" data-watch-state="OPENING" data-watch-phases="closed" class="crossing-button crossing-state-opening">Opening</button>
+              </div>
+              <p id="crossing-watch-hint" class="crossing-watch-hint">You can start even if the barriers are already closed.</p>
+            </div>
           </div>
-          <div class="crossing-watch-buttons">
-            <button type="button" data-watch-state="OPEN" class="crossing-button crossing-state-open">Open</button>
-            <button type="button" data-watch-state="CLOSING" class="crossing-button crossing-state-warning">Closing</button>
-            <button type="button" data-watch-state="CLOSED" class="crossing-button crossing-state-closed">Closed</button>
-            <button type="button" data-watch-state="TRAIN_PASSED" class="crossing-button crossing-watch-train">Train passed</button>
-            <button type="button" data-watch-state="TRAIN_PASSED" data-train-direction="from_chichester" class="crossing-button crossing-watch-train">Train from Chichester</button>
-            <button type="button" data-watch-state="TRAIN_PASSED" data-train-direction="from_barnham" class="crossing-button crossing-watch-train">Train from Barnham</button>
-            <button type="button" data-watch-state="OPENING" class="crossing-button crossing-state-opening crossing-watch-opening">Opening</button>
-          </div>
-          <button id="crossing-watch-finish" class="crossing-button crossing-button--quiet" type="button">Finish session</button>
-          <p id="crossing-watch-result" class="crossing-form-result" aria-live="polite"></p>
         </div>
       </section>
 

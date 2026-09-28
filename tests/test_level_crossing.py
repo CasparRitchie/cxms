@@ -35,7 +35,9 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"crossing-destination-select", response.data)
         self.assertIn(b"crossing-calibration-copy", response.data)
         self.assertIn(b"Train from Chichester", response.data)
-        self.assertIn(b"Train from Barnham", response.data)
+        self.assertIn(b"Train towards Chichester", response.data)
+        self.assertIn(b'role="dialog"', response.data)
+        self.assertIn(b'data-watch-phases="initial open closing"', response.data)
         css_response = self.client.get("/static/css/level-crossing.css")
         js_response = self.client.get("/static/js/level-crossing.js")
         self.assertEqual(css_response.status_code, 200)
@@ -43,6 +45,7 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"crossing-app-bar", css_response.data)
         self.assertIn(b"crossing-selection-chip-state", js_response.data)
         self.assertIn(b"waitrose-chichester", js_response.data)
+        self.assertIn(b"const watchSteps", js_response.data)
         self.assertNotIn(b"const viaA27 = 690", js_response.data)
         css_response.close()
         js_response.close()
@@ -259,6 +262,11 @@ class LevelCrossingRoutingTests(unittest.TestCase):
         self.assertEqual(city_fc["what3words"], "supply.chimp.heat")
         self.assertEqual(city_fc["driveWhat3Words"], "repair.united.handed")
         self.assertEqual(city_fc["parkingWalkSeconds"], 120)
+        self.assertEqual(catalogue["roadClosures"], [])
+
+    def test_basin_road_closure_can_still_be_enabled_explicitly(self):
+        catalogue = RoutePlanner(environ={"LEVEL_CROSSING_ROAD_CLOSURES": "basin-road"}).catalogue()
+
         self.assertEqual(catalogue["roadClosures"][0]["id"], "basin-road")
         self.assertNotIn("excludePoint", catalogue["roadClosures"][0])
 
@@ -272,7 +280,7 @@ class LevelCrossingRoutingTests(unittest.TestCase):
     def test_live_routes_compare_known_local_corridors_and_are_cached(self):
         opener = FakeRouteOpener()
         planner = RoutePlanner(
-            environ={"MAPBOX_ACCESS_TOKEN": "mapbox-test"},
+            environ={"MAPBOX_ACCESS_TOKEN": "mapbox-test", "LEVEL_CROSSING_ROAD_CLOSURES": "basin-road"},
             opener=opener,
         )
 
@@ -496,9 +504,16 @@ class LevelCrossingObservationTests(unittest.TestCase):
         self.assertEqual(analysis["sessions"][1]["correctionsApplied"][0]["followedBy"], "TRAIN_PASSED")
         self.assertEqual(analysis["sessions"][1]["sequence"].count("OPEN"), 2)
         self.assertEqual(analysis["sessions"][0]["trainDirections"], ["from_barnham"])
+        self.assertEqual(analysis["sessions"][0]["timings"]["closingMovementSeconds"], 20)
+        self.assertEqual(analysis["sessions"][0]["timings"]["barriersDownSeconds"], 70)
+        self.assertEqual(analysis["sessions"][0]["timings"]["roadUnavailableSeconds"], 110)
+        self.assertEqual(analysis["timingModel"]["closingMovementSeconds"]["medianSeconds"], 20)
+        self.assertEqual(analysis["timingModel"]["roadUnavailableSeconds"]["sampleCount"], 2)
         repeated = next(item for item in analysis["candidateSignals"] if item["signature"] == "CA:0101>0102")
         self.assertEqual(repeated["sessionCount"], 2)
         self.assertEqual(repeated["repeatStrength"], "promising")
+        passage = next(item for item in analysis["candidateSignals"] if item["signature"] == "CA:0102>0103")
+        self.assertEqual(passage["trainDirections"], {"from_barnham": 1})
         self.assertEqual(analysis["phaseHypotheses"]["closing"][0]["signature"], "CA:0101>0102")
         self.assertNotIn("session-aaaaaaaa", str(analysis))
         self.assertNotIn("td_snapshot", str(analysis))

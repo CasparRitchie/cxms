@@ -13,6 +13,11 @@ state recorded by the observer. It returns anonymous session sequences and
 aggregate candidate transitions; notes, original session IDs, and complete TD
 snapshots are not exposed.
 
+Direction-labelled train observations are aggregated into each candidate's
+`trainDirections` counts. Session timestamps are reduced to anonymous phase
+durations, with medians and observed ranges returned in `timingModel`. These
+support a shadow predictor without exposing the original observation times.
+
 ## Correcting rapid accidental taps
 
 Original observations remain unchanged. During analysis, an `OPEN` tap is
@@ -33,3 +38,9 @@ Candidate transitions are ranked by repetition across independent watch
 sessions. `predictionUse` remains `review_only`; no candidate changes the
 public prediction until its berth sequence has been manually reviewed and a
 separate configuration explicitly activates it.
+
+The first prediction implementation should remain in shadow mode and favour a
+deterministic signalling state machine. A statistical timing model can estimate
+closing and reopening intervals once enough independent sessions exist. Any
+future trained model must be evaluated primarily on false-open decisions, as
+those would produce the most misleading journey advice.
