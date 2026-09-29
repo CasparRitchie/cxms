@@ -15,6 +15,12 @@ import time
 
 LOGGER = logging.getLogger(__name__)
 
+# Review-only Whyke Road hypotheses. These movements are not barrier telemetry.
+WHYKE_SHADOW_MOVEMENTS = {
+    ("0094", "0090"), ("0090", "0086"), ("0086", "0084"),
+    ("0085", "0087"), ("0087", "0091"),
+}
+
 
 def _utc_now():
     return datetime.now(timezone.utc).isoformat()
@@ -47,6 +53,7 @@ class TrainDescriberFeed:
         self._national_message_count = 0
         self._message_count = 0
         self._recent_events = deque(maxlen=50)
+        self._whyke_shadow_events = deque(maxlen=40)
         self._berths = {}
 
     @property
@@ -94,6 +101,7 @@ class TrainDescriberFeed:
                 "messageCount": self._message_count,
                 "lastError": self._last_error,
                 "recentEvents": list(self._recent_events)[:12],
+                "whykeShadowEvents": list(self._whyke_shadow_events)[:12],
                 "activeBerths": dict(sorted(self._berths.items())),
             }
 
@@ -158,6 +166,8 @@ class TrainDescriberFeed:
             self._message_count += 1
             self._last_message_at = received_at
             self._recent_events.appendleft(event)
+            if message_type == "CA" and (from_berth, to_berth) in WHYKE_SHADOW_MOVEMENTS:
+                self._whyke_shadow_events.appendleft(event)
 
     def _set_connected(self, connected):
         with self._lock:

@@ -134,6 +134,9 @@
     feedFrames: document.getElementById("crossing-feed-frames"),
     feedCount: document.getElementById("crossing-feed-count"),
     feedUpdated: document.getElementById("crossing-feed-updated"),
+    shadowState: document.getElementById("crossing-shadow-state"),
+    shadowDetail: document.getElementById("crossing-shadow-detail"),
+    shadowEvents: document.getElementById("crossing-shadow-events"),
     calibrationCopy: document.getElementById("crossing-calibration-copy"),
     feedEvents: document.getElementById("crossing-feed-events"),
     feedEventRows: document.getElementById("crossing-feed-event-rows")
@@ -715,7 +718,43 @@
     return value ? formatTime(new Date(value)) : "Waiting";
   }
 
+  // Research-only interpretations. None of these events proves the barriers are open.
+  const shadowSignals = {
+    "0094>0090": ["Train at Chichester platform 1", "Possible closure ahead, not a confirmed barrier movement"],
+    "0090>0086": ["Possible closure", "Train departed Chichester towards Whyke Road; barriers may be down"],
+    "0086>0084": ["Train passed candidate", "From Chichester; barriers may remain down for another train"],
+    "0085>0087": ["Train passed candidate", "Towards Chichester; barriers may remain down for another train"],
+    "0087>0091": ["Possible reopening", "Train entered Chichester platform 2; opening is not guaranteed"]
+  };
+
+  function renderShadow(feed) {
+    const events = Array.isArray(feed.whykeShadowEvents) ? feed.whykeShadowEvents : [];
+    elements.shadowEvents.innerHTML = events.slice(0, 8).map((event) => {
+      const movement = `${event.from}>${event.to}`;
+      const label = shadowSignals[movement]?.[0] || "Candidate movement";
+      return `<li><time>${escapeHtml(formatFeedTime(event.receivedAt))}</time> · ${escapeHtml(label)} (${escapeHtml(event.from)} → ${escapeHtml(event.to)})${event.descriptor ? ` · ${escapeHtml(event.descriptor)}` : ""}</li>`;
+    }).join("");
+
+    const latest = events[0];
+    const ageSeconds = latest ? (Date.now() - Date.parse(latest.receivedAt)) / 1000 : Infinity;
+    const key = latest ? `${latest.from}>${latest.to}` : "";
+    const hypothesis = shadowSignals[key];
+    // No recent movement, a disconnected feed, or a clock anomaly is unknown.
+    if (feed.status !== "connected" || !hypothesis || !Number.isFinite(ageSeconds)
+        || ageSeconds < 0 || ageSeconds > 180) {
+      elements.shadowState.textContent = "Barrier position uncertain";
+      elements.shadowDetail.textContent = feed.status !== "connected"
+        ? "Live TD feed is unavailable; no current inference is possible."
+        : latest ? `Last candidate at ${formatFeedTime(latest.receivedAt)} is too old for a current inference.`
+          : "No candidate movement has arrived since this feed connected.";
+      return;
+    }
+    elements.shadowState.textContent = hypothesis[0];
+    elements.shadowDetail.textContent = `${hypothesis[1]}. Signal at ${formatFeedTime(latest.receivedAt)} (${Math.floor(ageSeconds)} seconds ago). Experimental, not barrier telemetry.`;
+  }
+
   function renderFeedStatus(feed) {
+    renderShadow(feed);
     elements.feedArea.textContent = feed.area || "CH";
     elements.feedFrames.textContent = String(feed.frameCount || 0);
     elements.feedCount.textContent = String(feed.messageCount || 0);

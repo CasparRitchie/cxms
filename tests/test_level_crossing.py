@@ -34,6 +34,8 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"Choose a familiar journey", response.data)
         self.assertIn(b"crossing-destination-select", response.data)
         self.assertIn(b"crossing-calibration-copy", response.data)
+        self.assertIn(b"crossing-shadow-state", response.data)
+        self.assertIn(b"Never infer", response.data)
         self.assertIn(b"Train from Chichester", response.data)
         self.assertIn(b"Train towards Chichester", response.data)
         self.assertIn(b'role="dialog"', response.data)
@@ -195,6 +197,18 @@ class TrainDescriberFeedTests(unittest.TestCase):
         self.feed.ingest({"body": {"msg_type": "CB", "area_id": "CH", "from": "0201"}})
 
         self.assertEqual(self.feed.snapshot()["activeBerths"], {})
+
+    def test_shadow_retains_only_candidate_ca_movements(self):
+        for source, target, message_type in (
+            ("0090", "0086", "CA"), ("BH73", "BH75", "CA"),
+            ("0085", "0087", "CB"), ("0085", "0087", "CA"),
+        ):
+            self.feed.ingest({"body": {"msg_type": message_type, "area_id": "CH",
+                                       "from": source, "to": target, "descr": "1N43"}})
+
+        events = self.feed.snapshot()["whykeShadowEvents"]
+        self.assertEqual([(event["from"], event["to"]) for event in events],
+                         [("0085", "0087"), ("0090", "0086")])
 
     def test_connection_errors_redact_credentials(self):
         self.feed._set_error(RuntimeError("test@example.com not-returned-by-status"))

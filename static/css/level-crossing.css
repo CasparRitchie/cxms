@@ -387,6 +387,13 @@ body.crossing-watch-running { overflow: hidden; }
 .crossing-feed-events td { padding: 9px 10px; border-bottom: 1px solid var(--line); color: #304c59; text-align: left; white-space: nowrap; }
 .crossing-feed-events th { color: var(--muted); font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase; }
 .crossing-feed-note { margin: 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.crossing-shadow-panel { margin: 22px 0; padding: 22px 24px; border: 1px solid var(--line); border-radius: 20px; background: #fff; box-shadow: var(--shadow-sm); }
+.crossing-shadow-panel h2 { margin: 6px 0 14px; }
+.crossing-shadow-state { margin: 0; font-size: 1.35rem; font-weight: 850; color: var(--blue); }
+.crossing-shadow-panel > p:not(.crossing-eyebrow) { line-height: 1.5; }
+.crossing-shadow-events { max-height: 180px; overflow: auto; margin: 14px 0; padding-left: 24px; font-size: 0.86rem; line-height: 1.65; }
+.crossing-shadow-events:empty { display: none; }
+.crossing-shadow-warning { color: var(--muted); font-size: 0.8rem; }
 .crossing-calibration-copy { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--blue-soft); color: #245d73; font-size: 0.76rem; font-weight: 750; line-height: 1.5; }
 
 .crossing-safety-note { display: flex; align-items: start; gap: 12px; margin: 22px 0; padding: 17px 18px; border: 1px solid #ecd8ae; border-radius: 15px; background: #fff9e9; color: #6d4a16; }

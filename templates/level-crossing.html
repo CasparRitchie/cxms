@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071d2b">
   <meta name="description" content="Predicted status for selected level crossings, with route guidance and live Network Rail calibration.">
   <title>Chichester Crossing Monitor</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=7">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=8">
 </head>
 <body class="level-crossing-page">
   <header class="crossing-app-bar">
@@ -74,6 +74,15 @@
         <button id="crossing-refresh" class="crossing-button crossing-button--quiet" type="button">Refresh status</button>
       </div>
       <div id="crossing-grid" class="crossing-grid" aria-live="polite"></div>
+    </section>
+
+    <section class="crossing-shadow-panel" aria-labelledby="crossing-shadow-title">
+      <p class="crossing-eyebrow">Whyke Road · experimental signal watch</p>
+      <h2 id="crossing-shadow-title">What would the TD signals suggest?</h2>
+      <p id="crossing-shadow-state" class="crossing-shadow-state" aria-live="polite">Checking live signalling…</p>
+      <p id="crossing-shadow-detail">This is a research hypothesis, not a measured barrier position or route advice.</p>
+      <ol id="crossing-shadow-events" class="crossing-shadow-events" aria-label="Recent candidate signal movements"></ol>
+      <p class="crossing-shadow-warning">Never infer “open” from silence. Barnham-side closing warning is not yet established. Continue to obey the crossing lights and barriers.</p>
     </section>
 
     <section class="crossing-observation-panel" aria-labelledby="crossing-observation-title">
@@ -188,6 +197,6 @@
     </footer>
   </main>
 
-  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=7"></script>
+  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=8"></script>
 </body>
 </html>
