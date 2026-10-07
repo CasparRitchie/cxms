@@ -60,3 +60,21 @@ possible closure, `0086→0084` and `0085→0087` possible train passage,
 telemetry. In particular, there is no validated Barnham-side advance warning.
 Compare the displayed event clock times with the audible warning or a safely
 observed gate state; do not use this panel to make a driving decision.
+
+## Continuous watches and Undo
+
+After OPEN ends a cycle, the watch stays in the open stage so another closure
+can be recorded in the same session. Analysis counts complete cycles separately
+for timing medians, but still counts the watch as one independent session when
+ranking TD candidates. A watch can have incomplete final observations.
+
+Undo is limited to the latest effective tap in the current session within ten
+minutes. The original central row is retained with an `undoneAt` marker in its
+existing `client_prediction` JSON field. Calibration counts and candidate
+matching omit marked rows. A pending local observation is marked undone on the
+device without syncing it. Earlier taps require first undoing later taps.
+
+Each tap still sends its timestamp immediately so the server can save the TD
+snapshot from that moment. The request does not pause the watch buttons. A
+batch upload at Finish would require a separate durable history of signalling
+snapshots to preserve the same calibration evidence.

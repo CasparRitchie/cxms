@@ -154,6 +154,51 @@ class LevelCrossingObservationStore:
         )
         return result[0] if isinstance(result, list) and result else row
 
+    @staticmethod
+    def _undone(row):
+        prediction = row.get("client_prediction")
+        return isinstance(prediction, dict) and bool(prediction.get("undoneAt"))
+
+    def undo_last_watch_tap(self, payload):
+        """Mark the most recent effective tap in a session as undone, retaining its raw row."""
+        if not isinstance(payload, dict):
+            raise ObservationValidationError("An observation is required.")
+        observation_id = str(payload.get("id") or "")
+        session_id = str(payload.get("sessionId") or "")
+        if not IDENTIFIER.fullmatch(observation_id) or not IDENTIFIER.fullmatch(session_id):
+            raise ObservationValidationError("Invalid watch observation identifier.")
+        rows = self.client.request(
+            "level_crossing_observations", "GET",
+            query={
+                "select": "id,session_id,event_kind,observed_at,client_prediction",
+                "session_id": f"eq.{session_id}",
+                "event_kind": "eq.watch",
+                "order": "observed_at.desc",
+                "limit": "200",
+            },
+        )
+        ordered = sorted(
+            rows if isinstance(rows, list) else [],
+            key=lambda row: self._stored_timestamp(row.get("observed_at")) or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+        effective = next((row for row in ordered if not self._undone(row)), None)
+        if not effective or effective.get("id") != observation_id:
+            raise ObservationValidationError("Only the latest watch tap can be undone.")
+        observed_at = self._stored_timestamp(effective.get("observed_at"))
+        if observed_at is None or not (0 <= (datetime.now(timezone.utc) - observed_at).total_seconds() <= 600):
+            raise ObservationValidationError("This tap is too old to undo.")
+        prediction = effective.get("client_prediction") or {}
+        updated = {**prediction, "undoneAt": datetime.now(timezone.utc).isoformat()}
+        result = self.client.request(
+            "level_crossing_observations", "PATCH",
+            query={"id": f"eq.{observation_id}", "session_id": f"eq.{session_id}"},
+            payload={"client_prediction": updated}, prefer="return=representation",
+        )
+        if not isinstance(result, list) or len(result) != 1:
+            raise ObservationValidationError("The watch tap could not be marked as undone.")
+        return {"undone": True, "id": observation_id}
+
     def calibration_summary(self, now=None, limit=1000):
         """Return anonymous evidence totals and fresh gate reports.
 
@@ -188,7 +233,7 @@ class LevelCrossingObservationStore:
             "level_crossing_observations",
             "GET",
             query={
-                "select": "crossing_id,state,observed_at,event_kind,session_id,td_snapshot",
+                "select": "crossing_id,state,observed_at,event_kind,session_id,td_snapshot,client_prediction",
                 "order": "observed_at.desc",
                 "limit": str(max(1, min(int(limit), 2000))),
             },
@@ -198,6 +243,8 @@ class LevelCrossingObservationStore:
         latest_reports = []
         latest_crossings = set()
         for row in rows:
+            if self._undone(row):
+                continue
             crossing_id = row.get("crossing_id")
             state = str(row.get("state", "")).upper()
             summary = summaries.get(crossing_id)
@@ -259,7 +306,7 @@ class LevelCrossingObservationStore:
             "level_crossing_observations",
             "GET",
             query={
-                "select": "crossing_id,state,observed_at,event_kind,session_id,note,td_snapshot",
+                "select": "crossing_id,state,observed_at,event_kind,session_id,note,td_snapshot,client_prediction",
                 "crossing_id": f"eq.{crossing_id}",
                 "event_kind": "eq.watch",
                 "session_id": "not.is.null",
@@ -270,6 +317,8 @@ class LevelCrossingObservationStore:
         rows = rows if isinstance(rows, list) else []
         sessions = defaultdict(list)
         for row in rows:
+            if self._undone(row):
+                continue
             if row.get("crossing_id") != crossing_id or str(row.get("event_kind", "")) != "watch":
                 continue
             session_id = str(row.get("session_id") or "")
@@ -302,7 +351,9 @@ class LevelCrossingObservationStore:
             duration = 0
             if len(raw_session) > 1:
                 duration = round((raw_session[-1]["_observedAt"] - raw_session[0]["_observedAt"]).total_seconds())
-            timings = self._session_timings(effective)
+            cycle_rows = self._complete_cycles(effective)
+            cycle_timings = [self._session_timings(cycle) for cycle in cycle_rows]
+            timings = cycle_timings[0] if cycle_timings else {}
             session_summaries.append({
                 "number": session_number,
                 "observationCount": len(raw_session),
@@ -313,19 +364,23 @@ class LevelCrossingObservationStore:
                 "durationSeconds": max(0, duration),
                 "tdLinkedObservations": td_linked,
                 "completeCycle": self._is_complete_cycle(states),
+                "cycleCount": len(cycle_rows),
                 "trainLinkedCycle": "TRAIN_PASSED" in states,
                 "timings": timings,
+                "cycleTimings": cycle_timings,
                 "correctionsApplied": corrections,
             })
 
         ranked_candidates = self._rank_td_candidates(candidates)
         complete_sessions = sum(summary["completeCycle"] for summary in session_summaries)
+        complete_cycles = sum(summary["cycleCount"] for summary in session_summaries)
         return {
             "status": "ready",
             "crossing": {"id": crossing_id, "name": CROSSINGS[crossing_id]["name"]},
             "predictionUse": "review_only",
             "sessionCount": len(session_summaries),
             "completeSessionCount": complete_sessions,
+            "completeCycleCount": complete_cycles,
             "correctionCount": total_corrections,
             "correctionRule": "An OPEN without a preceding OPENING is treated as superseded when CLOSED or TRAIN_PASSED follows within 120 seconds of an already closed period.",
             "sessions": session_summaries,
@@ -362,7 +417,7 @@ class LevelCrossingObservationStore:
                     delay = (later["_observedAt"] - current["_observedAt"]).total_seconds()
                     if delay < 0:
                         continue
-                    if delay > 120 or later["state"] == "OPENING":
+                    if delay > 120 or later["state"] in {"OPENING", "CLOSING"}:
                         break
                     if later["state"] in {"CLOSED", "TRAIN_PASSED"}:
                         contradicting_state = later["state"]
@@ -520,11 +575,27 @@ class LevelCrossingObservationStore:
         return {key: value for key, value in values.items() if value is not None}
 
     @staticmethod
+    def _complete_cycles(rows):
+        """Split a continuous watch into complete closed-to-open cycles."""
+        cycles = []
+        current = []
+        has_closed = False
+        for row in rows:
+            current.append(row)
+            has_closed = has_closed or row["state"] == "CLOSED"
+            if row["state"] == "OPEN" and has_closed:
+                cycles.append(current)
+                current = [row]  # The same OPEN starts the next possible cycle.
+                has_closed = False
+        return cycles
+
+    @staticmethod
     def _summarise_timings(session_summaries):
         values = defaultdict(list)
         for summary in session_summaries:
-            for name, seconds in summary.get("timings", {}).items():
-                values[name].append(seconds)
+            for cycle in summary.get("cycleTimings", [summary.get("timings", {})]):
+                for name, seconds in cycle.items():
+                    values[name].append(seconds)
         return {
             name: {
                 "sampleCount": len(samples),
@@ -564,6 +635,7 @@ class LevelCrossingObservationStore:
             "predictionUse": "review_only",
             "sessionCount": 0,
             "completeSessionCount": 0,
+            "completeCycleCount": 0,
             "correctionCount": 0,
             "sessions": [],
             "candidateSignals": [],

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071d2b">
   <meta name="description" content="Predicted status for selected level crossings, with route guidance and live Network Rail calibration.">
   <title>Chichester Crossing Monitor</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=8">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/level-crossing.css') }}?v=9">
 </head>
 <body class="level-crossing-page">
   <header class="crossing-app-bar">
@@ -130,6 +130,7 @@
                 <strong id="crossing-watch-elapsed">00:00</strong>
                 <span><strong id="crossing-watch-train-count">0</strong> trains recorded</span>
               </div>
+              <button id="crossing-watch-undo" class="crossing-button crossing-button--quiet crossing-watch-undo" type="button" disabled>Undo last tap</button>
               <button id="crossing-watch-finish" class="crossing-button crossing-button--quiet" type="button">Finish session</button>
             </div>
             <div class="crossing-watch-step">
@@ -197,6 +198,6 @@
     </footer>
   </main>
 
-  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=8"></script>
+  <script src="{{ url_for('static', filename='js/level-crossing.js') }}?v=9"></script>
 </body>
 </html>

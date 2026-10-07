@@ -38,6 +38,7 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"Never infer", response.data)
         self.assertIn(b"Train from Chichester", response.data)
         self.assertIn(b"Train towards Chichester", response.data)
+        self.assertIn(b"Undo last tap", response.data)
         self.assertIn(b'role="dialog"', response.data)
         self.assertIn(b'data-watch-phases="initial open closing"', response.data)
         css_response = self.client.get("/static/css/level-crossing.css")
@@ -139,6 +140,16 @@ class LevelCrossingPageTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.get_json()["status"], "invalid_crossing")
+
+    @patch("app.observation_rate_limiter.allow", return_value=True)
+    @patch("app.observation_store.undo_last_watch_tap", return_value={"undone": True, "id": "obs-12345678"})
+    def test_undo_endpoint_marks_watch_tap(self, undo, _allow):
+        response = self.client.post("/api/level-crossing/observations/undo", json={
+            "id": "obs-12345678", "sessionId": "session-12345678",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["undone"])
+        undo.assert_called_once()
 
     @patch("app.observation_rate_limiter.allow", return_value=True)
     @patch("app.observation_store.save")
@@ -434,6 +445,31 @@ class LevelCrossingObservationTests(unittest.TestCase):
         self.assertFalse(limiter.allow("device", now))
         self.assertTrue(limiter.allow("device", now + timedelta(seconds=61)))
 
+    def test_undo_marks_raw_row_and_rejects_older_tap(self):
+        now = datetime.now(timezone.utc)
+        rows = [
+            {"id": "obs-lasttap12", "session_id": "session-12345678", "event_kind": "watch",
+             "observed_at": now.isoformat(), "client_prediction": {"state": "UNKNOWN"}},
+            {"id": "obs-earliertap", "session_id": "session-12345678", "event_kind": "watch",
+             "observed_at": (now - timedelta(seconds=10)).isoformat(), "client_prediction": {}},
+        ]
+
+        class UndoClient(FakeObservationReadClient):
+            def request(self, table, method="GET", query=None, payload=None, prefer=None):
+                if method == "PATCH":
+                    self.calls.append((table, method, query, payload))
+                    return [{**rows[0], **payload}]
+                return super().request(table, method, query, payload, prefer)
+
+        client = UndoClient(rows)
+        store = LevelCrossingObservationStore(client=client)
+        with self.assertRaises(ObservationValidationError):
+            store.undo_last_watch_tap({"id": "obs-earliertap", "sessionId": "session-12345678"})
+        self.assertEqual(store.undo_last_watch_tap({"id": "obs-lasttap12", "sessionId": "session-12345678"})["undone"], True)
+        self.assertEqual(client.calls[-1][1], "PATCH")
+        self.assertEqual(client.calls[-1][3]["client_prediction"]["state"], "UNKNOWN")
+        self.assertIn("undoneAt", client.calls[-1][3]["client_prediction"])
+
     def test_calibration_summary_counts_evidence_and_returns_fresh_report(self):
         now = datetime(2026, 8, 2, 14, 0, tzinfo=timezone.utc)
         client = FakeObservationReadClient([
@@ -531,6 +567,28 @@ class LevelCrossingObservationTests(unittest.TestCase):
         self.assertEqual(analysis["phaseHypotheses"]["closing"][0]["signature"], "CA:0101>0102")
         self.assertNotIn("session-aaaaaaaa", str(analysis))
         self.assertNotIn("td_snapshot", str(analysis))
+
+    def test_multiple_cycles_and_undone_tap_do_not_skew_timing(self):
+        start = datetime(2026, 9, 29, 10, 0, tzinfo=timezone.utc)
+        states = [
+            (0, "OPEN", {}), (10, "CLOSING", {}), (20, "CLOSED", {}),
+            (25, "TRAIN_PASSED", {"undoneAt": start.isoformat()}),
+            (40, "TRAIN_PASSED", {}), (50, "OPENING", {}), (60, "OPEN", {}),
+            (100, "CLOSING", {}), (110, "CLOSED", {}),
+            (130, "TRAIN_PASSED", {}), (140, "OPENING", {}), (150, "OPEN", {}),
+        ]
+        rows = [{"crossing_id": "whyke-road", "state": state,
+                 "observed_at": (start + timedelta(seconds=second)).isoformat(),
+                 "event_kind": "watch", "session_id": "session-aaaaaaaa",
+                 "client_prediction": prediction, "td_snapshot": {"recentEvents": []}}
+                for second, state, prediction in states]
+        store = LevelCrossingObservationStore(client=FakeObservationReadClient(rows))
+        analysis = store.calibration_analysis("whyke-road")
+        self.assertEqual(analysis["sessionCount"], 1)
+        self.assertEqual(analysis["completeCycleCount"], 2)
+        self.assertEqual(analysis["sessions"][0]["trainPasses"], 2)
+        self.assertEqual(analysis["timingModel"]["barriersDownSeconds"]["sampleCount"], 2)
+        self.assertEqual(analysis["timingModel"]["barriersDownSeconds"]["medianSeconds"], 30)
 
 
 if __name__ == "__main__":

@@ -90,11 +90,6 @@
       prompt: "Tap when the road is open",
       hint: "Record Open when traffic can cross again."
     },
-    complete: {
-      stage: "Cycle complete",
-      prompt: "Observation saved",
-      hint: "Finish the session when you are ready."
-    }
   };
 
   const elements = {
@@ -125,6 +120,7 @@
     watchPrompt: document.getElementById("crossing-watch-prompt"),
     watchHint: document.getElementById("crossing-watch-hint"),
     watchFinish: document.getElementById("crossing-watch-finish"),
+    watchUndo: document.getElementById("crossing-watch-undo"),
     watchResult: document.getElementById("crossing-watch-result"),
     lastUpdated: document.getElementById("crossing-last-updated"),
     modeBadge: document.querySelector(".crossing-mode-badge"),
@@ -180,6 +176,7 @@
 
   let preferences = readPreferences();
   let watchSession = null;
+  const inFlightSyncs = new Map();
   let journeyCatalogue = [];
   let journeyResult = null;
   let journeyLoading = false;
@@ -579,7 +576,7 @@
   }
 
   function renderObservations() {
-    const observations = readObservations();
+    const observations = readObservations().filter((observation) => !observation.undoneAt);
     elements.observationCount.hidden = observations.length === 0;
     elements.observationCount.querySelector("strong").textContent = observations.length;
     elements.observationHistory.hidden = observations.length === 0;
@@ -616,7 +613,7 @@
     };
   }
 
-  async function syncObservation(observation) {
+  async function performSyncObservation(observation) {
     if (!observation.syncEligible || observation.syncedAt) return false;
     try {
       const response = await fetch("/api/level-crossing/observations", {
@@ -638,9 +635,19 @@
     }
   }
 
+  function syncObservation(observation) {
+    if (inFlightSyncs.has(observation.id)) return inFlightSyncs.get(observation.id);
+    const pending = performSyncObservation(observation);
+    inFlightSyncs.set(observation.id, pending);
+    void pending.finally(() => {
+      if (inFlightSyncs.get(observation.id) === pending) inFlightSyncs.delete(observation.id);
+    });
+    return pending;
+  }
+
   function syncPendingObservations() {
     readObservations()
-      .filter(({ syncEligible, syncedAt }) => syncEligible && !syncedAt)
+      .filter(({ syncEligible, syncedAt, undoneAt }) => syncEligible && !syncedAt && !undoneAt)
       .slice(-20)
       .forEach((observation) => { void syncObservation(observation); });
   }
@@ -813,7 +820,9 @@
       button.hidden = !button.dataset.watchPhases.split(" ").includes(watchSession.phase);
       button.classList.remove("crossing-button--solo");
     });
-    elements.watchFinish.textContent = watchSession.phase === "complete" ? "Finish session" : "Finish early";
+    elements.watchFinish.textContent = watchSession.phase === "open" && watchSession.cycleCount
+      ? "Finish session" : "Finish early";
+    elements.watchUndo.disabled = watchSession.undoing || watchSession.events.length === 0;
     const visibleChoices = [...elements.watchActive.querySelectorAll("[data-watch-phases]:not([hidden])")];
     if (visibleChoices.length === 1) visibleChoices[0].classList.add("crossing-button--solo");
     const firstChoice = visibleChoices[0];
@@ -824,7 +833,7 @@
     if (state === "CLOSING") return "closing";
     if (state === "CLOSED" || state === "TRAIN_PASSED") return "closed";
     if (state === "OPENING") return "opening";
-    if (state === "OPEN") return previousPhase === "opening" ? "complete" : "open";
+    if (state === "OPEN") return "open";
     return previousPhase;
   }
 
@@ -888,6 +897,9 @@
       startedAt: Date.now(),
       trainCount: 0,
       observationCount: 0,
+      cycleCount: 0,
+      events: [],
+      undoing: false,
       phase: "initial"
     };
     elements.watchActive.hidden = false;
@@ -904,7 +916,7 @@
   elements.watchActive.addEventListener("click", (event) => {
     const button = event.target.closest("[data-watch-state]");
     const state = button?.dataset.watchState;
-    if (!watchSession || !state) return;
+    if (!watchSession || watchSession.undoing || !state) return;
     const trainDirection = button.dataset.trainDirection || "";
     const previousPhase = watchSession.phase;
     const observation = recordObservation({
@@ -919,14 +931,64 @@
       elements.watchTrainCount.textContent = String(watchSession.trainCount);
     }
     watchSession.observationCount += 1;
+    watchSession.events.push({ id: observation.id, state });
+    if (state === "OPEN" && previousPhase === "opening") watchSession.cycleCount += 1;
     watchSession.phase = nextWatchPhase(state, previousPhase);
     const recordedLabel = trainDirectionLabels[trainDirection] || observationLabels[state];
-    elements.watchResult.textContent = `${recordedLabel} recorded at ${formatObservationTime(observation.observedAt)}.`;
+    elements.watchResult.textContent = `${recordedLabel} recorded at ${formatObservationTime(observation.observedAt)}.${state === "OPEN" && previousPhase === "opening" ? " Keep watching for another cycle, or finish." : ""}`;
     renderWatchStep();
   });
 
+  elements.watchUndo.addEventListener("click", async () => {
+    if (!watchSession || watchSession.undoing || !watchSession.events.length) return;
+    const session = watchSession;
+    const last = session.events[session.events.length - 1];
+    session.undoing = true;
+    elements.watchUndo.disabled = true;
+    elements.watchFinish.disabled = true;
+    elements.watchActive.querySelectorAll("[data-watch-state]").forEach((button) => { button.disabled = true; });
+    elements.watchResult.textContent = "Undoing the last tap…";
+    try {
+      await inFlightSyncs.get(last.id);
+      const saved = readObservations().find(({ id }) => id === last.id);
+      if (saved?.syncedAt) {
+        const response = await fetch("/api/level-crossing/observations/undo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: last.id, sessionId: session.id })
+        });
+        if (!response.ok) throw new Error("The central copy could not be corrected. Try again shortly.");
+      }
+      if (saved) {
+        saved.undoneAt = new Date().toISOString();
+        saved.syncEligible = false;
+        writeObservations(readObservations().map((item) => item.id === last.id ? saved : item));
+      }
+      session.events.pop();
+      session.observationCount = session.events.length;
+      session.trainCount = session.events.filter(({ state }) => state === "TRAIN_PASSED").length;
+      elements.watchTrainCount.textContent = String(session.trainCount);
+      session.cycleCount = 0;
+      session.phase = "initial";
+      session.events.forEach(({ state }) => {
+        if (state === "OPEN" && session.phase === "opening") session.cycleCount += 1;
+        session.phase = nextWatchPhase(state, session.phase);
+      });
+      renderObservations();
+      renderSelectionChips();
+      elements.watchResult.textContent = "Last tap removed. Choose the correct state when ready.";
+    } catch (error) {
+      elements.watchResult.textContent = error.message || "Could not undo. Try again shortly.";
+    } finally {
+      session.undoing = false;
+      elements.watchFinish.disabled = false;
+      elements.watchActive.querySelectorAll("[data-watch-state]").forEach((button) => { button.disabled = false; });
+      renderWatchStep();
+    }
+  });
+
   elements.watchFinish.addEventListener("click", () => {
-    if (!watchSession) return;
+    if (!watchSession || watchSession.undoing) return;
     const crossing = crossings.find(({ id }) => id === watchSession.crossingId);
     const count = watchSession.trainCount;
     const observationCount = watchSession.observationCount;

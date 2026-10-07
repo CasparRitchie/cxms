@@ -106,6 +106,7 @@ def level_crossing_calibration_analysis(crossing_id):
             "predictionUse": "review_only",
             "sessionCount": 0,
             "completeSessionCount": 0,
+            "completeCycleCount": 0,
             "correctionCount": 0,
             "sessions": [],
             "candidateSignals": [],
@@ -127,6 +128,18 @@ def level_crossing_observations():
         return jsonify({"saved": False, "error": "Central observation storage is unavailable."}), 503
 
     return jsonify({"saved": True, "id": saved["id"]}), 201
+
+
+@app.route("/api/level-crossing/observations/undo", methods=["POST"])
+def level_crossing_undo_observation():
+    if not observation_rate_limiter.allow(request.remote_addr):
+        return jsonify({"undone": False, "error": "Too many requests. Please wait."}), 429
+    try:
+        return jsonify(observation_store.undo_last_watch_tap(request.get_json(silent=True)))
+    except ObservationValidationError as error:
+        return jsonify({"undone": False, "error": str(error)}), 400
+    except SupabaseError:
+        return jsonify({"undone": False, "error": "Central observation storage is unavailable."}), 503
 
 
 @app.route("/gcse/history")
