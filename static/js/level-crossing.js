@@ -39,19 +39,15 @@
     }
   ];
 
-  const demoTrainDestinations = [
-    ["Portsmouth & Southsea", "westbound"],
-    ["London Victoria", "eastbound"],
-    ["Brighton", "eastbound"],
-    ["Southampton Central", "westbound"],
-    ["Littlehampton", "eastbound"]
-  ];
-
   const stateDetails = {
     OPEN: ["Open", "crossing-status--open"],
+    CLOSING: ["Closing", "crossing-status--closing"],
     CLOSING_SOON: ["Closing soon", "crossing-status--closing"],
+    CLOSED: ["Closed", "crossing-status--closed"],
     LIKELY_CLOSED: ["Likely closed", "crossing-status--closed"],
-    UNKNOWN: ["Unknown", "crossing-status--unknown"]
+    OPENING: ["Opening", "crossing-status--closing"],
+    REOPENING: ["May be reopening", "crossing-status--closing"],
+    UNKNOWN: ["Uncertain", "crossing-status--unknown"]
   };
   const observationLabels = {
     OPEN: "Open",
@@ -138,6 +134,9 @@
     feedEventRows: document.getElementById("crossing-feed-event-rows")
   };
 
+  elements.departureCopy = document.getElementById("crossing-departure-copy");
+  elements.departureRows = document.getElementById("crossing-departure-rows");
+
   if (!elements.destinationSelect || !elements.routeAdvice || !elements.crossingGrid || !elements.observationForm) return;
 
   function escapeHtml(value) {
@@ -182,6 +181,7 @@
   let journeyLoading = false;
   let centralReports = new Map();
   let roadClosures = new Map();
+  let serverPredictions = new Map();
 
   function savePreferences() {
     window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
@@ -226,7 +226,8 @@
     const prediction = predict(crossing, now);
     const className = prediction.state === "OPEN"
       ? "open"
-      : prediction.state === "LIKELY_CLOSED" ? "closed" : "closing";
+      : ["CLOSED", "LIKELY_CLOSED"].includes(prediction.state) ? "closed"
+        : ["CLOSING", "CLOSING_SOON", "OPENING", "REOPENING"].includes(prediction.state) ? "closing" : "unknown";
     return { label: `${stateDetails[prediction.state][0]} · est.`, className };
   }
 
@@ -291,71 +292,27 @@
     });
   }
 
-  function movementsFor(crossing, now) {
-    const hour = new Date(now);
-    hour.setMinutes(0, 0, 0);
-    return [-1, 0, 1]
-      .flatMap((offset) => {
-        const start = new Date(hour.getTime() + offset * 60 * 60 * 1000);
-        return crossing.minutes.map((minute, index) => {
-          const eta = new Date(start.getTime() + minute * 60 * 1000);
-          const [destination, direction] = demoTrainDestinations[index % demoTrainDestinations.length];
-          return { id: `demo-${crossing.id}-${eta.toISOString()}`, destination, direction, eta };
-        });
-      })
-      .filter(({ eta }) => eta >= new Date(now.getTime() - 15 * 60 * 1000))
-      .sort((left, right) => left.eta.getTime() - right.eta.getTime());
-  }
-
   function predict(crossing, now) {
-    const intervals = movementsFor(crossing, now)
-      .map((movement) => ({
-        start: new Date(movement.eta.getTime() - crossing.closingLeadSeconds * 1000),
-        end: new Date(movement.eta.getTime() + crossing.clearanceSeconds * 1000),
-        trains: [movement]
-      }))
-      .reduce((merged, interval) => {
-        const previous = merged.at(-1);
-        if (previous && interval.start.getTime() <= previous.end.getTime() + crossing.holdGapSeconds * 1000) {
-          previous.end = new Date(Math.max(previous.end.getTime(), interval.end.getTime()));
-          previous.trains.push(...interval.trains);
-        } else {
-          merged.push(interval);
-        }
-        return merged;
-      }, []);
-    const active = intervals.find(({ start, end }) => start <= now && end > now);
-    const next = intervals.find(({ start }) => start > now);
-
-    if (active) {
-      return {
-        state: "LIKELY_CLOSED",
-        reason: active.trains.length > 1
-          ? `The demo pattern groups ${active.trains.length} trains here; the live feed has not confirmed that sequence.`
-          : "One demo train is inside the predicted closure window; the live feed has not confirmed it.",
-        eventAt: active.end,
-        eventLabel: "Predicted reopening",
-        waitSeconds: Math.max(0, Math.round((active.end.getTime() - now.getTime()) / 1000)),
-        trains: active.trains
-      };
-    }
-    if (next && next.start.getTime() - now.getTime() <= 180 * 1000) {
-      return {
-        state: "CLOSING_SOON",
-        reason: "The next demo closure begins within three minutes; the live feed has not confirmed it.",
-        eventAt: next.start,
-        eventLabel: "Predicted closing",
-        waitSeconds: Math.max(0, Math.round((next.end.getTime() - now.getTime()) / 1000)),
-        trains: next.trains
-      };
-    }
-    return {
-      state: "OPEN",
-      reason: "No train is currently inside the demonstration closure window.",
-      eventAt: next?.start || null,
-      eventLabel: "Next predicted closing",
+    const live = serverPredictions.get(crossing.id);
+    if (live) return {
+      state: live.state || "UNKNOWN",
+      reason: live.reason || "No current evidence.",
+      eventAt: live.evidenceAt ? new Date(live.evidenceAt) : null,
+      eventLabel: "Evidence time",
       waitSeconds: 0,
-      trains: next?.trains || []
+      trains: [],
+      confidence: live.confidence || "none",
+      source: live.source || "no_recent_evidence"
+    };
+    return {
+      state: "UNKNOWN",
+      reason: "Waiting for the shadow prediction service. The app will not infer open from silence.",
+      eventAt: null,
+      eventLabel: "Evidence time",
+      waitSeconds: 0,
+      trains: [],
+      confidence: "none",
+      source: "loading"
     };
   }
 
@@ -551,6 +508,39 @@
     }
   }
 
+  async function loadPredictionStatus() {
+    try {
+      const response = await fetch("/api/level-crossing/predictions", { cache: "no-store" });
+      if (!response.ok) throw new Error("Predictions unavailable");
+      const result = await response.json();
+      serverPredictions = new Map((result.crossings || []).map((prediction) => [prediction.id, prediction]));
+      renderPredictions();
+    } catch (_) {
+      serverPredictions = new Map();
+      renderPredictions();
+    }
+  }
+
+  async function loadDepartures() {
+    if (!elements.departureCopy || !elements.departureRows) return;
+    try {
+      const response = await fetch("/api/level-crossing/departures", { cache: "no-store" });
+      if (!response.ok) throw new Error("Departures unavailable");
+      const board = await response.json();
+      const departures = Array.isArray(board.departures) ? board.departures : [];
+      elements.departureCopy.textContent = board.status === "ready"
+        ? `${departures.length} passenger departure${departures.length === 1 ? "" : "s"} towards the Barnham corridor. Used as shadow evidence only.`
+        : board.message || "Departure evidence is unavailable.";
+      elements.departureRows.innerHTML = departures.slice(0, 6).map((service) => `<li>
+        <time>${escapeHtml(service.expectedDeparture || service.scheduledDeparture || "—")}</time>
+        <span><strong>${escapeHtml(service.destination || "Eastbound service")}</strong><small>${service.cancelled ? "Cancelled" : `Platform ${escapeHtml(service.platform || "TBC")} · Barnham ${escapeHtml(service.barnhamExpected || service.barnhamScheduled || "time unavailable")}`}</small></span>
+      </li>`).join("");
+    } catch (_) {
+      elements.departureCopy.textContent = "Passenger departure evidence is temporarily unavailable.";
+      elements.departureRows.innerHTML = "";
+    }
+  }
+
   function formatObservationTime(value) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "Time unavailable";
@@ -609,7 +599,7 @@
       state: prediction.state,
       eventAt: prediction.eventAt?.toISOString() || null,
       waitSeconds: prediction.waitSeconds,
-      demoTrainCount: prediction.trains.length
+      modelSource: prediction.source || "no_recent_evidence"
     };
   }
 
@@ -697,16 +687,13 @@
       const [predictedLabel, predictedStatusClass] = stateDetails[prediction.state];
       const label = roadClosure?.status === "closed" ? "Road closed" : predictedLabel;
       const statusClass = roadClosure?.status === "closed" ? "crossing-status--closed" : predictedStatusClass;
-      const nextTrain = prediction.trains[0]
-        ? `<span>Demo train: ${escapeHtml(prediction.trains[0].destination)} · ${escapeHtml(prediction.trains[0].direction)}</span>`
-        : "";
       const reason = roadClosure?.status === "closed"
         ? roadClosure.message
         : prediction.reason;
       const predictionMeta = roadClosure?.status === "closed"
         ? "<span>Road availability overrides the barrier estimate</span>"
         : `<span>${escapeHtml(prediction.eventLabel)}: <strong>${formatTime(prediction.eventAt)}</strong></span>
-          <span>Confidence: demonstration</span>${nextTrain}`;
+          <span>Confidence: ${escapeHtml(prediction.confidence || "none")} · ${escapeHtml(String(prediction.source || "unknown").replaceAll("_", " "))}</span>`;
       return `<article class="crossing-card${crossing.id === preferences.primaryId ? " crossing-card--primary" : ""}">
         <h3>${escapeHtml(crossing.name)}</h3>
         ${crossing.id === preferences.primaryId ? '<span class="crossing-primary-tag">Primary route crossing</span>' : ""}
@@ -718,6 +705,13 @@
         </div>
       </article>`;
     }).join("");
+    document.querySelectorAll("[data-map-crossing]").forEach((pin) => {
+      const prediction = serverPredictions.get(pin.dataset.mapCrossing);
+      const state = prediction?.state || "UNKNOWN";
+      pin.dataset.state = state;
+      const label = pin.querySelector("small");
+      if (label) label.textContent = stateDetails[state]?.[0] || "Uncertain";
+    });
     elements.lastUpdated.textContent = `Updated ${formatTime(now)}`;
   }
 
@@ -871,6 +865,8 @@
     renderPredictions();
     void loadJourney();
     void loadFeedStatus();
+    void loadPredictionStatus();
+    void loadDepartures();
     syncPendingObservations();
   });
 
@@ -1006,10 +1002,14 @@
   void loadDestinations();
   void loadCalibrationStatus();
   void loadFeedStatus();
+  void loadPredictionStatus();
+  void loadDepartures();
   syncPendingObservations();
   window.setInterval(renderPredictions, 30000);
   window.setInterval(loadJourney, 90000);
   window.setInterval(loadCalibrationStatus, 30000);
   window.setInterval(loadFeedStatus, 10000);
+  window.setInterval(loadPredictionStatus, 10000);
+  window.setInterval(loadDepartures, 30000);
   window.setInterval(updateWatchElapsed, 1000);
 })();

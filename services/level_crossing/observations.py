@@ -91,7 +91,7 @@ class LevelCrossingObservationStore:
     def configured(self):
         return self.client.configured
 
-    def build_row(self, payload, td_snapshot):
+    def build_row(self, payload, td_snapshot, departure_snapshot=None):
         if not isinstance(payload, dict):
             raise ObservationValidationError("A JSON observation is required.")
 
@@ -128,6 +128,9 @@ class LevelCrossingObservationStore:
             "messageCount": snapshot.get("messageCount", 0),
             "recentEvents": list(snapshot.get("recentEvents") or [])[:12],
             "activeBerths": dict(snapshot.get("activeBerths") or {}),
+            "departureBoard": _safe_json_object(
+                departure_snapshot, "Departure snapshot", max_length=12000
+            ) if departure_snapshot else {},
         }
 
         return {
@@ -144,8 +147,8 @@ class LevelCrossingObservationStore:
             "td_snapshot": _safe_json_object(safe_snapshot, "TD snapshot", max_length=20000),
         }
 
-    def save(self, payload, td_snapshot):
-        row = self.build_row(payload, td_snapshot)
+    def save(self, payload, td_snapshot, departure_snapshot=None):
+        row = self.build_row(payload, td_snapshot, departure_snapshot)
         result = self.client.request(
             "level_crossing_observations",
             "POST",

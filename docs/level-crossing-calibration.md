@@ -1,5 +1,17 @@
 # Level-crossing TD calibration
 
+The interface is split into two focused pages:
+
+- `/level-crossing` presents the cautious crossing-status and map overview.
+- `/level-crossing/calibration` puts the guided watch session first, followed
+  by single observations, device history, departure evidence and technical TD
+  detail.
+
+Every synchronised watch tap now captures both the contemporary Train
+Describer snapshot and the normalised Chichester departure board. Departure
+data remains a shadow-model input only; see
+`docs/level-crossing-departure-model.md`.
+
 Field watch sessions are stored with a small snapshot of the Chichester Train
 Describer feed. Calibration analysis is available at:
 

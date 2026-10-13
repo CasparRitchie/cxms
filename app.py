@@ -18,6 +18,8 @@ from services.level_crossing.observations import (
     observation_store,
 )
 from services.level_crossing.routing import route_planner
+from services.level_crossing.departures import departure_board
+from services.level_crossing.predictions import crossing_predictor
 from services.sports_editorial.supabase_rest import SupabaseError
 
 app = Flask(__name__)
@@ -57,13 +59,54 @@ def circuit_training():
 @app.route("/level-crossing/")
 def level_crossing():
     td_feed.start()
-    return render_template("level-crossing.html")
+    return render_template("level-crossing.html", page_mode="status", crossing_map_url=_crossing_map_url())
+
+
+@app.route("/level-crossing/calibration")
+@app.route("/level-crossing/calibration/")
+def level_crossing_calibration():
+    td_feed.start()
+    return render_template("level-crossing.html", page_mode="calibration", crossing_map_url=_crossing_map_url())
+
+
+def _crossing_map_url():
+    token = os.getenv("MAPBOX_ACCESS_TOKEN", "").strip()
+    if not token:
+        return ""
+    markers = (
+        "pin-s-s+9d6cff(-0.7938,50.8325),"
+        "pin-s-b+9d6cff(-0.780614,50.830726),"
+        "pin-s-w+51f59b(-0.7659,50.8321)"
+    )
+    return (
+        "https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/"
+        f"{markers}/-0.7805,50.8330,13.35,0/1200x560@2x?access_token={token}"
+    )
 
 
 @app.route("/api/level-crossing/td-status")
 def level_crossing_td_status():
     td_feed.start()
     return jsonify(td_feed.snapshot())
+
+
+@app.route("/api/level-crossing/departures")
+def level_crossing_departures():
+    return jsonify(departure_board.snapshot())
+
+
+@app.route("/api/level-crossing/predictions")
+def level_crossing_predictions():
+    td_feed.start()
+    try:
+        reports = observation_store.calibration_summary().get("latestReports", [])
+    except SupabaseError:
+        reports = []
+    return jsonify(crossing_predictor.predict(
+        td_snapshot=td_feed.snapshot(),
+        departure_snapshot=departure_board.snapshot(),
+        latest_reports=reports,
+    ))
 
 
 @app.route("/api/level-crossing/destinations")
@@ -121,7 +164,9 @@ def level_crossing_observations():
 
     td_feed.start()
     try:
-        saved = observation_store.save(request.get_json(silent=True), td_feed.snapshot())
+        saved = observation_store.save(
+            request.get_json(silent=True), td_feed.snapshot(), departure_board.snapshot()
+        )
     except ObservationValidationError as error:
         return jsonify({"saved": False, "error": str(error)}), 400
     except SupabaseError:

@@ -12,6 +12,8 @@ from services.level_crossing.observations import (
 )
 from services.level_crossing.td_feed import TrainDescriberFeed
 from services.level_crossing.routing import DESTINATIONS, RoutePlanner
+from services.level_crossing.departures import ChichesterDepartureBoard
+from services.level_crossing.predictions import CrossingPredictor
 
 
 class LevelCrossingPageTests(unittest.TestCase):
@@ -25,12 +27,12 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Chichester Crossing Monitor", response.data)
         self.assertIn(b"Whyke Road", response.data)
-        self.assertIn(b"Simulation mode", response.data)
+        self.assertIn(b"Shadow model", response.data)
         self.assertIn(b"Route-planning prediction only", response.data)
         self.assertIn(b"Recent observations on this device", response.data)
         self.assertIn(b"Selected level crossings", response.data)
         self.assertIn(b"Start watch session", response.data)
-        self.assertIn(b"Chichester live route helper", response.data)
+        self.assertIn(b"Chichester crossing monitor", response.data)
         self.assertIn(b"Choose a familiar journey", response.data)
         self.assertIn(b"crossing-destination-select", response.data)
         self.assertIn(b"crossing-calibration-copy", response.data)
@@ -41,6 +43,8 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"Undo last tap", response.data)
         self.assertIn(b'role="dialog"', response.data)
         self.assertIn(b'data-watch-phases="initial open closing"', response.data)
+        self.assertIn(b"Chichester rail corridor", response.data)
+        self.assertIn(b'data-map-crossing="whyke-road"', response.data)
         css_response = self.client.get("/static/css/level-crossing.css")
         js_response = self.client.get("/static/js/level-crossing.js")
         self.assertEqual(css_response.status_code, 200)
@@ -50,11 +54,22 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"waitrose-chichester", js_response.data)
         self.assertIn(b"const watchSteps", js_response.data)
         self.assertNotIn(b"const viaA27 = 690", js_response.data)
+        self.assertNotIn(b"demoTrainDestinations", js_response.data)
         css_response.close()
         js_response.close()
 
     def test_trailing_slash_route_is_supported(self):
         self.assertEqual(self.client.get("/level-crossing/").status_code, 200)
+
+    def test_calibration_page_leads_with_watch_session(self):
+        response = self.client.get("/level-crossing/calibration")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"crossing-view--calibration", response.data)
+        self.assertIn(b"Start a watch session", response.data)
+        self.assertIn(b"Technical calibration information", response.data)
+        self.assertIn(b"Recent observations on this device", response.data)
+        self.assertLess(response.data.index(b"Start a watch session"), response.data.index(b"Technical calibration information"))
 
     @patch("app.td_feed.start", return_value=False)
     @patch("app.td_feed.snapshot")
@@ -72,6 +87,27 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["status"], "not_configured")
         self.assertNotIn(b"password", response.data.lower())
+
+    @patch("app.departure_board.snapshot")
+    def test_departure_endpoint_exposes_only_normalised_evidence(self, snapshot):
+        snapshot.return_value = {"status": "ready", "departures": [{"scheduledDeparture": "10:30"}]}
+
+        response = self.client.get("/api/level-crossing/departures")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["departures"][0]["scheduledDeparture"], "10:30")
+        self.assertNotIn(b"password", response.data.lower())
+
+    @patch("app.observation_store.calibration_summary", return_value={"latestReports": []})
+    @patch("app.departure_board.snapshot", return_value={"status": "not_configured", "departures": []})
+    @patch("app.td_feed.snapshot", return_value={"status": "connected", "recentEvents": []})
+    @patch("app.td_feed.start", return_value=True)
+    def test_prediction_endpoint_never_infers_open_from_silence(self, _start, _td, _departures, _summary):
+        response = self.client.get("/api/level-crossing/predictions")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["predictionUse"], "shadow_only")
+        self.assertTrue(all(item["state"] == "UNKNOWN" for item in response.get_json()["crossings"]))
 
     @patch("app.route_planner.catalogue")
     def test_destination_catalogue_endpoint_is_public(self, catalogue):
@@ -152,10 +188,11 @@ class LevelCrossingPageTests(unittest.TestCase):
         undo.assert_called_once()
 
     @patch("app.observation_rate_limiter.allow", return_value=True)
+    @patch("app.departure_board.snapshot", return_value={"status": "ready", "departures": []})
     @patch("app.observation_store.save")
     @patch("app.td_feed.snapshot", return_value={"area": "CH", "recentEvents": []})
     @patch("app.td_feed.start", return_value=True)
-    def test_observation_endpoint_stores_td_context(self, _start, _snapshot, save, _allow):
+    def test_observation_endpoint_stores_td_and_departure_context(self, _start, _snapshot, save, _departures, _allow):
         save.return_value = {"id": "obs-12345678"}
         payload = {
             "id": "obs-12345678",
@@ -169,7 +206,9 @@ class LevelCrossingPageTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.get_json(), {"saved": True, "id": "obs-12345678"})
-        save.assert_called_once_with(payload, {"area": "CH", "recentEvents": []})
+        save.assert_called_once_with(
+            payload, {"area": "CH", "recentEvents": []}, {"status": "ready", "departures": []}
+        )
 
     @patch("app.observation_rate_limiter.allow", return_value=False)
     def test_observation_endpoint_is_rate_limited(self, _allow):
@@ -350,6 +389,110 @@ class LevelCrossingRoutingTests(unittest.TestCase):
         self.assertTrue(all("exclude=" not in url for url in driving_urls))
 
 
+class FakeDepartureResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def read(self):
+        return json.dumps(self.payload).encode()
+
+
+class LevelCrossingDepartureTests(unittest.TestCase):
+    def test_filters_detailed_board_to_services_calling_at_barnham(self):
+        requests = []
+
+        def opener(request, timeout=0):
+            requests.append((request, timeout))
+            return FakeDepartureResponse({
+                "generatedAt": "2026-10-13T09:00:00Z",
+                "locationName": "Chichester",
+                "trainServices": [
+                    {
+                        "std": "10:00", "etd": "10:02", "platform": "1",
+                        "destination": [{"locationName": "Brighton"}],
+                        "operator": "Southern", "isCancelled": False,
+                        "subsequentCallingPoints": [{"callingPoint": [
+                            {"crs": "BAA", "st": "10:08", "et": "10:10"},
+                            {"crs": "BTN", "st": "10:50", "et": "10:52"},
+                        ]}],
+                    },
+                    {
+                        "std": "10:05", "destination": [{"locationName": "Portsmouth"}],
+                        "subsequentCallingPoints": [{"callingPoint": [{"crs": "HVT"}]}],
+                    },
+                ],
+            })
+
+        board = ChichesterDepartureBoard(
+            environ={"NATIONAL_RAIL_LDBWS_USERNAME": "user", "NATIONAL_RAIL_LDBWS_PASSWORD": "secret"},
+            opener=opener,
+        ).snapshot()
+
+        self.assertEqual(board["status"], "ready")
+        self.assertEqual(len(board["departures"]), 1)
+        self.assertEqual(board["departures"][0]["destination"], "Brighton")
+        self.assertEqual(board["departures"][0]["barnhamExpected"], "10:10")
+        self.assertIn("Basic ", requests[0][0].get_header("Authorization"))
+        self.assertNotIn("secret", str(board))
+
+    def test_unconfigured_board_is_explicit_and_empty(self):
+        board = ChichesterDepartureBoard(environ={}).snapshot()
+
+        self.assertEqual(board["status"], "not_configured")
+        self.assertEqual(board["departures"], [])
+
+
+class CrossingPredictionTests(unittest.TestCase):
+    def setUp(self):
+        self.now = datetime(2026, 10, 13, 8, 58, tzinfo=timezone.utc)  # 09:58 BST
+        self.predictor = CrossingPredictor()
+
+    def test_imminent_barnham_departure_is_low_confidence_closing_evidence(self):
+        result = self.predictor.predict(
+            departure_snapshot={"status": "ready", "departures": [{
+                "scheduledDeparture": "10:00", "expectedDeparture": "On time",
+                "destination": "Brighton", "cancelled": False,
+            }]},
+            now=self.now,
+        )
+        predictions = {item["id"]: item for item in result["crossings"]}
+
+        self.assertEqual(predictions["whyke-road"]["state"], "CLOSING_SOON")
+        self.assertEqual(predictions["whyke-road"]["confidence"], "low")
+        self.assertEqual(predictions["stockbridge-road"]["source"], "chichester_departure")
+
+    def test_td_departure_overrides_timetable_and_applies_to_all_crossings(self):
+        result = self.predictor.predict(
+            td_snapshot={"status": "connected", "recentEvents": [{
+                "from": "0090", "to": "0086", "receivedAt": (self.now - timedelta(seconds=15)).isoformat()
+            }]},
+            now=self.now,
+        )
+
+        self.assertTrue(all(item["state"] == "LIKELY_CLOSED" for item in result["crossings"]))
+        self.assertTrue(all(item["confidence"] == "medium" for item in result["crossings"]))
+
+    def test_fresh_field_report_has_highest_priority(self):
+        result = self.predictor.predict(
+            td_snapshot={"status": "connected", "recentEvents": [{
+                "from": "0090", "to": "0086", "receivedAt": (self.now - timedelta(seconds=15)).isoformat()
+            }]},
+            latest_reports=[{"crossingId": "whyke-road", "state": "OPEN", "observedAt": self.now.isoformat()}],
+            now=self.now,
+        )
+        whyke = next(item for item in result["crossings"] if item["id"] == "whyke-road")
+
+        self.assertEqual(whyke["state"], "OPEN")
+        self.assertEqual(whyke["confidence"], "high")
+        self.assertEqual(whyke["source"], "field_report")
+
+
 class FakeSupabaseClient:
     configured = True
 
@@ -400,11 +543,13 @@ class LevelCrossingObservationTests(unittest.TestCase):
                 "activeBerths": {"0102": "1A23"},
                 "lastError": "must not be stored",
             },
+            {"status": "ready", "departures": [{"scheduledDeparture": "10:00", "destination": "Brighton"}]},
         )
 
         self.assertEqual(saved["crossing_name"], "Whyke Road")
         self.assertEqual(saved["what3words"], "awake.mason.melon")
         self.assertEqual(saved["td_snapshot"]["activeBerths"], {"0102": "1A23"})
+        self.assertEqual(saved["td_snapshot"]["departureBoard"]["departures"][0]["destination"], "Brighton")
         self.assertNotIn("lastError", saved["td_snapshot"])
         self.assertNotIn("ip", str(saved).lower())
         self.assertEqual(self.client.calls[0][0], "level_crossing_observations")
