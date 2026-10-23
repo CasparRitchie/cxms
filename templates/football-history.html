@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>English Football: 138 Years of League Positions | CXMS</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,sans-serif;background:#0a1123;color:#e8f0ff}
+*{box-sizing:border-box}body{margin:0}header{padding:22px max(20px,4vw);border-bottom:1px solid #253657;display:flex;justify-content:space-between;gap:20px;align-items:center;flex-wrap:wrap}
+a{color:#91c8ff}header a{text-decoration:none;font-weight:750;color:#c6d7ff}.eyebrow{color:#9b7cff;font-size:12px;letter-spacing:.15em;text-transform:uppercase}
+main{max-width:1500px;margin:auto;padding:28px max(16px,3vw)}h1{font-size:clamp(26px,4vw,46px);margin:8px 0}p{color:#a7b8d0}
+.panel{background:#101b32;border:1px solid #293a59;border-radius:16px;padding:20px;margin:22px 0}
+.controls{display:flex;align-items:end;gap:14px;flex-wrap:wrap}.controls label{display:grid;gap:7px;font-size:13px;color:#afc4dc}
+select,input,button{background:#192743;border:1px solid #35507b;color:white;border-radius:9px;padding:10px 12px;font:inherit}
+button{cursor:pointer}button:hover{border-color:#b5a1ff}button.primary{background:#6446df;border-color:#6446df}
+#clubSelect{height:160px;min-width:270px;max-width:100%;flex:1} .muted{color:#a6b8cf;font-size:13px}
+#chart{display:block;width:100%;min-height:380px;overflow:visible}#status{color:#a9bfd6;margin:14px 0}
+#tooltip{position:fixed;display:none;pointer-events:none;background:#182943;border:1px solid #6684b3;padding:8px 11px;border-radius:8px;font-size:13px;z-index:20}
+.legend{display:flex;flex-wrap:wrap;gap:12px}.legend button{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 9px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}.note{font-size:12px;line-height:1.6}
+@media(max-width:650px){.panel{padding:12px}#chart{min-height:300px}header{padding:16px}}
+</style></head><body>
+<header><a href="/">← CXMS</a><span class="eyebrow">Sports data explorer</span></header>
+<main><div class="eyebrow">1888 to present · Division One + Premier League</div><h1>English football, season by season</h1>
+<p>Compare clubs' final top-flight league positions across football history. First place is at the top; a gap means the club was not in the top division that season.</p>
+<div class="panel"><div class="controls">
+<label style="flex:1;min-width:260px">Clubs <span class="muted">Ctrl/Cmd-click to select more</span><select multiple id="clubSelect" aria-label="Select clubs"></select></label>
+<label>From season<input id="fromYear" type="number" min="1888" max="2025" value="1888"></label>
+<label>To season<input id="toYear" type="number" min="1888" max="2025" value="2024"></label>
+<button class="primary" id="reset">Popular clubs</button><button id="all">All clubs</button><button id="csv">Export CSV</button>
+</div><div id="status" role="status">Loading compact historical data…</div></div>
+<div class="panel"><svg id="chart" viewBox="0 0 1100 530" role="img" aria-label="Line chart of final league positions by football club and season"></svg><div class="legend" id="legend"></div></div>
+<p class="note">Source: <a href="https://github.com/dills122/footy-data-kit" target="_blank" rel="noopener">footy-data-kit</a>. First Division before 1992–93, Premier League afterwards. Wartime league suspensions are not shown. Club names follow the source's historical normalisation. Seasons are labelled by their starting year. Only final top-flight standings are plotted.</p>
+</main><div id="tooltip"></div>
+<script>
+"use strict";
+const select=document.getElementById('clubSelect'),from=document.getElementById('fromYear'),to=document.getElementById('toYear');
+const svg=document.getElementById('chart'),legend=document.getElementById('legend'),status=document.getElementById('status');
+const tooltip=document.getElementById('tooltip');let rows=[],clubs=[],selected=new Set();
+const featured=['Liverpool','Manchester United','Arsenal','Chelsea','Manchester City','Everton','Tottenham Hotspur','Aston Villa'];
+const palette=['#9c83ff','#00deb0','#ff8f91','#fbc969','#69bdff','#ff9d47','#f58fe2','#b7e874','#a6aafa','#e4be84'];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const mk=(tag,attrs={})=>{let e=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));return e};
+function render(){
+ if(!rows.length)return;
+ const left=52,right=1080,top=30,bottom=472,width=right-left,height=bottom-top;
+ const lo=Math.min(+from.value,+to.value),hi=Math.max(+from.value,+to.value);
+ const subset=rows.filter(r=>r[1]>=lo&&r[1]<=hi&&selected.has(r[0]));
+ const ymax=Math.max(22,...subset.map(r=>r[2]));
+ const x=year=>left+(year-lo)/Math.max(1,hi-lo)*width;
+ const y=pos=>top+(pos-1)/Math.max(1,ymax-1)*height;
+ svg.replaceChildren();legend.replaceChildren();
+ for(let p=1;p<=ymax;p+=(ymax>25?5:2)){
+ const yy=y(p);svg.append(mk('line',{x1:left,y1:yy,x2:right,y2:yy,stroke:'#2e4263','stroke-width':1}));
+ const t=mk('text',{x:left-13,y:yy+4,fill:'#9fb1c9','text-anchor':'end','font-size':13});t.textContent=p;svg.append(t)}
+ const step=hi-lo>75?20:hi-lo>35?10:5;
+ for(let yr=Math.ceil(lo/step)*step;yr<=hi;yr+=step){
+ const xx=x(yr);svg.append(mk('line',{x1:xx,y1:top,x2:xx,y2:bottom,stroke:'#263752','stroke-width':1}));
+ const t=mk('text',{x:xx,y:bottom+28,fill:'#afc1da','text-anchor':'middle','font-size':13});t.textContent=yr;svg.append(t)}
+ const names=[...selected].sort();
+ names.forEach((club,i)=>{
+ const color=palette[i%palette.length],series=subset.filter(r=>r[0]===club).sort((a,b)=>a[1]-b[1]);
+ let segments=[],current=[],previous;
+ series.forEach(r=>{if(previous!==undefined&&r[1]!==previous+1){if(current.length)segments.push(current);current=[]}current.push(r);previous=r[1]});
+ if(current.length)segments.push(current);
+ segments.forEach(seg=>{
+ if(seg.length>1){let path=mk('path',{d:seg.map((r,j)=>(j?'L':'M')+x(r[1]).toFixed(2)+','+y(r[2]).toFixed(2)).join(' '),fill:'none',stroke:color,'stroke-width':2.8,'stroke-linecap':'round','stroke-linejoin':'round'});svg.append(path)}
+ seg.forEach(r=>{let point=mk('circle',{cx:x(r[1]),cy:y(r[2]),r:4.5,fill:color,stroke:'#0d192f','stroke-width':1});
+ point.addEventListener('pointermove',e=>{tooltip.style.display='block';tooltip.style.left=Math.min(e.clientX+12,innerWidth-200)+'px';tooltip.style.top=Math.max(5,e.clientY-52)+'px';tooltip.textContent=club+' · '+r[1]+'–'+String(r[1]+1).slice(-2)+' · '+r[2]+(r[2]===1?'st':r[2]===2?'nd':r[2]===3?'rd':'th')});
+ point.addEventListener('pointerleave',()=>tooltip.style.display='none');svg.append(point)})
+ });
+ const b=document.createElement('button');const dot=document.createElement('span');dot.className='dot';dot.style.background=color;b.append(dot,document.createTextNode(club));b.onclick=()=>{selected.delete(club);sync();render()};legend.append(b);
+ });
+ status.textContent=selected.size+' clubs selected · '+subset.length+' season records · '+lo+'–'+(hi+1);
+}
+function sync(){Array.from(select.options).forEach(o=>o.selected=selected.has(o.value))}
+select.addEventListener('change',()=>{selected=new Set(Array.from(select.selectedOptions).map(o=>o.value));render()});
+[from,to].forEach(el=>el.addEventListener('change',render));
+document.getElementById('reset').onclick=()=>{selected=new Set(featured.filter(c=>clubs.includes(c)));sync();render()};
+document.getElementById('all').onclick=()=>{selected=new Set(clubs);sync();render()};
+document.getElementById('csv').onclick=()=>{let s='club,year,position\n'+rows.filter(r=>selected.has(r[0])&&r[1]>=+from.value&&r[1]<=+to.value).map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');let a=document.createElement('a'),u=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.href=u;a.download='cxms-top-flight-positions.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
+fetch('/api/football-history').then(async r=>{if(!r.ok)throw new Error('Historical data service unavailable (HTTP '+r.status+')');return r.json()}).then(data=>{
+ rows=data.rows;clubs=[...new Set(rows.map(r=>r[0]))].sort();clubs.forEach(c=>select.add(new Option(c,c)));
+ from.min=data.min_year;from.value=data.min_year;to.max=data.max_year;to.value=data.max_year;
+ selected=new Set(featured.filter(c=>clubs.includes(c)));sync();render();
+}).catch(e=>{status.textContent='Unable to load historical data. Please reload the page or try again later. '+e.message;});
+</script></body></html>
