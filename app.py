@@ -403,3 +403,8 @@ if __name__ == "__main__":
     # Run the application
 
     app.run(debug=True)
+
+
+# English top-flight league history (1888 onward)
+from services.football_history import football_history
+app.register_blueprint(football_history)
