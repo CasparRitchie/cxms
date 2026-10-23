@@ -27,6 +27,10 @@ app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "sports-editorial-pilot
 app.register_blueprint(sports_editorial_workspace)
 app.register_blueprint(trade_ledger)
 
+# English top-flight league history (1888 onward)
+from services.football_history import football_history
+app.register_blueprint(football_history)
+
 
 @app.route("/")
 def index():
@@ -403,8 +407,3 @@ if __name__ == "__main__":
     # Run the application
 
     app.run(debug=True)
-
-
-# English top-flight league history (1888 onward)
-from services.football_history import football_history
-app.register_blueprint(football_history)
