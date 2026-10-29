@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090616">
+  <meta name="description" content="Make funny face-filter videos in your browser. No account, ads, or uploads.">
+  <title>Face Filters · CXMS</title>
+  <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='images/cxms-favicon1.jpeg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/face-filters.css') }}?v=1">
+</head>
+<body class="ff-page">
+  <header class="ff-topbar">
+    <a class="ff-brand" href="/" aria-label="CXMS home">CXMS</a>
+    <a class="ff-back" href="/games">← Games</a>
+  </header>
+
+  <main class="ff-app" data-face-filter-app>
+    <section class="ff-intro">
+      <div>
+        <p class="ff-kicker">Sammy's camera lab</p>
+        <h1>Face Filters</h1>
+        <p>Pick a silly look, press record, and make a video. Everything stays on this device.</p>
+      </div>
+      <div class="ff-privacy" aria-label="Privacy information">
+        <span aria-hidden="true">🔒</span>
+        <strong>Private by design</strong>
+        <small>No account, no ads, no uploads.</small>
+      </div>
+    </section>
+
+    <section class="ff-studio" aria-label="Face filter camera">
+      <div class="ff-stage" data-stage>
+        <video data-camera playsinline muted aria-hidden="true"></video>
+        <canvas data-output aria-label="Your live camera with the selected face filter"></canvas>
+        <div class="ff-stage-placeholder" data-placeholder>
+          <span class="ff-placeholder-face" aria-hidden="true">😜</span>
+          <h2>Ready to get silly?</h2>
+          <p>Camera and microphone access are only used here in your browser.</p>
+          <button class="ff-button ff-button--camera" data-start-camera type="button">Start camera</button>
+        </div>
+        <div class="ff-live-badge" data-live-badge hidden><span></span> Recording <b data-timer>0:00</b></div>
+        <div class="ff-status" data-status role="status" aria-live="polite">Camera is off</div>
+      </div>
+
+      <div class="ff-controls">
+        <div class="ff-filter-heading">
+          <div>
+            <p class="ff-kicker">Choose a look</p>
+            <h2 data-filter-name>No filter</h2>
+          </div>
+          <button class="ff-icon-button" data-flip-camera type="button" title="Switch camera" aria-label="Switch between front and back cameras">↻</button>
+        </div>
+
+        <div class="ff-filter-list" data-filter-list role="listbox" aria-label="Face filters">
+          <button class="ff-filter is-active" data-filter="none" type="button" role="option" aria-selected="true"><span>🙂</span><b>Normal</b></button>
+          <button class="ff-filter" data-filter="big-eyes" type="button" role="option" aria-selected="false"><span>👀</span><b>Big eyes</b></button>
+          <button class="ff-filter" data-filter="wide-face" type="button" role="option" aria-selected="false"><span>😆</span><b>Wide face</b></button>
+          <button class="ff-filter" data-filter="tiny-mouth" type="button" role="option" aria-selected="false"><span>🤐</span><b>Tiny mouth</b></button>
+          <button class="ff-filter" data-filter="wobble" type="button" role="option" aria-selected="false"><span>🫨</span><b>Wobble</b></button>
+          <button class="ff-filter" data-filter="space-ears" type="button" role="option" aria-selected="false"><span>👽</span><b>Space ears</b></button>
+          <button class="ff-filter" data-filter="hero-mask" type="button" role="option" aria-selected="false"><span>🦸</span><b>Hero mask</b></button>
+          <button class="ff-filter" data-filter="party-hat" type="button" role="option" aria-selected="false"><span>🥳</span><b>Party hat</b></button>
+        </div>
+
+        <div class="ff-actions">
+          <button class="ff-button ff-button--record" data-record type="button" disabled><span aria-hidden="true"></span><b>Start recording</b></button>
+          <button class="ff-button ff-button--stop" data-stop-camera type="button" disabled>Stop camera</button>
+        </div>
+        <p class="ff-help" data-help>Works best in good light with one face looking towards the camera.</p>
+      </div>
+    </section>
+
+    <section class="ff-result" data-result hidden aria-live="polite">
+      <div>
+        <p class="ff-kicker">Your latest video</p>
+        <h2>That was brilliant!</h2>
+      </div>
+      <video data-playback controls playsinline></video>
+      <div class="ff-result-actions">
+        <a class="ff-button ff-button--download" data-download download="cxms-face-filter-video.webm">Download video</a>
+        <button class="ff-button ff-button--secondary" data-discard type="button">Discard</button>
+      </div>
+      <p>The file is created locally. It is not sent to CXMS.</p>
+    </section>
+
+    <noscript><p class="ff-warning">Face Filters needs JavaScript to use the camera.</p></noscript>
+  </main>
+
+  <footer class="ff-footer">Made for laughs, not likes. Please ask before filming somebody else.</footer>
+  <script type="module" src="{{ url_for('static', filename='js/face-filters.js') }}?v=1"></script>
+</body>
+</html>

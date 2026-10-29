@@ -53,6 +53,12 @@ def games():
     return render_template("games.html")
 
 
+@app.route("/face-filters")
+@app.route("/face-filters/")
+def face_filters():
+    return render_template("face-filters.html")
+
+
 @app.route("/circuit-training")
 @app.route("/circuit-training/")
 def circuit_training():
