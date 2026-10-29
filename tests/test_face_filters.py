@@ -18,6 +18,7 @@ class FaceFiltersPageTests(unittest.TestCase):
         self.assertIn(b'data-filter="big-eyes"', response.data)
         self.assertIn(b'data-filter="mega-mouth"', response.data)
         self.assertIn(b'data-filter="party-hat"', response.data)
+        self.assertIn(b"js/face-filters.js?v=2", response.data)
         css_response = self.client.get("/static/css/face-filters.css")
         js_response = self.client.get("/static/js/face-filters.js")
         self.assertEqual(css_response.status_code, 200)
