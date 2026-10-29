@@ -64,6 +64,10 @@ if (app) {
   function setStatus(message) { ui.status.textContent = message; }
 
   async function startCamera() {
+    if (state.stream) {
+      await resumeCameraFromTap();
+      return;
+    }
     if (!navigator.mediaDevices?.getUserMedia) {
       setStatus("This browser cannot open the camera. Try a recent version of Safari, Chrome, Edge, or Firefox.");
       return;
@@ -76,21 +80,55 @@ if (app) {
         audio: { echoCancellation: true, noiseSuppression: true },
       });
       ui.video.srcObject = state.stream;
-      await ui.video.play();
-      resizeCanvas();
-      ui.placeholder.hidden = true;
-      ui.record.disabled = !(window.MediaRecorder && ui.canvas.captureStream);
-      ui.stop.disabled = false;
-      ui.flip.disabled = false;
-      setStatus("Camera ready · loading face tracking…");
-      renderFrame();
-      initialiseLandmarker();
+      ui.video.muted = true;
+      ui.video.setAttribute("playsinline", "");
+      try {
+        await ui.video.play();
+      } catch (playbackError) {
+        console.warn("Safari deferred camera playback", playbackError);
+        ui.start.disabled = false;
+        ui.start.textContent = "Tap to show camera";
+        setStatus("Safari needs one more tap to show the camera.");
+        return;
+      }
+      finishCameraStart();
     } catch (error) {
+      state.stream?.getTracks().forEach((track) => track.stop());
+      state.stream = null;
+      ui.video.srcObject = null;
       ui.start.disabled = false;
+      ui.start.textContent = "Start camera";
       if (error.name === "NotAllowedError") setStatus("Camera access was blocked. Allow camera access in your browser settings and try again.");
       else if (error.name === "NotFoundError") setStatus("No camera was found on this device.");
       else setStatus("The camera could not start. Close other camera apps and try again.");
     }
+  }
+
+  async function resumeCameraFromTap() {
+    ui.start.disabled = true;
+    setStatus("Starting the camera…");
+    try {
+      await ui.video.play();
+      finishCameraStart();
+    } catch (error) {
+      console.warn("Camera playback still blocked", error);
+      ui.start.disabled = false;
+      ui.start.textContent = "Try camera again";
+      setStatus("Safari is still blocking playback. Check Camera permission in Settings → Safari, then tap again.");
+    }
+  }
+
+  function finishCameraStart() {
+    resizeCanvas();
+    ui.placeholder.hidden = true;
+    ui.start.textContent = "Start camera";
+    ui.record.disabled = !(window.MediaRecorder && ui.canvas.captureStream);
+    ui.stop.disabled = false;
+    ui.flip.disabled = false;
+    setStatus("Camera ready · loading face tracking…");
+    cancelAnimationFrame(state.animationId);
+    renderFrame();
+    initialiseLandmarker();
   }
 
   async function initialiseLandmarker() {
@@ -278,7 +316,7 @@ if (app) {
     state.stream?.getTracks().forEach((track) => track.stop());
     state.stream = null; state.landmarks = null; state.lastVideoTime = -1;
     cancelAnimationFrame(state.animationId); ui.video.srcObject = null;
-    ui.placeholder.hidden = false; ui.start.disabled = false; ui.record.disabled = true; ui.stop.disabled = true; ui.flip.disabled = true;
+    ui.placeholder.hidden = false; ui.start.disabled = false; ui.start.textContent = "Start camera"; ui.record.disabled = true; ui.stop.disabled = true; ui.flip.disabled = true;
     setStatus("Camera is off");
   }
   function preferredMimeType() {
