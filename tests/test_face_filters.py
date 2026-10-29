@@ -18,7 +18,7 @@ class FaceFiltersPageTests(unittest.TestCase):
         self.assertIn(b'data-filter="big-eyes"', response.data)
         self.assertIn(b'data-filter="mega-mouth"', response.data)
         self.assertIn(b'data-filter="party-hat"', response.data)
-        self.assertIn(b"js/face-filters.js?v=2", response.data)
+        self.assertIn(b"js/face-filters.js?v=3", response.data)
         css_response = self.client.get("/static/css/face-filters.css")
         js_response = self.client.get("/static/js/face-filters.js")
         self.assertEqual(css_response.status_code, 200)
@@ -34,6 +34,9 @@ class FaceFiltersPageTests(unittest.TestCase):
         script = response.data
         self.assertIn(b"FaceLandmarker.createFromOptions", script)
         self.assertIn(b"function drawMegaMouth", script)
+        self.assertIn(b"OUTER_LIP_LANDMARKS", script)
+        self.assertIn(b"function drawWarpedTriangle", script)
+        self.assertNotIn(b"mouthLayer", script)
         self.assertIn(b"detectForVideo", script)
         self.assertIn(b"navigator.mediaDevices.getUserMedia", script)
         self.assertIn(b"ui.canvas.captureStream", script)

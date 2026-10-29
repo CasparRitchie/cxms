@@ -1,6 +1,7 @@
 const MEDIAPIPE_VERSION = "0.10.22-rc.20250304";
 const MEDIAPIPE_ROOT = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_VERSION}`;
 const FACE_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const OUTER_LIP_LANDMARKS = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 146];
 
 const app = document.querySelector("[data-face-filter-app]");
 
@@ -24,8 +25,6 @@ if (app) {
     discard: app.querySelector("[data-discard]"),
   };
   const context = ui.canvas.getContext("2d", { alpha: false, desynchronized: true });
-  const mouthLayer = document.createElement("canvas");
-  const mouthContext = mouthLayer.getContext("2d");
   const state = {
     stream: null, landmarker: null, landmarks: null, animationId: 0,
     facingMode: "user", activeFilter: "none", lastVideoTime: -1,
@@ -184,38 +183,50 @@ if (app) {
   function drawMegaMouth(ctx, landmarks, width, height) {
     const left = point(landmarks, 61, width, height), right = point(landmarks, 291, width, height);
     const top = point(landmarks, 13, width, height), bottom = point(landmarks, 14, width, height);
-    const box = faceBox(landmarks, width, height);
-    const x = (left.x + right.x) / 2, y = (top.y + bottom.y) / 2;
-    const mouthWidth = Math.hypot(right.x - left.x, right.y - left.y);
-    const sourceWidth = Math.max(mouthWidth * 1.22, box.width * .42);
-    const sourceHeight = Math.max(Math.abs(bottom.y - top.y) * 3.4, box.height * .19);
-    const targetWidth = Math.min(Math.max(sourceWidth * 2.35, box.width * .88), box.width * 1.04);
-    const targetHeight = sourceHeight * 1.42;
-    const layerWidth = Math.max(1, Math.round(targetWidth));
-    const layerHeight = Math.max(1, Math.round(targetHeight));
+    const center = { x: (left.x + right.x) / 2, y: (top.y + bottom.y) / 2 };
+    const mouthWidth = Math.max(1, Math.hypot(right.x - left.x, right.y - left.y));
+    const axis = { x: (right.x - left.x) / mouthWidth, y: (right.y - left.y) / mouthWidth };
+    const normal = { x: -axis.y, y: axis.x };
+    const sourceBoundary = OUTER_LIP_LANDMARKS.map((index) => point(landmarks, index, width, height));
+    const targetBoundary = sourceBoundary.map((source) => {
+      const dx = source.x - center.x, dy = source.y - center.y;
+      const along = dx * axis.x + dy * axis.y;
+      const across = dx * normal.x + dy * normal.y;
+      return {
+        x: center.x + axis.x * along * 2.32 + normal.x * across * 1.34,
+        y: center.y + axis.y * along * 2.32 + normal.y * across * 1.34,
+      };
+    });
 
-    mouthLayer.width = layerWidth;
-    mouthLayer.height = layerHeight;
-    mouthContext.clearRect(0, 0, layerWidth, layerHeight);
-    mouthContext.drawImage(
-      ui.video,
-      x - sourceWidth / 2, y - sourceHeight / 2, sourceWidth, sourceHeight,
-      0, 0, layerWidth, layerHeight,
-    );
-    mouthContext.globalCompositeOperation = "destination-in";
-    const feather = mouthContext.createRadialGradient(
-      layerWidth / 2, layerHeight / 2, layerHeight * .18,
-      layerWidth / 2, layerHeight / 2, layerWidth * .53,
-    );
-    feather.addColorStop(0, "rgba(0,0,0,1)");
-    feather.addColorStop(.7, "rgba(0,0,0,.98)");
-    feather.addColorStop(.9, "rgba(0,0,0,.72)");
-    feather.addColorStop(1, "rgba(0,0,0,0)");
-    mouthContext.fillStyle = feather;
-    mouthContext.fillRect(0, 0, layerWidth, layerHeight);
-    mouthContext.globalCompositeOperation = "source-over";
+    for (let index = 0; index < sourceBoundary.length; index += 1) {
+      const next = (index + 1) % sourceBoundary.length;
+      drawWarpedTriangle(
+        ctx,
+        [center, sourceBoundary[index], sourceBoundary[next]],
+        [center, targetBoundary[index], targetBoundary[next]],
+        width,
+        height,
+      );
+    }
+  }
+  function drawWarpedTriangle(ctx, source, target, width, height) {
+    const [s0, s1, s2] = source, [d0, d1, d2] = target;
+    const determinant = s0.x * (s1.y - s2.y) + s1.x * (s2.y - s0.y) + s2.x * (s0.y - s1.y);
+    if (Math.abs(determinant) < .001) return;
+    const a = (d0.x * (s1.y - s2.y) + d1.x * (s2.y - s0.y) + d2.x * (s0.y - s1.y)) / determinant;
+    const b = (d0.y * (s1.y - s2.y) + d1.y * (s2.y - s0.y) + d2.y * (s0.y - s1.y)) / determinant;
+    const c = (d0.x * (s2.x - s1.x) + d1.x * (s0.x - s2.x) + d2.x * (s1.x - s0.x)) / determinant;
+    const d = (d0.y * (s2.x - s1.x) + d1.y * (s0.x - s2.x) + d2.y * (s1.x - s0.x)) / determinant;
+    const e = (d0.x * (s1.x * s2.y - s2.x * s1.y) + d1.x * (s2.x * s0.y - s0.x * s2.y) + d2.x * (s0.x * s1.y - s1.x * s0.y)) / determinant;
+    const f = (d0.y * (s1.x * s2.y - s2.x * s1.y) + d1.y * (s2.x * s0.y - s0.x * s2.y) + d2.y * (s0.x * s1.y - s1.x * s0.y)) / determinant;
 
-    ctx.drawImage(mouthLayer, x - targetWidth / 2, y - targetHeight / 2, targetWidth, targetHeight);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(d0.x, d0.y); ctx.lineTo(d1.x, d1.y); ctx.lineTo(d2.x, d2.y); ctx.closePath();
+    ctx.clip();
+    ctx.transform(a, b, c, d, e, f);
+    ctx.drawImage(ui.video, 0, 0, width, height);
+    ctx.restore();
   }
   function drawTinyMouth(ctx, landmarks, width, height) {
     const left = point(landmarks, 61, width, height), right = point(landmarks, 291, width, height);
