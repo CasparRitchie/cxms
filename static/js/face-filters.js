@@ -24,6 +24,8 @@ if (app) {
     discard: app.querySelector("[data-discard]"),
   };
   const context = ui.canvas.getContext("2d", { alpha: false, desynchronized: true });
+  const mouthLayer = document.createElement("canvas");
+  const mouthContext = mouthLayer.getContext("2d");
   const state = {
     stream: null, landmarker: null, landmarks: null, animationId: 0,
     facingMode: "user", activeFilter: "none", lastVideoTime: -1,
@@ -34,6 +36,7 @@ if (app) {
     none: { label: "No filter", draw() {} },
     "big-eyes": { label: "Big eyes", draw: drawBigEyes },
     "wide-face": { label: "Wide face", draw: drawWideFace },
+    "mega-mouth": { label: "Mega mouth", draw: drawMegaMouth },
     "tiny-mouth": { label: "Tiny mouth", draw: drawTinyMouth },
     wobble: { label: "Wobble", draw: drawWobble },
     "space-ears": { label: "Space ears", draw: drawSpaceEars },
@@ -177,6 +180,42 @@ if (app) {
     ctx.save(); clipEllipse(ctx, box.cx, box.cy, box.width * .64, box.height * .53);
     ctx.drawImage(ui.video, box.left - pad, box.top, box.width + pad * 2, box.height,
       box.left - box.width * .2, box.top, box.width * 1.4, box.height); ctx.restore();
+  }
+  function drawMegaMouth(ctx, landmarks, width, height) {
+    const left = point(landmarks, 61, width, height), right = point(landmarks, 291, width, height);
+    const top = point(landmarks, 13, width, height), bottom = point(landmarks, 14, width, height);
+    const box = faceBox(landmarks, width, height);
+    const x = (left.x + right.x) / 2, y = (top.y + bottom.y) / 2;
+    const mouthWidth = Math.hypot(right.x - left.x, right.y - left.y);
+    const sourceWidth = Math.max(mouthWidth * 1.22, box.width * .42);
+    const sourceHeight = Math.max(Math.abs(bottom.y - top.y) * 3.4, box.height * .19);
+    const targetWidth = Math.min(Math.max(sourceWidth * 2.35, box.width * .88), box.width * 1.04);
+    const targetHeight = sourceHeight * 1.42;
+    const layerWidth = Math.max(1, Math.round(targetWidth));
+    const layerHeight = Math.max(1, Math.round(targetHeight));
+
+    mouthLayer.width = layerWidth;
+    mouthLayer.height = layerHeight;
+    mouthContext.clearRect(0, 0, layerWidth, layerHeight);
+    mouthContext.drawImage(
+      ui.video,
+      x - sourceWidth / 2, y - sourceHeight / 2, sourceWidth, sourceHeight,
+      0, 0, layerWidth, layerHeight,
+    );
+    mouthContext.globalCompositeOperation = "destination-in";
+    const feather = mouthContext.createRadialGradient(
+      layerWidth / 2, layerHeight / 2, layerHeight * .18,
+      layerWidth / 2, layerHeight / 2, layerWidth * .53,
+    );
+    feather.addColorStop(0, "rgba(0,0,0,1)");
+    feather.addColorStop(.7, "rgba(0,0,0,.98)");
+    feather.addColorStop(.9, "rgba(0,0,0,.72)");
+    feather.addColorStop(1, "rgba(0,0,0,0)");
+    mouthContext.fillStyle = feather;
+    mouthContext.fillRect(0, 0, layerWidth, layerHeight);
+    mouthContext.globalCompositeOperation = "source-over";
+
+    ctx.drawImage(mouthLayer, x - targetWidth / 2, y - targetHeight / 2, targetWidth, targetHeight);
   }
   function drawTinyMouth(ctx, landmarks, width, height) {
     const left = point(landmarks, 61, width, height), right = point(landmarks, 291, width, height);
