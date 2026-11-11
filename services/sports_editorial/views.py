@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from copy import deepcopy
 from datetime import date, datetime, timezone
@@ -64,6 +65,8 @@ def _queue_highlight_url(value, submission_id):
 
 @blueprint.before_request
 def require_workspace_session():
+    if os.environ.get("SPORTS_EDITORIAL_ENABLED", "true").strip().lower() in {"0", "false", "no", "off"}:
+        abort(404)
     if request.endpoint in ("sports_editorial_workspace.login", "sports_editorial_workspace.logout"):
         return None
     if auth_configuration()["mode"] == "workspace" and not current_user():

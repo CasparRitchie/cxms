@@ -58,6 +58,14 @@ class SportsEditorialPilotTests(unittest.TestCase):
         data.update(overrides)
         return data
 
+    def test_feature_flag_disables_every_sports_editorial_route_only(self):
+        with patch.dict(os.environ, {"SPORTS_EDITORIAL_ENABLED": "false"}):
+            self.assertEqual(self.client.get("/workspace/sports-editorial/").status_code, 404)
+            self.assertEqual(self.client.get("/workspace/sports-editorial/login").status_code, 404)
+            self.assertEqual(self.client.get("/workspace/sports-editorial/entities/search?q=cam").status_code, 404)
+
+        self.assertNotEqual(self.client.get("/level-crossing").status_code, 404)
+
     def test_backfill_season_ranges_expand_and_validate(self):
         self.assertEqual(expand_seasons([2026], ["2024-2025"]), [2024, 2025, 2026])
         with self.assertRaisesRegex(ValueError, "run forwards"):
