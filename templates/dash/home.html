@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Dash | Better work, made visible{% endblock %}
+
+{% block head_extra %}
+  <meta name="description" content="A preliminary workspace for turning workplace insight into measurable improvement." />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dash.css') }}" />
+{% endblock %}
+
+{% block body_class %} dash-page{% endblock %}
+
+{% block site_header %}
+  <header class="dash-header">
+    <a class="dash-brand" href="{{ url_for('dash.home') }}" aria-label="Dash home">
+      <span class="dash-brand__mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>Dash <small>working concept</small></span>
+    </a>
+    <nav aria-label="Dash navigation">
+      <a href="#approach">Approach</a>
+      <a href="#workspaces">Workspaces</a>
+      <a class="dash-nav-action" href="#next">Shape the pilot</a>
+    </nav>
+  </header>
+{% endblock %}
+
+{% block content %}
+  <section class="dash-hero">
+    <div class="dash-hero__copy">
+      <p class="dash-eyebrow">Fitness for the workplace</p>
+      <h1>Better work starts with the people who know it best.</h1>
+      <p class="dash-lead">Dash is an early concept for helping people identify opportunities, improve the way work happens and show the value their changes create.</p>
+      <div class="dash-actions">
+        <a class="dash-button dash-button--primary" href="#approach">Explore the approach</a>
+        <a class="dash-button dash-button--secondary" href="#workspaces">See the product shape</a>
+      </div>
+      <p class="dash-note">Preliminary web workspace · No live employee or organisation data</p>
+    </div>
+    <div class="dash-hero__visual" aria-label="A continuous workplace improvement cycle">
+      <div class="dash-orbit dash-orbit--outer"></div>
+      <div class="dash-orbit dash-orbit--inner"></div>
+      <div class="dash-pulse"><span>Observe</span><strong>Improve</strong><span>Learn</span></div>
+      <span class="dash-dot dash-dot--one">People</span>
+      <span class="dash-dot dash-dot--two">Purpose</span>
+      <span class="dash-dot dash-dot--three">Value</span>
+    </div>
+  </section>
+
+  <section class="dash-section dash-purpose" aria-labelledby="purpose-title">
+    <div class="dash-section__heading">
+      <p class="dash-eyebrow">Define the purpose</p>
+      <h2 id="purpose-title">Start with what the organisation wants to improve.</h2>
+      <p>Purpose sets the context. Dash can later adapt guidance and measures to the organisation, role and value sought.</p>
+    </div>
+    <div class="dash-purpose-grid">
+      {% for purpose in purposes %}
+        <article class="dash-purpose-card">
+          <span aria-hidden="true">0{{ loop.index }}</span>
+          <h3>{{ purpose.name }}</h3>
+          <p>{{ purpose.summary }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="dash-section dash-approach" id="approach" aria-labelledby="approach-title">
+    <div class="dash-section__heading dash-section__heading--light">
+      <p class="dash-eyebrow">A practical improvement loop</p>
+      <h2 id="approach-title">From a worthwhile purpose to evidence of change.</h2>
+      <p>The initial scaffold gives every future workflow a common shape without fixing the final methodology or interface too early.</p>
+    </div>
+    <ol class="dash-loop">
+      {% for item in improvement_loop %}
+        <li>
+          <span>{{ item.step }}</span>
+          <div><h3>{{ item.name }}</h3><p>{{ item.summary }}</p></div>
+        </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <section class="dash-section" id="workspaces" aria-labelledby="workspaces-title">
+    <div class="dash-section__heading">
+      <p class="dash-eyebrow">One platform, different perspectives</p>
+      <h2 id="workspaces-title">A useful home for individual and shared improvement.</h2>
+      <p>These are product boundaries, not finished features. They keep the employee experience focused while leaving room for management and programme reporting.</p>
+    </div>
+    <div class="dash-workspace-grid">
+      {% for area in work_areas %}
+        <article class="dash-workspace-card">
+          <p class="dash-card-label">{{ area.label }}</p>
+          <h3>{{ area.title }}</h3>
+          <p>{{ area.summary }}</p>
+          <span class="dash-status">{{ area.status }}</span>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="dash-section dash-journey" aria-labelledby="journey-title">
+    <div class="dash-journey__copy">
+      <p class="dash-eyebrow">A possible customer lens</p>
+      <h2 id="journey-title">Connect improvements to the moments customers experience.</h2>
+      <p>For customer-facing work, organisations could associate improvement activity with their own lifecycle. This example uses the LBGUPS stages plus Exit; it is an optional lens rather than a fixed Dash model.</p>
+    </div>
+    <ol class="dash-journey-track" aria-label="Example customer lifecycle">
+      {% for stage in journey_stages %}<li><span>{{ loop.index }}</span>{{ stage }}</li>{% endfor %}
+    </ol>
+  </section>
+
+  <section class="dash-section dash-next" id="next" aria-labelledby="next-title">
+    <p class="dash-eyebrow">Next decision</p>
+    <h2 id="next-title">Choose one real workplace problem for the first pilot.</h2>
+    <p>The strongest next step is a narrow end-to-end journey: capture an opportunity, define a measure, record actions and review the result with a small pilot team.</p>
+    <div class="dash-next__checks" aria-label="Pilot principles">
+      <span>One organisation</span><span>One improvement journey</span><span>A small set of measures</span><span>Evidence before automation</span>
+    </div>
+  </section>
+{% endblock %}
+
+{% block site_footer %}
+  <footer class="dash-footer"><p>Dash is a working product concept hosted within CXMS for early development.</p><a href="{{ url_for('index') }}">Return to CXMS</a></footer>
+{% endblock %}
