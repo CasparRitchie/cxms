@@ -6,6 +6,7 @@ import json
 import re
 from statistics import median
 import threading
+import time
 
 from services.sports_editorial.supabase_rest import SupabaseRestClient
 
@@ -84,8 +85,12 @@ class ObservationRateLimiter:
 
 
 class LevelCrossingObservationStore:
-    def __init__(self, client=None):
+    def __init__(self, client=None, summary_cache_seconds=60):
         self.client = client or SupabaseRestClient()
+        self.summary_cache_seconds = max(0, int(summary_cache_seconds))
+        self._summary_cache = None
+        self._summary_cache_at = 0.0
+        self._summary_cache_lock = threading.Lock()
 
     @property
     def configured(self):
@@ -155,7 +160,13 @@ class LevelCrossingObservationStore:
             payload=row,
             prefer="resolution=merge-duplicates,return=representation",
         )
+        self._invalidate_summary_cache()
         return result[0] if isinstance(result, list) and result else row
+
+    def _invalidate_summary_cache(self):
+        with self._summary_cache_lock:
+            self._summary_cache = None
+            self._summary_cache_at = 0.0
 
     @staticmethod
     def _undone(row):
@@ -200,6 +211,7 @@ class LevelCrossingObservationStore:
         )
         if not isinstance(result, list) or len(result) != 1:
             raise ObservationValidationError("The watch tap could not be marked as undone.")
+        self._invalidate_summary_cache()
         return {"undone": True, "id": observation_id}
 
     def calibration_summary(self, now=None, limit=1000):
@@ -209,6 +221,13 @@ class LevelCrossingObservationStore:
         the browser. The summary is diagnostic only; it does not claim that a
         predictive model is already trained.
         """
+        cacheable = now is None
+        if cacheable and self.summary_cache_seconds:
+            with self._summary_cache_lock:
+                cache_age = time.monotonic() - self._summary_cache_at
+                if self._summary_cache is not None and cache_age < self.summary_cache_seconds:
+                    return self._summary_cache
+
         now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         summaries = {
             crossing_id: {
@@ -285,13 +304,18 @@ class LevelCrossingObservationStore:
             elif summary["total"] >= 5 and summary["tdLinked"] >= 3:
                 summary["calibrationState"] = "early_evidence"
 
-        return {
+        result = {
             "status": "ready",
             "totalObservations": sum(summary["total"] for summary in summaries.values()),
             "predictionUse": "not_active",
             "crossings": list(summaries.values()),
             "latestReports": latest_reports,
         }
+        if cacheable and self.summary_cache_seconds:
+            with self._summary_cache_lock:
+                self._summary_cache = result
+                self._summary_cache_at = time.monotonic()
+        return result
 
     def calibration_analysis(self, crossing_id, limit=1000):
         """Compare watch-session gate states with nearby TD berth events.

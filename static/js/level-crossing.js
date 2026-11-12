@@ -490,7 +490,7 @@
   }
 
   async function loadCalibrationStatus() {
-    if (!elements.calibrationCopy) return;
+    if (!elements.calibrationCopy || document.hidden) return;
     try {
       const response = await fetch("/api/level-crossing/calibration-status", { cache: "no-store" });
       if (!response.ok) throw new Error("Calibration unavailable");
@@ -509,6 +509,7 @@
   }
 
   async function loadPredictionStatus() {
+    if (document.hidden) return;
     try {
       const response = await fetch("/api/level-crossing/predictions", { cache: "no-store" });
       if (!response.ok) throw new Error("Predictions unavailable");
@@ -1005,11 +1006,18 @@
   void loadPredictionStatus();
   void loadDepartures();
   syncPendingObservations();
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    void loadCalibrationStatus();
+    void loadFeedStatus();
+    void loadPredictionStatus();
+    void loadDepartures();
+  });
   window.setInterval(renderPredictions, 30000);
   window.setInterval(loadJourney, 90000);
-  window.setInterval(loadCalibrationStatus, 30000);
+  window.setInterval(loadCalibrationStatus, 300000);
   window.setInterval(loadFeedStatus, 10000);
-  window.setInterval(loadPredictionStatus, 10000);
+  window.setInterval(loadPredictionStatus, 30000);
   window.setInterval(loadDepartures, 30000);
   window.setInterval(updateWatchElapsed, 1000);
 })();

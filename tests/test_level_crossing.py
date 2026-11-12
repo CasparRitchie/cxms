@@ -53,6 +53,9 @@ class LevelCrossingPageTests(unittest.TestCase):
         self.assertIn(b"crossing-selection-chip-state", js_response.data)
         self.assertIn(b"waitrose-chichester", js_response.data)
         self.assertIn(b"const watchSteps", js_response.data)
+        self.assertIn(b"if (document.hidden) return", js_response.data)
+        self.assertIn(b"loadCalibrationStatus, 300000", js_response.data)
+        self.assertIn(b"loadPredictionStatus, 30000", js_response.data)
         self.assertNotIn(b"const viaA27 = 690", js_response.data)
         self.assertNotIn(b"demoTrainDestinations", js_response.data)
         css_response.close()
@@ -647,6 +650,33 @@ class LevelCrossingObservationTests(unittest.TestCase):
         self.assertEqual(whyke["watchSessions"], 1)
         self.assertEqual(summary["latestReports"][0]["state"], "OPEN")
         self.assertNotIn("td_snapshot", summary["latestReports"][0])
+
+    def test_calibration_summary_reuses_recent_supabase_result(self):
+        client = FakeObservationReadClient([])
+        store = LevelCrossingObservationStore(client=client, summary_cache_seconds=60)
+
+        first = store.calibration_summary()
+        second = store.calibration_summary()
+
+        self.assertIs(first, second)
+        self.assertEqual(len(client.calls), 1)
+
+    def test_saving_an_observation_invalidates_calibration_cache(self):
+        class ReadWriteClient(FakeObservationReadClient):
+            def request(self, table, method="GET", query=None, payload=None, prefer=None):
+                if method == "POST":
+                    self.calls.append((table, method, query))
+                    return [payload]
+                return super().request(table, method, query, payload, prefer)
+
+        client = ReadWriteClient([])
+        store = LevelCrossingObservationStore(client=client, summary_cache_seconds=60)
+        store.calibration_summary()
+        store.save(self.payload, {})
+        store.calibration_summary()
+
+        get_calls = [call for call in client.calls if call[1] == "GET"]
+        self.assertEqual(len(get_calls), 2)
 
     def test_calibration_analysis_corrects_mistap_and_ranks_repeated_berths(self):
         start = datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc)
