@@ -27,6 +27,17 @@ class DashPageTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b"Dash is an early concept", response.data)
 
+    def test_personal_app_is_available_with_or_without_trailing_slash(self):
+        for path in ("/dash/app", "/dash/app/"):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'Dash personal improvement journey prototype', response.data)
+            self.assertIn(b'static/js/dash/app.js', response.data)
+
+    def test_dash_home_links_to_personal_app(self):
+        response = self.client.get("/dash")
+        self.assertIn(b'href="/dash/app/"', response.data)
+
 
 if __name__ == "__main__":
     unittest.main()

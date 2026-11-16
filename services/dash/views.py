@@ -16,3 +16,10 @@ def home():
         purposes=PURPOSES,
         work_areas=WORK_AREAS,
     )
+
+
+@blueprint.get("/app")
+@blueprint.get("/app/")
+def personal_app():
+    """Render the synthetic, read-only personal improvement prototype."""
+    return render_template("dash/app.html")

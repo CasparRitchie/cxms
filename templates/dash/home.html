@@ -18,7 +18,7 @@
     <nav aria-label="Dash navigation">
       <a href="#approach">Approach</a>
       <a href="#workspaces">Workspaces</a>
-      <a class="dash-nav-action" href="#next">Shape the pilot</a>
+      <a class="dash-nav-action" href="{{ url_for('dash.personal_app') }}">Open prototype</a>
     </nav>
   </header>
 {% endblock %}
@@ -30,7 +30,7 @@
       <h1>Better work starts with the people who know it best.</h1>
       <p class="dash-lead">Dash is an early concept for helping people identify opportunities, improve the way work happens and show the value their changes create.</p>
       <div class="dash-actions">
-        <a class="dash-button dash-button--primary" href="#approach">Explore the approach</a>
+        <a class="dash-button dash-button--primary" href="{{ url_for('dash.personal_app') }}">Try the personal journey</a>
         <a class="dash-button dash-button--secondary" href="#workspaces">See the product shape</a>
       </div>
       <p class="dash-note">Preliminary web workspace · No live employee or organisation data</p>
