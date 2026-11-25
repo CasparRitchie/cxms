@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SammyTV access</title><link rel="stylesheet" href="{{ url_for('static', filename='sammytv/app.css') }}"></head>
+<body><main><h1>SammyTV</h1>
+{% if message %}<p role="status">{{ message }}</p>{% endif %}
+{% if code %}<p><strong>{{ code }}</strong></p>{% endif %}
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+{% if kind == 'signin' %}<h2>Parent sign-in</h2><p>Use your verified parent account.</p><label>Email <input type="email" name="email" autocomplete="username" required maxlength="254"></label><label>Password <input type="password" name="password" autocomplete="current-password" required maxlength="1024"></label><button>Sign in</button>
+{% elif kind == 'pair' %}<h2>Connect this device</h2><label>Parent pairing code <input name="code" autocomplete="off" required minlength="32" maxlength="32"></label><button>Connect</button>
+{% else %}<h2>Viewer devices</h2><p>Generate a single-use code for your viewer's device. A new code replaces any unused code.</p><button>Create pairing code</button>{% endif %}</form>
+{% if kind == 'devices' %}<form method="post" action="{{ url_for('sammytv.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button>Sign out</button></form>{% endif %}
+<p><a href="/sammytv">Collection</a> · <a href="/sammytv/signin">Parent sign-in</a> · <a href="/sammytv/pair">Connect device</a> · <a href="/sammytv/devices">Viewer devices</a></p></main></body></html>

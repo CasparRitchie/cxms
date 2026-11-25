@@ -1,0 +1,18 @@
+{% macro video_card(item, preview) %}
+<article class="card" data-id="{{ item.id }}" data-categories='{{ item.categories|tojson }}' data-search="{{ (item.title + ' ' + item.channel.name)|lower }}">
+  <a class="thumbnail art-{{ item.kind }}" href="{{ url_for('sammytv.page', video_id=item.id) }}">
+    <img src="{{ url_for('static', filename='sammytv/' + item.kind + '.svg') }}" alt="" loading="lazy">
+    <span class="thumb-caption">{{ item.caption }}</span>
+    <span class="duration {{ 'live' if item.duration == 'LIVE' else '' }}">{{ '● LIVE PREVIEW' if item.duration == 'LIVE' else item.duration }}</span>
+  </a>
+  <div class="card-details">
+    <a class="avatar" href="{{ url_for('sammytv.page', channel_id=item.channel.id) }}" aria-label="{{ item.channel.name }}">{{ item.channel.initials }}</a>
+    <div>
+      <h3><a href="{{ url_for('sammytv.page', video_id=item.id) }}">{{ item.title }}</a></h3>
+      <a class="channel-link" href="{{ url_for('sammytv.page', channel_id=item.channel.id) }}">{{ item.channel.name }}</a>
+      <p>{{ 'Illustrative video · Preview' if preview else 'Parent-reviewed video' }}</p>
+    </div>
+    <button class="save favourite" aria-label="Favourite {{ item.title }}" aria-pressed="false" data-id="{{ item.id }}">♡</button>
+  </div>
+</article>
+{% endmacro %}

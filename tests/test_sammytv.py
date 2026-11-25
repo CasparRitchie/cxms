@@ -1,9 +1,14 @@
+import os
 import unittest
+from unittest.mock import patch
 from app import app
 
 
 class SammyTVTests(unittest.TestCase):
     def setUp(self):
+        self.mode = patch.dict(os.environ, {'SAMMYTV_MODE': 'preview'})
+        self.mode.start()
+        self.addCleanup(self.mode.stop)
         self.client = app.test_client()
 
     def test_routes_are_isolated_previews(self):
@@ -26,6 +31,19 @@ class SammyTVTests(unittest.TestCase):
     def test_search_input_is_escaped(self):
         response = self.client.get('/sammytv/search', query_string={'q': '<script>alert(1)</script>'})
         self.assertNotIn(b'<script>alert(1)</script>', response.data)
+
+    def test_preview_never_exposes_a_real_catalogue_or_enables_youtube(self):
+        with patch.dict(os.environ, {'SAMMYTV_YOUTUBE_PLAYBACK_ENABLED': '1'}):
+            response = self.client.get('/sammytv/watch/coast')
+            self.assertIn("frame-src 'none'", response.headers['Content-Security-Policy'])
+            self.assertNotIn(b'Load YouTube player', response.data)
+            self.assertEqual(self.client.get('/sammytv/api/catalogue').status_code, 503)
+
+    def test_unknown_mode_fails_closed(self):
+        with patch.dict(os.environ, {'SAMMYTV_MODE': 'mistyped-catalogue'}):
+            response = self.client.get('/sammytv')
+            self.assertEqual(response.status_code, 503)
+            self.assertNotIn(b'Along the coast', response.data)
 
 
 if __name__ == '__main__':
