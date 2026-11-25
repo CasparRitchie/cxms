@@ -12,6 +12,7 @@ from services.data_explorer.eda_engine import (
 from services.sports_editorial import sports_editorial_workspace
 from services.trade_ledger import trade_ledger
 from services.dash import dash
+from services.sammytv import sammytv
 from services.level_crossing.td_feed import td_feed
 from services.level_crossing.observations import (
     ObservationValidationError,
@@ -28,6 +29,7 @@ app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "sports-editorial-pilot
 app.register_blueprint(sports_editorial_workspace)
 app.register_blueprint(trade_ledger)
 app.register_blueprint(dash)
+app.register_blueprint(sammytv)
 
 # English top-flight league history (1888 onward)
 from services.football_history import football_history
