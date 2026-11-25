@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>{{ brand_name }} · Parent area</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='sammytv/app.css') }}">
+  <script defer src="{{ url_for('static', filename='sammytv/app.js') }}"></script>
+</head>
+<body class="stv stv-admin" data-section="admin" data-preview="false">
+<a class="skip" href="#content">Skip to parent controls</a>
+<header class="header">
+  <a class="brand" href="/sammytv"><span class="brand-icon">▶</span> {{ brand_name }}</a>
+  <span class="parent-label">PARENT AREA</span>
+  <nav class="parent-navigation" aria-label="Parent navigation">
+    <a href="{{ url_for('sammytv.admin') }}" {% if not item %}aria-current="page"{% endif %}>Videos</a>
+    <a href="{{ url_for('sammytv.devices') }}">Devices</a>
+    <a href="/sammytv">View collection ↗</a>
+  </nav>
+  <button class="icon theme" aria-label="Switch colour theme">◐</button>
+</header>
+<main id="content" class="parent-content">
+  {% if error %}<div class="parent-alert error" role="alert">{{ error }}</div>{% endif %}
+  {% if message %}<div class="parent-alert" role="status">{{ message }}</div>{% endif %}
+  {% if not lookup_configured %}
+  <div class="parent-alert" role="status"><strong>One setup step remains</strong><p>Video details need a YouTube Data API key. Add <code>SAMMYTV_YOUTUBE_API_KEY</code> in Heroku, then reload this page. You can still remove videos while lookup is unavailable.</p></div>
+  {% endif %}
+  {% if item %}
+  <a class="back-link" href="{{ url_for('sammytv.admin') }}">← All parent videos</a>
+  <div class="parent-heading"><div><p class="eyebrow">INDIVIDUAL VIDEO REVIEW</p><h1>Make room for a great watch.</h1></div><span class="status-badge status-{{ item.status }}">{{ {'pending':'Needs review','approved':'Approved','hidden':'Removed','rejected':'Rejected'}[item.status] }}</span></div>
+  <div class="review-layout">
+    <section class="parent-panel review-details" aria-labelledby="video-title">
+      <div class="review-art"><img src="{{ url_for('static', filename='sammytv/train.svg') }}" alt=""><span>Watch before you approve</span></div>
+      <p class="eyebrow">{{ item.channel.name }}</p>
+      <h2 id="video-title">{{ item.title }}</h2>
+      <p class="muted">{{ (item.duration_seconds // 3600)|string + 'h ' if item.duration_seconds >= 3600 else '' }}{{ (item.duration_seconds % 3600) // 60 }}m {{ item.duration_seconds % 60 }}s · YouTube video</p>
+      <a class="pill parent-primary external-review" href="https://www.youtube.com/watch?v={{ item.provider_video_id }}" target="_blank" rel="noopener noreferrer">Watch on YouTube ↗</a>
+      <p class="muted">Opens YouTube in a new tab for your review. This does not approve the video or enable playback for a viewer.</p>
+      <details class="review-description"><summary>Video description</summary><p>{{ item.description or 'No description supplied.' }}</p></details>
+      {% if blocked %}<div class="parent-alert error"><strong>This video cannot be approved yet</strong><ul>{% for reason in blocked %}<li>{{ reason }}</li>{% endfor %}</ul></div>{% endif %}
+    </section>
+    <section class="parent-panel" aria-labelledby="approval-heading">
+      <p class="eyebrow">YOUR DECISION</p><h2 id="approval-heading">Review &amp; approve</h2>
+      <p class="muted">Approval is for this video only. Other uploads from this channel stay outside the collection.</p>
+      <form method="post" class="parent-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="review_token" value="{{ review_token }}">
+        <fieldset><legend>Choose categories</legend><div class="category-options">
+          {% for category in category_records %}<label class="category-option"><input type="checkbox" name="category_ids" value="{{ category.id }}" {% if category.id in selected_categories %}checked{% endif %}><span>{{ category.name }}</span></label>{% endfor %}
+        </div></fieldset>
+        <label for="review-notes">Private notes <span class="muted">Optional · only visible to parents</span></label>
+        <textarea id="review-notes" name="notes" rows="4" maxlength="10000" placeholder="Anything to remember about this video?">{{ form.get('notes', item.moderation_notes) }}</textarea>
+        <label class="review-confirmation"><input type="checkbox" name="reviewed" value="yes" required><span>I have watched this video and reviewed its suitability for my viewer.</span></label>
+        <p class="muted">YouTube availability is checked again when you approve. These checks do not assess whether the content is suitable; that decision is yours.</p>
+        <button class="pill parent-primary" name="action" value="approve" {% if blocked or not lookup_configured or not category_records %}disabled{% endif %}>{{ 'Save approval & categories' if item.status == 'approved' else 'Approve for collection' }}</button>
+      </form>
+      {% if item.status != 'hidden' %}
+      <div class="remove-section"><h3>Remove from collection</h3><p class="muted">Hide this video now. Its details stay here so you can review it again later. A player already open on another device may keep playing.</p>
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="review_token" value="{{ review_token }}"><button class="pill parent-danger" name="action" value="hide">Remove video</button></form>
+      </div>{% endif %}
+    </section>
+  </div>
+  {% else %}
+  <div class="parent-heading"><div><p class="eyebrow">A COLLECTION BUILT BY YOU</p><h1>Choose what belongs.</h1><p class="muted">Add one video at a time. Review it, choose its categories, then approve it for your collection.</p></div><a class="pill" href="/sammytv">View collection ↗</a></div>
+  <section class="parent-panel import-panel" aria-labelledby="add-heading">
+    <div><h2 id="add-heading">Add a video to review</h2><p class="muted">Paste a YouTube video link. Adding it never approves it automatically.</p></div>
+    <form method="post" action="{{ url_for('sammytv.admin_import') }}" class="import-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="sr-only" for="video-url">YouTube video link</label><input id="video-url" type="url" name="video_url" placeholder="https://www.youtube.com/watch?v=…" value="{{ form.get('video_url', '') }}" required maxlength="2048" autocomplete="off">
+      <button class="pill parent-primary" {% if not lookup_configured %}disabled{% endif %}>Add for review</button>
+    </form>
+  </section>
+  <nav class="parent-filters" aria-label="Video review status">
+    {% for value,label in [('pending','Needs review'),('approved','Approved'),('hidden','Removed'),('all','All videos')] %}<a class="pill" href="{{ url_for('sammytv.admin', status=value) }}" {% if status == value %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+  </nav>
+  <div class="parent-video-list">
+    {% for row in items %}<a class="parent-video-row" href="{{ url_for('sammytv.admin_review', video_id=row.id) }}">
+      <span class="review-row-icon" aria-hidden="true">▶</span><div><h2>{{ row.title }}</h2><p class="muted">{{ row.channel.name }} · {{ row.duration_seconds // 60 }} min</p></div>
+      <span class="status-badge status-{{ row.status }}">{{ {'pending':'Needs review','approved':'Approved','hidden':'Removed','rejected':'Rejected'}[row.status] }}</span><span class="row-arrow" aria-hidden="true">→</span>
+    </a>{% else %}<section class="parent-empty"><span aria-hidden="true">▷</span><h2>{{ 'Your review queue is clear.' if status == 'pending' else 'No videos here yet.' }}</h2><p class="muted">{{ 'Paste a video link above to get started. Only videos you approve will appear in the collection.' if status == 'pending' else 'Use the status tabs to find your videos, or add a new link above.' }}</p></section>{% endfor %}
+  </div>
+  {% if page > 1 or has_more %}<nav class="pagination" aria-label="Parent video pages">{% if page > 1 %}<a class="pill" href="{{ url_for('sammytv.admin', status=status, page=page-1) }}">← Previous</a>{% endif %}{% if has_more and page < 417 %}<a class="pill" href="{{ url_for('sammytv.admin', status=status, page=page+1) }}">Next →</a>{% endif %}</nav>{% endif %}
+  {% endif %}
+  <footer class="parent-footer"><p class="muted">Parent controls · Your account is separate from paired viewer devices.</p><form method="post" action="{{ url_for('sammytv.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="pill">Sign out</button></form></footer>
+</main>
+<div id="notice" class="notice" role="status" hidden></div>
+</body></html>

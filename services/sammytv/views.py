@@ -23,7 +23,8 @@ def catalogue_access():
         raise CatalogueUnavailable('Invalid SammyTV mode.')
     g.sammytv_preview = mode == 'preview'
     if g.sammytv_preview:
-        if is_api() or request.endpoint in ('sammytv.signin', 'sammytv.pair', 'sammytv.devices', 'sammytv.logout'):
+        if (is_api() or request.endpoint in ('sammytv.signin', 'sammytv.pair', 'sammytv.devices', 'sammytv.logout')
+                or (request.endpoint or '').startswith(('sammytv.admin_import', 'sammytv.admin_review'))):
             raise CatalogueUnavailable('The private catalogue is not enabled.')
         return
     g.sammytv_repository = CatalogueRepository()
@@ -87,13 +88,13 @@ def context_for_page():
     if g.sammytv_preview:
         return dict(videos=demo.VIDEOS, channels=demo.CHANNELS, categories=demo.CATEGORIES,
             preview=True, brand_name='SammyTV', profile_initial='S', storage_scope='preview',
-            previous_url=None, next_url=None)
+            previous_url=None, next_url=None, is_parent=False)
     repository, viewer = g.sammytv_repository, g.sammytv_viewer
     categories = repository.categories(viewer['family_id'])
     return dict(videos=[], channels=[], categories=['All'] + [c['name'] for c in categories] + ['Favourites'],
         category_records=categories, preview=False, brand_name=viewer['brand_name'],
         profile_initial=viewer['nickname'][:1].upper(), storage_scope=viewer['profile_id'],
-        previous_url=None, next_url=None)
+        previous_url=None, next_url=None, is_parent=viewer['role'] == 'parent')
 
 
 @blueprint.get('')
@@ -103,7 +104,6 @@ def context_for_page():
 @blueprint.get('/favourites')
 @blueprint.get('/history')
 @blueprint.get('/requests')
-@blueprint.get('/admin')
 @blueprint.get('/channel/<channel_id>')
 @blueprint.get('/watch/<video_id>')
 def page(channel_id=None, video_id=None):
@@ -209,3 +209,6 @@ def privacy_headers(response):
 
 from .sessions import register
 register(blueprint)
+
+from .moderation import register as register_moderation
+register_moderation(blueprint)

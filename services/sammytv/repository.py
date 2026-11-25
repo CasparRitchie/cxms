@@ -1,4 +1,4 @@
-"""Server-only, read-only catalogue adapter. No dependency on other CXMS apps."""
+"""Server-only catalogue adapter. Writes use parent-checked, atomic RPCs."""
 import json
 import os
 from urllib.error import HTTPError, URLError
@@ -8,6 +8,18 @@ from urllib.request import Request, urlopen
 
 class CatalogueUnavailable(RuntimeError):
     """Safe to log by class name; never include upstream responses or credentials."""
+
+
+class ModerationConflict(RuntimeError):
+    pass
+
+
+class ModerationDenied(RuntimeError):
+    pass
+
+
+class ModerationInvalid(RuntimeError):
+    pass
 
 
 class CatalogueRepository:
@@ -32,7 +44,18 @@ class CatalogueRepository:
             if not isinstance(rows, list):
                 raise CatalogueUnavailable('Unexpected catalogue response.')
             return rows
-        except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+        except HTTPError as exc:
+            if resource in ('rpc/sammytv_import_video', 'rpc/sammytv_moderate_video'):
+                try:
+                    code = json.loads(exc.read(4096)).get('code')
+                except (ValueError, AttributeError):
+                    code = None
+                error_class = {'40001': ModerationConflict, '42501': ModerationDenied,
+                               '22023': ModerationInvalid}.get(code)
+                if error_class:
+                    raise error_class() from None
+            raise CatalogueUnavailable('Catalogue is temporarily unavailable.') from None
+        except (URLError, TimeoutError, OSError, ValueError) as exc:
             raise CatalogueUnavailable('Catalogue is temporarily unavailable.') from exc
 
     def member(self, family_id, member_id):
@@ -89,3 +112,34 @@ class CatalogueRepository:
     def redeem_pairing(self, digest):
         rows = self._request('rpc/sammytv_redeem_pairing', payload={'p_digest': digest})
         return rows[0] if rows else None
+
+    def admin_videos(self, family_id, status=None, offset=0, video_id=None):
+        query = {'select': 'id,family_id,provider_video_id,title,description,duration_seconds,'
+                 'status,available,embeddable,age_restricted,is_live,updated_at,moderation_notes,'
+                 'channel:sammytv_channels(id,name,provider_channel_id,enabled),'
+                 'category_links:sammytv_video_categories(category_id)',
+                 'family_id': 'eq.' + family_id, 'order': 'created_at.desc,id.desc',
+                 'limit': '1' if video_id else '25', 'offset': str(offset)}
+        if status:
+            query['status'] = 'eq.' + status
+        if video_id:
+            query['id'] = 'eq.' + video_id
+        return self._request('sammytv_videos', query)
+
+    def import_video(self, viewer, metadata):
+        rows = self._request('rpc/sammytv_import_video', payload={
+            'p_family': viewer['family_id'], 'p_parent': viewer['member_id'],
+            'p_session_version': viewer['session_version'], 'p_metadata': metadata})
+        if len(rows) != 1:
+            raise CatalogueUnavailable('Unexpected moderation response.')
+        return rows[0]
+
+    def moderate_video(self, viewer, video, action, metadata=None, category_ids=None, notes=''):
+        rows = self._request('rpc/sammytv_moderate_video', payload={
+            'p_family': viewer['family_id'], 'p_parent': viewer['member_id'],
+            'p_session_version': viewer['session_version'], 'p_video': video['id'],
+            'p_expected_updated_at': video['updated_at'], 'p_action': action,
+            'p_metadata': metadata, 'p_categories': category_ids or [], 'p_notes': notes})
+        if len(rows) != 1:
+            raise CatalogueUnavailable('Unexpected moderation response.')
+        return rows[0]

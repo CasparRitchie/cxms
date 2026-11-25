@@ -13,7 +13,9 @@ create table public.sammytv_pairings (
 );
 create function public.sammytv_provision_parent(p_identity uuid)
 returns table(member_id uuid,family_id uuid,profile_id uuid,session_version integer)
-language plpgsql security invoker set search_path=pg_catalog,public as $$
+-- Only this RPC needs owner privileges to check auth.users. It is executable
+-- only by service_role; callers must first verify the parent's password/email.
+language plpgsql security definer set search_path=pg_catalog as $$
 declare f uuid; m uuid;
 begin
  perform pg_advisory_xact_lock(hashtextextended(p_identity::text,0));
@@ -35,6 +37,7 @@ begin
  where mb.id=m and mb.family_id=f and mb.active and mb.role='parent' and fa.enabled and pf.enabled
  order by pf.created_at limit 1;
 end $$;
+alter function public.sammytv_provision_parent(uuid) owner to postgres;
 create function public.sammytv_create_pairing(p_family uuid,p_parent uuid,p_digest text)
 returns table(created boolean) language plpgsql security invoker set search_path=pg_catalog,public as $$
 begin

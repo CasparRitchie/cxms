@@ -58,7 +58,7 @@ def current_viewer(repository):
             (member['role'] == 'viewer' and profile.get('member_id') != member_id)):
         raise AccessDenied('This collection is unavailable.')
     g.sammytv_viewer = {'member_id': member_id, 'family_id': family_id, 'profile_id': profile_id,
-                       'role': member['role'], 'nickname': profile['nickname'],
+                       'role': member['role'], 'session_version': member['session_version'], 'nickname': profile['nickname'],
                        'brand_name': family['brand_name']}
     return g.sammytv_viewer
 

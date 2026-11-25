@@ -8,8 +8,8 @@
   const notify = message => { const notice = document.querySelector('#notice'); notice.textContent = message; notice.hidden = false; setTimeout(() => { notice.hidden = true; }, 3500); };
   const write = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { notify('Browser storage unavailable. Changes last for this page only.'); } };
   root.dataset.theme = read('sammytv:theme', 'dark') === 'light' ? 'light' : 'dark';
-  document.querySelector('.theme').addEventListener('click', () => { root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark'; write('sammytv:theme', root.dataset.theme); });
-  document.querySelector('.menu').addEventListener('click', event => { const closed = document.body.classList.toggle('sidebar-closed'); event.currentTarget.setAttribute('aria-expanded', String(!closed)); });
+  document.querySelector('.theme')?.addEventListener('click', () => { root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark'; write('sammytv:theme', root.dataset.theme); });
+  document.querySelector('.menu')?.addEventListener('click', event => { const closed = document.body.classList.toggle('sidebar-closed'); event.currentTarget.setAttribute('aria-expanded', String(!closed)); });
   const saved = read(favouriteKey, []);
   const favourites = new Set(Array.isArray(saved) ? saved.filter(id => typeof id === 'string') : []);
   const params = new URLSearchParams(location.search);

@@ -1,6 +1,6 @@
 # SammyTV implementation and setup
 
-Phase 1 is deployed. Phase 2 SQL was reported successfully applied by the owner on 25 November 2026 to the shared NPS Me Supabase project. Phase 3 identity and pairing changes are implemented locally; not deployed or remotely verified.
+Phases 1–3 are deployed. The owner reported applying the Phase 2 and Phase 3 SQL and confirmed successful parent sign-in after the permissions repair on 25 November 2026. Pairing is not yet verified live. Phase 4a parent video moderation is implemented locally, awaiting its SQL migration, YouTube API key and deployment.
 
 ## What Phase 2 adds
 
@@ -19,7 +19,7 @@ Preview mode stays the default and loads the synthetic catalogue from `services/
 3. On a staging database, run `supabase/tests/sammytv_catalogue_security.sql`. It asserts family isolation, approval rules, disabled/excluded content, literal search, RLS and denied browser access. All synthetic fixtures roll back.
 4. Provision real families, parents, viewer memberships and profiles through the Phase 3 setup flow. Add the initial categories there: Trains, Planes, Lucas Ivkovic, Comedy and Live cameras. No real person has been added by this change.
 
-The SQL files have not been executed against Supabase in this session. Python tests use a repository double, not a real database. Passing those tests does not prove that a remote migration or RLS policy is installed.
+The owner reports applying the catalogue, identity and identity-permissions SQL to Supabase. The new moderation migration and database regression script have not been executed against a database in this session. Python tests use a repository double, not a real database. Passing those tests does not prove that a remote migration or RLS policy is installed.
 
 ## Configuration
 
@@ -30,6 +30,7 @@ The SQL files have not been executed against Supabase in this session. Python te
 | `SAMMYTV_SUPABASE_SERVICE_ROLE_KEY` | Existing `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY` | Server only. Never place this in a template, client bundle or URL. |
 | `SAMMYTV_SESSION_SECRET` | None | Independent random secret of at least 32 characters. No fallback to Flask or sports workspace secrets. |
 | `SAMMYTV_YOUTUBE_PLAYBACK_ENABLED` | Off | Set exactly `1` only after parent review of provider and device limitations. |
+| `SAMMYTV_YOUTUBE_API_KEY` | None | Server-only YouTube Data API v3 key for importing public video metadata and checking it again on approval. Independent of the playback setting. |
 
 Do not enable catalogue mode for Sammy until Phase 3 sign-in/provisioning exists and database checks pass. With no dedicated session the private catalogue returns 401; administration returns 403 for a viewer. Leaving preview mode on remains safe for interface review and does not expose the real catalogue.
 
@@ -45,9 +46,9 @@ SammyTV sessions cannot authenticate to other CXMS apps. The module imports no s
 
 ## Database access model
 
-All seven tables use the `sammytv_` prefix, tenant IDs and composite foreign keys to prohibit cross-family references. RLS is enabled and forced. All table grants are revoked from PUBLIC, anon and authenticated, and no browser policies are granted. Catalogue functions are SECURITY INVOKER and executable only by the server service role.
+All seven tables use the `sammytv_` prefix, tenant IDs and composite foreign keys to prohibit cross-family references. RLS is enabled and forced. All table grants are revoked from PUBLIC, anon and authenticated, and no browser policies are granted. Catalogue functions are SECURITY INVOKER and executable only by the server service role. The parent-provisioning RPC alone uses SECURITY DEFINER (owned by postgres, search_path restricted to pg_catalog) so its fixed, schema-qualified query can check auth.users. Only service_role can execute it; browser roles cannot. Parent password verification and the email allowlist remain mandatory in Flask before calling it.
 
-The existing server service role bypasses RLS. Therefore Flask validates identity and scopes every query to the verified family. RLS protects against direct browser database access; it is not a substitute for the server checks. The read-only adapter only permits SammyTV resource names. Public API responses project viewer-safe fields, excluding membership/approval identities, provider IDs and moderation notes. Every video response is checked again in Python before being shown. Content moderation write endpoints are still pending. Device pairing requires the authoritative parent role and CSRF protection.
+The existing server service role bypasses RLS. Therefore Flask validates identity and scopes every query to the verified family. RLS protects against direct browser database access; it is not a substitute for the server checks. The adapter only permits SammyTV resource names. Public API responses project viewer-safe fields, excluding membership/approval identities, provider IDs and moderation notes. Every video response is checked again in Python before being shown. Parent moderation writes use atomic SECURITY INVOKER RPCs which recheck the active parent, family and session version and lock the records involved. Moderation and pairing require CSRF protection.
 
 The schema currently shares a curated catalogue across profiles in a family. Per-profile exclusions can be added later; the current design does not claim separate content permissions within one family.
 
@@ -98,6 +99,7 @@ Automated coverage includes session tampering/expiry/audience, role spoofing, re
 ## Phase 3 setup and current limits
 
 1. Apply `supabase/sammytv_identity.sql` once to the same NPS Me project after Phase 2. This creates only SammyTV identity mappings, pairing codes and service-only RPCs. It does not create Auth accounts or modify existing application tables.
+   If Phase 3 was already applied before the permissions fix, apply `supabase/sammytv_identity_permissions.sql` instead of rerunning the original migration. This repairs `permission denied for table users` during parent provisioning without granting direct access to auth.users or changing records. The live error was confirmed in Supabase logs on 25 November 2026; the owner subsequently reported applying the repair and successfully signing in.
 2. Set `SAMMYTV_PARENT_EMAILS` to the explicit comma-separated list of allowed parent emails. Empty means nobody can sign in. Use an existing verified Supabase Auth email/password account, or create and verify a real parent account through Supabase. No public signup, password reset or email-confirmation flow is provided here.
 3. Configure an independent `SAMMYTV_SESSION_SECRET` (at least 32 random characters), server Supabase credentials and `SAMMYTV_MODE=catalogue`. Serve over HTTPS. Keep playback off.
 4. Open `/sammytv/signin`. Password verification occurs server-side through Supabase Auth; provider tokens never reach the browser. First successful allowlisted login atomically provisions a family, parent profile and initial categories. Concurrent logins share the same identity mapping. Existing disabled memberships are never recreated or re-enabled by login.
@@ -106,4 +108,20 @@ Automated coverage includes session tampering/expiry/audience, role spoofing, re
 
 All POST forms use a separate signed, expiring CSRF cookie and require matching form tokens. Cookies are Secure, HttpOnly, SameSite=Strict, scoped to `/sammytv`. Auth/pairing routes fail closed in preview mode. Login errors are generic. Supabase Auth applies its own authentication rate limits; pairing codes use high entropy rather than short guessable PINs.
 
-Local tests use repository doubles. The Phase 3 migration, actual Auth integration, concurrent pairing redemption and denied browser grants still require a database integration check before enabling live access. Content import/approval administration remains pending; no videos are auto-approved, and the catalogue initially has no playable content. Live cameras remain excluded by the Phase 2 live-video rule despite their category name.
+Local tests use repository doubles. Concurrent pairing redemption and denied browser grants still require database integration checks. No videos are auto-approved, and the catalogue initially has no playable content. Live cameras remain excluded by the Phase 2 live-video rule despite their category name.
+
+## Phase 4a: parent video review
+
+Rollout, in order:
+
+1. In the shared **NPS Me** project, apply `supabase/sammytv_moderation.sql` once. This adds four service-only functions, keeps browser grants blocked and requests a PostgREST schema refresh. It does not alter tables, create accounts or add videos. Do not rerun the earlier catalogue/identity migrations.
+2. Obtain a YouTube Data API v3 key: [Google Cloud Console](https://console.cloud.google.com/) → create/select a SammyTV project → APIs & Services → Library → enable YouTube Data API v3 → Credentials → Create credentials → API key. Restrict its API access to YouTube Data API v3. This key is used by the server; a website-referrer restriction is not appropriate for this flow. No YouTube Premium subscription is required. See [YouTube authentication](https://developers.google.com/youtube/data/guides/authentication) and [getting started](https://developers.google.com/youtube/data/getting-started).
+3. Put the key in the CXMS Heroku app as `SAMMYTV_YOUTUBE_API_KEY`. Keep playback disabled during this setup. No new Python/JavaScript dependencies are needed.
+4. Deploy the code and open `/sammytv/admin` as the parent. Paste an individual HTTPS YouTube watch, short, embed, live or youtu.be link. Playlist/channel links, credentials, ports and other hosts are rejected. The server extracts the ID and sends only that ID to a fixed Google API endpoint. API keys are sent in headers, never to the browser or in request URLs. Redirects are not followed; responses and timeouts are bounded.
+5. Imports create **pending** records. Repeated imports return the existing video without changing its approval, notes, categories or a disabled channel. Review the title, channel and description, open the canonical YouTube link in a separate tab to watch it, select at least one category and explicitly confirm suitability. These automated metadata checks do not assess content suitability.
+6. Approval retrieves metadata again. Changes to the title, description, duration or visibility flags return the video to pending review. Public, processed, embeddable, non-age-restricted recordings only; any reported regional restriction, live/upcoming broadcast or archived livestream is excluded for now. Official [video metadata reference](https://developers.google.com/youtube/data/reference/rest/v3/videos) and [videos.list endpoint](https://developers.google.com/youtube/data/reference/rest/v3/videos/list). Metadata can change again after approval; scheduled rechecks remain future work.
+7. **Remove video** hides it and clears approval. This is reversible through a fresh review and approval; no permanent deletion is offered. Removal needs no provider request or API key. Future catalogue/playback requests recheck visibility, but an already loaded third-party player can keep playing.
+
+The parent queue has status filters and bounded pagination. A signed, expiring review token binds each form to its parent, family, video and database update version. SQL locks and timestamp comparisons reject stale writes; categories must be enabled and in the same family. Viewer tokens, forged role claims and revoked sessions cannot grant moderation access. Private notes and pending metadata are not exposed by viewer APIs. Parent links are shown only to parents in catalogue mode; preview keeps its nonfunctional placeholder.
+
+Validation: 51 local SammyTV tests cover the parent workflow, CSRF, malformed/provider URLs, metadata errors and redaction, cross-family reads/categories, role spoofing, stale forms, approval rechecks and removal. The database regression script `supabase/tests/sammytv_moderation_security.sql` is for a staging database; it exercises actual service-role RPCs, import deduplication, approval/hiding/restoring, stale writes and denied browser grants, rolling all fixtures back. It has not been run here because PostgreSQL is unavailable locally. Both parent templates render through Flask tests. Local browser preview was blocked by the environment, so desktop/mobile visual checks and live database/API integration still need verification after deployment.

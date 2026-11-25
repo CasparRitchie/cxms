@@ -61,6 +61,9 @@ class FakeRepository:
     def channels(self, family_id):
         return [dict(id=CHANNEL, name='Rail Journal')] if self.rows and family_id == FAMILY else []
 
+    def admin_videos(self, family_id, **filters):
+        return []
+
     def videos(self, family_id, **filters):
         self.calls.append(('videos', family_id, filters))
         rows = deepcopy(self.rows)
