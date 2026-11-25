@@ -13,7 +13,8 @@
   <a class="brand" href="/sammytv"><span class="brand-icon">▶</span> {{ brand_name }}</a>
   <span class="parent-label">PARENT AREA</span>
   <nav class="parent-navigation" aria-label="Parent navigation">
-    <a href="{{ url_for('sammytv.admin') }}" {% if not item %}aria-current="page"{% endif %}>Videos</a>
+    <a href="{{ url_for('sammytv.admin') }}" {% if not item and not managing_categories %}aria-current="page"{% endif %}>Videos</a>
+    <a href="{{ url_for('sammytv.admin_categories') }}" {% if managing_categories %}aria-current="page"{% endif %}>Categories</a>
     <a href="{{ url_for('sammytv.devices') }}">Devices</a>
     <a href="/sammytv">View collection ↗</a>
   </nav>
@@ -22,10 +23,32 @@
 <main id="content" class="parent-content">
   {% if error %}<div class="parent-alert error" role="alert">{{ error }}</div>{% endif %}
   {% if message %}<div class="parent-alert" role="status">{{ message }}</div>{% endif %}
-  {% if not lookup_configured %}
+  {% if not lookup_configured and not managing_categories %}
   <div class="parent-alert" role="status"><strong>One setup step remains</strong><p>Video details need a YouTube Data API key. Add <code>SAMMYTV_YOUTUBE_API_KEY</code> in Heroku, then reload this page. You can still remove videos while lookup is unavailable.</p></div>
   {% endif %}
-  {% if item %}
+  {% if managing_categories %}
+  <div class="parent-heading"><div><p class="eyebrow">YOUR CATEGORIES, YOUR WAY</p><h1>Organise what they love.</h1><p class="muted">Create categories for any interest or creator. Rename them, change their order, or archive ones you no longer need.</p></div><a class="pill" href="{{ url_for('sammytv.admin') }}">Back to videos</a></div>
+  <section class="parent-panel import-panel" aria-labelledby="create-category-heading">
+    <h2 id="create-category-heading">Create a category</h2>
+    <form method="post" class="import-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="create">
+      <label class="sr-only" for="new-category">Category name</label><input id="new-category" type="text" name="name" maxlength="60" required placeholder="For example: Flight simulators, Steam trains, Favourite creators">
+      <button class="pill parent-primary">Create category</button>
+    </form>
+  </section>
+  <p class="muted">Lower order numbers appear first. Archiving removes a category from browsing; its videos remain in the collection and its links return when you restore it.</p>
+  <div class="category-management-list">
+    {% for category in all_categories %}<article class="parent-panel category-editor">
+      <form method="post" class="category-save-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="save"><input type="hidden" name="category_id" value="{{ category.id }}">
+        <label>Category name<input type="text" name="name" value="{{ category.name }}" required maxlength="60"></label>
+        <label class="category-position">Order<input type="number" name="position" min="0" max="9999" value="{{ category.position }}" required></label>
+        <button class="pill">Save changes</button>
+      </form>
+      <div class="category-state"><span class="status-badge {{ 'status-approved' if category.enabled else 'status-hidden' }}">{{ 'Active' if category.enabled else 'Archived' }}</span>
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="category_id" value="{{ category.id }}"><button class="pill" name="action" value="{{ 'archive' if category.enabled else 'restore' }}">{{ 'Archive' if category.enabled else 'Restore' }}</button></form>
+      </div>
+    </article>{% else %}<section class="parent-empty"><h2>Start with something they love.</h2><p class="muted">Create your first category above, or use a suggestion while reviewing a video.</p></section>{% endfor %}
+  </div>
+  {% elif item %}
   <a class="back-link" href="{{ url_for('sammytv.admin') }}">← All parent videos</a>
   <div class="parent-heading"><div><p class="eyebrow">INDIVIDUAL VIDEO REVIEW</p><h1>Make room for a great watch.</h1></div><span class="status-badge status-{{ item.status }}">{{ {'pending':'Needs review','approved':'Approved','hidden':'Removed','rejected':'Rejected'}[item.status] }}</span></div>
   <div class="review-layout">
@@ -46,7 +69,11 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="review_token" value="{{ review_token }}">
         <fieldset><legend>Choose categories</legend><div class="category-options">
           {% for category in category_records %}<label class="category-option"><input type="checkbox" name="category_ids" value="{{ category.id }}" {% if category.id in selected_categories %}checked{% endif %}><span>{{ category.name }}</span></label>{% endfor %}
-        </div></fieldset>
+        </div><p class="muted"><a class="back-link" href="{{ url_for('sammytv.admin_categories') }}">Manage all categories ↗</a></p></fieldset>
+        {% if suggestions %}<div class="category-suggestions"><h3>Suggested from this video</h3><p class="muted">Based on the title, description and creator. Choose whichever fit.</p><div class="category-options">
+          {% for suggestion in suggestions %}<button class="pill" name="suggested_category" value="{{ suggestion.name }}" formnovalidate title="{{ suggestion.reason }}">{{ 'Select' if suggestion.category_id else 'Create & select' }} {{ suggestion.name }}</button>{% endfor %}
+        </div></div>{% endif %}
+        <div class="inline-category-create"><label for="review-category-name">Or create your own category</label><div class="import-form"><input id="review-category-name" type="text" name="new_category_name" maxlength="60" placeholder="Any interest or creator"><button class="pill" name="action" value="add_category" formnovalidate>Create &amp; select</button></div></div>
         <label for="review-notes">Private notes <span class="muted">Optional · only visible to parents</span></label>
         <textarea id="review-notes" name="notes" rows="4" maxlength="10000" placeholder="Anything to remember about this video?">{{ form.get('notes', item.moderation_notes) }}</textarea>
         <label class="review-confirmation"><input type="checkbox" name="reviewed" value="yes" required><span>I have watched this video and reviewed its suitability for my viewer.</span></label>

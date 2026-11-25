@@ -45,13 +45,13 @@ class CatalogueRepository:
                 raise CatalogueUnavailable('Unexpected catalogue response.')
             return rows
         except HTTPError as exc:
-            if resource in ('rpc/sammytv_import_video', 'rpc/sammytv_moderate_video'):
+            if resource in ('rpc/sammytv_import_video', 'rpc/sammytv_moderate_video', 'rpc/sammytv_manage_category'):
                 try:
                     code = json.loads(exc.read(4096)).get('code')
                 except (ValueError, AttributeError):
                     code = None
                 error_class = {'40001': ModerationConflict, '42501': ModerationDenied,
-                               '22023': ModerationInvalid}.get(code)
+                               '22023': ModerationInvalid, '23505': ModerationInvalid}.get(code)
                 if error_class:
                     raise error_class() from None
             raise CatalogueUnavailable('Catalogue is temporarily unavailable.') from None
@@ -76,6 +76,26 @@ class CatalogueRepository:
     def categories(self, family_id):
         return self._request('sammytv_categories', {'select': 'id,name,slug,position',
             'family_id': 'eq.' + family_id, 'enabled': 'eq.true', 'order': 'position.asc,name.asc'})
+
+    def admin_categories(self, family_id):
+        return self._request('sammytv_categories', {'select': 'id,family_id,name,slug,position,enabled',
+            'family_id': 'eq.' + family_id, 'order': 'position.asc,name.asc'})
+
+    def manage_category(self, viewer, action, category_id=None, name='', position=None):
+        rows = self._request('rpc/sammytv_manage_category', payload={
+            'p_family': viewer['family_id'], 'p_parent': viewer['member_id'],
+            'p_session_version': viewer['session_version'], 'p_action': action,
+            'p_category': category_id, 'p_name': name, 'p_position': position})
+        if len(rows) != 1:
+            raise CatalogueUnavailable('Unexpected category response.')
+        return rows[0]
+
+    def import_parents(self, member_id=None):
+        query = {'select': 'id,family_id,role,active,session_version', 'active': 'eq.true',
+                 'role': 'eq.parent', 'order': 'id.asc', 'limit': '2'}
+        if member_id:
+            query['id'] = 'eq.' + member_id
+        return self._request('sammytv_members', query)
 
     def videos(self, family_id, video_id=None, channel_id=None, category_id=None, query='', limit=48, offset=0):
         return self._request('rpc/sammytv_catalogue', payload={

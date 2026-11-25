@@ -24,7 +24,7 @@ def catalogue_access():
     g.sammytv_preview = mode == 'preview'
     if g.sammytv_preview:
         if (is_api() or request.endpoint in ('sammytv.signin', 'sammytv.pair', 'sammytv.devices', 'sammytv.logout')
-                or (request.endpoint or '').startswith(('sammytv.admin_import', 'sammytv.admin_review'))):
+                or (request.endpoint or '').startswith('sammytv.admin_')):
             raise CatalogueUnavailable('The private catalogue is not enabled.')
         return
     g.sammytv_repository = CatalogueRepository()

@@ -1,6 +1,6 @@
 # SammyTV implementation and setup
 
-Phases 1–3 are deployed. The owner reported applying the Phase 2 and Phase 3 SQL and confirmed successful parent sign-in after the permissions repair on 25 November 2026. Pairing is not yet verified live. Phase 4a parent video moderation is implemented locally, awaiting its SQL migration, YouTube API key and deployment.
+Phases 1–4a are deployed. The owner reported applying the catalogue, identity, identity-permissions and moderation SQL, configuring the YouTube API key, and successfully importing/categorising/approving a real video on 25 November 2026. Pairing and playback are not yet verified live. Phase 4b bulk-import tooling and editable categories are implemented locally, awaiting the category migration and deployment.
 
 ## What Phase 2 adds
 
@@ -19,7 +19,7 @@ Preview mode stays the default and loads the synthetic catalogue from `services/
 3. On a staging database, run `supabase/tests/sammytv_catalogue_security.sql`. It asserts family isolation, approval rules, disabled/excluded content, literal search, RLS and denied browser access. All synthetic fixtures roll back.
 4. Provision real families, parents, viewer memberships and profiles through the Phase 3 setup flow. Add the initial categories there: Trains, Planes, Lucas Ivkovic, Comedy and Live cameras. No real person has been added by this change.
 
-The owner reports applying the catalogue, identity and identity-permissions SQL to Supabase. The new moderation migration and database regression script have not been executed against a database in this session. Python tests use a repository double, not a real database. Passing those tests does not prove that a remote migration or RLS policy is installed.
+The owner reports applying the catalogue, identity, identity-permissions and moderation SQL to Supabase. The new category migration and database regression scripts have not been executed against a database in this session. Python tests use a repository double, not a real database. Passing those tests does not prove that a remote migration or RLS policy is installed.
 
 ## Configuration
 
@@ -125,3 +125,24 @@ Rollout, in order:
 The parent queue has status filters and bounded pagination. A signed, expiring review token binds each form to its parent, family, video and database update version. SQL locks and timestamp comparisons reject stale writes; categories must be enabled and in the same family. Viewer tokens, forged role claims and revoked sessions cannot grant moderation access. Private notes and pending metadata are not exposed by viewer APIs. Parent links are shown only to parents in catalogue mode; preview keeps its nonfunctional placeholder.
 
 Validation: 51 local SammyTV tests cover the parent workflow, CSRF, malformed/provider URLs, metadata errors and redaction, cross-family reads/categories, role spoofing, stale forms, approval rechecks and removal. The database regression script `supabase/tests/sammytv_moderation_security.sql` is for a staging database; it exercises actual service-role RPCs, import deduplication, approval/hiding/restoring, stale writes and denied browser grants, rolling all fixtures back. It has not been run here because PostgreSQL is unavailable locally. Both parent templates render through Flask tests. Local browser preview was blocked by the environment, so desktop/mobile visual checks and live database/API integration still need verification after deployment.
+
+## Phase 4b: bulk import and editable categories
+
+The initial 22 links supplied on 25 November are saved in `scripts/data/sammytv_links_2026-11-25.txt`; sharing parameters have been stripped. A one-off command using the deployed metadata/import adapter ran through the authenticated CXMS Heroku dashboard on 25 November: **22 added, no failures**. A follow-up database read in that command verified all 22 requested IDs stored with status **pending**. Existing approvals were untouched. Category management code is not deployed yet; availability/content suitability still requires parent review. The reusable script below is for future batches or safe reruns of the same list.
+
+After deploying the code, run from the CXMS checkout:
+
+```bash
+heroku run --app cxms "python scripts/import_sammytv.py --file scripts/data/sammytv_links_2026-11-25.txt --dry-run"
+heroku run --app cxms "python scripts/import_sammytv.py --file scripts/data/sammytv_links_2026-11-25.txt"
+```
+
+The script uses the dyno's existing server credentials and YouTube key; do not copy secrets into a local file or command. It chooses the sole active SammyTV parent, verifies that the family is enabled, and passes that parent's current session version to each existing import RPC. If multiple parents exist, supply `--parent-member-id UUID` explicitly. It accepts up to 250 links per file, deduplicates by video ID, prints invalid line numbers and per-video results, and continues after individual provider/database failures. Revoked parent access stops the batch. Successful imports commit individually, so reruns resume safely without changing existing approvals, categories or notes. Every new video is **pending**; the script never approves videos, creates categories or changes video/category associations. `--dry-run` reads metadata and prints suggestions without database writes. Titles are sanitised for terminal output, and errors do not contain provider response bodies or credentials.
+
+To enable editable categories, apply `supabase/sammytv_categories.sql` once to **NPS Me**, then deploy. It adds a service-only SECURITY INVOKER function using the existing parent/family/session-version guard. No table grants or seed data are changed. `/sammytv/admin/categories` supports create, rename, numeric ordering, archive and restore. Names may be any 1–60 characters except reserved navigation names All/Favourites and control characters. Slugs stay stable through renames. Existing active names are reused; archived names must be explicitly restored. Archiving hides the category/filter without deleting video links or approvals. Restoring brings the links back.
+
+The initial category migration attempt reported SQL syntax error 42601 on the return column `position`. The corrected file returns `category_position` instead; existing table columns remain named `position`. The application only consumes the returned category UUID. Recopy and rerun the complete corrected migration after that failed attempt. The database regression script now checks the returned `category_position` as well as stored ordering; live verification is still pending.
+
+Video reviews suggest categories from stored titles, descriptions and creator names, including existing custom names and matching broad topics. This is a local keyword heuristic with no AI subscription or additional provider requests. Suggestions are editable starting points, not content assessments. Parents can select an existing suggestion, create a suggested category, or enter a completely new name from the review form. Notes and selections are retained; adding a category alone never approves a video or assigns the category to it. Save/approve the review to persist video/category associations.
+
+Validation: 71 local SammyTV tests cover the existing workflow plus file normalisation/deduplication, restart results, dry-run writes, parent selection/revocation, metadata suggestions, flexible names, CSRF, viewer/preview denial, category editing and preservation of review drafts. The 5 Dash and 8 trade-ledger regression tests also pass. `supabase/tests/sammytv_categories_security.sql` adds transactional staging checks for role permissions, cross-family changes, duplicate names, category ordering, archive/restore and reserved names; it has not been run locally because PostgreSQL is unavailable. The supplied list is imported live as described above; the new category migration and UI still await live verification.

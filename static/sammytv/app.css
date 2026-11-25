@@ -13,6 +13,19 @@ html[data-theme=light] .stv{--bg:#fafafa;--panel:#f0f0f0;--raised:#e8e8e8;--fg:#
 @media(prefers-reduced-motion:reduce){.stv *{transition:none!important}}
 
 /* Parent controls share the collection theme and work without JavaScript. */
+.stv .parent-content input[type=text],.stv .parent-content input[type=number]{width:100%;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);padding:12px 14px;font:inherit}
+.stv .category-management-list{display:grid;gap:14px;margin-top:22px}
+.stv .category-editor{display:flex;align-items:center;gap:24px;justify-content:space-between}
+.stv .category-save-form{display:flex;align-items:end;gap:12px;flex:1}
+.stv .category-save-form label{display:grid;gap:7px;font-size:12px;flex:1}
+.stv .category-save-form .category-position{max-width:90px;flex:0 0 90px}
+.stv .category-state{display:flex;align-items:center;gap:12px;padding-top:24px}
+.stv .category-suggestions{border-top:1px solid var(--line);padding-top:16px}
+.stv .inline-category-create>label{font-size:13px}
+.stv .inline-category-create .import-form{margin-top:8px;align-items:center}
+.stv .parent-form fieldset .back-link{margin:0}
+@media(max-width:900px){.stv .category-editor{flex-direction:column;align-items:stretch}.stv .category-state{padding-top:0;justify-content:space-between}}
+@media(max-width:700px){.stv .category-save-form{flex-wrap:wrap}.stv .category-save-form label:first-child{min-width:calc(100% - 105px)}.stv .category-suggestions button{white-space:normal;text-align:left}.stv .inline-category-create .import-form{align-items:stretch}.stv.stv-admin .parent-navigation{font-size:12px;gap:8px;flex-wrap:wrap}}
 .stv .parent-label{color:var(--muted);font-size:10px;letter-spacing:1.5px;white-space:nowrap}
 .stv .parent-navigation{display:flex;align-items:center;gap:24px;margin-left:auto;font-size:13px}
 .stv .parent-navigation a[aria-current],.stv .back-link{color:#ff817b}
