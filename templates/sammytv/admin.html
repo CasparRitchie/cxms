@@ -78,6 +78,7 @@
         <textarea id="review-notes" name="notes" rows="4" maxlength="10000" placeholder="Anything to remember about this video?">{{ form.get('notes', item.moderation_notes) }}</textarea>
         <label class="review-confirmation"><input type="checkbox" name="reviewed" value="yes" required><span>I have watched this video and reviewed its suitability for my viewer.</span></label>
         <p class="muted">YouTube availability is checked again when you approve. These checks do not assess whether the content is suitable; that decision is yours.</p>
+        <button class="pill" name="action" value="refresh" formnovalidate {% if not lookup_configured %}disabled{% endif %}>Recheck video details</button>
         <button class="pill parent-primary" name="action" value="approve" {% if blocked or not lookup_configured or not category_records %}disabled{% endif %}>{{ 'Save approval & categories' if item.status == 'approved' else 'Approve for collection' }}</button>
       </form>
       {% if item.status != 'hidden' %}

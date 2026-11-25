@@ -104,6 +104,47 @@ class MetadataTests(unittest.TestCase):
                 with self.assertRaises(MetadataUnavailable):
                     fetch_metadata(PROVIDER_ID)
 
+    def test_completed_livestream_is_an_eligible_recording(self):
+        item = provider_item()
+        item['liveStreamingDetails'] = dict(actualStartTime='2020-01-01T10:00:00Z',
+                                            actualEndTime='2020-01-01T11:00:00Z')
+        lookup, _ = self.lookup(item)
+        with patch.dict(os.environ, SAMMYTV_YOUTUBE_API_KEY='key'), lookup:
+            result = fetch_metadata(PROVIDER_ID)
+        self.assertIs(result['is_live'], False)
+        self.assertIs(result['available'], True)
+        self.assertIs(result['embeddable'], True)
+
+    def test_active_upcoming_and_unconfirmed_broadcasts_stay_blocked(self):
+        variants = [
+            ('live', {'actualEndTime': '2020-01-01T11:00:00Z'}),
+            ('upcoming', {'actualEndTime': '2020-01-01T11:00:00Z'}),
+            ('none', {}), ('none', None), ('none', 'invalid'),
+            ('none', {'actualEndTime': ''}), ('none', {'actualEndTime': None}),
+            ('none', {'actualEndTime': '2020-01-01'}),
+            ('none', {'actualEndTime': '2999-01-01T11:00:00Z'}),
+            ('none', {'actualStartTime': '2020-01-02T11:00:00Z', 'actualEndTime': '2020-01-01T11:00:00Z'}),
+        ]
+        for state, streaming in variants:
+            item = provider_item()
+            item['snippet']['liveBroadcastContent'] = state
+            item['liveStreamingDetails'] = streaming
+            lookup, _ = self.lookup(item)
+            with self.subTest(state=state, streaming=streaming), patch.dict(os.environ, SAMMYTV_YOUTUBE_API_KEY='key'), lookup:
+                self.assertIs(fetch_metadata(PROVIDER_ID)['is_live'], True)
+
+    def test_finished_stream_still_needs_embedding_permission(self):
+        from services.sammytv.youtube import blocked_reasons
+        item = provider_item()
+        item['status']['embeddable'] = False
+        item['liveStreamingDetails'] = {'actualEndTime': '2020-01-01T11:00:00Z'}
+        lookup, _ = self.lookup(item)
+        with patch.dict(os.environ, SAMMYTV_YOUTUBE_API_KEY='key'), lookup:
+            result = fetch_metadata(PROVIDER_ID)
+        self.assertIs(result['is_live'], False)
+        self.assertIs(result['embeddable'], False)
+        self.assertIn('cannot play inside SammyTV', ' '.join(blocked_reasons(result)))
+
     def test_provider_errors_do_not_surface_key_or_response_body(self):
         error = HTTPError('https://provider', 403, 'private-api-key', {}, io.BytesIO(b'upstream-private-body'))
         with patch.dict(os.environ, SAMMYTV_YOUTUBE_API_KEY='private-api-key'), \
@@ -233,6 +274,44 @@ class ParentWorkflowTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 303)
                 self.assertIn('result=changed', response.location)
                 self.assertEqual(self.repo.moderate_video.call_args.args[2], 'refresh')
+
+    def test_recheck_refreshes_previously_blocked_recording_without_approving(self):
+        self.repo.pending['is_live'] = True
+        form = self.review_form() | dict(action='refresh')
+        form.pop('reviewed'); form.pop('category_ids')
+        def refresh(viewer, item, action, **kwargs):
+            self.assertEqual(action, 'refresh')
+            self.repo.pending.update(kwargs['metadata'], status='pending', updated_at='2026-11-25T13:00:00+00:00')
+            return dict(video_id=VIDEO, status='pending')
+        self.repo.moderate_video.side_effect = refresh
+        with patch('services.sammytv.moderation.fetch_metadata', return_value=metadata()):
+            response = self.client.post(f'/sammytv/admin/videos/{VIDEO}', data=form)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Video details updated', response.data)
+        self.assertNotIn(b'This broadcast is live', response.data)
+        self.assertEqual(self.repo.pending['status'], 'pending')
+        self.repo.moderate_video.assert_called_once()
+
+    def test_recheck_does_not_override_embedding_restriction_or_unapprove_unchanged_video(self):
+        self.repo.pending['embeddable'] = False
+        form = self.review_form() | dict(action='refresh')
+        form.pop('reviewed')
+        with patch('services.sammytv.moderation.fetch_metadata', return_value=metadata() | dict(embeddable=False)):
+            response = self.client.post(f'/sammytv/admin/videos/{VIDEO}', data=form)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'cannot play inside SammyTV', response.data)
+        self.repo.moderate_video.assert_not_called()
+
+    def test_recheck_preserves_notes_and_rejects_stale_forms(self):
+        form = self.review_form() | dict(action='refresh', notes='Retain my draft')
+        with patch('services.sammytv.moderation.fetch_metadata', return_value=metadata()):
+            response = self.client.post(f'/sammytv/admin/videos/{VIDEO}', data=form)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Retain my draft', response.data)
+        self.repo.pending['updated_at'] = '2026-11-25T13:00:00+00:00'
+        with patch('services.sammytv.moderation.fetch_metadata') as lookup:
+            self.assertEqual(self.client.post(f'/sammytv/admin/videos/{VIDEO}', data=form).status_code, 409)
+            lookup.assert_not_called()
 
     def test_removal_works_without_lookup_key_and_needs_no_approval_checkbox(self):
         form = self.review_form()

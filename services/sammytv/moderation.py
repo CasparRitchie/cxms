@@ -165,12 +165,24 @@ def register(blueprint):
         try:
             check_review(item)
             action = request.form.get('action') or ('add_category' if 'suggested_category' in request.form else None)
-            if action not in ('approve', 'hide', 'add_category'):
+            if action not in ('approve', 'hide', 'add_category', 'refresh'):
                 abort(400)
             viewer, repo = g.sammytv_viewer, g.sammytv_repository
             if action == 'hide':
                 repo.moderate_video(viewer, item, 'hide')
                 return redirect(url_for('sammytv.admin_review', video_id=video_id, result='hidden'), code=303)
+            if action == 'refresh':
+                if len(notes) > 10000 or len(category_ids) > 50:
+                    return render_admin(item=item, error='Check the selected categories and keep notes under 10,000 characters.', status_code=400)
+                metadata = fetch_metadata(item['provider_video_id'])
+                if metadata['provider_channel_id'] != item['channel']['provider_channel_id']:
+                    raise VideoInputError('The video’s channel has changed. Remove it and check the original link.')
+                changed = any(metadata[key] != item[key] for key in METADATA_FIELDS)
+                if changed:
+                    repo.moderate_video(viewer, item, 'refresh', metadata=metadata)
+                return render_admin(item=get_video(video_id), form=form,
+                    message='Video details updated. Review the current details and restrictions before approving.' if changed
+                            else 'Video details checked. Any current playback restrictions are shown below.')
             valid = {c['id'] for c in repo.categories(viewer['family_id'])}
             if action == 'add_category':
                 try:

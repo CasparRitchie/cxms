@@ -2,6 +2,7 @@
 import json
 import os
 import re
+from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -64,6 +65,28 @@ def duration_seconds(value):
     return result
 
 
+def live_or_unconfirmed(item):
+    """An ended broadcast is a recording; an unconfirmed end stays blocked."""
+    if item['snippet']['liveBroadcastContent'] != 'none':
+        return True
+    if 'liveStreamingDetails' not in item:
+        return False
+    broadcast = item['liveStreamingDetails']
+    if not isinstance(broadcast, dict):
+        return True
+    try:
+        end = datetime.fromisoformat(broadcast['actualEndTime'].replace('Z', '+00:00'))
+        if end.tzinfo is None or end > datetime.now(timezone.utc):
+            return True
+        if 'actualStartTime' in broadcast:
+            start = datetime.fromisoformat(broadcast['actualStartTime'].replace('Z', '+00:00'))
+            if start.tzinfo is None or start >= end:
+                return True
+        return False
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return True
+
+
 def fetch_metadata(video_id):
     if not isinstance(video_id, str) or not VIDEO_ID.fullmatch(video_id):
         raise VideoInputError('The video identifier is invalid.')
@@ -108,7 +131,7 @@ def fetch_metadata(video_id):
                       and not details.get('regionRestriction'),
             embeddable=status['embeddable'],
             age_restricted=bool(details.get('contentRating', {}).get('ytRating')),
-            is_live=snippet['liveBroadcastContent'] != 'none' or 'liveStreamingDetails' in item)
+            is_live=live_or_unconfirmed(item))
     except VideoInputError:
         raise
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError, TypeError, AttributeError):
@@ -121,11 +144,11 @@ def blocked_reasons(video):
     if video.get('available') is not True:
         reasons.append('The video is not publicly available without regional restrictions.')
     if video.get('embeddable') is not True:
-        reasons.append('The creator does not allow this video to be embedded.')
+        reasons.append('YouTube does not allow this video to play on other websites. It cannot play inside SammyTV.')
     if video.get('age_restricted') is not False:
         reasons.append('YouTube reports an age restriction.')
     if video.get('is_live') is not False:
-        reasons.append('Live, upcoming and archived live broadcasts are not supported yet.')
+        reasons.append('This broadcast is live, upcoming, or has not been confirmed as ended. Recheck its details once it has finished.')
     if video.get('channel', {}).get('enabled') is False:
         reasons.append('This channel is disabled in your collection.')
     return reasons
