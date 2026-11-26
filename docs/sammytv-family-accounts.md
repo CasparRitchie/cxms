@@ -1,6 +1,10 @@
 # SammyTV family accounts: prepared for review
 
-Prepared 26 November 2026. This update is local only. No production database changes, accounts, invitations, emails or deployment have been made by this work.
+Prepared 26 November 2026. The owner subsequently deployed the update and applied the family-account migration. Read-only checks through the deployed CXMS adapter confirmed the family-children and existing-parent RPCs are available. No child accounts, invitations or emails were created by the diagnostic checks.
+
+Deployment diagnosis, 26 November: the initial `/sammytv` 503 came from the missing earlier live-camera migration. Live checks returned `PGRST202` for `sammytv_channels_v2` and `sammytv_catalogue_v2`, and `42703` for the missing `sammytv_videos.live_camera` column. Existing parent access and category reads succeeded. Apply `supabase/sammytv_live_cameras.sql` to **NPS Me**, then reload the collection. The family-account migration is already present. No production SQL changes were made during diagnosis; recovery still awaits application of the missing camera migration and verification.
+
+Recovery confirmed later on 26 November: the owner applied the missing camera migration and reported the application working again. A subsequent read through the deployed approved-catalogue RPC also succeeded. Any new live-camera upload-status fix is documented separately in `sammytv-camera-sources.md` and does not require another database migration.
 
 ## What the experience does
 

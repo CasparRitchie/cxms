@@ -1,6 +1,32 @@
 # Camera sources checked 25 November 2026
 
-These are research candidates, not approved or imported SammyTV feeds. Public viewing and permission to embed in another site are separate questions. Current SammyTV playback supports YouTube only; non-YouTube sources need a reviewed provider adapter and any required operator permission.
+## Crossing-camera batch, 26 November
+
+The owner reports applying the camera migration and the collection loading again. A read-only check through the deployed CXMS adapter also successfully loaded approved catalogue rows. Four crossing-focused YouTube feeds were selected from the [East Lancashire Railway's camera page](https://www.eastlancsrailway.org.uk/railcam/) and the [WSR webcam selector](https://www.wsr.org.uk/cams.htm), whose players identify Railcam's railway channels:
+
+| Camera | Exact stream | Watch for |
+| --- | --- | --- |
+| Ramsbottom Cam 3 North | [jLyy1TdfnYQ](https://www.youtube.com/watch?v=jLyy1TdfnYQ) | Station and crossing view, the example originally supplied by the owner. |
+| Townsend Fold | [rKCC6_8SWmI](https://www.youtube.com/watch?v=rKCC6_8SWmI) | East Lancashire Railway crossing feed. |
+| Williton crossing, Camera 2 | [YHILlgN9cFs](https://www.youtube.com/watch?v=YHILlgN9cFs) | West Somerset Railway level crossing. The WSR selector notes an 08:00–18:00 availability window. |
+| Minehead Seaward Way crossing | [cO1MFjvfKUE](https://www.youtube.com/watch?v=cO1MFjvfKUE) | West Somerset Railway's Seaward crossing camera. |
+
+The reproducible link list is `scripts/data/sammytv_crossing_cameras_2026-11-26.txt`. These are heritage railway cameras; an active camera does not mean trains are running continuously. Camera availability and stream IDs can change.
+
+The authorised import ran on CXMS on 26 November: **four added, no failures**. Immediate server-side reads confirmed all four stored as **pending**, `is_live=true`, `live_camera=false`. No feed was approved or assigned to categories; existing approvals were preserved. Parent review links:
+
+- [Ramsbottom north](https://www.cxms.fr/sammytv/admin/videos/794831e2-6f5c-4b1f-b397-b5fdf950ed07)
+- [Townsend Fold](https://www.cxms.fr/sammytv/admin/videos/5f891ee2-acb5-4c83-86b9-2bb983208343)
+- [Williton crossing](https://www.cxms.fr/sammytv/admin/videos/0a5ab908-41f1-4957-bd53-81099ecd3984)
+- [Minehead Seaward Way crossing](https://www.cxms.fr/sammytv/admin/videos/d4818c3c-d7c3-48d6-9f01-79d9e459572b)
+
+Live API checks on 26 November returned `privacyStatus=public`, `embeddable=true`, `liveBroadcastContent=live`, no age/region restrictions, `uploadStatus=uploaded` and `duration=P0D` for all four (also for Blue Anchor Camera 1 and Ford's Gaugemaster camera). This exposed an availability-check bug: the deployed code required `processed`, even for an ongoing live stream. The local fix accepts `uploaded` only for YouTube's explicitly confirmed live state. Contradictory end metadata stays unconfirmed; ordinary recordings still require processing. All existing privacy, age, region, creator binding, per-click recheck and explicit parent-camera approval controls remain in place. Four new regression tests pass as part of 130 SammyTV tests.
+
+Deploy the upload-status fix before approving these feeds. Imports made by the previous adapter may retain `available=false`: use **Recheck video details**, choose **Live Cameras**, review the feed/operator and use **Approve as live camera**. Imports never approve or expose an unreviewed feed. No additional SQL is required.
+
+## Independent hosting research
+
+The non-YouTube sources below are research candidates, not approved or imported SammyTV feeds. Public viewing and permission to embed in another site are separate questions. Current SammyTV playback supports YouTube only; non-YouTube sources need a reviewed provider adapter and any required operator permission.
 
 | Camera | Hosting evidence | Integration status |
 | --- | --- | --- |

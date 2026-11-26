@@ -115,6 +115,63 @@ class MetadataTests(unittest.TestCase):
         self.assertIs(result['available'], True)
         self.assertIs(result['embeddable'], True)
 
+    def test_public_active_camera_can_be_uploaded_with_zero_day_duration(self):
+        item = provider_item()
+        item['snippet']['liveBroadcastContent'] = 'live'
+        item['status']['uploadStatus'] = 'uploaded'
+        item['contentDetails']['duration'] = 'P0D'
+        item['liveStreamingDetails'] = {'actualStartTime': '2020-01-01T11:00:00Z'}
+        lookup, _ = self.lookup(item)
+        with patch.dict(os.environ, SAMMYTV_YOUTUBE_API_KEY='key'), lookup:
+            result = fetch_metadata(PROVIDER_ID)
+        self.assertIs(result['available'], True)
+        self.assertEqual(result['broadcast_state'], 'live')
+        self.assertIs(result['is_live'], True)
+        self.assertEqual(result['duration_seconds'], 0)
+        from services.sammytv.youtube import blocked_reasons
+        self.assertTrue(blocked_reasons(result))  # Still needs explicit camera approval.
+        self.assertEqual(blocked_reasons(result, allow_live_camera=True), [])
+
+    def test_uploaded_recording_upcoming_or_unconfirmed_broadcast_is_not_ready(self):
+        for state, streaming in (('none', None), ('upcoming', {}), ('none', {}),
+                                 ('live', {'actualEndTime': '2020-01-01T11:00:00Z'}),
+                                 ('live', None)):
+            item = provider_item()
+            item['snippet']['liveBroadcastContent'] = state
+            item['status']['uploadStatus'] = 'uploaded'
+            if streaming is not None or state == 'live':
+                item['liveStreamingDetails'] = streaming
+            lookup, _ = self.lookup(item)
+            with self.subTest(state=state, streaming=streaming), patch.dict(os.environ, SAMMYTV_YOUTUBE_API_KEY='key'), lookup:
+                self.assertIs(fetch_metadata(PROVIDER_ID)['available'], False)
+
+    def test_live_state_cannot_override_failed_deleted_or_unknown_upload_status(self):
+        for upload in ('failed', 'deleted', 'rejected', 'unknown', ''):
+            item = provider_item()
+            item['snippet']['liveBroadcastContent'] = 'live'
+            item['status']['uploadStatus'] = upload
+            lookup, _ = self.lookup(item)
+            with self.subTest(upload=upload), patch.dict(os.environ, SAMMYTV_YOUTUBE_API_KEY='key'), lookup:
+                self.assertIs(fetch_metadata(PROVIDER_ID)['available'], False)
+
+    def test_uploaded_live_camera_still_requires_public_unrestricted_embedding(self):
+        from services.sammytv.youtube import blocked_reasons
+        for restriction in ('private', 'unlisted', 'embedding', 'region', 'age'):
+            item = provider_item()
+            item['snippet']['liveBroadcastContent'] = 'live'
+            item['status']['uploadStatus'] = 'uploaded'
+            if restriction in ('private','unlisted'):
+                item['status']['privacyStatus'] = restriction
+            elif restriction == 'embedding':
+                item['status']['embeddable'] = False
+            elif restriction == 'region':
+                item['contentDetails']['regionRestriction'] = {'blocked': ['GB']}
+            else:
+                item['contentDetails']['contentRating'] = {'ytRating': 'ytAgeRestricted'}
+            lookup, _ = self.lookup(item)
+            with self.subTest(restriction=restriction), patch.dict(os.environ, SAMMYTV_YOUTUBE_API_KEY='key'), lookup:
+                self.assertTrue(blocked_reasons(fetch_metadata(PROVIDER_ID), allow_live_camera=True))
+
     def test_active_upcoming_and_unconfirmed_broadcasts_stay_blocked(self):
         variants = [
             ('live', {'actualEndTime': '2020-01-01T11:00:00Z'}),

@@ -89,6 +89,9 @@ def live_or_unconfirmed(item):
 
 def broadcast_state(item):
     state = item['snippet']['liveBroadcastContent']
+    broadcast = item.get('liveStreamingDetails', {})
+    if state == 'live' and (not isinstance(broadcast, dict) or 'actualEndTime' in broadcast):
+        return 'unconfirmed'
     if state in ('live', 'upcoming'):
         return state
     if 'liveStreamingDetails' not in item:
@@ -133,14 +136,19 @@ def fetch_metadata(video_id):
                 or not isinstance(status['uploadStatus'], str)
                 or not isinstance(details.get('contentRating', {}), dict)):
             raise ValueError
+        state = broadcast_state(item)
+        # Ongoing streams can remain "uploaded" until their recording is processed.
+        # Only YouTube's explicit live state permits that status. Recordings still
+        # need "processed"; failed/rejected/deleted/unknown statuses stay blocked.
+        ready = status['uploadStatus'] == 'processed' or (state == 'live' and status['uploadStatus'] == 'uploaded')
         return dict(provider_video_id=video_id, provider_channel_id=values['channelId'],
             title=values['title'], description=values['description'], channel_name=values['channelTitle'],
             duration_seconds=duration_seconds(details['duration']),
-            available=status['privacyStatus'] == 'public' and status['uploadStatus'] == 'processed'
+            available=status['privacyStatus'] == 'public' and ready
                       and not details.get('regionRestriction'),
             embeddable=status['embeddable'],
             age_restricted=bool(details.get('contentRating', {}).get('ytRating')),
-            is_live=live_or_unconfirmed(item), broadcast_state=broadcast_state(item))
+            is_live=live_or_unconfirmed(item), broadcast_state=state)
     except VideoInputError:
         raise
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError, TypeError, AttributeError):
