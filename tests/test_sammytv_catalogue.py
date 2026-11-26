@@ -54,6 +54,9 @@ class FakeRepository:
     def family(self, family_id):
         return deepcopy(self.family_row) if family_id == FAMILY else None
 
+    def auth_limit(self, bucket, limit, seconds):
+        return True
+
     def categories(self, family_id):
         self.calls.append(('categories', family_id))
         return [dict(id=CATEGORY, name='Railways', slug='railways', position=0)] if family_id == FAMILY else []
@@ -109,7 +112,7 @@ class CatalogueTests(unittest.TestCase):
         for path in ('/sammytv', '/sammytv/admin', '/sammytv/api/catalogue', f'/sammytv/api/videos/{VIDEO}/playback'):
             with self.subTest(path=path):
                 response = self.client.get(path)
-                self.assertEqual(response.status_code, 401)
+                self.assertEqual(response.status_code, 401 if '/api/' in path else 302)
                 self.assertNotIn(b'The coastal railway', response.data)
         self.assertEqual(self.repo.calls, [])
 
@@ -274,7 +277,7 @@ class RepositoryTests(unittest.TestCase):
             opener.return_value.__enter__.return_value.read.return_value = b'[]'
             self.repo.videos(FAMILY, query=query, category_id=CATEGORY)
             req = opener.call_args[0][0]
-            self.assertEqual(req.full_url, 'https://sammytv.example/rest/v1/rpc/sammytv_catalogue')
+            self.assertEqual(req.full_url, 'https://sammytv.example/rest/v1/rpc/sammytv_catalogue_v2')
             self.assertEqual(json.loads(req.data)['p_query'], query)
             self.assertEqual(json.loads(req.data)['p_family_id'], FAMILY)
             self.assertEqual(req.headers['Authorization'], 'Bearer private-test-key')

@@ -1,0 +1,40 @@
+/* Login and family-management screens. Base tokens come from app.css. */
+.stv-access{min-height:100vh}
+.stv .access-header{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:28px 6vw;border-bottom:1px solid var(--line)}
+.stv .access-layout{display:grid;grid-template-columns:1.15fr 1fr;gap:7vw;align-items:center;max-width:1200px;margin:0 auto;padding:60px 32px}
+.stv .access-intro h1{font-size:clamp(32px,4vw,54px);line-height:1.13;letter-spacing:-1.6px;margin:18px 0}
+.stv .access-intro>p:not(.eyebrow){color:var(--muted);line-height:1.8}
+.stv .access-intro img{width:100%;border-radius:18px;margin-top:20px;max-height:245px;object-fit:cover}
+.stv .access-panel{width:100%;box-sizing:border-box}
+.stv .access-panel h2{font-size:24px;margin:26px 0 10px}
+.stv .access-tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:26px}
+.stv .access-tabs a{flex:1;text-align:center;padding:14px 4px;color:var(--muted);font-size:14px}
+.stv .access-tabs [aria-current]{border-bottom:3px solid #e34d43;color:var(--fg);font-weight:700}
+.stv .parent-form label>input:not([type=checkbox]){display:block;box-sizing:border-box;width:100%;margin-top:8px;padding:12px 14px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--fg);font:inherit;font-size:15px}
+.stv .parent-form input:focus{outline:2px solid #ee6b62;outline-offset:2px}
+.stv .access-help{margin-top:26px;font-size:13px}
+.stv .access-help a,.stv .access-footer a{color:#f18d85}
+.stv .access-footer{display:flex;flex-wrap:wrap;gap:20px;font-size:12px;border-top:1px solid var(--line);margin-top:30px;padding-top:20px}
+.stv .access-code{font-family:monospace;overflow-wrap:anywhere;border:1px dashed var(--line);padding:15px;border-radius:8px;font-size:16px;user-select:all}
+.stv .family-layout{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:30px 0}
+.stv .family-side{display:flex;flex-direction:column;gap:24px}
+.stv .family-child{margin:14px 0}
+.stv .family-child-heading,.stv .family-actions{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.stv .family-actions{justify-content:flex-start;margin-top:18px}
+.stv .family-child details{margin-top:20px}
+.stv .family-child h3{font-size:19px}
+.stv .family-child .parent-form{margin-top:12px}
+.stv .family-child .parent-form .review-confirmation{border:0;padding:0}
+.stv .family-child summary,.stv .family-side summary{cursor:pointer;font-size:13px}
+.stv .family-layout p,.stv .access-panel p{line-height:1.65}
+html[data-theme=light] .stv .access-help a,html[data-theme=light] .stv .access-footer a{color:#b73933}
+@media(max-width:800px){.stv .access-layout{grid-template-columns:1fr;max-width:520px;padding:28px 18px;gap:25px}
+.stv .access-intro img{display:none}
+.stv .access-intro h1{font-size:34px}
+.stv .access-intro h1 br{display:none}
+.stv .access-header{padding:20px}
+.stv .access-header>.muted{display:none}
+.stv .family-layout{grid-template-columns:1fr}
+.stv-access .parent-panel{padding:24px}
+}
+

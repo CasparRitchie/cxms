@@ -15,7 +15,7 @@
   <nav class="parent-navigation" aria-label="Parent navigation">
     <a href="{{ url_for('sammytv.admin') }}" {% if not item and not managing_categories %}aria-current="page"{% endif %}>Videos</a>
     <a href="{{ url_for('sammytv.admin_categories') }}" {% if managing_categories %}aria-current="page"{% endif %}>Categories</a>
-    <a href="{{ url_for('sammytv.devices') }}">Devices</a>
+    <a href="{{ url_for('sammytv.family_accounts') }}">Family</a>
     <a href="/sammytv">View collection ↗</a>
   </nav>
   <button class="icon theme" aria-label="Switch colour theme">◐</button>
@@ -60,7 +60,7 @@
       <a class="pill parent-primary external-review" href="https://www.youtube.com/watch?v={{ item.provider_video_id }}" target="_blank" rel="noopener noreferrer">Watch on YouTube ↗</a>
       <p class="muted">Opens YouTube in a new tab for your review. This does not approve the video or enable playback for a viewer.</p>
       <details class="review-description"><summary>Video description</summary><p>{{ item.description or 'No description supplied.' }}</p></details>
-      {% if blocked %}<div class="parent-alert error"><strong>This video cannot be approved yet</strong><ul>{% for reason in blocked %}<li>{{ reason }}</li>{% endfor %}</ul></div>{% endif %}
+      {% if blocked %}<div class="parent-alert error"><strong>{{ 'Ordinary video approval is unavailable. A trusted live camera can be reviewed separately below.' if item.is_live and not camera_blocked else 'This video cannot be approved yet' }}</strong><ul>{% for reason in blocked %}<li>{{ reason }}</li>{% endfor %}</ul></div>{% endif %}
     </section>
     <section class="parent-panel" aria-labelledby="approval-heading">
       <p class="eyebrow">YOUR DECISION</p><h2 id="approval-heading">Review &amp; approve</h2>
@@ -80,6 +80,12 @@
         <p class="muted">YouTube availability is checked again when you approve. These checks do not assess whether the content is suitable; that decision is yours.</p>
         <button class="pill" name="action" value="refresh" formnovalidate {% if not lookup_configured %}disabled{% endif %}>Recheck video details</button>
         <button class="pill parent-primary" name="action" value="approve" {% if blocked or not lookup_configured or not category_records %}disabled{% endif %}>{{ 'Save approval & categories' if item.status == 'approved' else 'Approve for collection' }}</button>
+        {% if item.is_live %}<div class="camera-approval"><h3>Approve as a live camera</h3>
+          <p class="muted">For a camera feed you trust, such as a railway or airport camera. This approves only this stream and creator. Live pictures can change after approval.</p>
+          <label class="review-confirmation"><input type="checkbox" name="camera_reviewed" value="yes"><span>I have checked this camera and its operator, and approve this ongoing feed for my viewer.</span></label>
+          {% if camera_blocked %}<p class="muted">Other restrictions still apply. Resolve the availability, age or embedding issues shown above.</p>{% endif %}
+          <button class="pill parent-primary" name="action" value="approve_camera" formnovalidate {% if camera_blocked or not lookup_configured or not category_records %}disabled{% endif %}>{{ 'Save live-camera approval' if item.live_camera else 'Approve as live camera' }}</button>
+        </div>{% endif %}
       </form>
       {% if item.status != 'hidden' %}
       <div class="remove-section"><h3>Remove from collection</h3><p class="muted">Hide this video now. Its details stay here so you can review it again later. A player already open on another device may keep playing.</p>

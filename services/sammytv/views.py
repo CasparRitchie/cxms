@@ -2,12 +2,13 @@
 import os
 from urllib.parse import urlencode
 
-from flask import Blueprint, abort, current_app, g, jsonify, render_template, request
+from flask import Blueprint, abort, current_app, g, jsonify, redirect, render_template, request, url_for
 
 from . import demo
 from .auth import AccessDenied, current_viewer, require_parent, uuid_string
 from .catalogue import checked_videos, embed_url, viewer_video
 from .repository import CatalogueRepository, CatalogueUnavailable
+from .youtube import VideoInputError, fetch_metadata
 
 blueprint = Blueprint('sammytv', __name__, url_prefix='/sammytv')
 
@@ -23,13 +24,23 @@ def catalogue_access():
         raise CatalogueUnavailable('Invalid SammyTV mode.')
     g.sammytv_preview = mode == 'preview'
     if g.sammytv_preview:
-        if (is_api() or request.endpoint in ('sammytv.signin', 'sammytv.pair', 'sammytv.devices', 'sammytv.logout')
+        if (is_api() or request.endpoint in ('sammytv.signin', 'sammytv.child_register', 'sammytv.pair', 'sammytv.devices', 'sammytv.logout', 'sammytv.family_accounts')
                 or (request.endpoint or '').startswith('sammytv.admin_')):
             raise CatalogueUnavailable('The private catalogue is not enabled.')
         return
     g.sammytv_repository = CatalogueRepository()
-    if request.endpoint not in ('sammytv.signin', 'sammytv.pair'):
-        g.sammytv_viewer = current_viewer(g.sammytv_repository)
+    if request.method == 'POST' and request.endpoint in ('sammytv.signin','sammytv.child_register','sammytv.family_accounts','sammytv.pair'):
+        # These are small URL-encoded forms; reject unbounded/chunked and oversized payloads.
+        if ((request.content_length or 0) > 16384 or
+                (request.content_length is None and request.environ.get('wsgi.input_terminated'))):
+            abort(413)
+    if request.endpoint not in ('sammytv.signin', 'sammytv.pair', 'sammytv.child_register'):
+        try:
+            g.sammytv_viewer = current_viewer(g.sammytv_repository)
+        except AccessDenied as exc:
+            if exc.status_code == 401 and request.method == 'GET' and not is_api():
+                return redirect(url_for('sammytv.signin'))
+            raise
 
 
 @blueprint.errorhandler(AccessDenied)
@@ -140,8 +151,14 @@ def page(channel_id=None, video_id=None):
                     context['next_url'] = request.path + '?' + urlencode({**args, 'page': offset // 48 + 2})
     if (video_id and not video) or (channel_id and not channel):
         abort(404)
-    return render_template('sammytv/app.html', **context, video=video, channel=channel, section=section,
-        playback_enabled=not g.sammytv_preview and os.getenv('SAMMYTV_YOUTUBE_PLAYBACK_ENABLED') == '1')
+    if not g.sammytv_preview:
+        from .sessions import csrf, CSRF_COOKIE
+        context['csrf_token'] = csrf()
+    response = current_app.make_response(render_template('sammytv/app.html', **context, video=video, channel=channel, section=section,
+        playback_enabled=not g.sammytv_preview and os.getenv('SAMMYTV_YOUTUBE_PLAYBACK_ENABLED') == '1'))
+    if not g.sammytv_preview:
+        response.set_cookie(CSRF_COOKIE, context['csrf_token'], secure=True, httponly=True, samesite='Strict',path='/sammytv',max_age=3600)
+    return response
 
 
 @blueprint.get('/api/catalogue')
@@ -187,6 +204,25 @@ def api_playback(video_id):
     row = approved_video(video_id)
     if os.getenv('SAMMYTV_YOUTUBE_PLAYBACK_ENABLED') != '1':
         return jsonify(error='playback_disabled', message='A parent needs to enable playback first.'), 403
+    if row.get('live_camera'):
+        offline = dict(error='camera_offline', message='This camera is offline or unavailable. Please try again later.')
+        try:
+            metadata = fetch_metadata(row['provider_video_id'])
+        except VideoInputError:
+            return jsonify(**offline), 410
+        if (metadata.get('broadcast_state') != 'live' or metadata.get('is_live') is not True
+                or metadata.get('available') is not True or metadata.get('embeddable') is not True
+                or metadata.get('age_restricted') is not False
+                or metadata.get('provider_video_id') != row.get('camera_video_id')
+                or metadata.get('provider_channel_id') != row.get('camera_channel_id')
+                or metadata.get('title') != row['title'] or metadata.get('description') != row['description']):
+            return jsonify(**offline), 410
+        # Provider checks may take seconds. Recheck approval/bindings after them.
+        current = approved_video(video_id)
+        if any(current.get(key) != row.get(key) for key in
+               ('updated_at', 'approved_by', 'approved_at', 'live_camera', 'camera_video_id', 'camera_channel_id')):
+            return jsonify(**offline), 410
+        row = current
     return jsonify(embed_url=embed_url(row))
 
 
@@ -212,3 +248,6 @@ register(blueprint)
 
 from .moderation import register as register_moderation
 register_moderation(blueprint)
+
+from .family import register as register_family
+register_family(blueprint)

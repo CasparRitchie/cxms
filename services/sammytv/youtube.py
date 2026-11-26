@@ -9,7 +9,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 VIDEO_ID = re.compile(r'[A-Za-z0-9_-]{11}')
 CHANNEL_ID = re.compile(r'UC[A-Za-z0-9_-]{22}')
-DURATION = re.compile(r'P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?')
+DURATION = re.compile(r'P(?:(\d+)D)?(?:T(?=\d)(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?')
 
 
 class VideoInputError(ValueError):
@@ -87,6 +87,15 @@ def live_or_unconfirmed(item):
         return True
 
 
+def broadcast_state(item):
+    state = item['snippet']['liveBroadcastContent']
+    if state in ('live', 'upcoming'):
+        return state
+    if 'liveStreamingDetails' not in item:
+        return 'recording'
+    return 'unconfirmed' if live_or_unconfirmed(item) else 'ended'
+
+
 def fetch_metadata(video_id):
     if not isinstance(video_id, str) or not VIDEO_ID.fullmatch(video_id):
         raise VideoInputError('The video identifier is invalid.')
@@ -131,7 +140,7 @@ def fetch_metadata(video_id):
                       and not details.get('regionRestriction'),
             embeddable=status['embeddable'],
             age_restricted=bool(details.get('contentRating', {}).get('ytRating')),
-            is_live=live_or_unconfirmed(item))
+            is_live=live_or_unconfirmed(item), broadcast_state=broadcast_state(item))
     except VideoInputError:
         raise
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError, TypeError, AttributeError):
@@ -139,7 +148,7 @@ def fetch_metadata(video_id):
         raise MetadataUnavailable('YouTube could not check this video just now. Check the API key and quota, then try again.') from None
 
 
-def blocked_reasons(video):
+def blocked_reasons(video, *, allow_live_camera=False):
     reasons = []
     if video.get('available') is not True:
         reasons.append('The video is not publicly available without regional restrictions.')
@@ -147,7 +156,7 @@ def blocked_reasons(video):
         reasons.append('YouTube does not allow this video to play on other websites. It cannot play inside SammyTV.')
     if video.get('age_restricted') is not False:
         reasons.append('YouTube reports an age restriction.')
-    if video.get('is_live') is not False:
+    if video.get('is_live') is not False and not allow_live_camera:
         reasons.append('This broadcast is live, upcoming, or has not been confirmed as ended. Recheck its details once it has finished.')
     if video.get('channel', {}).get('enabled') is False:
         reasons.append('This channel is disabled in your collection.')

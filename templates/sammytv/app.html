@@ -22,6 +22,7 @@
   <button class="icon theme" aria-label="Switch colour theme">◐</button>
   {% if is_parent %}<a class="pill parent-shortcut" href="{{ url_for('sammytv.admin') }}">Parent area</a>{% endif %}
   <span class="profile" aria-label="{{ 'Preview profile' if preview else 'Viewer profile' }}">{{ profile_initial }}</span>
+  {% if not preview %}<form method="post" action="{{ url_for('sammytv.logout') }}" class="signout-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="pill">Sign out</button></form>{% endif %}
 </header>
 <aside class="sidebar">
   <nav aria-label="Main navigation">
@@ -48,7 +49,7 @@
           <h1>Ready for the real thing?</h1>
           <p>This is a playback preview.<br>Parent-reviewed videos will play here after setup.</p>
           {% elif playback_enabled %}
-          <h1>Your video is ready</h1>
+          <h1>{{ 'Check this live camera' if video.is_camera else 'Your video is ready' }}</h1>
           <p>Loading this player connects to YouTube.<br>YouTube may show adverts, links and related videos.</p>
           <button class="pill load-player" data-playback-url="{{ url_for('sammytv.api_playback', video_id=video.id) }}">Load YouTube player</button>
           {% else %}
@@ -100,7 +101,7 @@
   <div class="collection-heading"><h1>Search your collection</h1><p class="muted">{{ 'Only videos in this preview catalogue appear here.' if preview else 'Search only includes your reviewed collection.' }}</p></div>
   {% else %}
   <section class="welcome">
-    <div><p class="eyebrow">YOUR OWN CORNER OF VIDEO</p><h1>Find your next great watch.</h1><p>Rail adventures. Big departures. A good laugh.<br>All the things you love, in one place.</p><a class="hero-link" href="/sammytv/channels">Explore your channels <span>→</span></a></div>
+    <div><p class="eyebrow">YOUR OWN CORNER OF VIDEO</p><h1>Find your next great watch.</h1><p>Rail adventures. Big departures. A good laugh.<br> All the things you love, in one place.</p><a class="hero-link" href="/sammytv/channels">Explore your channels <span>→</span></a></div>
     <div class="hero-art"><img src="/static/sammytv/train.svg" alt="Illustration of a train travelling through hills"><span class="hero-tag">A WORLD TO EXPLORE</span></div>
   </section>
   {% endif %}

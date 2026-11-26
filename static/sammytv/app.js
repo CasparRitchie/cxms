@@ -50,6 +50,14 @@
     status.textContent = 'Checking this video…';
     try {
       const response = await fetch(button.dataset.playbackUrl, { credentials: 'same-origin', cache: 'no-store' });
+      if (response.status === 410) {
+        const problem = await response.json();
+        if (problem.error === 'camera_offline') {
+          status.textContent = 'This camera is offline or unavailable. Please try again later.';
+          button.disabled = false;
+          return;
+        }
+      }
       if (!response.ok) throw new Error('Playback unavailable');
       const data = await response.json();
       const url = new URL(data.embed_url);

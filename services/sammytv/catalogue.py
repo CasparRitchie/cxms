@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 from .repository import CatalogueUnavailable
 
 VIDEO_ID = re.compile(r'^[A-Za-z0-9_-]{11}$')
+CHANNEL_ID = re.compile(r'^UC[A-Za-z0-9_-]{22}$')
 
 
 def is_visible(row, family_id):
@@ -20,10 +21,19 @@ def is_visible(row, family_id):
             not isinstance(channel.get('id'), str) or
             any(not isinstance(c, dict) or not isinstance(c.get('name'), str) for c in row['categories'])):
         return False
+    camera = row.get('live_camera', False)
+    if type(camera) is not bool:
+        return False
+    approved_type = (row.get('is_live') is False and camera is False) or (
+        camera is True and row.get('is_live') is True
+        and row.get('camera_video_id') == row.get('provider_video_id')
+        and isinstance(row.get('camera_channel_id'), str)
+        and bool(CHANNEL_ID.fullmatch(row['camera_channel_id']))
+        and row['camera_channel_id'] == channel.get('provider_channel_id'))
     return (row.get('family_id') == family_id and row.get('status') == 'approved'
             and bool(row.get('approved_by')) and bool(row.get('approved_at'))
             and row.get('available') is True and row.get('embeddable') is True
-            and row.get('age_restricted') is False and row.get('is_live') is False
+            and row.get('age_restricted') is False and approved_type
             and row.get('provider') == 'youtube'
             and bool(VIDEO_ID.fullmatch(row.get('provider_video_id', '')))
             and channel.get('family_id') == family_id and channel.get('enabled') is True)
@@ -38,11 +48,11 @@ def viewer_video(row):
     categories = [category['name'] for category in row['categories']]
     kind = 'plane' if 'Planes' in categories else 'comedy' if 'Comedy' in categories else 'train'
     return {'id': row['id'], 'title': row['title'], 'description': row['description'],
-            'duration': f'{hours}:{minutes:02d}:{seconds:02d}' if hours else f'{minutes}:{seconds:02d}',
+            'duration': 'LIVE' if row.get('live_camera') else f'{hours}:{minutes:02d}:{seconds:02d}' if hours else f'{minutes}:{seconds:02d}',
             'channel': {'id': channel['id'], 'name': channel['name'],
                         'initials': ''.join(word[0] for word in channel['name'].split()[:2]).upper()},
             'categories': categories, 'approved_at': row['approved_at'],
-            'kind': kind, 'caption': ''}
+            'kind': kind, 'caption': '', 'is_camera': row.get('live_camera') is True}
 
 
 def checked_videos(repository, family_id, **filters):

@@ -27,16 +27,21 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(self.client.post('/sammytv/signin').status_code, 400)
         self.assertEqual(self.client.post('/sammytv/pair').status_code, 400)
 
-    def test_allowlist_blocks_identity_lookup(self):
+    def test_unlisted_unknown_parent_cannot_provision_a_family(self):
         token = self.token('/sammytv/signin')
-        response = self.client.post('/sammytv/signin', base_url='https://localhost', data={
-            'csrf_token': token, 'email': 'other@example.test', 'password': 'secret'})
+        with patch.object(self.repo,'verify_parent',create=True,return_value=MEMBER), \
+             patch.object(self.repo,'existing_parent',create=True,return_value=None), \
+             patch.object(self.repo,'provision_parent',create=True) as provision:
+            response = self.client.post('/sammytv/signin', base_url='https://localhost', data={
+                'csrf_token': token, 'email': 'other@example.test', 'password': 'secret'})
+            provision.assert_not_called()
         self.assertEqual(response.status_code, 401)
 
     def test_verified_parent_issues_private_cookie(self):
         token = self.token('/sammytv/signin')
         record = dict(member_id=MEMBER, family_id=FAMILY, profile_id=PROFILE, session_version=1)
         with patch.object(self.repo, 'verify_parent', create=True, return_value=MEMBER), \
+             patch.object(self.repo, 'existing_parent', create=True, return_value=None), \
              patch.object(self.repo, 'provision_parent', create=True, return_value=record):
             response = self.client.post('/sammytv/signin', base_url='https://localhost', data={
                 'csrf_token': token, 'email': 'parent@example.test', 'password': 'secret'})

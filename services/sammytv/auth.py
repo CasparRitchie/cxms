@@ -55,7 +55,7 @@ def current_viewer(repository):
             type(claims['session_version']) is not int or
             member.get('session_version') != claims['session_version'] or
             member.get('role') not in ('parent', 'viewer') or
-            (member['role'] == 'viewer' and profile.get('member_id') != member_id)):
+            profile.get('member_id') != member_id):
         raise AccessDenied('This collection is unavailable.')
     g.sammytv_viewer = {'member_id': member_id, 'family_id': family_id, 'profile_id': profile_id,
                        'role': member['role'], 'session_version': member['session_version'], 'nickname': profile['nickname'],

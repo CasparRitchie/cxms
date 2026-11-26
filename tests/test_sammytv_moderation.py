@@ -23,7 +23,7 @@ def metadata():
     row = approved_row()
     return {key: row[key] for key in ('provider_video_id', 'title', 'description',
         'duration_seconds', 'available', 'embeddable', 'age_restricted', 'is_live')} | {
-        'provider_channel_id': PROVIDER_CHANNEL, 'channel_name': 'Rail Journal'}
+        'provider_channel_id': PROVIDER_CHANNEL, 'channel_name': 'Rail Journal', 'broadcast_state': 'recording'}
 
 
 def provider_item():
@@ -165,6 +165,7 @@ class ParentRepository(FakeRepository):
         self.pending['channel']['provider_channel_id'] = PROVIDER_CHANNEL
         self.import_video = Mock(return_value=dict(video_id=VIDEO, added=True))
         self.moderate_video = Mock(return_value=dict(video_id=VIDEO, status='approved'))
+        self.approve_camera = Mock(return_value=dict(video_id=VIDEO, video_status='approved'))
 
     def admin_videos(self, family_id, **filters):
         self.calls.append(('admin_videos', family_id, filters))

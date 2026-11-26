@@ -1,11 +1,39 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SammyTV access</title><link rel="stylesheet" href="{{ url_for('static', filename='sammytv/app.css') }}"></head>
-<body><main><h1>SammyTV</h1>
-{% if message %}<p role="status">{{ message }}</p>{% endif %}
-{% if code %}<p><strong>{{ code }}</strong></p>{% endif %}
-<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-{% if kind == 'signin' %}<h2>Parent sign-in</h2><p>Use your verified parent account.</p><label>Email <input type="email" name="email" autocomplete="username" required maxlength="254"></label><label>Password <input type="password" name="password" autocomplete="current-password" required maxlength="1024"></label><button>Sign in</button>
-{% elif kind == 'pair' %}<h2>Connect this device</h2><label>Parent pairing code <input name="code" autocomplete="off" required minlength="32" maxlength="32"></label><button>Connect</button>
-{% else %}<h2>Viewer devices</h2><p>Generate a single-use code for your viewer's device. A new code replaces any unused code.</p><button>Create pairing code</button>{% endif %}</form>
-{% if kind == 'devices' %}<form method="post" action="{{ url_for('sammytv.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button>Sign out</button></form>{% endif %}
-<p><a href="/sammytv">Collection</a> · <a href="/sammytv/signin">Parent sign-in</a> · <a href="/sammytv/pair">Connect device</a> · <a href="/sammytv/devices">Viewer devices</a></p></main></body></html>
+<html lang="en" data-theme="dark">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark light"><title>SammyTV · Welcome back</title><link rel="stylesheet" href="{{ url_for('static', filename='sammytv/app.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='sammytv/accounts.css') }}"></head>
+<body class="stv stv-access">
+<header class="access-header"><a class="brand" href="/sammytv"><span class="brand-icon">▶</span> SammyTV</a><span class="muted">Your videos. Your space.</span></header>
+<main class="access-layout" id="content">
+  <section class="access-intro"><p class="eyebrow">A COLLECTION BUILT AROUND YOU</p><h1>Welcome to your<br> next great watch.</h1><p>Rail adventures. Big departures. Favourite creators.<br>A private collection chosen by your family.</p><img src="{{ url_for('static',filename='sammytv/train.svg') }}" alt="Illustration of a train travelling through hills"></section>
+  <section class="parent-panel access-panel">
+    {% if message %}<div class="parent-alert" role="status">{{ message }}</div>{% endif %}
+    {% if kind == 'signin' %}
+    <nav class="access-tabs" aria-label="Choose sign-in type"><a href="{{ url_for('sammytv.signin',role='child') }}" {% if role=='child' %}aria-current="page"{% endif %}>I’m watching</a><a href="{{ url_for('sammytv.signin',role='parent') }}" {% if role=='parent' %}aria-current="page"{% endif %}>I’m a parent</a></nav>
+    <h2>{{ 'Your collection is waiting.' if role=='child' else 'Build their next great watch.' }}</h2>
+    <p class="muted">{{ 'Sign in with the login your parent set up or approved.' if role=='child' else 'Sign in to review videos and manage your family.' }}</p>
+    <form method="post" class="parent-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="role" value="{{ role }}">
+      {% if role=='child' %}<label>Username<input name="username" autocomplete="username" required minlength="3" maxlength="32" autocapitalize="none" spellcheck="false"></label>
+      {% else %}<label>Email<input type="email" name="email" autocomplete="username" required maxlength="254"></label>{% endif %}
+      <label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="{{ 128 if role=='child' else 1024 }}"></label>
+      {% if role=='parent' %}<details><summary>Joining another parent’s family?</summary><label>Invitation code<input name="invitation" autocomplete="off" maxlength="64" autocapitalize="none" spellcheck="false"></label><p class="muted">Use the code they shared and the verified parent login for the invited email. An invitation joins their collection.</p></details>{% endif %}
+      <button class="pill parent-primary">{{ 'Let’s watch' if role=='child' else 'Sign in as parent' }}</button>
+    </form>
+    {% if role=='child' %}<p class="access-help"><a href="{{ url_for('sammytv.child_register') }}">Need a login? Ask to join your family →</a></p><p class="muted">Forgotten your password? Your parent can reset it.</p>{% else %}<p class="muted access-help">New parents need a verified parent account. Ask the person who invited you to help with setup.</p>{% endif %}
+    {% elif kind=='register' %}
+    <p class="eyebrow">JOIN YOUR FAMILY</p><h2>Make this space yours.</h2><p class="muted">Ask your parent for a family code. They’ll review your request before you can sign in. No email address needed.</p>
+    <form method="post" class="parent-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>Family code<input name="family_code" required minlength="24" maxlength="64" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+      <label>Display name<input name="nickname" required maxlength="40" autocomplete="off" placeholder="A nickname is fine"></label>
+      <label>Choose a username<input name="username" required minlength="3" maxlength="32" autocomplete="username" autocapitalize="none" spellcheck="false"></label><p class="muted">3–32 letters, numbers, dots, underscores or hyphens.</p>
+      <label>Password<input type="password" name="password" required minlength="10" maxlength="128" autocomplete="new-password"></label>
+      <label>Repeat password<input type="password" name="password_confirm" required minlength="10" maxlength="128" autocomplete="new-password"></label><p class="muted">Use at least 10 characters. A few memorable words work well.</p>
+      <button class="pill parent-primary">Send request to my parent</button>
+    </form>
+    {% elif kind=='requested' %}<p class="eyebrow">REQUEST SENT</p><h2>Your parent has the next step.</h2><p class="muted">Ask them to open Family in their parent area. Once they approve your account, you can sign in with your username and password.</p>
+    {% elif kind=='pair' %}<h2>Connect this device</h2><p class="muted">Use a single-use device code from your parent. For your own username and password, choose sign-in below.</p><form method="post" class="parent-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>Parent pairing code<input name="code" autocomplete="off" required minlength="32" maxlength="32"></label><button class="pill parent-primary">Connect device</button></form>
+    {% else %}<h2>Viewer devices</h2><p class="muted">Generate a single-use code to connect a device without a child login. For named child accounts, use Family.</p>{% if code %}<p class="access-code">{{ code }}</p>{% endif %}<form method="post" class="parent-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="pill parent-primary">Create pairing code</button></form><p class="access-help"><a href="{{ url_for('sammytv.family_accounts') }}">Manage family accounts →</a></p>
+    {% endif %}
+    <div class="access-footer"><a href="{{ url_for('sammytv.signin') }}">Sign in</a><a href="/sammytv">Collection</a>{% if kind=='signin' %}<a href="{{ url_for('sammytv.pair') }}">Connect a device</a>{% endif %}</div>
+  </section>
+</main></body></html>

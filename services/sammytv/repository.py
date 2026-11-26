@@ -45,7 +45,7 @@ class CatalogueRepository:
                 raise CatalogueUnavailable('Unexpected catalogue response.')
             return rows
         except HTTPError as exc:
-            if resource in ('rpc/sammytv_import_video', 'rpc/sammytv_moderate_video', 'rpc/sammytv_manage_category'):
+            if resource.startswith('rpc/sammytv_'):
                 try:
                     code = json.loads(exc.read(4096)).get('code')
                 except (ValueError, AttributeError):
@@ -98,13 +98,13 @@ class CatalogueRepository:
         return self._request('sammytv_members', query)
 
     def videos(self, family_id, video_id=None, channel_id=None, category_id=None, query='', limit=48, offset=0):
-        return self._request('rpc/sammytv_catalogue', payload={
+        return self._request('rpc/sammytv_catalogue_v2', payload={
             'p_family_id': family_id, 'p_video_id': video_id, 'p_channel_id': channel_id,
             'p_category_id': category_id, 'p_query': query, 'p_limit': limit, 'p_offset': offset})
 
     def channels(self, family_id):
         # The RPC only returns channels with at least one individually approved video.
-        return self._request('rpc/sammytv_channels', payload={'p_family_id': family_id})
+        return self._request('rpc/sammytv_channels_v2', payload={'p_family_id': family_id})
 
     def verify_parent(self, email, password):
         # Passwords and provider tokens are never persisted or returned to the browser.
@@ -125,6 +125,57 @@ class CatalogueRepository:
         rows = self._request('rpc/sammytv_provision_parent', payload={'p_identity': identity})
         return rows[0] if rows else None
 
+    def existing_parent(self, identity):
+        rows = self._request('rpc/sammytv_existing_parent', payload={'p_identity': identity})
+        return rows[0] if rows else None
+
+    def auth_limit(self, bucket, limit, seconds):
+        rows = self._request('rpc/sammytv_auth_limit', payload={
+            'p_bucket': bucket, 'p_limit': limit, 'p_seconds': seconds})
+        return len(rows) == 1 and rows[0].get('allowed') is True
+
+    def child_credentials(self, username):
+        rows = self._request('rpc/sammytv_child_credentials', payload={'p_username': username})
+        return rows[0] if len(rows) == 1 else None
+
+    def child_session(self, child_id, password_hash):
+        rows = self._request('rpc/sammytv_child_session', payload={
+            'p_child': child_id, 'p_expected_hash': password_hash})
+        return rows[0] if len(rows) == 1 else None
+
+    @staticmethod
+    def parent_args(viewer):
+        return {'p_family': viewer['family_id'], 'p_parent': viewer['member_id'],
+                'p_session_version': viewer['session_version']}
+
+    def family_children(self, viewer):
+        return self._request('rpc/sammytv_family_children', payload=self.parent_args(viewer))
+
+    def family_parents(self, viewer):
+        return self._request('rpc/sammytv_family_parents', payload=self.parent_args(viewer))
+
+    def manage_child(self, viewer, action, child_id=None, expected_updated_at=None,
+                     username='', nickname='', password_hash=''):
+        return self._request('rpc/sammytv_manage_child', payload=self.parent_args(viewer) | {
+            'p_action': action, 'p_child': child_id, 'p_expected_updated_at': expected_updated_at,
+            'p_username': username, 'p_nickname': nickname, 'p_password_hash': password_hash})
+
+    def create_registration_code(self, viewer, digest):
+        return self._request('rpc/sammytv_create_registration_code', payload=self.parent_args(viewer) | {'p_digest': digest})
+
+    def request_child(self, digest, username, nickname, password_hash):
+        rows = self._request('rpc/sammytv_request_child', payload={
+            'p_digest': digest, 'p_username': username, 'p_nickname': nickname, 'p_password_hash': password_hash})
+        return len(rows) == 1 and rows[0].get('requested') is True
+
+    def create_parent_invite(self, viewer, digest, email):
+        return self._request('rpc/sammytv_create_parent_invite', payload=self.parent_args(viewer) | {
+            'p_digest': digest, 'p_email': email})
+
+    def accept_parent_invite(self, identity, digest):
+        rows = self._request('rpc/sammytv_accept_parent_invite', payload={'p_identity': identity, 'p_digest': digest})
+        return rows[0] if len(rows) == 1 else None
+
     def create_pairing(self, family_id, member_id, digest):
         return self._request('rpc/sammytv_create_pairing', payload={
             'p_family': family_id, 'p_parent': member_id, 'p_digest': digest})
@@ -136,6 +187,7 @@ class CatalogueRepository:
     def admin_videos(self, family_id, status=None, offset=0, video_id=None):
         query = {'select': 'id,family_id,provider_video_id,title,description,duration_seconds,'
                  'status,available,embeddable,age_restricted,is_live,updated_at,moderation_notes,'
+                 'live_camera,camera_video_id,camera_channel_id,'
                  'channel:sammytv_channels(id,name,provider_channel_id,enabled),'
                  'category_links:sammytv_video_categories(category_id)',
                  'family_id': 'eq.' + family_id, 'order': 'created_at.desc,id.desc',
@@ -162,4 +214,14 @@ class CatalogueRepository:
             'p_metadata': metadata, 'p_categories': category_ids or [], 'p_notes': notes})
         if len(rows) != 1:
             raise CatalogueUnavailable('Unexpected moderation response.')
+        return rows[0]
+
+    def approve_camera(self, viewer, video, metadata, category_ids, notes=''):
+        rows = self._request('rpc/sammytv_approve_camera', payload={
+            'p_family': viewer['family_id'], 'p_parent': viewer['member_id'],
+            'p_session_version': viewer['session_version'], 'p_video': video['id'],
+            'p_expected_updated_at': video['updated_at'], 'p_metadata': metadata,
+            'p_categories': category_ids, 'p_notes': notes, 'p_confirmed': True})
+        if len(rows) != 1:
+            raise CatalogueUnavailable('Unexpected camera approval response.')
         return rows[0]

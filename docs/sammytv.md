@@ -156,3 +156,19 @@ No SQL migration or new configuration is needed. After deploying, open an existi
 An embed-disabled video remains outside the viewer catalogue. The parent-only YouTube link can be used for review; no external-link fallback is added to the viewer experience. If the creator/provider later permits embedding, the same recheck button can pick up that change.
 
 Six additional tests cover ended/ongoing/unconfirmed broadcasts, persistent embedding restrictions, refresh of previously blocked recordings, preservation of review drafts and stale review rejection. Live testing awaits deployment.
+
+## Phase 4c: explicit live-camera approval
+
+Apply `supabase/sammytv_live_cameras.sql` once to the shared **NPS Me** project before deploying this update. It adds camera approval fields and service-only v2 catalogue/channel RPCs. The old deployment can keep using the original recording-only RPCs during rollout. No cameras are seeded or approved and no new config vars are needed; the existing YouTube key and playback toggle apply.
+
+Import the Ramsbottom example `https://www.youtube.com/watch?v=jLyy1TdfnYQ` normally in the parent area. Choose or create **Live Cameras** (any category name works), review the feed/operator, tick the separate ongoing-camera confirmation and choose **Approve as live camera**. Ordinary approval continues to reject live broadcasts. Upcoming/unconfirmed broadcasts and private, region-restricted, age-restricted or embed-disabled cameras remain blocked. Category names never enable cameras by themselves.
+
+Camera approval pins the exact stream and YouTube creator IDs. Each playback click makes a fresh provider metadata request, requiring the same active, public, embeddable, unrestricted feed and unchanged title/description. It rechecks database approval after the provider request. Failure returns an offline/unavailable message, without another feed or external-link fallback. Camera cards show **LIVE CAMERA**. A changed stream ID needs a new import/review; changed camera details need **Recheck video details** and a fresh parent approval. Removal/refresh clears camera approval and pins. A player already loaded may keep playing; ongoing pictures are not content-moderated or continuously rechecked.
+
+Validation: 97 SammyTV tests pass, including 20 new tests for camera-specific consent, identity/family bindings, restricted/upcoming streams, stale reviews, provider errors, per-click checks and removal during lookup. Database staging checks are prepared in `supabase/tests/sammytv_live_cameras_security.sql`; neither those checks nor the new migration has been executed against PostgreSQL locally because it is unavailable. Live camera import/approval/playback still needs verification after SQL application and deployment.
+
+Non-YouTube research and permission status are recorded in `docs/sammytv-camera-sources.md`. These candidates are not enabled in the application yet.
+
+## Phase 5: family login and child account management (local, awaiting review)
+
+The new welcome screen, child username/password login, parent-created accounts, parent approval of registration requests and shared-family parent invitations are prepared locally. Existing parent Auth accounts and family/approval records are preserved. Full behaviour, boundaries, validation and rollout order are documented in [sammytv-family-accounts.md](sammytv-family-accounts.md). Apply `supabase/sammytv_family_accounts.sql` before deploying this code, after staging verification; the migration has not been run locally or in production. Invited parents still need a separately verified Supabase Auth login; children do not need Auth accounts or email addresses.

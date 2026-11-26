@@ -38,6 +38,7 @@ def render_admin(*, item=None, message='', error='', status_code=200, form=None,
         context['all_categories'] = all_categories
     elif item:
         context['blocked'] = blocked_reasons(item)
+        context['camera_blocked'] = blocked_reasons(item, allow_live_camera=True)
         context['selected_categories'] = set((form or {}).get('category_ids',
             [link['category_id'] for link in item.get('category_links', [])]))
         context['review_token'] = jwt.encode(dict(video_id=item['id'], family_id=viewer['family_id'],
@@ -165,7 +166,7 @@ def register(blueprint):
         try:
             check_review(item)
             action = request.form.get('action') or ('add_category' if 'suggested_category' in request.form else None)
-            if action not in ('approve', 'hide', 'add_category', 'refresh'):
+            if action not in ('approve', 'approve_camera', 'hide', 'add_category', 'refresh'):
                 abort(400)
             viewer, repo = g.sammytv_viewer, g.sammytv_repository
             if action == 'hide':
@@ -194,21 +195,28 @@ def register(blueprint):
                 result = repo.manage_category(viewer, 'create', name=name)
                 form['category_ids'] = list(dict.fromkeys(category_ids + [result['category_id']]))
                 return render_admin(item=item, message='Category added and selected. Save approval to assign your selected categories to this video.', form=form)
-            if (request.form.get('reviewed') != 'yes' or not 1 <= len(category_ids) <= 50
+            confirmed = request.form.get('camera_reviewed') == 'yes' if action == 'approve_camera' else request.form.get('reviewed') == 'yes'
+            if (not confirmed or not 1 <= len(category_ids) <= 50
                     or not set(category_ids) <= valid or len(notes) > 10000):
-                return render_admin(item=item, error='Choose a category and confirm you have watched and reviewed this video. Notes can be up to 10,000 characters.',
+                return render_admin(item=item, error='Choose a category and confirm your review of this video or ongoing camera feed. Notes can be up to 10,000 characters.',
                                     status_code=400, form=form)
             metadata = fetch_metadata(item['provider_video_id'])
             if metadata['provider_channel_id'] != item['channel']['provider_channel_id']:
                 raise VideoInputError('The video’s channel has changed. Remove it and check the original link.')
-            if any(metadata[key] != item[key] for key in METADATA_FIELDS):
+            compared_fields = [key for key in METADATA_FIELDS if action != 'approve_camera' or key != 'duration_seconds']
+            if any(metadata[key] != item[key] for key in compared_fields):
                 repo.moderate_video(viewer, item, 'refresh', metadata=metadata)
                 return redirect(url_for('sammytv.admin_review', video_id=video_id, result='changed'), code=303)
-            reasons = blocked_reasons(dict(metadata, channel=item['channel']))
+            if action == 'approve_camera' and (metadata.get('broadcast_state') != 'live' or metadata['is_live'] is not True):
+                return render_admin(item=item, error='A live camera must be confirmed as currently streaming. Upcoming and unconfirmed broadcasts cannot be approved.', status_code=400, form=form)
+            reasons = blocked_reasons(dict(metadata, channel=item['channel']), allow_live_camera=action == 'approve_camera')
             if reasons:
                 return render_admin(item=item, error=' '.join(reasons), status_code=400, form=form)
-            repo.moderate_video(viewer, item, 'approve', metadata=metadata,
-                                category_ids=category_ids, notes=notes)
+            if action == 'approve_camera':
+                repo.approve_camera(viewer, item, metadata, category_ids, notes=notes)
+            else:
+                repo.moderate_video(viewer, item, 'approve', metadata=metadata,
+                                    category_ids=category_ids, notes=notes)
         except VideoInputError as exc:
             return render_admin(item=item, error=str(exc), status_code=400, form=form)
         except ModerationConflict:

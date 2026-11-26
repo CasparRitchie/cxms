@@ -13,6 +13,7 @@ html[data-theme=light] .stv{--bg:#fafafa;--panel:#f0f0f0;--raised:#e8e8e8;--fg:#
 @media(prefers-reduced-motion:reduce){.stv *{transition:none!important}}
 
 /* Parent controls share the collection theme and work without JavaScript. */
+.stv .camera-approval{border-top:1px solid var(--line);padding-top:20px;margin-top:12px}.stv .camera-approval button{margin-top:16px}
 .stv .parent-content input[type=text],.stv .parent-content input[type=number]{width:100%;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);padding:12px 14px;font:inherit}
 .stv .category-management-list{display:grid;gap:14px;margin-top:22px}
 .stv .category-editor{display:flex;align-items:center;gap:24px;justify-content:space-between}
@@ -95,3 +96,4 @@ html[data-theme=light] .stv .parent-navigation a[aria-current],html[data-theme=l
 html[data-theme=light] .stv .parent-danger{color:#9e3029}
 @media(max-width:800px){.stv .review-layout{grid-template-columns:1fr}.stv .parent-navigation{gap:14px}.stv .parent-label{display:none}.stv .parent-heading h1{font-size:30px}}
 @media(max-width:700px){.stv-admin .header{height:auto;min-height:98px;padding:12px 16px;flex-wrap:wrap;gap:8px}.stv-admin .parent-navigation{order:3;width:100%;margin:0;justify-content:space-between}.stv-admin .theme{margin-left:auto}.stv .parent-content{margin-top:98px;padding:24px 16px}.stv .parent-heading{align-items:flex-start;flex-direction:column;gap:10px}.stv .parent-panel{padding:20px}.stv .import-form{flex-direction:column}.stv .import-form>button{align-self:flex-start}.stv .parent-video-row{padding:16px 12px;gap:10px;flex-wrap:wrap}.stv .review-row-icon{width:40px;height:36px}.stv .parent-video-row .status-badge{margin-left:50px}.stv .row-arrow{margin-left:auto}.stv .parent-video-row>div{flex-basis:calc(100% - 60px)}.stv .parent-footer{align-items:flex-start}.stv .parent-shortcut{font-size:10px;padding:6px 8px}.stv .parent-heading h1{font-size:28px}}
+.stv .signout-form .pill{font-size:11px}@media(max-width:700px){.stv:not(.stv-admin) .header{gap:8px}.stv .signout-form .pill{padding:6px 7px}.stv:not(.stv-admin) .header>.profile{display:none}}
