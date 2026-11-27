@@ -37,6 +37,8 @@ class SammyTVTests(unittest.TestCase):
             response = self.client.get('/sammytv/watch/coast')
             self.assertIn("frame-src 'none'", response.headers['Content-Security-Policy'])
             self.assertNotIn(b'Load YouTube player', response.data)
+            self.assertNotIn(b'i.ytimg.com', response.data)
+            self.assertIn("img-src 'self';", response.headers['Content-Security-Policy'])
             self.assertEqual(self.client.get('/sammytv/api/catalogue').status_code, 503)
 
     def test_unknown_mode_fails_closed(self):

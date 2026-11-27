@@ -99,13 +99,14 @@ def context_for_page():
     if g.sammytv_preview:
         return dict(videos=demo.VIDEOS, channels=demo.CHANNELS, categories=demo.CATEGORIES,
             preview=True, brand_name='SammyTV', profile_initial='S', storage_scope='preview',
-            previous_url=None, next_url=None, is_parent=False)
+            previous_url=None, next_url=None, is_parent=False, thumbnails_enabled=False)
     repository, viewer = g.sammytv_repository, g.sammytv_viewer
     categories = repository.categories(viewer['family_id'])
     return dict(videos=[], channels=[], categories=['All'] + [c['name'] for c in categories] + ['Favourites'],
         category_records=categories, preview=False, brand_name=viewer['brand_name'],
         profile_initial=viewer['nickname'][:1].upper(), storage_scope=viewer['profile_id'],
-        previous_url=None, next_url=None, is_parent=viewer['role'] == 'parent')
+        previous_url=None, next_url=None, is_parent=viewer['role'] == 'parent',
+        thumbnails_enabled=os.getenv('SAMMYTV_YOUTUBE_THUMBNAILS_ENABLED', '1') == '1')
 
 
 @blueprint.get('')
@@ -231,8 +232,13 @@ def privacy_headers(response):
     playback = (not getattr(g, 'sammytv_preview', True)
                 and os.getenv('SAMMYTV_YOUTUBE_PLAYBACK_ENABLED') == '1')
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin' if playback else 'no-referrer'
+    thumbnails = (not getattr(g, 'sammytv_preview', True)
+                  and hasattr(g, 'sammytv_viewer') and request.endpoint == 'sammytv.page'
+                  and response.status_code == 200
+                  and os.getenv('SAMMYTV_YOUTUBE_THUMBNAILS_ENABLED', '1') == '1')
     response.headers['Content-Security-Policy'] = (
-        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; "
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'" +
+        (' https://i.ytimg.com' if thumbnails else '') + "; "
         "connect-src 'self'; frame-src " + ('https://www.youtube-nocookie.com' if playback else "'none'") +
         "; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'")
     response.headers['Cache-Control'] = 'private, no-store'

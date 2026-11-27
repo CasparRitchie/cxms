@@ -60,7 +60,17 @@
       <a class="pill parent-primary external-review" href="https://www.youtube.com/watch?v={{ item.provider_video_id }}" target="_blank" rel="noopener noreferrer">Watch on YouTube ↗</a>
       <p class="muted">Opens YouTube in a new tab for your review. This does not approve the video or enable playback for a viewer.</p>
       <details class="review-description"><summary>Video description</summary><p>{{ item.description or 'No description supplied.' }}</p></details>
-      {% if blocked %}<div class="parent-alert error"><strong>{{ 'Ordinary video approval is unavailable. A trusted live camera can be reviewed separately below.' if item.is_live and not camera_blocked else 'This video cannot be approved yet' }}</strong><ul>{% for reason in blocked %}<li>{{ reason }}</li>{% endfor %}</ul></div>{% endif %}
+      {% if blocked %}
+      <div class="parent-alert{{ ' error' if not item.is_live or camera_blocked else '' }}">
+        {% if item.is_live %}
+        <strong>Live broadcasts need separate camera approval</strong>
+        <p>For a camera feed you trust, use “Approve as live camera” below. The stream must be live when you approve it.</p>
+        {% if camera_blocked %}<strong>Resolve these restrictions first</strong><ul>{% for reason in camera_blocked %}<li>{{ reason }}</li>{% endfor %}</ul>{% endif %}
+        {% else %}
+        <strong>This video cannot be approved yet</strong><ul>{% for reason in blocked %}<li>{{ reason }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+      {% endif %}
     </section>
     <section class="parent-panel" aria-labelledby="approval-heading">
       <p class="eyebrow">YOUR DECISION</p><h2 id="approval-heading">Review &amp; approve</h2>

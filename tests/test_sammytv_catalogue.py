@@ -124,7 +124,7 @@ class CatalogueTests(unittest.TestCase):
         self.assertIn(b'Railways', response.data)
         self.assertNotIn(b'Lucas Ivkovic', response.data)
         self.assertNotIn(b'PRIVATE PARENT NOTES', response.data)
-        self.assertNotIn(b'AbCdEf123_-', response.data)
+        self.assertIn(b'https://i.ytimg.com/vi/AbCdEf123_-/hqdefault.jpg', response.data)
 
     def test_api_projection_omits_moderation_and_identity_data(self):
         response = self.client.get('/sammytv/api/catalogue')
@@ -135,6 +135,30 @@ class CatalogueTests(unittest.TestCase):
             self.assertNotIn(key, row)
         self.assertEqual(response.headers['Cache-Control'], 'private, no-store')
         self.assertEqual(response.headers['Vary'], 'Cookie')
+
+    def test_thumbnails_use_only_the_approved_video_and_fixed_image_host(self):
+        self.repo.rows[0]['thumbnail_url'] = 'https://untrusted.example/tracker.jpg'
+        page = self.client.get('/sammytv')
+        self.assertIn(b'https://i.ytimg.com/vi/AbCdEf123_-/hqdefault.jpg', page.data)
+        self.assertNotIn(b'untrusted.example', page.data)
+        self.assertIn(b'referrerpolicy="no-referrer" crossorigin="anonymous"', page.data)
+        self.assertIn("img-src 'self' https://i.ytimg.com;", page.headers['Content-Security-Policy'])
+        self.assertIn(b'data-fallback-src="/static/sammytv/train.svg"', page.data)
+        watch = self.client.get(f'/sammytv/watch/{VIDEO}')
+        self.assertIn(b'class="provider-thumbnail"', watch.data)
+        self.assertNotIn(b'<iframe', watch.data)
+        self.repo.rows[0]['status'] = 'hidden'
+        self.assertNotIn(b'i.ytimg.com/vi/', self.client.get('/sammytv').data)
+
+    def test_thumbnail_switch_restores_local_images_and_restrictive_csp(self):
+        with patch.dict(os.environ, {'SAMMYTV_YOUTUBE_THUMBNAILS_ENABLED': '0'}):
+            for path in ('/sammytv', f'/sammytv/watch/{VIDEO}'):
+                page = self.client.get(path)
+                self.assertNotIn(b'i.ytimg.com', page.data)
+                self.assertIn("img-src 'self';", page.headers['Content-Security-Policy'])
+        self.client.delete_cookie(COOKIE_NAME)
+        signin = self.client.get('/sammytv/signin')
+        self.assertNotIn('i.ytimg.com', signin.headers['Content-Security-Policy'])
 
     def test_forged_parent_claim_cannot_grant_parent_access(self):
         self.sign_in(role='parent')
@@ -237,7 +261,7 @@ class CatalogueTests(unittest.TestCase):
             page = self.client.get(f'/sammytv/watch/{VIDEO}')
             self.assertIn(b'Load YouTube player', page.data)
             self.assertNotIn(b'<iframe', page.data)
-            self.assertNotIn(b'AbCdEf123_-', page.data)
+            self.assertNotIn(b'https://www.youtube-nocookie.com/embed/', page.data)
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertTrue(response.json['embed_url'].startswith('https://www.youtube-nocookie.com/embed/AbCdEf123_-?'))

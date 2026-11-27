@@ -37,12 +37,15 @@
   <div class="sidebar-foot">Your videos. Your space.<small>A collection built around you.</small>{% if preview or is_parent %}<a href="/sammytv/admin">Parent area ↗</a>{% endif %}</div>
 </aside>
 <main id="content" class="content">
-  <div class="prototype-note">{{ 'Interface preview · Illustrative videos, no live playback or account connected.' if preview else 'Private catalogue · Parent-reviewed videos. Thumbnails are illustrative during setup.' }}</div>
+  <div class="prototype-note">{{ 'Interface preview · Illustrative videos, no live playback or account connected.' if preview else 'Private catalogue · Videos chosen by your family.' }}</div>
   {% if video %}
   <section class="watch-layout">
     <div>
       <div class="player" id="player">
-        <img src="{{ url_for('static', filename='sammytv/' + video.kind + '.svg') }}" alt="">
+        {% set fallback = url_for('static', filename='sammytv/' + video.kind + '.svg') %}
+        {% if not preview and thumbnails_enabled and video.thumbnail_url %}
+        <img class="provider-thumbnail" src="{{ video.thumbnail_url }}" data-fallback-src="{{ fallback }}" alt="" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous">
+        {% else %}<img src="{{ fallback }}" alt="">{% endif %}
         <div class="player-message">
           {% if preview %}
           <span class="play-large">▶</span>
@@ -71,7 +74,7 @@
     <aside class="watch-next">
       <h2>More to explore</h2>
       <p class="muted">{{ 'From this preview collection' if preview else 'From your reviewed collection' }}</p>
-      <div class="grid compact">{% for item in videos if item.id != video.id %}{{ video_card(item, preview) }}{% endfor %}</div>
+      <div class="grid compact">{% for item in videos if item.id != video.id %}{{ video_card(item, preview, thumbnails_enabled) }}{% endfor %}</div>
     </aside>
   </section>
   {% elif section in ['admin','requests','history'] %}
@@ -107,7 +110,7 @@
   {% endif %}
   <div class="section-heading"><h2>{{ 'Videos' if channel or section in ['search','favourites'] else 'Made for your interests' }}</h2><span>{{ 'Preview collection' if preview else 'Recently approved' }}</span></div>
   <p class="empty-results" {% if videos %}hidden{% endif %}>No videos here yet. Try another category or search.</p>
-  <div class="grid" id="catalogue">{% for item in videos %}{{ video_card(item, preview) }}{% endfor %}</div>
+  <div class="grid" id="catalogue">{% for item in videos %}{{ video_card(item, preview, thumbnails_enabled) }}{% endfor %}</div>
   {% if previous_url or next_url %}<nav class="pagination" aria-label="Catalogue pages">{% if previous_url %}<a class="pill" href="{{ previous_url }}">← Previous page</a>{% endif %}{% if next_url %}<a class="pill" href="{{ next_url }}">Next page →</a>{% endif %}</nav>{% endif %}
   {% endif %}
 </main>

@@ -1,7 +1,10 @@
-{% macro video_card(item, preview) %}
+{% macro video_card(item, preview, thumbnails_enabled=false) %}
 <article class="card" data-id="{{ item.id }}" data-categories='{{ item.categories|tojson }}' data-search="{{ (item.title + ' ' + item.channel.name)|lower }}">
   <a class="thumbnail art-{{ item.kind }}" href="{{ url_for('sammytv.page', video_id=item.id) }}">
-    <img src="{{ url_for('static', filename='sammytv/' + item.kind + '.svg') }}" alt="" loading="lazy">
+    {% set fallback = url_for('static', filename='sammytv/' + item.kind + '.svg') %}
+    {% if not preview and thumbnails_enabled and item.thumbnail_url %}
+    <img class="provider-thumbnail" src="{{ item.thumbnail_url }}" data-fallback-src="{{ fallback }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" crossorigin="anonymous">
+    {% else %}<img src="{{ fallback }}" alt="" loading="lazy">{% endif %}
     <span class="thumb-caption">{{ item.caption }}</span>
     <span class="duration {{ 'live' if item.duration == 'LIVE' else '' }}">{{ ('● LIVE PREVIEW' if preview else '● LIVE CAMERA') if item.duration == 'LIVE' else item.duration }}</span>
   </a>

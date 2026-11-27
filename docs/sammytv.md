@@ -31,6 +31,7 @@ The owner reports applying the catalogue, identity, identity-permissions and mod
 | `SAMMYTV_SESSION_SECRET` | None | Independent random secret of at least 32 characters. No fallback to Flask or sports workspace secrets. |
 | `SAMMYTV_YOUTUBE_PLAYBACK_ENABLED` | Off | Set exactly `1` only after parent review of provider and device limitations. |
 | `SAMMYTV_YOUTUBE_API_KEY` | None | Server-only YouTube Data API v3 key for importing public video metadata and checking it again on approval. Independent of the playback setting. |
+| `SAMMYTV_YOUTUBE_THUMBNAILS_ENABLED` | `1` | Show the public YouTube video thumbnail on private catalogue/watch pages. Set `0` to use local illustrations and prevent these image requests. Independent of playback. |
 
 Do not enable catalogue mode for Sammy until Phase 3 sign-in/provisioning exists and database checks pass. With no dedicated session the private catalogue returns 401; administration returns 403 for a viewer. Leaving preview mode on remains safe for interface review and does not expose the real catalogue.
 
@@ -66,7 +67,9 @@ All routes below are under `/sammytv`, require a valid private session, and retu
 
 Search is literal, case-insensitive and restricted to approved titles, descriptions and channel names. SQL receives typed JSON parameters, not interpolated SQL/search syntax. There are no YouTube search requests. Queries are bounded; recommendations are just another page of the approved catalogue. Error responses do not contain upstream responses, keys or private moderation data.
 
-All SammyTV page/API responses use `private, no-store`, `Vary: Cookie` and `noindex`. Preview/catalogue images remain local illustrations; no third-party thumbnail request or iframe is loaded at page render. Infrastructure access logs can still contain requested routes and search queries; restrict access and retention, and never log cookies or tokens. No real name, birth date, diagnosis or email is needed for a viewer profile.
+All SammyTV page/API responses use `private, no-store`, `Vary: Cookie` and `noindex`. Preview and sign-in stay local. Private catalogue/watch pages now request YouTube thumbnail images for approved videos from `https://i.ytimg.com/vi/<validated-video-id>/hqdefault.jpg`, using anonymous CORS requests and no referrer. Google still receives the requesting IP and normal network/browser information. No viewer identity, cookie or parent notes are added to the URL. The API projection includes this public thumbnail URL, so public video IDs are no longer hidden within returned metadata. No iframe is loaded until the viewer clicks. Infrastructure access logs can still contain requested routes and search queries; restrict access and retention, and never log cookies or tokens. No real name, birth date, diagnosis or email is needed for a viewer profile.
+
+Thumbnails use the creator's standard YouTube image, not extracted video frames, and are shown without cropping/hover zoom. Card images lazy-load; unavailable images fall back to the existing local illustration. Camera thumbnails are preview artwork, not a guarantee of current live pictures. Existing approved videos need no SQL, import or re-approval for this display change. Set `SAMMYTV_YOUTUBE_THUMBNAILS_ENABLED=0` to disable external images; disabling playback alone does not disable thumbnails.
 
 ## YouTube and child safety review
 
@@ -81,6 +84,8 @@ The application can control its own catalogue and recommendations. It cannot gua
 Before enabling unsupervised use, test the exact iPhone/tablet/browser with a parent-controlled passcode, app-install restrictions, browser/site restrictions and OS settings that prevent opening unrestricted YouTube/other browsers. A PWA or Guided Access can help keep an app open but must not be assumed to prevent every iframe/link escape. Test end screens, ads, share/logo links, fullscreen, keyboard/context menus, new tabs, app handoffs and deleted/age-restricted videos. If these cannot meet the requirement, keep YouTube off and investigate provider-authorised embeds with stronger controls or original/licensed content. Railway webcam operators and educational providers require permission/terms checks; their content is not implicitly approved.
 
 The UK government's published plan anticipates under-16 social-media restrictions from spring 2027; its examples include YouTube, with further restrictions affecting livestreaming. Do not assume that showing YouTube through a curated wrapper creates an exemption. Check final regulations, platform implementation and applicability to this service before launch or commercial use. [Government fact sheet, updated 18 September 2026](https://www.gov.uk/government/publications/fact-sheet-new-rules-to-protect-children-online/fact-sheet-new-rules-to-protect-children-online).
+
+The [27 November transition plan](sammytv-provider-transition.md) covers player links, UK rule changes, authorised independent sources and a staged provider migration. Blocking YouTube links with overlays, click interception or a restrictive sandbox is not a supported solution: [YouTube's policy guide](https://developers.google.com/youtube/terms/developer-policies-guide) explicitly prohibits blocking standard links. No such restriction has been added to the player.
 
 ## Validation and rollout
 

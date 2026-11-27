@@ -2,6 +2,24 @@
   'use strict';
   const root = document.documentElement;
   const preview = document.body.dataset.preview === 'true';
+  document.querySelectorAll('img[data-fallback-src]').forEach(image => {
+    const fallback = () => {
+      const source = image.dataset.fallbackSrc;
+      if (!source) return;
+      delete image.dataset.fallbackSrc;
+      image.classList.remove('provider-thumbnail');
+      image.removeAttribute('crossorigin');
+      image.src = source;
+    };
+    // The thumbnail host can return a 120×90 placeholder with HTTP 200.
+    const checkSize = () => {
+      if (image.naturalWidth <= 120 && image.naturalHeight <= 90) fallback();
+    };
+    image.addEventListener('error', fallback, { once: true });
+    image.addEventListener('load', checkSize, { once: true });
+    // A cached failure may have occurred before this deferred script ran.
+    if (image.complete) checkSize();
+  });
   const storageScope = document.body.dataset.storageScope || 'preview';
   const favouriteKey = storageScope === 'preview' ? 'sammytv:favourites' : `sammytv:favourites:${storageScope}`;
   const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };

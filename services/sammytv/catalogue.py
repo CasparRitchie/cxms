@@ -40,7 +40,11 @@ def is_visible(row, family_id):
 
 
 def viewer_video(row):
-    """Explicit public projection: no approval identities, family IDs or provider IDs."""
+    """Viewer metadata without private identities or moderation data.
+
+    The thumbnail necessarily identifies its public YouTube video. Build it only
+    from the validated catalogue ID, never a stored or caller-supplied URL.
+    """
     seconds = max(0, int(row['duration_seconds']))
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
@@ -52,7 +56,8 @@ def viewer_video(row):
             'channel': {'id': channel['id'], 'name': channel['name'],
                         'initials': ''.join(word[0] for word in channel['name'].split()[:2]).upper()},
             'categories': categories, 'approved_at': row['approved_at'],
-            'kind': kind, 'caption': '', 'is_camera': row.get('live_camera') is True}
+            'kind': kind, 'caption': '', 'is_camera': row.get('live_camera') is True,
+            'thumbnail_url': 'https://i.ytimg.com/vi/' + row['provider_video_id'] + '/hqdefault.jpg'}
 
 
 def checked_videos(repository, family_id, **filters):
