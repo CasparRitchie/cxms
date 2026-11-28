@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <title>{{ brand_name }} · Your next great watch</title>
+  <title>{{ brand_name }} · Your next great watch</title><link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='sammytv/logo.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='sammytv/app.css') }}">
   <script defer src="{{ url_for('static', filename='sammytv/app.js') }}"></script>
 </head>
@@ -13,7 +13,7 @@
 <a class="skip" href="#content">Skip to videos</a>
 <header class="header">
   <button class="icon menu" aria-label="Toggle sidebar" aria-expanded="true">☰</button>
-  <a class="brand" href="/sammytv"><span class="brand-icon">▶</span> {{ brand_name }}</a>
+  <a class="brand" href="/sammytv">{% include 'sammytv/brand_icon.html' %} {{ brand_name }}</a>
   {% if preview %}<span class="preview-label">PREVIEW</span>{% endif %}
   <form class="search" action="/sammytv/search">
     <input type="search" name="q" placeholder="Search your videos" aria-label="Search your videos" maxlength="120" value="{{ request.args.get('q', '') }}">

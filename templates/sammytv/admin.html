@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <title>{{ brand_name }} · Parent area</title>
+  <title>{{ brand_name }} · Parent area</title><link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='sammytv/logo.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='sammytv/app.css') }}">
   <script defer src="{{ url_for('static', filename='sammytv/app.js') }}"></script>
 </head>
 <body class="stv stv-admin" data-section="admin" data-preview="false">
 <a class="skip" href="#content">Skip to parent controls</a>
 <header class="header">
-  <a class="brand" href="/sammytv"><span class="brand-icon">▶</span> {{ brand_name }}</a>
+  <a class="brand" href="/sammytv">{% include 'sammytv/brand_icon.html' %} {{ brand_name }}</a>
   <span class="parent-label">PARENT AREA</span>
   <nav class="parent-navigation" aria-label="Parent navigation">
     <a href="{{ url_for('sammytv.admin') }}" {% if not item and not managing_categories %}aria-current="page"{% endif %}>Videos</a>

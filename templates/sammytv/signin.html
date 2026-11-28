@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en" data-theme="dark">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark light"><title>SammyTV · Welcome back</title><link rel="stylesheet" href="{{ url_for('static', filename='sammytv/app.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='sammytv/accounts.css') }}"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark light"><title>SammyTV · Welcome back</title><link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='sammytv/logo.svg') }}"><link rel="stylesheet" href="{{ url_for('static', filename='sammytv/app.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='sammytv/accounts.css') }}"></head>
 <body class="stv stv-access">
-<header class="access-header"><a class="brand" href="/sammytv"><span class="brand-icon">▶</span> SammyTV</a><span class="muted">Your videos. Your space.</span></header>
+<header class="access-header"><a class="brand" href="/sammytv">{% include 'sammytv/brand_icon.html' %} SammyTV</a><span class="muted">Your videos. Your space.</span></header>
 <main class="access-layout" id="content">
   <section class="access-intro"><p class="eyebrow">A COLLECTION BUILT AROUND YOU</p><h1>Welcome to your<br> next great watch.</h1><p>Rail adventures. Big departures. Favourite creators.<br>A private collection chosen by your family.</p><img src="{{ url_for('static',filename='sammytv/train.svg') }}" alt="Illustration of a train travelling through hills"></section>
   <section class="parent-panel access-panel">
